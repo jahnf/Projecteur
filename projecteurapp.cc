@@ -15,7 +15,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   , m_globalShortcut(new QGlobalShortcutX11(QKeySequence("Ctrl+F3"), this))
 {
   auto engine = new QQmlApplicationEngine(QUrl(QStringLiteral("qrc:/main.qml")), this);
-  if (auto window = qobject_cast<QQuickWindow*>(engine->rootObjects().first()))
+  auto window = qobject_cast<QQuickWindow*>(engine->rootObjects().first());
+  if (window)
   {
     if (screens().size())
     {
@@ -35,15 +36,32 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
         if(g.width() == w && window->height() == g.height() ) { setFlags(); }
       });
     }
+    connect(m_globalShortcut, &QGlobalShortcutX11::activated, [window](){
+      if(window->flags() & Qt::WindowTransparentForInput)
+      {
+        qDebug() << "activated";
+        window->setFlag(Qt::WindowTransparentForInput, false);
+        window->show();
+      }
+      else {
+        qDebug() << "de-activated";
+        window->setFlag(Qt::WindowTransparentForInput, true);
+        window->hide();
+      }
+    });
+
   }
   m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray.png"));
   m_trayIcon->show();
 
-  connect(m_globalShortcut, &QGlobalShortcutX11::activated, [](){ qDebug() << "activated";});
+
+  //connect(m_trayIcon, &QSystemTrayIcon::activated...)
+  //m_trayIcon->showMessage("Title", "Message....", QSystemTrayIcon::Information, 10000);
 
   const auto shortcut2 = new QGlobalShortcutX11(QKeySequence("Ctrl+Alt+7"), this);
-  connect(shortcut2, &QGlobalShortcutX11::activated, [this](){
+  connect(shortcut2, &QGlobalShortcutX11::activated, [this, window](){
     qDebug() << "activated ctrl+alt+7";
+    if(window) window->close();
     this->quit();
   });
 
