@@ -28,5 +28,4 @@ private:
     quint8 m_keyCode = 0;
     quint16 m_keyMods = 0;
     void unsetKey();
-    void initialize();
 };

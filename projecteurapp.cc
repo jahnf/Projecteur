@@ -41,6 +41,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
   connect(m_globalShortcut, &QGlobalShortcutX11::activated, [](){ qDebug() << "activated";});
 
+  const auto shortcut2 = new QGlobalShortcutX11(QKeySequence("Ctrl+Alt+7"), this);
+  connect(shortcut2, &QGlobalShortcutX11::activated, [this](){
+    qDebug() << "activated ctrl+alt+7";
+    this->quit();
+  });
+
 }
 
 ProjecteurApplication::~ProjecteurApplication()

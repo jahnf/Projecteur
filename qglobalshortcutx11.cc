@@ -7,6 +7,7 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
+
 namespace {
   xcb_keycode_t toNativeKeycode(const Qt::Key k)
   {
@@ -122,8 +123,10 @@ namespace {
 
   void X11unregisterKey(xcb_keycode_t k, quint16 m)
   {
-    xcb_ungrab_key(QX11Info::connection(), k,
-                   static_cast<xcb_window_t>(QX11Info::appRootWindow()), m);
+    if(const auto rw = QX11Info::appRootWindow()) {
+      xcb_ungrab_key(QX11Info::connection(), k,
+                     static_cast<xcb_window_t>(QX11Info::appRootWindow()), m);
+    }
   }
 }
 
@@ -136,6 +139,7 @@ QGlobalShortcutX11::QGlobalShortcutX11(const QKeySequence& keyseq, QObject* pare
   : QObject(parent)
 {
   setKey(keyseq);
+  connect(qApp, &QCoreApplication::aboutToQuit, [this](){ unsetKey(); });
 }
 
 QGlobalShortcutX11::~QGlobalShortcutX11()
@@ -174,9 +178,7 @@ void QGlobalShortcutX11::unsetKey()
     return;
 
   qApp->removeNativeEventFilter(this);
-  const auto keycode = toNativeKeycode(getKey(m_keySeq));
-  const auto mods = toNativeModifiers(getMods(m_keySeq));
-  X11unregisterKey(keycode, mods);
+  X11unregisterKey(m_keyCode, m_keyMods);
   m_keySeq = QKeySequence();
 }
 
