@@ -29,8 +29,10 @@ add_executable(projecteur
   main.cc
   projecteurapp.cc projecteurapp.h
   qglobalshortcutx11.cc qglobalshortcutx11.h
-  resources.qrc
-  qml/qml.qrc)
+  runguard.cc runguard.h
+  settings.cc settings.h
+  spotlight.cc spotlight.h
+  resources.qrc qml/qml.qrc)
 
 target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras

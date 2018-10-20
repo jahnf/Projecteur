@@ -23,9 +23,11 @@ Window {
     }
 
     Rectangle {
+        property int spotSize: (mainWindow.height / 100.0) * Settings.spotSize
         id: centerRect
         opacity: 0.3 // TODO: get from settings
-        width: 200; height:200 // TODO: get size of spot from settings, with sane default settings depending screen resolution
+        height: spotSize > 50 ? Math.min(spotSize, mainWindow.height) : 50;
+        width: height
         x: ma.mouseX - width/2
         y: ma.mouseY - height/2
         color: "#222222" // TODO: get from settings.

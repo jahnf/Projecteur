@@ -1,6 +1,8 @@
 #include "projecteurapp.h"
 #include "projecteur-GitVersion.h"
 
+#include "runguard.h"
+
 #include <QCommandLineParser>
 
 #ifndef NDEBUG
@@ -15,10 +17,18 @@ namespace {
     auto& operator<<(const T& a) const { return std::cout << a; }
     ~print() { std::cout << std::endl; }
   };
+
+  struct error {
+    template<typename T>
+    auto& operator<<(const T& a) const { return std::cerr << a; }
+    ~error() { std::cerr << std::endl; }
+  };
 }
 
 int main(int argc, char *argv[])
 {
+  QCoreApplication::setApplicationName("Projecteur");
+  QCoreApplication::setApplicationVersion(projecteur::version_string());
   {
     QCommandLineParser parser;
     parser.setApplicationDescription("Linux/X11 application for the Logitech Spotlight device.");
@@ -32,8 +42,9 @@ int main(int argc, char *argv[])
     parser.process(args);
     if (parser.isSet(versionOption))
     {
-      print() << "Projecteur " << projecteur::version_string();
-      if (std::string( projecteur::version_branch()) != "master")
+      print() << QCoreApplication::applicationName().toStdString() << " "
+              << projecteur::version_string();
+      if (std::string(projecteur::version_branch()) != "master")
       { // Not a build from master branch, print out additional information:
         print() << "  - git-branch: " << projecteur::version_branch();
         print() << "  - git-hash: " << projecteur::version_fullhash();
@@ -45,9 +56,14 @@ int main(int argc, char *argv[])
     }
   }
 
+  RunGuard guard(QCoreApplication::applicationName());
+  if (!guard.tryToRun())
+  {
+    error() << "Another application instance is already running. Exiting.";
+    return 42;
+  }
+
   //QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   ProjecteurApplication app(argc, argv);
-  app.setApplicationName("Projecteur");
-  app.setApplicationVersion(projecteur::version_string());
   return app.exec();
 }

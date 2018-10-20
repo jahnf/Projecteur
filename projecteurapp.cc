@@ -1,11 +1,14 @@
 #include "projecteurapp.h"
 
 #include "qglobalshortcutx11.h"
+#include "settings.h"
+#include "spotlight.h"
 
 #include <QDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QScopedPointer>
 #include <QScreen>
@@ -21,8 +24,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   , m_dialog(new QDialog())
 {
   setQuitOnLastWindowClosed(false);
+  auto settings = new Settings(this);
 
-  auto engine = new QQmlApplicationEngine(QUrl(QStringLiteral("qrc:/main.qml")), this);
+  auto engine = new QQmlApplicationEngine(this);
+  engine->rootContext()->setContextProperty("Settings", settings);
+  engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
   auto window = qobject_cast<QQuickWindow*>(engine->rootObjects().first());
 
   if (!window)
@@ -65,7 +71,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     if(availGeometry.width() == w && window->height() == availGeometry.height() ) { setFlags(); }
   });
 
-  window->setGeometry(availGeometry);
+  window->setGeometry(availGeometry); qDebug() << availGeometry;
 
   const auto shortcut = new QGlobalShortcutX11(QKeySequence("Ctrl+F3"), this);
   connect(shortcut, &QGlobalShortcutX11::activated, [window](){
@@ -82,13 +88,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     }
   });
 
-  m_trayMenu->addAction("Test1", [this](){
-    qDebug() << "Test1";
+  m_trayMenu->addAction("Preferences...", [this](){
     m_dialog->setWindowTitle("asdfsadfsdfasdf");
     m_dialog->show();
 //    m_dialog->raise();
     m_dialog->activateWindow();
   });
+  m_trayMenu->addSeparator();
+  m_trayMenu->addAction("Q&uit", [this](){ this->quit(); });
   m_trayIcon->setContextMenu( m_trayMenu.data() );
 
   //connect(m_trayIcon, &QSystemTrayIcon::activated...)
@@ -98,13 +105,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   // QObject::connect(screens().first(), &QScreen::availableGeometryChanged, [](const QRect& /*g*/){});
 
   const auto shortcut2 = new QGlobalShortcutX11(QKeySequence("Ctrl+Alt+7"), this);
-  connect(shortcut2, &QGlobalShortcutX11::activated, [this, window](){
+  connect(shortcut2, &QGlobalShortcutX11::activated, [this](){
     qDebug() << "activated ctrl+alt+7";
-    if(window) window->close();
     this->quit();
   });
+  connect(this, &QApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
-  //window->installEventFilter(new QObject(this));
+//  auto spotl = new Spotlight(this);
 }
 
 ProjecteurApplication::~ProjecteurApplication()
