@@ -2,8 +2,8 @@
 
 #include <QApplication>
 
+class QMenu;
 class QSystemTrayIcon;
-class QGlobalShortcutX11;
 
 class ProjecteurApplication : public QApplication
 {
@@ -11,9 +11,9 @@ class ProjecteurApplication : public QApplication
 
 public:
   explicit ProjecteurApplication(int &argc, char **argv);
-  virtual ~ProjecteurApplication();
+  virtual ~ProjecteurApplication() override;
 
 private:
   QSystemTrayIcon* m_trayIcon = nullptr;
-  QGlobalShortcutX11* m_globalShortcut = nullptr;
+  QScopedPointer<QMenu> m_trayMenu;
 };

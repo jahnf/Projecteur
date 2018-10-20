@@ -11,13 +11,16 @@ endif()
 
 project(Projecteur LANGUAGES CXX)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Gui Quick Widgets X11Extras REQUIRED)
 find_package(X11 REQUIRED)
+
+#add_executable(input-test input-test.cc )
+#target_link_libraries(input-test Qt5::Core)
 
 add_executable(projecteur
   main.cc
@@ -29,3 +32,7 @@ add_executable(projecteur
 target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras
   ${X11_LIBRARIES} xcb)
+
+
+# Add target with non-source files for convenience when using IDEs like QtCreator and others
+add_custom_target(non-sources SOURCES README.md 55-spotlight.rules)

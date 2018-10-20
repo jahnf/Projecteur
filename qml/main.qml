@@ -1,4 +1,3 @@
-
 import QtQuick 2.3
 import QtQuick.Window 2.2
 import QtGraphicalEffects 1.0
@@ -6,7 +5,7 @@ import QtGraphicalEffects 1.0
 Window {
     id: mainWindow
     visible: true
-    width: 99; height: 99
+    width: 3; height: 3
 
     flags: Qt.FramelessWindowHint | Qt.Window
            | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
@@ -17,6 +16,7 @@ Window {
         anchors.fill:parent
         MouseArea {
             id: ma
+            cursorShape: Qt.BlankCursor // TODO make configurable
             anchors.fill: parent
             hoverEnabled: true
         }
@@ -46,6 +46,15 @@ Window {
         anchors.fill: centerRect
         source: centerRect
         maskSource: circle
+    }
+
+    Rectangle {
+        id: dotCursor // TODO: configurable as "cursor"
+        antialiasing: true
+        anchors.centerIn: centerRect
+        width: 5; height: width // TODO: color and size configurable
+        radius: width*0.5
+        color: "red"
     }
 
     Rectangle {

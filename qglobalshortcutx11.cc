@@ -7,9 +7,8 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
-
 namespace {
-  xcb_keycode_t toNativeKeycode(const Qt::Key k)
+  xcb_keycode_t toXcbKeycode(const Qt::Key k)
   {
     quint32 key = 0;
     if (k >= Qt::Key_F1 && k <= Qt::Key_F35) {
@@ -85,7 +84,7 @@ namespace {
     return XKeysymToKeycode(QX11Info::display(), key);
   }
 
-  quint16 toNativeModifiers(Qt::KeyboardModifiers m)
+  quint16 toXcbModifiers(Qt::KeyboardModifiers m)
   {
     quint16 mods = Qt::NoModifier;
     if (m & Qt::ShiftModifier)
@@ -162,8 +161,8 @@ void QGlobalShortcutX11::setKey(const QKeySequence& keyseq)
   }
   else
   {
-    const auto keycode = toNativeKeycode(getKey(keyseq));
-    const auto mods = toNativeModifiers(getMods(keyseq));
+    const auto keycode = toXcbKeycode(getKey(keyseq));
+    const auto mods = toXcbModifiers(getMods(keyseq));
     X11registerKey(keycode, mods);
     qApp->installNativeEventFilter(this);
     m_keySeq = keyseq;
@@ -191,8 +190,6 @@ bool QGlobalShortcutX11::nativeEventFilter(const QByteArray& evType, void* msg, 
   if ((e->response_type & ~0x80) == XCB_KEY_PRESS)
   {
     const xcb_key_press_event_t* ke = reinterpret_cast<const xcb_key_press_event_t*>(e);
-//    xcb_get_keyboard_mapping_reply_t rep;
-//    xcb_keysym_t* k = xcb_get_keyboard_mapping_keysyms(&rep);
     const xcb_keycode_t keycode = ke->detail;
     const quint16 mods = ke->state & (ShiftMask|ControlMask|Mod1Mask|Mod3Mask);
 

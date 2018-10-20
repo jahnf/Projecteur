@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/icons">
-        <file>projecteur-tray.png</file>
+        <file>projecteur-tray.svg</file>
     </qresource>
 </RCC>

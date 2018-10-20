@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.1)
 project(libhidapi C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
+set(HIDAPI_VARIANT "libusb" CACHE STRING "One of 'libusb' or 'hidraw'.")
 
-if(BUILD_DCLED_HIDAPI_LIBUSB)
+if(HIDAPI_VARIANT STREQUAL "libusb")
   find_package(LibUSB REQUIRED)
   #TODO Fix findLibUSB to always have correct include dirs...
   get_filename_component(LIBUSB1_INCLUDE_DIR "${LibUSB_HEADER_FILE}" DIRECTORY)
@@ -16,9 +17,8 @@ if(BUILD_DCLED_HIDAPI_LIBUSB)
       ${CMAKE_CURRENT_SOURCE_DIR}
   )
   target_link_libraries(hidapi-libusb INTERFACE ${LibUSB_LIBRARIES} pthread)
-endif()
 
-if(BUILD_DCLED_HIDAPI_RAW)
+elseif(HIDAPI_VARIANT STREQUAL "hidraw")
   find_package(udev REQUIRED)
   add_library(hidapi-hidraw STATIC EXCLUDE_FROM_ALL linux/hid.c)
   target_include_directories(hidapi-hidraw BEFORE
@@ -29,4 +29,6 @@ if(BUILD_DCLED_HIDAPI_RAW)
       ${CMAKE_CURRENT_SOURCE_DIR}
   )
   target_link_libraries(hidapi-hidraw PUBLIC ${UDEV_LIBRARIES})
+else()
+  message(FATAL_ERROR "Unknown HIDAPI_VARIANT - must be 'libusb")
 endif()
