@@ -2,6 +2,7 @@
 
 #include "qglobalshortcutx11.h"
 
+#include <QDialog>
 #include <QMenu>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
@@ -17,7 +18,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon(this))
   , m_trayMenu(new QMenu())
+  , m_dialog(new QDialog())
 {
+  setQuitOnLastWindowClosed(false);
+
   auto engine = new QQmlApplicationEngine(QUrl(QStringLiteral("qrc:/main.qml")), this);
   auto window = qobject_cast<QQuickWindow*>(engine->rootObjects().first());
 
@@ -36,10 +40,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     return;
   }
 
-  auto setFlags = [window]() {
-    window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
-    window->hide();
-  };
+  m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray.svg"));
+  m_trayIcon->show();
 
   // /sys/class/input/event18/device/id
   // parse /proc/bus/input/devices -
@@ -48,6 +50,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   // TODO: Set screen set in options or command line if available use first screen as fallback.
   // TODO: Notify if set screen is not availabe and notify of fallback.
   const auto availGeometry = screens().first()->availableGeometry();
+
+  auto setFlags = [window]() {
+    window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
+    window->hide();
+  };
 
   // It seems we need to set the transparent and tool flags AFTER the window size has changed,
   // otherwise it will not work.
@@ -75,10 +82,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     }
   });
 
-  m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray.svg"));
-  m_trayIcon->show();
-
-  m_trayMenu->addAction("Test1", [](){ qDebug() << "Test1";});
+  m_trayMenu->addAction("Test1", [this](){
+    qDebug() << "Test1";
+    m_dialog->setWindowTitle("asdfsadfsdfasdf");
+    m_dialog->show();
+//    m_dialog->raise();
+    m_dialog->activateWindow();
+  });
   m_trayIcon->setContextMenu( m_trayMenu.data() );
 
   //connect(m_trayIcon, &QSystemTrayIcon::activated...)
@@ -94,7 +104,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     this->quit();
   });
 
-  //window->installEventFilter(new MyFilter(this));
+  //window->installEventFilter(new QObject(this));
 }
 
 ProjecteurApplication::~ProjecteurApplication()
