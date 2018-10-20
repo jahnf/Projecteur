@@ -11,6 +11,9 @@ endif()
 
 project(Projecteur LANGUAGES CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+include(GitVersion)
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -33,6 +36,7 @@ target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras
   ${X11_LIBRARIES} xcb)
 
+add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md 55-spotlight.rules)
