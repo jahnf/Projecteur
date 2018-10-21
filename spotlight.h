@@ -12,7 +12,9 @@ class Spotlight : public QObject
 
 public:
   explicit Spotlight(QObject* parent);
-  virtual ~Spotlight() = default;
+  virtual ~Spotlight();
+
+  bool spotActive() const { return m_spotActive; }
 
 //  bool deviceFound() const; //!< Returns true if a Logitech Spotlight device was found
 //  bool deviceConnected() const; //!< Returns true if the Logitech Spotlight device could be opened.
@@ -21,9 +23,10 @@ signals:
   void error(const QString& errMsg);
   void connected();
   void disconnected();
-  void spotActive(bool isActive);
+  void spotActiveChanged(bool isActive);
 
 private:
-  QSocketNotifier* m_deviceSocketNotifier = nullptr;
-  QSocketNotifier* m_linuxUdevNotifier = nullptr;
+  QScopedPointer<QSocketNotifier> m_deviceSocketNotifier;
+  QScopedPointer<QSocketNotifier> m_linuxUdevNotifier;
+  bool m_spotActive = false;
 };

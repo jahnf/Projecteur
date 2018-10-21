@@ -22,17 +22,19 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Gui Quick Widgets X11Extras REQUIRED)
 find_package(X11 REQUIRED)
 
-#add_executable(input-test input-test.cc )
-#target_link_libraries(input-test Qt5::Core)
+add_executable(input-test input-test.cc )
+target_link_libraries(input-test Qt5::Core)
 
 add_executable(projecteur
   main.cc
-  projecteurapp.cc projecteurapp.h
+  colorselector.cc      colorselector.h
+  preferencesdlg.cc     preferencesdlg.h
+  projecteurapp.cc      projecteurapp.h
   qglobalshortcutx11.cc qglobalshortcutx11.h
-  runguard.cc runguard.h
-  settings.cc settings.h
-  spotlight.cc spotlight.h
-  resources.qrc qml/qml.qrc)
+  runguard.cc           runguard.h
+  settings.cc           settings.h
+  spotlight.cc          spotlight.h
+  resources.qrc         qml/qml.qrc)
 
 target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras

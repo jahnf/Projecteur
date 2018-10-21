@@ -2,7 +2,7 @@
 
 #include <QApplication>
 
-class QDialog;
+class PreferencesDialog;
 class QMenu;
 class QSystemTrayIcon;
 
@@ -17,5 +17,5 @@ public:
 private:
   QSystemTrayIcon* m_trayIcon = nullptr;
   QScopedPointer<QMenu> m_trayMenu;
-  QScopedPointer<QDialog> m_dialog;
+  QScopedPointer<PreferencesDialog> m_dialog;
 };

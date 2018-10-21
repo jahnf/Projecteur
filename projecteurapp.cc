@@ -1,5 +1,6 @@
 #include "projecteurapp.h"
 
+#include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
 #include "spotlight.h"
@@ -21,30 +22,32 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon(this))
   , m_trayMenu(new QMenu())
-  , m_dialog(new QDialog())
 {
-  setQuitOnLastWindowClosed(false);
-  auto settings = new Settings(this);
-
-  auto engine = new QQmlApplicationEngine(this);
-  engine->rootContext()->setContextProperty("Settings", settings);
-  engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
-  auto window = qobject_cast<QQuickWindow*>(engine->rootObjects().first());
-
-  if (!window)
-  {
-    QMessageBox::critical(nullptr, tr("No root window found"),
-                                   tr("First item in QML hierarchy must be a Window."));
-    QTimer::singleShot(0, [this](){ this->exit(1); });
-    return;
-  }
-
   if (screens().size() < 1)
   {
     QMessageBox::critical(nullptr, tr("No Screens"), tr("screens().size() returned a size < 1."));
     QTimer::singleShot(0, [this](){ this->exit(2); });
     return;
   }
+
+  setQuitOnLastWindowClosed(false);
+  auto settings = new Settings(this);
+  m_dialog.reset(new PreferencesDialog(settings));
+
+  auto engine = new QQmlApplicationEngine(this);
+  engine->rootContext()->setContextProperty("Settings", settings);
+  engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
+  engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
+  auto window = topLevelWindows().first();
+
+  m_trayMenu->addAction("Preferences...", [this](){
+    m_dialog->show();
+    m_dialog->raise();
+    m_dialog->activateWindow();
+  });
+  m_trayMenu->addSeparator();
+  m_trayMenu->addAction("Q&uit", [this](){ this->quit(); });
+  m_trayIcon->setContextMenu( m_trayMenu.data() );
 
   m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray.svg"));
   m_trayIcon->show();
@@ -70,33 +73,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   window->connect(window, &QWindow::widthChanged, [availGeometry, window, setFlags](int w) {
     if(availGeometry.width() == w && window->height() == availGeometry.height() ) { setFlags(); }
   });
+  window->setGeometry(availGeometry);
 
-  window->setGeometry(availGeometry); qDebug() << availGeometry;
-
-  const auto shortcut = new QGlobalShortcutX11(QKeySequence("Ctrl+F3"), this);
-  connect(shortcut, &QGlobalShortcutX11::activated, [window](){
-    if(window->flags() & Qt::WindowTransparentForInput)
-    {
-      qDebug() << "activated";
-      window->setFlag(Qt::WindowTransparentForInput, false);
-      window->show();
-    }
-    else {
-      qDebug() << "de-activated";
-      window->setFlag(Qt::WindowTransparentForInput, true);
-      window->hide();
-    }
-  });
-
-  m_trayMenu->addAction("Preferences...", [this](){
-    m_dialog->setWindowTitle("asdfsadfsdfasdf");
-    m_dialog->show();
-//    m_dialog->raise();
-    m_dialog->activateWindow();
-  });
-  m_trayMenu->addSeparator();
-  m_trayMenu->addAction("Q&uit", [this](){ this->quit(); });
-  m_trayIcon->setContextMenu( m_trayMenu.data() );
+//  const auto shortcut = new QGlobalShortcutX11(QKeySequence("Ctrl+F3"), this);
+//  connect(shortcut, &QGlobalShortcutX11::activated, [window](){
+//    qDebug() << "GlobalShortCut Ctrl+F3" << window;
+//  });
 
   //connect(m_trayIcon, &QSystemTrayIcon::activated...)
   //m_trayIcon->showMessage("Title", "Message....", QSystemTrayIcon::Information, 10000);
@@ -104,14 +86,48 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   // TODO: Change window size if available geometry changes...
   // QObject::connect(screens().first(), &QScreen::availableGeometryChanged, [](const QRect& /*g*/){});
 
-  const auto shortcut2 = new QGlobalShortcutX11(QKeySequence("Ctrl+Alt+7"), this);
-  connect(shortcut2, &QGlobalShortcutX11::activated, [this](){
-    qDebug() << "activated ctrl+alt+7";
-    this->quit();
-  });
-  connect(this, &QApplication::aboutToQuit, [window](){ if (window) window->close(); });
+  connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
-//  auto spotl = new Spotlight(this);
+  auto spotlight = new Spotlight(this);
+  connect(spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
+    qDebug() << "Spot: " << active;
+    if (active)
+    {
+      window->setFlag(Qt::WindowTransparentForInput, false);
+      window->setFlag(Qt::WindowStaysOnTopHint, true);
+      window->show();
+    }
+    else {
+      if (m_dialog->isActiveWindow()) {
+        window->setFlag(Qt::WindowStaysOnTopHint, false);
+        m_dialog->raise();
+      }
+      else {
+        window->setFlag(Qt::WindowTransparentForInput, true);
+        window->hide();
+      }
+    }
+  });
+
+  connect(&*m_dialog, &PreferencesDialog::dialogActiveChanged,
+  [this, window, spotlight](bool active)
+  {
+    if (active) {
+      window->setFlag(Qt::WindowTransparentForInput, false);
+      window->setFlag(Qt::WindowStaysOnTopHint, false);
+      if (!window->isVisible()) {
+        window->show();
+        m_dialog->raise();
+      }
+    }
+    else if (spotlight->spotActive()) {
+      window->setFlag(Qt::WindowStaysOnTopHint, true);
+    }
+    else {
+      window->setFlag(Qt::WindowTransparentForInput, true);
+      window->hide();
+    }
+  });
 }
 
 ProjecteurApplication::~ProjecteurApplication()
