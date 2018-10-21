@@ -1,5 +1,6 @@
 #include "projecteurapp.h"
 
+#include "aboutdlg.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
@@ -40,13 +41,16 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
   auto window = topLevelWindows().first();
 
-  m_trayMenu->addAction("Preferences...", [this](){
+  m_trayMenu->addAction(tr("&Preferences..."), [this](){
     m_dialog->show();
     m_dialog->raise();
     m_dialog->activateWindow();
   });
+  m_trayMenu->addAction(tr("&About"), [this](){
+    AboutDialog().exec();
+  });
   m_trayMenu->addSeparator();
-  m_trayMenu->addAction("Q&uit", [this](){ this->quit(); });
+  m_trayMenu->addAction(tr("&Quit"), [this](){ this->quit(); });
   m_trayIcon->setContextMenu( m_trayMenu.data() );
 
   m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray.svg"));

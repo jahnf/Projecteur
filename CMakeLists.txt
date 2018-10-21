@@ -27,6 +27,7 @@ target_link_libraries(input-test Qt5::Core)
 
 add_executable(projecteur
   main.cc
+  aboutdlg.cc           aboutdlg.h
   colorselector.cc      colorselector.h
   preferencesdlg.cc     preferencesdlg.h
   projecteurapp.cc      projecteurapp.h
