@@ -44,4 +44,4 @@ target_link_libraries(projecteur
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md 55-spotlight.rules)
+add_custom_target(non-sources SOURCES README.md LICENSE.md 55-spotlight.rules)

@@ -1,3 +1,4 @@
+// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "qglobalshortcutx11.h"
 
 #include <QCoreApplication>
