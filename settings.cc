@@ -11,6 +11,7 @@ namespace {
     constexpr char dotColor[] = "dotColor";
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
+    constexpr char screen[] = "screen";
   }
 }
 
@@ -34,6 +35,7 @@ void Settings::setDefaults()
   setDotColor(Qt::red);
   setShadeColor(QColor("#222222"));
   setShadeOpacity(0.3);
+  setScreen(0);
 }
 
 void Settings::load()
@@ -44,6 +46,7 @@ void Settings::load()
   setDotColor(m_settings->value(::settings::dotColor, QColor(Qt::red)).value<QColor>());
   setShadeColor(m_settings->value(::settings::shadeColor, QColor("#222222")).value<QColor>());
   setShadeOpacity(m_settings->value(::settings::shadeOpacity, 0.3).toDouble());
+  setScreen(m_settings->value(::settings::screen, 0.3).toInt());
 }
 
 void Settings::setSpotSize(int size)
@@ -51,7 +54,7 @@ void Settings::setSpotSize(int size)
   if (size == m_spotSize)
     return;
 
-  m_spotSize = qMin(qMax(3,size), 100);
+  m_spotSize = qMin(qMax(3, size), 100);
   m_settings->setValue(::settings::spotSize, m_spotSize);
   emit spotSizeChanged(m_spotSize);
 }
@@ -71,7 +74,7 @@ void Settings::setDotSize(int size)
   if (size == m_dotSize)
     return;
 
-  m_dotSize = qMin(qMax(3,size), 100);
+  m_dotSize = qMin(qMax(3, size), 100);
   m_settings->setValue(::settings::dotSize, m_dotSize);
   emit dotSizeChanged(m_dotSize);
 }
@@ -104,4 +107,14 @@ void Settings::setShadeOpacity(double opacity)
     m_settings->setValue(::settings::shadeOpacity, m_shadeOpacity);
     emit shadeOpacityChanged(m_shadeOpacity);
   }
+}
+
+void Settings::setScreen(int screen)
+{
+  if (screen == m_screen)
+    return;
+
+  m_screen = qMin(qMax(0, screen), 10);
+  m_settings->setValue(::settings::screen, m_screen);
+  emit screenChanged(m_screen);
 }

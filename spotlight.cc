@@ -17,7 +17,7 @@
 namespace {
   constexpr char inputDevicesFile[] = "/proc/bus/input/devices";
 
-  QString findSpotlightDevice()
+  QString findAttachedSpotlightDevice()
   {
     QFile file(inputDevicesFile);
     if (!file.open(QIODevice::ReadOnly) || !file.isReadable())
@@ -65,43 +65,61 @@ namespace {
 
 Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
+  , m_activeTimer(new QTimer(this))
 {
-  auto t = new QTimer(this);
-  t->setSingleShot(true);
-  t->setInterval(600);
+  m_activeTimer->setSingleShot(true);
+  m_activeTimer->setInterval(600);
 
-  connect(t, &QTimer::timeout, [this](){
+  connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
   });
 
-  auto f = findSpotlightDevice();
-  if (f.size())
-  {
-    int evfd = ::open(f.toLocal8Bit().constData(), O_RDONLY, 0);
-    if (evfd < 0) return;
-    qDebug() << "socket " << evfd;
-    m_deviceSocketNotifier.reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
-    connect(&*m_deviceSocketNotifier, &QSocketNotifier::activated, [this, t](int fd){
-      static struct input_event ev;
-      auto sz = ::read(fd, &ev, sizeof(ev));
-      if (sz == sizeof(ev)) // for any kind of event from the device..
-      {
-        if (!t->isActive()) {
-          m_spotActive = true;
-          emit spotActiveChanged(true);
-        }
-        t->start();
-      }
-    });
-
-    connect(&*m_deviceSocketNotifier, &QSocketNotifier::destroyed, [this](){
-      if(m_deviceSocketNotifier) {
-        ::close(static_cast<int>(m_deviceSocketNotifier->socket()));
-      }
-    });
+  // Try to find an already attached device and connect to it.
+  auto device = findAttachedSpotlightDevice();
+  if (device.size()) {
+    connectDevice(device);
   }
+}
 
+Spotlight::~Spotlight()
+{
+
+}
+
+bool Spotlight::connectDevice(const QString& devicePath)
+{
+  int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
+  if (evfd < 0) // TODO: emit error message
+    return false;
+
+  m_deviceSocketNotifier.reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
+  connect(&*m_deviceSocketNotifier, &QSocketNotifier::activated, [this](int fd) {
+    static struct input_event ev;
+    auto sz = ::read(fd, &ev, sizeof(ev));
+    if (sz == sizeof(ev)) // for any kind of event from the device..
+    {
+      if (!m_activeTimer->isActive()) {
+        m_spotActive = true;
+        emit spotActiveChanged(true);
+      }
+      m_activeTimer->start();
+    }
+    else if (sz == -1)
+    {
+      // Error, e.g. if the usb device was unplugged...
+      m_deviceSocketNotifier->setEnabled(false);
+      QTimer::singleShot(0, [this](){ m_deviceSocketNotifier.reset(); });
+    }
+  });
+
+  connect(&*m_deviceSocketNotifier, &QSocketNotifier::destroyed, [this](){
+    if(m_deviceSocketNotifier && m_deviceSocketNotifier->isEnabled()) {
+      ::close(static_cast<int>(m_deviceSocketNotifier->socket()));
+    }
+  });
+  return false;
+}
 
 
 //  const int buffersize = 16 * 1024 * 1024;
@@ -158,9 +176,3 @@ Spotlight::Spotlight(QObject* parent)
 //    }
 //  });
 //  m_linuxUdevNotifier->setEnabled(true);
-}
-
-Spotlight::~Spotlight()
-{
-
-}

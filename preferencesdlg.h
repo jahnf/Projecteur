@@ -2,6 +2,7 @@
 
 #include <QDialog>
 
+class QComboBox;
 class Settings;
 
 class PreferencesDialog : public QDialog
@@ -15,6 +16,9 @@ public:
 
   bool dialogActive() const { return m_active; }
 
+public slots:
+  void updateAvailableScreens(QList<QScreen*> screens);
+
 signals:
   void dialogActiveChanged(bool active);
 
@@ -26,4 +30,5 @@ private:
 
 private:
   bool m_active = false;
+  QComboBox* m_screenCb = nullptr;
 };

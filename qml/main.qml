@@ -4,10 +4,9 @@ import QtGraphicalEffects 1.0
 
 Window {
     id: mainWindow
-    visible: true
-    width: 3; height: 3
+    width: 480; height: 320
 
-    flags: Qt.FramelessWindowHint | Qt.Window | Qt.WindowStaysOnTopHint
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen
 
     color: "transparent"
 

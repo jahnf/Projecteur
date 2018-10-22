@@ -3,6 +3,7 @@
 #include <QObject>
 
 class QSocketNotifier;
+class QTimer;
 
 /// Simple class to notify the application if the Logitech Spotlight sending mouse move events.
 /// Used to turn the applications spot on or off.
@@ -26,7 +27,11 @@ signals:
   void spotActiveChanged(bool isActive);
 
 private:
+  bool connectDevice(const QString& devicePath);
+
+private:
   QScopedPointer<QSocketNotifier> m_deviceSocketNotifier;
   QScopedPointer<QSocketNotifier> m_linuxUdevNotifier;
+  QTimer* m_activeTimer;
   bool m_spotActive = false;
 };

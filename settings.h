@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QSettings>
 
+class QScreen;
+
 class Settings : public QObject
 {
   Q_OBJECT
@@ -13,6 +15,7 @@ class Settings : public QObject
   Q_PROPERTY(QColor dotColor READ dotColor WRITE setDotColor NOTIFY dotColorChanged)
   Q_PROPERTY(QColor shadeColor READ shadeColor WRITE setShadeColor NOTIFY shadeColorChanged)
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
+  Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -32,6 +35,8 @@ public:
   void setShadeColor(const QColor& color);
   double shadeOpacity() const { return m_shadeOpacity; }
   void setShadeOpacity(double opacity);
+  int screen() const { return m_screen; }
+  void setScreen(int screen);
 
 signals:
   void spotSizeChanged(int size);
@@ -40,6 +45,7 @@ signals:
   void dotColorChanged(const QColor& color);
   void shadeColorChanged(const QColor& color);
   void shadeOpacityChanged(double opcacity);
+  void screenChanged(int screen);
 
 private:
   QSettings* m_settings = nullptr;
@@ -50,6 +56,7 @@ private:
   QColor m_dotColor;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
+  int m_screen = 0;
 
 private:
   void load();

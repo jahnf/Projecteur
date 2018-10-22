@@ -15,7 +15,7 @@ public:
   virtual ~ProjecteurApplication() override;
 
 private:
-  QSystemTrayIcon* m_trayIcon = nullptr;
+  QScopedPointer<QSystemTrayIcon> m_trayIcon;
   QScopedPointer<QMenu> m_trayMenu;
   QScopedPointer<PreferencesDialog> m_dialog;
 };

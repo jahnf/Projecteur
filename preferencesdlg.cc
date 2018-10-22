@@ -3,6 +3,7 @@
 #include "colorselector.h"
 #include "settings.h"
 
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDoubleSpinBox>
 #include <QGroupBox>
@@ -11,7 +12,9 @@
 #include <QLabel>
 #include <QGridLayout>
 #include <QPushButton>
+#include <QScreen>
 #include <QSpinBox>
+#include <QtGlobal>
 #include <QVBoxLayout>
 
 PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
@@ -85,6 +88,23 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   dotGrid->addWidget(new QLabel(tr("Dot Color"), this), 1, 0);
   dotGrid->addWidget(dotColor, 1, 1);
 
+  m_screenCb = new QComboBox(this);
+  m_screenCb->addItem(tr("%1: (not connected)").arg(settings->screen()), settings->screen());
+  connect(m_screenCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [settings, this](int index) {
+    settings->setScreen(m_screenCb->itemData(index).toInt());
+  });
+  connect(settings, &Settings::screenChanged, [this](int screen){
+    const int idx = m_screenCb->findData(screen);
+    if (idx == -1) {
+      m_screenCb->addItem(tr("%1: (not connected)").arg(screen), screen);
+    } else {
+      m_screenCb->setCurrentIndex(idx);
+    }
+  });
+  grid->addWidget(new QLabel(tr("Screen"), this), 5, 0);
+  grid->addWidget(m_screenCb, 5, 1);
+
   auto closeBtn = new QPushButton(tr("&Close"), this);
   connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
   auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
@@ -125,4 +145,25 @@ bool PreferencesDialog::event(QEvent* e)
     setDialogActive(false);
   }
   return QDialog::event(e);
+}
+
+void PreferencesDialog::updateAvailableScreens(QList<QScreen*> screens)
+{
+  for (int i = 0; i < screens.size(); ++ i)
+  {
+    const int idx = m_screenCb->findData(i);
+    if (idx == -1) {
+      m_screenCb->addItem(QString("%1: %2 (%3x%4)").arg(i)
+                                                   .arg(screens[i]->name())
+                                                   .arg(screens[i]->size().width())
+                                                   .arg(screens[i]->size().height()), i);
+    }
+    else {
+      m_screenCb->setItemText(idx, QString("%1: %2 (%3x%4)").arg(i)
+                                                   .arg(screens[i]->name())
+                                                   .arg(screens[i]->size().width())
+                                                   .arg(screens[i]->size().height()));
+    }
+  }
+  m_screenCb->model()->sort(0);
 }
