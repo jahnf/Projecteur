@@ -1,7 +1,9 @@
 # Set up permissions for non root users to open the Logitech Spotlight USB Receiver
 # Enables the Projecteur application to access the device.
 
-# Copy this file to /etc/udev/rules.d/40-spotlight.rules
+# Copy this file to /etc/udev/rules.d/55-spotlight.rules and update the 'plugdev' group in the
+# file to a group you are a member in. (plugdev exists on Ubuntu, other distributions have
+# other groups)
 # Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
 # to load rules without rebooting.
 
