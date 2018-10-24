@@ -1,5 +1,13 @@
 <RCC>
-    <qresource prefix="/icons">
-        <file>projecteur-tray.svg</file>
+    <qresource prefix="/">
+        <file>icons/projecteur-tray.svg</file>
+        <file>icons/cursors/cursor-arrow.png</file>
+        <file>icons/cursors/cursor-busy.png</file>
+        <file>icons/cursors/cursor-cross.png</file>
+        <file>icons/cursors/cursor-hand.png</file>
+        <file>icons/cursors/cursor-openhand.png</file>
+        <file>icons/cursors/cursor-sizeall.png</file>
+        <file>icons/cursors/cursor-uparrow.png</file>
+        <file>icons/cursors/cursor-whatsthis.png</file>
     </qresource>
 </RCC>
