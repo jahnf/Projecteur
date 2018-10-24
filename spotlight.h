@@ -19,16 +19,17 @@ public:
   bool spotActive() const { return m_spotActive; }
 
 //  bool deviceFound() const; //!< Returns true if a Logitech Spotlight device was found
-//  bool deviceConnected() const; //!< Returns true if the Logitech Spotlight device could be opened.
+  bool deviceConnected() const; //!< Returns true if the Logitech Spotlight device could be opened.
 
 signals:
   void error(const QString& errMsg);
-  void connected();
-  void disconnected();
+  void connected(const QString& devicePath);
+  void disconnected(const QString& devicePath);
   void spotActiveChanged(bool isActive);
 
 private:
-  bool connectDevice(const QString& devicePath);
+  bool connectToDevice(const QString& devicePath);
+  bool setupUdevNotifier();
 
 private:
   QScopedPointer<QSocketNotifier> m_deviceSocketNotifier;
