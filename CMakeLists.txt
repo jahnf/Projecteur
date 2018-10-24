@@ -11,6 +11,9 @@ endif()
 
 project(Projecteur LANGUAGES CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+include(GitVersion)
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -19,20 +22,23 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Gui Quick Widgets X11Extras REQUIRED)
 find_package(X11 REQUIRED)
 
-#add_executable(input-test input-test.cc )
-#target_link_libraries(input-test Qt5::Core)
-
 add_executable(projecteur
   main.cc
-  projecteurapp.cc projecteurapp.h
+  aboutdlg.cc           aboutdlg.h
+  colorselector.cc      colorselector.h
+  preferencesdlg.cc     preferencesdlg.h
+  projecteurapp.cc      projecteurapp.h
   qglobalshortcutx11.cc qglobalshortcutx11.h
-  resources.qrc
-  qml/qml.qrc)
+  runguard.cc           runguard.h
+  settings.cc           settings.h
+  spotlight.cc          spotlight.h
+  resources.qrc         qml/qml.qrc)
 
 target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras
   ${X11_LIBRARIES} xcb)
 
+add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md 55-spotlight.rules)
+add_custom_target(non-sources SOURCES README.md LICENSE.md 55-spotlight.rules)

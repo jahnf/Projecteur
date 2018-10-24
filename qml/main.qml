@@ -4,11 +4,9 @@ import QtGraphicalEffects 1.0
 
 Window {
     id: mainWindow
-    visible: true
-    width: 3; height: 3
+    width: 480; height: 320
 
-    flags: Qt.FramelessWindowHint | Qt.Window
-           | Qt.WindowDoesNotAcceptFocus | Qt.WindowStaysOnTopHint
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen
 
     color: "transparent"
 
@@ -16,20 +14,23 @@ Window {
         anchors.fill:parent
         MouseArea {
             id: ma
-            cursorShape: Qt.BlankCursor // TODO make configurable
+            cursorShape: Settings.cursor
             anchors.fill: parent
             hoverEnabled: true
         }
     }
 
     Rectangle {
+        property int spotSize: (mainWindow.height / 100.0) * Settings.spotSize
         id: centerRect
-        opacity: 0.3 // TODO: get from settings
-        width: 200; height:200 // TODO: get size of spot from settings, with sane default settings depending screen resolution
+        opacity: Settings.shadeOpacity
+        height: spotSize > 50 ? Math.min(spotSize, mainWindow.height) : 50;
+        width: height
         x: ma.mouseX - width/2
         y: ma.mouseY - height/2
-        color: "#222222" // TODO: get from settings.
+        color: Settings.shadeColor
         visible: false
+        enabled: false
     }
 
     Rectangle {
@@ -37,6 +38,7 @@ Window {
         width: centerRect.width;  height: width
         radius: width*0.5
         visible: false
+        enabled: false
     }
 
     OpacityMask {
@@ -46,15 +48,18 @@ Window {
         anchors.fill: centerRect
         source: centerRect
         maskSource: circle
+        enabled: false
     }
 
     Rectangle {
-        id: dotCursor // TODO: configurable as "cursor"
+        id: dotCursor
         antialiasing: true
         anchors.centerIn: centerRect
-        width: 5; height: width // TODO: color and size configurable
+        width: Settings.dotSize; height: width
         radius: width*0.5
-        color: "red"
+        color: Settings.dotColor
+        visible: Settings.showCenterDot
+        enabled: false
     }
 
     Rectangle {
@@ -62,6 +67,7 @@ Window {
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: parent.top; bottom: centerRect.top; left: parent.left; right: parent.right }
+        enabled: false
     }
 
     Rectangle {
@@ -69,6 +75,7 @@ Window {
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: centerRect.bottom; bottom: parent.bottom; left: parent.left; right: parent.right }
+        enabled: false
     }
 
     Rectangle {
@@ -76,6 +83,7 @@ Window {
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: topRect.bottom; bottom: bottomRect.top; left: parent.left; right: centerRect.left }
+        enabled: false
     }
 
     Rectangle {
@@ -83,5 +91,6 @@ Window {
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: topRect.bottom; bottom: bottomRect.top; left: centerRect.right; right: parent.right }
+        enabled: false
     }
 }

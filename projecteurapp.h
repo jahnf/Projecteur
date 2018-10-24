@@ -1,8 +1,9 @@
+// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
 #include <QApplication>
 
-class QDialog;
+class PreferencesDialog;
 class QMenu;
 class QSystemTrayIcon;
 
@@ -15,7 +16,7 @@ public:
   virtual ~ProjecteurApplication() override;
 
 private:
-  QSystemTrayIcon* m_trayIcon = nullptr;
+  QScopedPointer<QSystemTrayIcon> m_trayIcon;
   QScopedPointer<QMenu> m_trayMenu;
-  QScopedPointer<QDialog> m_dialog;
+  QScopedPointer<PreferencesDialog> m_dialog;
 };
