@@ -22,9 +22,6 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Gui Quick Widgets X11Extras REQUIRED)
 find_package(X11 REQUIRED)
 
-add_executable(input-test input-test.cc )
-target_link_libraries(input-test Qt5::Core)
-
 add_executable(projecteur
   main.cc
   aboutdlg.cc           aboutdlg.h
