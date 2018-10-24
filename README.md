@@ -11,7 +11,7 @@ immediately. Unfortenately as in a lot of cases software is only provided for Wi
 and Mac. The device itself works just fine on Linux, but the cool spot feature
 is done by additional software.
 
-So here it is: a Linux application the Logitech Spotlight.
+So here it is: a Linux application for the Logitech Spotlight.
 
 ## Features
 
