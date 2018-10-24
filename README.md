@@ -18,6 +18,8 @@ So here it is: a Linux application the Logitech Spotlight.
 * Configurable desktop spotlight. Configure color, opacity, cursor, center dot.
 * Multiple screen support
 
+TODO: Put some screenshots or animated gifs here.
+
 ## Supported Environments
 
 The application was tested only on Ubuntu 18.04 (GNOME) and OpenSuse 42.3 (GNOME)
