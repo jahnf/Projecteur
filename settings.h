@@ -17,6 +17,7 @@ class Settings : public QObject
   Q_PROPERTY(QColor shadeColor READ shadeColor WRITE setShadeColor NOTIFY shadeColorChanged)
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
   Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
+  Q_PROPERTY(Qt::CursorShape cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -38,6 +39,8 @@ public:
   void setShadeOpacity(double opacity);
   int screen() const { return m_screen; }
   void setScreen(int screen);
+  Qt::CursorShape cursor() const { return m_cursor; }
+  void setCursor(Qt::CursorShape cursor);
 
 signals:
   void spotSizeChanged(int size);
@@ -47,6 +50,7 @@ signals:
   void shadeColorChanged(const QColor& color);
   void shadeOpacityChanged(double opcacity);
   void screenChanged(int screen);
+  void cursorChanged(Qt::CursorShape cursor);
 
 private:
   QSettings* m_settings = nullptr;
@@ -58,6 +62,7 @@ private:
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
   int m_screen = 0;
+  Qt::CursorShape m_cursor = Qt::BlankCursor;
 
 private:
   void load();

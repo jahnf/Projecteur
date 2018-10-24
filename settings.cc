@@ -13,6 +13,18 @@ namespace {
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
     constexpr char screen[] = "screen";
+    constexpr char cursor[] = "cursor";
+
+    namespace defaultValue {
+      constexpr int spotSize = 32;
+      constexpr bool showCenterDot = false;
+      constexpr int dotSize = 5;
+      constexpr auto dotColor = Qt::red;
+      constexpr char shadeColor[] = "#222222";
+      constexpr double shadeOpacity = 0.3;
+      constexpr int screen = 0;
+      constexpr Qt::CursorShape cursor = Qt::BlankCursor;
+    }
   }
 }
 
@@ -30,24 +42,26 @@ Settings::~Settings()
 
 void Settings::setDefaults()
 {
-  setSpotSize(30);
-  setShowCenterDot(false);
-  setDotSize(5);
-  setDotColor(Qt::red);
-  setShadeColor(QColor("#222222"));
-  setShadeOpacity(0.3);
-  setScreen(0);
+  setSpotSize(settings::defaultValue::spotSize);
+  setShowCenterDot(settings::defaultValue::showCenterDot);
+  setDotSize(settings::defaultValue::dotSize);
+  setDotColor(QColor(settings::defaultValue::dotColor));
+  setShadeColor(QColor(settings::defaultValue::shadeColor));
+  setShadeOpacity(settings::defaultValue::shadeOpacity);
+  setScreen(settings::defaultValue::screen);
+  setCursor(settings::defaultValue::cursor);
 }
 
 void Settings::load()
 {
-  setSpotSize(m_settings->value(::settings::spotSize, 30).toInt());
-  setShowCenterDot(m_settings->value(::settings::showCenterDot, false).toBool());
-  setDotSize(m_settings->value(::settings::dotSize, 5).toInt());
-  setDotColor(m_settings->value(::settings::dotColor, QColor(Qt::red)).value<QColor>());
-  setShadeColor(m_settings->value(::settings::shadeColor, QColor("#222222")).value<QColor>());
-  setShadeOpacity(m_settings->value(::settings::shadeOpacity, 0.3).toDouble());
-  setScreen(m_settings->value(::settings::screen, 0.3).toInt());
+  setSpotSize(m_settings->value(::settings::spotSize, settings::defaultValue::spotSize).toInt());
+  setShowCenterDot(m_settings->value(::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
+  setDotSize(m_settings->value(::settings::dotSize, settings::defaultValue::dotSize).toInt());
+  setDotColor(m_settings->value(::settings::dotColor, QColor(settings::defaultValue::dotColor)).value<QColor>());
+  setShadeColor(m_settings->value(::settings::shadeColor, QColor(settings::defaultValue::shadeColor)).value<QColor>());
+  setShadeOpacity(m_settings->value(::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
+  setScreen(m_settings->value(::settings::screen, settings::defaultValue::screen).toInt());
+  setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
 }
 
 void Settings::setSpotSize(int size)
@@ -118,4 +132,14 @@ void Settings::setScreen(int screen)
   m_screen = qMin(qMax(0, screen), 10);
   m_settings->setValue(::settings::screen, m_screen);
   emit screenChanged(m_screen);
+}
+
+void Settings::setCursor(Qt::CursorShape cursor)
+{
+  if (cursor == m_cursor)
+    return;
+
+  m_cursor = qMin(qMax(static_cast<Qt::CursorShape>(0), cursor), Qt::LastCursor);
+  m_settings->setValue(::settings::cursor, static_cast<int>(m_cursor));
+  emit cursorChanged(m_cursor);
 }

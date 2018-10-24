@@ -18,6 +18,22 @@
 #include <QtGlobal>
 #include <QVBoxLayout>
 
+#include <map>
+
+namespace {
+  #define CURSOR_PATH ":/icons/cursors/"
+  static std::map<const QString, const QPair<const QString, const Qt::CursorShape>> cursorMap {
+    { "", {"No Cursor", Qt::BlankCursor}},
+    { CURSOR_PATH "cursor-arrow.png", {"Arrow Cursor", Qt::ArrowCursor}},
+    { CURSOR_PATH "cursor-busy.png", {"Busy Cursor", Qt::BusyCursor}},
+    { CURSOR_PATH "cursor-cross.png", {"Cross Cursor", Qt::CrossCursor}},
+    { CURSOR_PATH "cursor-hand.png", {"Pointing Hand Cursor", Qt::PointingHandCursor}},
+    { CURSOR_PATH "cursor-openhand.png", {"Open Hand Cursor", Qt::OpenHandCursor}},
+    { CURSOR_PATH "cursor-uparrow.png", {"Up Arrow Cursor", Qt::UpArrowCursor}},
+    { CURSOR_PATH "cursor-whatsthis.png", {"What't This Cursor", Qt::WhatsThisCursor}},
+  };
+}
+
 PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   : QDialog(parent)
 {
@@ -105,6 +121,21 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   });
   grid->addWidget(new QLabel(tr("Screen"), this), 5, 0);
   grid->addWidget(m_screenCb, 5, 1);
+
+  auto cursorCb = new QComboBox(this);
+  for (const auto& item : cursorMap) {
+    cursorCb->addItem(QIcon(item.first), item.second.first, static_cast<int>(item.second.second));
+  }
+  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [settings, cursorCb](int index) {
+    settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
+  });
+  connect(settings, &Settings::cursorChanged, [cursorCb](int cursor){
+    const int idx = cursorCb->findData(cursor);
+    cursorCb->setCurrentIndex((idx == -1) ? Qt::BlankCursor : idx);
+  });
+  grid->addWidget(new QLabel(tr("Cursor"), this), 6, 0);
+  grid->addWidget(cursorCb, 6, 1);
 
   auto closeBtn = new QPushButton(tr("&Close"), this);
   connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });

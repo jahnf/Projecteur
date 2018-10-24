@@ -14,7 +14,7 @@ Window {
         anchors.fill:parent
         MouseArea {
             id: ma
-            cursorShape: Qt.BlankCursor // TODO make configurable
+            cursorShape: Settings.cursor
             anchors.fill: parent
             hoverEnabled: true
         }
