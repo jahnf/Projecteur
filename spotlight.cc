@@ -14,6 +14,9 @@
 #include <linux/netlink.h>
 #include <unistd.h>
 
+#define SPOTLIGHT_USB_VENDOR_ID "046d"
+#define SPOTLIGHT_USB_PRODUCT_ID "c53e"
+
 namespace {
   constexpr char inputDevicesFile[] = "/proc/bus/input/devices";
   // Another possibility would be to scan /sys/bus/hid/devices/
@@ -34,7 +37,8 @@ namespace {
     {
       auto line = in.readLine();
       // Get Logitech USB Receiver that comes with the Spotlight device
-      if (line.startsWith("I:") && line.contains("Vendor=046d Product=c53e"))
+      if (line.startsWith("I:") && line.contains("Vendor=" SPOTLIGHT_USB_VENDOR_ID
+                                                 " Product=" SPOTLIGHT_USB_PRODUCT_ID))
       {
         QString eventFile;
         // get next H: line
@@ -197,8 +201,8 @@ bool Spotlight::setupUdevNotifier()
     }
 
     constexpr char actionStr[] = "ACTION=add";
-    constexpr char vendorStr[] = "ID_VENDOR_ID=046d";
-    constexpr char modelStr[] = "ID_MODEL_ID=c53e";
+    constexpr char vendorStr[] = "ID_VENDOR_ID=" SPOTLIGHT_USB_VENDOR_ID;
+    constexpr char modelStr[] = "ID_MODEL_ID=" SPOTLIGHT_USB_PRODUCT_ID;
     constexpr char mouseStr[] = "INPUT_CLASS=mouse";
     constexpr char devStr[] = "DEVNAME=/dev/input/event";
 

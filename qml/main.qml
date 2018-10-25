@@ -42,6 +42,8 @@ Window {
     }
 
     OpacityMask {
+        id: spot
+        visible: Settings.showSpot
         opacity: centerRect.opacity
         cached: true
         invert: true
@@ -64,6 +66,7 @@ Window {
 
     Rectangle {
         id: topRect
+        visible: spot.visible
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: parent.top; bottom: centerRect.top; left: parent.left; right: parent.right }
@@ -72,6 +75,7 @@ Window {
 
     Rectangle {
         id: bottomRect
+        visible: spot.visible
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: centerRect.bottom; bottom: parent.bottom; left: parent.left; right: parent.right }
@@ -80,6 +84,7 @@ Window {
 
     Rectangle {
         id: leftRect
+        visible: spot.visible
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: topRect.bottom; bottom: bottomRect.top; left: parent.left; right: centerRect.left }
@@ -88,6 +93,7 @@ Window {
 
     Rectangle {
         id: rightRect
+        visible: spot.visible
         color: centerRect.color
         opacity: centerRect.opacity
         anchors{ top: topRect.bottom; bottom: bottomRect.top; left: centerRect.right; right: parent.right }

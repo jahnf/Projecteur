@@ -40,6 +40,71 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
+  auto vspacer = new QVBoxLayout;
+  vspacer->addSpacing(10);
+
+  auto grid = new QGridLayout();
+  grid->addWidget(createSpotGroupBox(settings), 0, 0, 1, 2);
+  grid->addLayout(vspacer, 1, 0, 1, 2);
+  grid->addWidget(createDotGroupBox(settings), 2, 0, 1, 2);
+
+  m_screenCb = new QComboBox(this);
+  m_screenCb->addItem(tr("%1: (not connected)").arg(settings->screen()), settings->screen());
+  connect(m_screenCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [settings, this](int index) {
+    settings->setScreen(m_screenCb->itemData(index).toInt());
+  });
+  connect(settings, &Settings::screenChanged, [this](int screen){
+    const int idx = m_screenCb->findData(screen);
+    if (idx == -1) {
+      m_screenCb->addItem(tr("%1: (not connected)").arg(screen), screen);
+    } else {
+      m_screenCb->setCurrentIndex(idx);
+    }
+  });
+  grid->addWidget(new QLabel(tr("Screen"), this), 3, 0);
+  grid->addWidget(m_screenCb, 3, 1);
+
+  auto cursorCb = new QComboBox(this);
+  for (const auto& item : cursorMap) {
+    cursorCb->addItem(QIcon(item.first), item.second.first, static_cast<int>(item.second.second));
+  }
+  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [settings, cursorCb](int index) {
+    settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
+  });
+  connect(settings, &Settings::cursorChanged, [cursorCb](int cursor){
+    const int idx = cursorCb->findData(cursor);
+    cursorCb->setCurrentIndex((idx == -1) ? Qt::BlankCursor : idx);
+  });
+  grid->addWidget(new QLabel(tr("Cursor"), this), 4, 0);
+  grid->addWidget(cursorCb, 4, 1);
+
+  auto closeBtn = new QPushButton(tr("&Close"), this);
+  connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
+  auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
+  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
+
+  auto btnHBox = new QHBoxLayout;
+  btnHBox->addWidget(defaultsBtn);
+  btnHBox->addStretch(1);
+  btnHBox->addWidget(closeBtn);
+
+  auto vbox = new QVBoxLayout(this);
+  vbox->addLayout(grid);
+  vbox->addStretch(1);
+  vbox->addSpacing(10);
+  vbox->addLayout(btnHBox);
+}
+
+QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
+{
+  auto spotGroup = new QGroupBox(tr("Show Spotlight"), this);
+  spotGroup->setCheckable(true);
+  spotGroup->setChecked(settings->showSpot());
+  connect(spotGroup, &QGroupBox::toggled, settings, &Settings::setShowSpot);
+  connect(settings, &Settings::showSpotChanged, spotGroup, &QGroupBox::setChecked);
+
   auto spotSizeSpinBox = new QSpinBox(this);
   spotSizeSpinBox->setMaximum(100);
   spotSizeSpinBox->setMinimum(5);
@@ -51,15 +116,15 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
           settings, &Settings::setSpotSize);
   connect(settings, &Settings::spotSizeChanged, spotSizeSpinBox, &QSpinBox::setValue);
 
-  auto grid = new QGridLayout();
-  grid->addWidget(new QLabel(tr("Spot Size"), this), 0, 0);
-  grid->addLayout(spotsizeHBox, 0, 1);
+  auto spotGrid = new QGridLayout(spotGroup);
+  spotGrid->addWidget(new QLabel(tr("Spot Size"), this), 0, 0);
+  spotGrid->addLayout(spotsizeHBox, 0, 1);
 
   auto shadeColor = new ColorSelector(settings->shadeColor(), this);
   connect(shadeColor, &ColorSelector::colorChanged, settings, &Settings::setShadeColor);
   connect(settings, &Settings::shadeColorChanged, shadeColor, &ColorSelector::setColor);
-  grid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
-  grid->addWidget(shadeColor, 1, 1);
+  spotGrid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
+  spotGrid->addWidget(shadeColor, 1, 1);
 
   auto shadeOpacitySb = new QDoubleSpinBox(this);
   shadeOpacitySb->setMaximum(1.0);
@@ -70,19 +135,19 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   connect(shadeOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setShadeOpacity);
   connect(settings, &Settings::shadeOpacityChanged, shadeOpacitySb, &QDoubleSpinBox::setValue);
-  grid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
-  grid->addWidget(shadeOpacitySb, 2, 1);
+  spotGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
+  spotGrid->addWidget(shadeOpacitySb, 2, 1);
 
-  auto vspacer = new QVBoxLayout;
-  vspacer->addSpacing(10);
-  grid->addLayout(vspacer, 3, 0, 1, 2);
+  return spotGroup;
+}
 
+QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
+{
   auto dotGroup = new QGroupBox(tr("Show Center Dot"), this);
   dotGroup->setCheckable(true);
   dotGroup->setChecked(settings->showCenterDot());
   connect(dotGroup, &QGroupBox::toggled, settings, &Settings::setShowCenterDot);
   connect(settings, &Settings::showCenterDotChanged, dotGroup, &QGroupBox::setChecked);
-  grid->addWidget(dotGroup, 4, 0, 1, 2);
 
   auto dotSizeSpinBox = new QSpinBox(this);
   dotSizeSpinBox->setMaximum(100);
@@ -105,58 +170,7 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   dotGrid->addWidget(new QLabel(tr("Dot Color"), this), 1, 0);
   dotGrid->addWidget(dotColor, 1, 1);
 
-  m_screenCb = new QComboBox(this);
-  m_screenCb->addItem(tr("%1: (not connected)").arg(settings->screen()), settings->screen());
-  connect(m_screenCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-  [settings, this](int index) {
-    settings->setScreen(m_screenCb->itemData(index).toInt());
-  });
-  connect(settings, &Settings::screenChanged, [this](int screen){
-    const int idx = m_screenCb->findData(screen);
-    if (idx == -1) {
-      m_screenCb->addItem(tr("%1: (not connected)").arg(screen), screen);
-    } else {
-      m_screenCb->setCurrentIndex(idx);
-    }
-  });
-  grid->addWidget(new QLabel(tr("Screen"), this), 5, 0);
-  grid->addWidget(m_screenCb, 5, 1);
-
-  auto cursorCb = new QComboBox(this);
-  for (const auto& item : cursorMap) {
-    cursorCb->addItem(QIcon(item.first), item.second.first, static_cast<int>(item.second.second));
-  }
-  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-  [settings, cursorCb](int index) {
-    settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
-  });
-  connect(settings, &Settings::cursorChanged, [cursorCb](int cursor){
-    const int idx = cursorCb->findData(cursor);
-    cursorCb->setCurrentIndex((idx == -1) ? Qt::BlankCursor : idx);
-  });
-  grid->addWidget(new QLabel(tr("Cursor"), this), 6, 0);
-  grid->addWidget(cursorCb, 6, 1);
-
-  auto closeBtn = new QPushButton(tr("&Close"), this);
-  connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
-  auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
-  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
-
-  auto btnHBox = new QHBoxLayout;
-  btnHBox->addWidget(defaultsBtn);
-  btnHBox->addStretch(1);
-  btnHBox->addWidget(closeBtn);
-
-//  auto bottomLine = new QFrame(this);
-//  bottomLine->setFrameShape(QFrame::HLine);
-//  bottomLine->setFrameShadow(QFrame::Sunken);
-//  bottomLine->setLineWidth(1);
-
-  auto vbox = new QVBoxLayout(this);
-  vbox->addLayout(grid);
-  vbox->addStretch(1);
-  vbox->addSpacing(10);
-  vbox->addLayout(btnHBox);
+  return dotGroup;
 }
 
 void PreferencesDialog::setDialogActive(bool active)

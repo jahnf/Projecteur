@@ -4,6 +4,7 @@
 #include <QDialog>
 
 class QComboBox;
+class QGroupBox;
 class Settings;
 
 class PreferencesDialog : public QDialog
@@ -28,6 +29,9 @@ protected:
 
 private:
   void setDialogActive(bool active);
+
+  QGroupBox* createSpotGroupBox(Settings* settings);
+  QGroupBox* createDotGroupBox(Settings* settings);
 
 private:
   bool m_active = false;
