@@ -13,12 +13,15 @@ is done by additional software.
 
 So here it is: a Linux application for the Logitech Spotlight.
 
+(Only tested with the USB Receiver for now, don't know if it works with Bluetooth)
+
 ## Features
 
 * Configurable desktop spotlight. Configure color, opacity, cursor, center dot.
 * Multiple screen support
 
-TODO: Put some screenshots or animated gifs here.
+![Settings](./doc/screenshot-settings.png)
+![Settings](./doc/screenshot-traymenu.png)
 
 ## Supported Environments
 
@@ -72,3 +75,7 @@ file in this repository: `55-spotlight.rules`
 * After that the two input devices from the Logitech USB Receiver in /dev/input
   should have the group 'plugdev', i.e. the group you configure in the rules file.
 
+### Application Menu
+
+The application menu is accessable via the system tray icon. There you will find
+the preferences and the menu entry to exit the application.
