@@ -12,7 +12,7 @@ matrix:
             - sourceline: 'ppa:beineri/opt-qt596-trusty'
           packages:
             - g++-5
-            - qt59-meta 
+            - qt59-meta
             - libx11-xcb-dev
     - os: linux
       dist: trusty
@@ -21,9 +21,7 @@ matrix:
         apt:
           packages:
             - g++-6
-            - qt5-default
-            - qtdeclarative5-dev
-            - qt59-meta 
+            - qt59-meta
             - libx11-xcb-dev
           sources: *sources
     - os: linux
@@ -33,11 +31,11 @@ matrix:
         apt:
           packages:
             - clang-5.0
-            - qt59-meta 
+            - qt59-meta
             - libx11-xcb-dev
           sources: *sources
           
 script: 
-  - mkdir build && cd build 
+  - mkdir build && cd build
   - . /opt/qt59/bin/qt59-env.sh && cmake ..
   - make
