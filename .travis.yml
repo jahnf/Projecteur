@@ -45,3 +45,4 @@ script:
   - mkdir build && cd build
   - . /opt/qt59/bin/qt59-env.sh && cmake ..
   - make
+  - ./projecteur -v
