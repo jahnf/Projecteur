@@ -1,0 +1,40 @@
+language: generic
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
+      addons:
+        apt:
+          sources: &sources
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+            - qt5-default
+            - qtdeclarative5-dev
+            - libx11-xcb-dev
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-6 CC=gcc-6
+      addons:
+        apt:
+          packages:
+            - g++-6
+            - qt5-default
+            - qtdeclarative5-dev
+            - libx11-xcb-dev
+          sources: *sources
+#    - os: linux
+#      dist: trusty
+#      env: COMPILER_NAME=clang CXX=clang++-5.0 CC=clang-5.0
+#      addons:
+#        apt:
+#          packages:
+#            - clang-5.0
+#          sources: *sources
+          
+script: 
+  - mkdir build && cd build 
+  - cmake ..
+  - make
