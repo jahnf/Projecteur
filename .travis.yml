@@ -9,12 +9,11 @@ matrix:
           sources: &sources
             - llvm-toolchain-trusty-5.0
             - ubuntu-toolchain-r-test
+            - sourceline: 'ppa:beineri/opt-qt596-trusty'
           packages:
             - g++-5
-            - qt5-default
-            - qtdeclarative5-dev
+            - qt59-meta 
             - libx11-xcb-dev
-            - libqt5x11extras5-dev
     - os: linux
       dist: trusty
       env: COMPILER_NAME=gcc CXX=g++-6 CC=gcc-6
@@ -24,8 +23,8 @@ matrix:
             - g++-6
             - qt5-default
             - qtdeclarative5-dev
+            - qt59-meta 
             - libx11-xcb-dev
-            - libqt5x11extras5-dev
           sources: *sources
     - os: linux
       dist: trusty
@@ -34,13 +33,11 @@ matrix:
         apt:
           packages:
             - clang-5.0
-            - qt5-default
-            - qtdeclarative5-dev
+            - qt59-meta 
             - libx11-xcb-dev
-            - libqt5x11extras5-dev
           sources: *sources
           
 script: 
   - mkdir build && cd build 
-  - cmake ..
+  - . /opt/qt59/bin/qt59-env.sh && cmake ..
   - make
