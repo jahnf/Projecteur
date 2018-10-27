@@ -16,8 +16,6 @@ is done by additional software.
 
 So here it is: a Linux application for the Logitech Spotlight.
 
-(Only tested with the USB Receiver for now, don't know if it works with Bluetooth)
-
 ## Features
 
 * Configurable desktop spotlight. Configure color, opacity, cursor, center dot.
