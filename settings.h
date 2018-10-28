@@ -10,6 +10,7 @@ class QScreen;
 class Settings : public QObject
 {
   Q_OBJECT
+  Q_PROPERTY(bool showSpot READ showSpot WRITE setShowSpot NOTIFY showSpotChanged)
   Q_PROPERTY(int spotSize READ spotSize WRITE setSpotSize NOTIFY spotSizeChanged)
   Q_PROPERTY(bool showCenterDot READ showCenterDot WRITE setShowCenterDot NOTIFY showCenterDotChanged)
   Q_PROPERTY(int dotSize READ dotSize WRITE setDotSize NOTIFY dotSizeChanged)
@@ -25,6 +26,8 @@ public:
 
   void setDefaults();
 
+  bool showSpot() const { return m_showSpot; }
+  void setShowSpot(bool show);
   int spotSize() const { return m_spotSize; }
   void setSpotSize(int size);
   bool showCenterDot() const { return m_showCenterDot; }
@@ -43,6 +46,7 @@ public:
   void setCursor(Qt::CursorShape cursor);
 
 signals:
+  void showSpotChanged(bool show);
   void spotSizeChanged(int size);
   void dotSizeChanged(int size);
   void showCenterDotChanged(bool show);
@@ -55,6 +59,7 @@ signals:
 private:
   QSettings* m_settings = nullptr;
 
+  bool m_showSpot = true;
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
   bool m_showCenterDot = false;
   int m_dotSize = 5; ///< Center Dot Size (3-100 pixels)

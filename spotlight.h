@@ -2,6 +2,7 @@
 #pragma once
 
 #include <QObject>
+#include <map>
 
 class QSocketNotifier;
 class QTimer;
@@ -17,23 +18,24 @@ public:
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
-
-//  bool deviceFound() const; //!< Returns true if a Logitech Spotlight device was found
-  bool deviceConnected() const; //!< Returns true if the Logitech Spotlight device could be opened.
+  bool anySpotlightDeviceConnected() const;
+  QStringList connectedDevices() const;
 
 signals:
   void error(const QString& errMsg);
-  void connected(const QString& devicePath);
-  void disconnected(const QString& devicePath);
+  void connected(const QString& devicePath); //!< signal for every device connected
+  void disconnected(const QString& devicePath); //!< signal for every device disconnected
+  void anySpotlightDeviceConnectedChanged(bool connected);
   void spotActiveChanged(bool isActive);
 
 private:
-  bool connectToDevice(const QString& devicePath);
-  bool setupUdevNotifier();
+  enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
+  ConnectionResult connectSpotlightDevice(const QString& devicePath);
+  bool setupDevEventInotify();
+  int connectDevices();
 
 private:
-  QScopedPointer<QSocketNotifier> m_deviceSocketNotifier;
-  QScopedPointer<QSocketNotifier> m_linuxUdevNotifier;
+  std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
   QTimer* m_activeTimer;
   bool m_spotActive = false;
 };

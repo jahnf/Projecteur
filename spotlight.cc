@@ -1,82 +1,18 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
-#include <QBuffer>
-#include <QFile>
-#include <QRegularExpression>
+#include <QDirIterator>
 #include <QSocketNotifier>
 #include <QTimer>
-#include <QTextStream>
+#include <QVarLengthArray>
+
+#include <functional>
 
 #include <fcntl.h>
-#include <sys/socket.h>
+#include <sys/inotify.h>
+#include <sys/ioctl.h>
 #include <linux/input.h>
-#include <linux/netlink.h>
 #include <unistd.h>
-
-namespace {
-  constexpr char inputDevicesFile[] = "/proc/bus/input/devices";
-  // Another possibility would be to scan /sys/bus/hid/devices/
-  // check every device there for the vendor/product id
-  // and also check the capabilites inside input/input*/capabilites...
-
-  QString findAttachedSpotlightDevice()
-  {
-    QFile file(inputDevicesFile);
-    if (!file.open(QIODevice::ReadOnly) || !file.isReadable())
-      return QString();
-
-    // With special files in /proc readLine will not work.
-    QByteArray contents = file.readAll();
-    QTextStream in(&contents, QIODevice::ReadOnly);
-
-    while (!in.atEnd())
-    {
-      auto line = in.readLine();
-      // Get Logitech USB Receiver that comes with the Spotlight device
-      if (line.startsWith("I:") && line.contains("Vendor=046d Product=c53e"))
-      {
-        QString eventFile;
-        // get next H: line
-        while (!in.atEnd())
-        {
-          line = in.readLine();
-          if (line.startsWith("H:"))
-          {
-            static const QRegularExpression eventRe("event\\d+");
-            auto match = eventRe.match(line);
-            if (match.hasMatch()) {
-              eventFile = match.captured(0);
-            }
-          }
-          // Spotlight device registers as one keyboard and one mouse device.
-          // Select the correct one by EV field - not nice but works for now.
-          else if (line.startsWith("B: EV=1f") && eventFile.size())
-          {
-            return QString("/dev/input/") + eventFile;
-          }
-          else if (line.isEmpty()) {
-            break;
-          }
-        }
-      }
-    }
-    return QString();
-  }
-
-  int indexOf(const void* needle, size_t needleSize,
-              const QByteArray& haystack, size_t haystackSize)
-  {
-    if (needleSize == 0)
-      return -1;
-
-    const void* ptr = memmem(haystack.data(), haystackSize, needle, needleSize);
-    if (ptr == nullptr) {
-      return -1;
-    }
-    return static_cast<int>(reinterpret_cast<const char*>(ptr) - haystack.data());
-  }
-}
 
 Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
@@ -90,40 +26,104 @@ Spotlight::Spotlight(QObject* parent)
     emit spotActiveChanged(false);
   });
 
-  // Try to find an already attached device and connect to it.
-  auto device = findAttachedSpotlightDevice();
-  if (device.size()) {
-    connectToDevice(device);
-  }
-
-  setupUdevNotifier();
+  // Try to find an already attached device(s) and connect to it.
+  connectDevices();
+  setupDevEventInotify();
 }
 
 Spotlight::~Spotlight()
 {
 }
 
-bool Spotlight::deviceConnected() const
+bool Spotlight::anySpotlightDeviceConnected() const
 {
-  if (m_deviceSocketNotifier && m_deviceSocketNotifier->isEnabled()) {
-    return true;
+  for (const auto& i : m_eventNotifiers)
+  {
+    if (i.second && i.second->isEnabled())
+      return true;
   }
 
   return false;
 }
 
-bool Spotlight::connectToDevice(const QString& devicePath)
+QStringList Spotlight::connectedDevices() const
 {
-  int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
-  if (evfd < 0) // TODO: emit error message
-    return false;
-
-  m_deviceSocketNotifier.reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
-  connect(&*m_deviceSocketNotifier, &QSocketNotifier::activated, [this, devicePath](int fd)
+  QStringList devices;
+  for (const auto& i : m_eventNotifiers)
   {
-    static struct input_event ev;
+    if (i.second && i.second->isEnabled())
+      devices.push_back(i.first);
+  }
+  return devices;
+}
+
+int Spotlight::connectDevices()
+{
+  int count = 0;
+  QDirIterator it("/dev/input", QDir::System);
+  while (it.hasNext())
+  {
+    it.next();
+    if (it.fileName().startsWith("event"))
+    {
+      const auto found = m_eventNotifiers.find(it.filePath());
+      if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
+        continue;
+      }
+
+      if (connectSpotlightDevice(it.filePath()) == ConnectionResult::Connected) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+/// Connect to devicePath if readable and if it is a spotlight device
+Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& devicePath)
+{
+  const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
+  if (evfd < 0) {
+    return ConnectionResult::CouldNotOpen;
+  }
+
+  struct input_id id{};
+  ioctl(evfd, EVIOCGID, &id);
+
+  constexpr quint16 vendorId = 0x46d;
+  constexpr quint16 usbProductId = 0xc53e;
+  constexpr quint16 btProductId = 0xb503;
+
+  if (id.vendor != vendorId || (id.product != usbProductId && id.product != btProductId))
+  {
+    ::close(evfd);
+    return ConnectionResult::NotASpotlightDevice;
+  }
+
+  unsigned long bitmask = 0;
+  const int len = ioctl(evfd, EVIOCGBIT(0, sizeof(bitmask)), &bitmask);
+  if ( len < 0 )
+  {
+    ::close(evfd);
+    return ConnectionResult::NotASpotlightDevice;
+  }
+
+  const bool hasRelEv = !!(bitmask & (1 << EV_REL));
+  if (!hasRelEv) { return ConnectionResult::NotASpotlightDevice; }
+
+  const bool anyConnectedBefore = anySpotlightDeviceConnected();
+  m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
+  QSocketNotifier* notifier = m_eventNotifiers[devicePath].data();
+
+  connect(notifier, &QSocketNotifier::destroyed, [notifier, devicePath]() {
+    ::close(static_cast<int>(notifier->socket()));
+  });
+
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd)
+  {
+    struct input_event ev;
     auto sz = ::read(fd, &ev, sizeof(ev));
-    if (sz == sizeof(ev)) // for any kind of event from the device..
+    if (sz == sizeof(ev) && ev.type & EV_REL) // only for relative mouse events
     {
       if (!m_activeTimer->isActive()) {
         m_spotActive = true;
@@ -134,98 +134,80 @@ bool Spotlight::connectToDevice(const QString& devicePath)
     else if (sz == -1)
     {
       // Error, e.g. if the usb device was unplugged...
-      m_deviceSocketNotifier->setEnabled(false);
+      notifier->setEnabled(false);
       emit disconnected(devicePath);
-      QTimer::singleShot(0, [this](){ m_deviceSocketNotifier.reset(); });
-    }
-  });
-
-  connect(&*m_deviceSocketNotifier, &QSocketNotifier::destroyed, [this]() {
-    if(m_deviceSocketNotifier) {
-      ::close(static_cast<int>(m_deviceSocketNotifier->socket()));
+      if (!anySpotlightDeviceConnected()) {
+        emit anySpotlightDeviceConnectedChanged(false);
+      }
+      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers[devicePath].reset(); });
     }
   });
 
   emit connected(devicePath);
-  return true;
+  if (!anyConnectedBefore) {
+    emit anySpotlightDeviceConnectedChanged(true);
+  }
+  return ConnectionResult::Connected;
 }
 
-bool Spotlight::setupUdevNotifier()
+bool Spotlight::setupDevEventInotify()
 {
-  struct sockaddr_nl snl{};
-  snl.nl_family = AF_NETLINK;
-  snl.nl_groups = NETLINK_KOBJECT_UEVENT;
-
-  int nlfd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
-  if (nlfd == -1) {
-    emit error(QString("Error creating socket: %1").arg(strerror(errno)));
-    return false;
-  }
-
-  constexpr int min_buffersize = 2048;
+  int fd = -1;
+#if defined(IN_CLOEXEC)
+  fd = inotify_init1(IN_CLOEXEC);
+#endif
+  if( fd == -1 )
   {
-    int buffersize = 0; socklen_t s = sizeof(buffersize);
-    int ret = getsockopt(nlfd, SOL_SOCKET, SO_RCVBUF, &buffersize, &s);
-    if (ret == 0 && buffersize < min_buffersize * 2) {
-      ret = setsockopt(nlfd, SOL_SOCKET, SO_RCVBUF, &min_buffersize, s);
+    fd = inotify_init();
+    if( fd == -1 ) {
+       return false; // TODO: error msg - without it we cannot detect attachting of new devices
     }
   }
-
-  if (::bind(nlfd, reinterpret_cast<struct sockaddr*>(&snl), sizeof(struct sockaddr_nl)) != 0)
+  fcntl( fd, F_SETFD, FD_CLOEXEC );
+  const int wd = inotify_add_watch( fd, "/dev/input", IN_CREATE | IN_DELETE );
+  // TODO check if wd >=0... else error
+  auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
+  connect(notifier, &QSocketNotifier::activated, [this](int fd)
   {
-    emit error(QString("Bind error: %1").arg(strerror(errno)));
-    ::close(nlfd);
-    return false;
-  }
-
-  struct sockaddr_nl _snl;
-  socklen_t _addrlen =sizeof(struct sockaddr_nl);
-
-  // Get the kernel assigned address
-  if (getsockname(nlfd, reinterpret_cast<struct sockaddr*>(&_snl), &_addrlen) == 0) {
-    snl.nl_pid = _snl.nl_pid;
-  }
-
-  m_linuxUdevNotifier.reset(new QSocketNotifier(nlfd, QSocketNotifier::Read));
-  connect(&*m_linuxUdevNotifier, &QSocketNotifier::activated, [this](int socket) {
-    static QByteArray data(min_buffersize, 0);
-    const auto len = ::read(socket, data.data(), static_cast<size_t>(data.size()));
-    if( len == -1 ) {
-      m_linuxUdevNotifier->setEnabled(false);
-      QTimer::singleShot(0, [this](){ m_linuxUdevNotifier.reset(); });
-      return;
+    int bytesAvaibable = 0;
+    if( ioctl( fd, FIONREAD, &bytesAvaibable ) < 0 || bytesAvaibable <= 0 ) {
+      return; // Error or no bytes available
     }
-
-    constexpr char actionStr[] = "ACTION=add";
-    constexpr char vendorStr[] = "ID_VENDOR_ID=046d";
-    constexpr char modelStr[] = "ID_MODEL_ID=c53e";
-    constexpr char mouseStr[] = "INPUT_CLASS=mouse";
-    constexpr char devStr[] = "DEVNAME=/dev/input/event";
-
-    if (!deviceConnected())
+    QVarLengthArray<char, 2048> buffer( bytesAvaibable );
+    const auto bytesRead = read( fd, buffer.data(), static_cast<size_t>(bytesAvaibable) );
+    const char* at = buffer.data();
+    const char* const end = at + bytesRead;
+    while( at < end )
     {
-      if (indexOf(actionStr, sizeof(actionStr)-1, data, len) >= 0
-          && indexOf(vendorStr, sizeof(vendorStr)-1, data, len) >= 0
-          && indexOf(modelStr, sizeof(modelStr)-1, data, len) >= 0
-          && indexOf(mouseStr, sizeof(mouseStr)-1, data, len) >= 0)
+      const inotify_event* event = reinterpret_cast<const inotify_event*>( at );
+      if( (event->mask & (IN_CREATE )) && QString(event->name).startsWith("event") )
       {
-        const int idx = indexOf(devStr, sizeof(devStr)-1, data, len);
-        if( idx >= 0) {
-          const auto newDevice = QString::fromUtf8(&data.data()[idx+8]);
-          QTimer::singleShot(0, [this, newDevice](){
-            connectToDevice(newDevice);
-          });
-        }
+        const auto devicePath = QString("/dev/input/").append(event->name);
+
+        // Usually the devices are not fully ready when added to the device file system
+        // We'll try to check several times if the first try fails.
+        // Not elegant - but needs very little code, easy to maintain and no need to parse
+        // linux udev message parsing and similar
+        static std::function<void(const QString&,int,int)> try_connect =
+          [this](const QString& devicePath, int msec, int retries) {
+            --retries;
+            QTimer::singleShot(msec, [this, devicePath, retries, msec]() {
+              if (connectSpotlightDevice(devicePath) == ConnectionResult::CouldNotOpen) {
+                if( retries == 0) return;
+                try_connect(devicePath, msec+100, retries);
+              }
+            });
+          };
+        try_connect(devicePath, 100, 4);
       }
+      at += sizeof(inotify_event) + event->len;
     }
+
   });
 
-  connect(&*m_linuxUdevNotifier, &QSocketNotifier::destroyed, [this]() {
-    if(m_linuxUdevNotifier) {
-      ::close(static_cast<int>(m_linuxUdevNotifier->socket()));
-    }
+  connect(notifier, &QSocketNotifier::destroyed, [notifier]() {
+    ::close(static_cast<int>(notifier->socket()));
   });
-
   return true;
 }
 

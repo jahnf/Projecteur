@@ -6,6 +6,7 @@
 
 namespace {
   namespace settings {
+    constexpr char showSpot[] = "showSpot";
     constexpr char spotSize[] = "spotSize";
     constexpr char showCenterDot[] = "showCenterDot";
     constexpr char dotSize[] = "dotSize";
@@ -16,6 +17,7 @@ namespace {
     constexpr char cursor[] = "cursor";
 
     namespace defaultValue {
+      constexpr bool showSpot = true;
       constexpr int spotSize = 32;
       constexpr bool showCenterDot = false;
       constexpr int dotSize = 5;
@@ -42,6 +44,7 @@ Settings::~Settings()
 
 void Settings::setDefaults()
 {
+  setShowSpot(settings::defaultValue::showSpot);
   setSpotSize(settings::defaultValue::spotSize);
   setShowCenterDot(settings::defaultValue::showCenterDot);
   setDotSize(settings::defaultValue::dotSize);
@@ -54,6 +57,7 @@ void Settings::setDefaults()
 
 void Settings::load()
 {
+  setShowSpot(m_settings->value(::settings::showSpot, settings::defaultValue::showSpot).toBool());
   setSpotSize(m_settings->value(::settings::spotSize, settings::defaultValue::spotSize).toInt());
   setShowCenterDot(m_settings->value(::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
   setDotSize(m_settings->value(::settings::dotSize, settings::defaultValue::dotSize).toInt());
@@ -62,6 +66,16 @@ void Settings::load()
   setShadeOpacity(m_settings->value(::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
   setScreen(m_settings->value(::settings::screen, settings::defaultValue::screen).toInt());
   setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
+}
+
+void Settings::setShowSpot(bool show)
+{
+  if (show == m_showSpot)
+    return;
+
+  m_showSpot = show;
+  m_settings->setValue(::settings::showSpot, m_showSpot);
+  emit showSpotChanged(m_showSpot);
 }
 
 void Settings::setSpotSize(int size)

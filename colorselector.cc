@@ -23,7 +23,7 @@ ColorSelector::ColorSelector(const QColor& color, QWidget* parent)
 
 void ColorSelector::setColor(const QColor& color)
 {
-  if( m_color == color )
+  if (m_color == color)
     return;
 
   m_color = color;
@@ -33,7 +33,7 @@ void ColorSelector::setColor(const QColor& color)
 
 void ColorSelector::updateButton()
 {
-  QPalette p;
+  QPalette p(palette());
   p.setColor(QPalette::Button, m_color);
   p.setColor(QPalette::ButtonText, m_color);
   setPalette(p);

@@ -1,0 +1,48 @@
+language: generic
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
+      addons:
+        apt:
+          sources: &sources
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+            - sourceline: 'ppa:beineri/opt-qt596-trusty'
+          packages:
+            - g++-5
+            - qt59base
+            - qt59declarative
+            - qt59x11extras
+            - libx11-xcb-dev
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=gcc CXX=g++-6 CC=gcc-6
+      addons:
+        apt:
+          packages:
+            - g++-6
+            - qt59base
+            - qt59declarative
+            - qt59x11extras
+            - libx11-xcb-dev
+          sources: *sources
+    - os: linux
+      dist: trusty
+      env: COMPILER_NAME=clang CXX=clang++ CC=clang
+      addons:
+        apt:
+          packages:
+            - clang-5.0
+            - qt59base
+            - qt59declarative
+            - qt59x11extras
+            - libx11-xcb-dev
+          sources: *sources
+          
+script: 
+  - mkdir build && cd build
+  - . /opt/qt59/bin/qt59-env.sh && cmake ..
+  - make
+  - ./projecteur -v

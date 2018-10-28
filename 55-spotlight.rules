@@ -9,6 +9,10 @@
 
 # Note that for kernels before 2.6.24, you will need to substitute "usb" with "usb_device".
 
+# Rule for USB Receiver
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="660", GROUP="plugdev", ENV{USB_HUB_TYPE}="046d:c53e"
+
+# Rule when connected via Bluetooth
+SUBSYSTEMS=="input", ATTRS{name}=="SPOTLIGHT", MODE="660", GROUP="plugdev""
 
 

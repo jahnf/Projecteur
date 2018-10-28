@@ -1,5 +1,8 @@
 # Projecteur
 
+develop: [![Build Status develop](https://travis-ci.org/jahnf/Projecteur.svg?branch=develop)](https://travis-ci.org/jahnf/Projecteur)
+master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branch=master)](https://travis-ci.org/jahnf/Projecteur)
+
 Linux/X11 application for the Logitech Spotlight device.
 
 Copyright 2018 [Jahn Fuchs](mailto:github.jahnf@wolke7.net)
@@ -11,12 +14,15 @@ immediately. Unfortenately as in a lot of cases software is only provided for Wi
 and Mac. The device itself works just fine on Linux, but the cool spot feature
 is done by additional software.
 
-So here it is: a Linux application the Logitech Spotlight.
+So here it is: a Linux application for the Logitech Spotlight.
 
 ## Features
 
 * Configurable desktop spotlight. Configure color, opacity, cursor, center dot.
 * Multiple screen support
+
+![Settings](./doc/screenshot-settings.png)
+![Settings](./doc/screenshot-traymenu.png)
 
 ## Supported Environments
 
@@ -70,3 +76,7 @@ file in this repository: `55-spotlight.rules`
 * After that the two input devices from the Logitech USB Receiver in /dev/input
   should have the group 'plugdev', i.e. the group you configure in the rules file.
 
+### Application Menu
+
+The application menu is accessable via the system tray icon. There you will find
+the preferences and the menu entry to exit the application.

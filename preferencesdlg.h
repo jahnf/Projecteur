@@ -4,7 +4,9 @@
 #include <QDialog>
 
 class QComboBox;
+class QGroupBox;
 class Settings;
+class Spotlight;
 
 class PreferencesDialog : public QDialog
 {
@@ -12,7 +14,7 @@ class PreferencesDialog : public QDialog
   Q_PROPERTY(bool dialogActive READ dialogActive NOTIFY dialogActiveChanged)
 
 public:
-  explicit PreferencesDialog(Settings* settings, QWidget* parent = nullptr);
+  explicit PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
   virtual ~PreferencesDialog() override = default;
 
   bool dialogActive() const { return m_active; }
@@ -28,6 +30,10 @@ protected:
 
 private:
   void setDialogActive(bool active);
+
+  QGroupBox* createSpotGroupBox(Settings* settings);
+  QGroupBox* createDotGroupBox(Settings* settings);
+  QWidget* createConnectedStateWidget(Spotlight* spotlight);
 
 private:
   bool m_active = false;

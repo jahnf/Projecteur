@@ -34,8 +34,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
   setQuitOnLastWindowClosed(false);
 
+  auto spotlight = new Spotlight(this);
   auto settings = new Settings(this);
-  m_dialog.reset(new PreferencesDialog(settings));
+  m_dialog.reset(new PreferencesDialog(settings, spotlight));
   m_dialog->updateAvailableScreens(screens());
 
   auto screen = screens().first();
@@ -84,8 +85,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  connect(shortcut, &QGlobalShortcutX11::activated, [window](){
   //    qDebug() << "GlobalShortCut Ctrl+F3" << window;
   //  });
-
-  auto spotlight = new Spotlight(this);
 
   // Handling of spotlight window when input from spotlight device is detected
   connect(spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
