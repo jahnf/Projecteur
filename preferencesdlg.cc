@@ -3,6 +3,7 @@
 
 #include "colorselector.h"
 #include "settings.h"
+#include "spotlight.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -34,7 +35,7 @@ namespace {
   };
 }
 
-PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
+PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent)
   : QDialog(parent)
 {
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
@@ -93,8 +94,24 @@ PreferencesDialog::PreferencesDialog(Settings* settings, QWidget* parent)
   auto vbox = new QVBoxLayout(this);
   vbox->addLayout(grid);
   vbox->addStretch(1);
+  vbox->addWidget(createConnectedStateWidget(spotlight));
   vbox->addSpacing(10);
   vbox->addLayout(btnHBox);
+}
+
+QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
+{
+  static const auto deviceText = tr("Device connected: %1", "%1=True or False");
+  auto group = new QGroupBox(this);
+  auto vbox = new QVBoxLayout(group);
+  auto lbl = new QLabel(deviceText.arg(spotlight->anySpotlightDeviceConnected() ? "True"
+                                                                                : "False"), this);
+
+  vbox->addWidget(lbl);
+  connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, [lbl](bool connected) {
+    lbl->setText(deviceText.arg(connected ? "True" : "False"));
+  });
+  return group;
 }
 
 QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)

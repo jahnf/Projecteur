@@ -18,12 +18,14 @@ public:
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
-  bool deviceConnected() const; //!< Returns true if a Logitech Spotlight device could be opened.
+  bool anySpotlightDeviceConnected() const;
+  QStringList connectedDevices() const;
 
 signals:
   void error(const QString& errMsg);
-  void connected(const QString& devicePath);
-  void disconnected(const QString& devicePath);
+  void connected(const QString& devicePath); //!< signal for every device connected
+  void disconnected(const QString& devicePath); //!< signal for every device disconnected
+  void anySpotlightDeviceConnectedChanged(bool connected);
   void spotActiveChanged(bool isActive);
 
 private:

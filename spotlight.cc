@@ -35,7 +35,7 @@ Spotlight::~Spotlight()
 {
 }
 
-bool Spotlight::deviceConnected() const
+bool Spotlight::anySpotlightDeviceConnected() const
 {
   for (const auto& i : m_eventNotifiers)
   {
@@ -44,6 +44,17 @@ bool Spotlight::deviceConnected() const
   }
 
   return false;
+}
+
+QStringList Spotlight::connectedDevices() const
+{
+  QStringList devices;
+  for (const auto& i : m_eventNotifiers)
+  {
+    if (i.second && i.second->isEnabled())
+      devices.push_back(i.first);
+  }
+  return devices;
 }
 
 int Spotlight::connectDevices()
@@ -100,6 +111,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   const bool hasRelEv = !!(bitmask & (1 << EV_REL));
   if (!hasRelEv) { return ConnectionResult::NotASpotlightDevice; }
 
+  const bool anyConnectedBefore = anySpotlightDeviceConnected();
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
   QSocketNotifier* notifier = m_eventNotifiers[devicePath].data();
 
@@ -124,11 +136,17 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
+      if (!anySpotlightDeviceConnected()) {
+        emit anySpotlightDeviceConnectedChanged(false);
+      }
       QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers[devicePath].reset(); });
     }
   });
 
   emit connected(devicePath);
+  if (!anyConnectedBefore) {
+    emit anySpotlightDeviceConnectedChanged(true);
+  }
   return ConnectionResult::Connected;
 }
 
