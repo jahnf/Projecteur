@@ -9,6 +9,13 @@ elseif(QTDIR)
   list(APPEND CMAKE_PREFIX_PATH ${QTDIR})
 endif()
 
+# Set the default build type to release
+if( NOT CMAKE_BUILD_TYPE )
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
 project(Projecteur LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")

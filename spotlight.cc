@@ -111,6 +111,33 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   const bool hasRelEv = !!(bitmask & (1 << EV_REL));
   if (!hasRelEv) { return ConnectionResult::NotASpotlightDevice; }
 
+  if(id.bustype == BUS_BLUETOOTH)
+  {
+    // Known issue (at least on Ubuntu systems):
+    // Bluetooth devices get detected fine with the current approach with inotify and /dev/input
+    // but the corresponding /dev/input/event* device from the Bluetooth Spotlight HID device
+    // is still available even if bluetooth is disabled -> The application still thinks that
+    // a spotlight device connected, therefore showing a 'false' connected state in the
+    // Preferences dialog. Possible future counter measure would be to monitor the
+    // bluetooth connection of Uniq & Phys addresses via the Linux Bluetooth API
+
+    // Bluetooth Spotlight device example
+    /*
+    I: Bus=0005 Vendor=046d Product=b503 Version=0032
+    N: Name="SPOTLIGHT"
+    P: Phys=C4:8E:8F:FA:37:0E
+    S: Sysfs=/devices/virtual/misc/uhid/0005:046D:B503.0008/input/input55
+    U: Uniq=C3:A0:BB:30:C1:7B
+    H: Handlers=sysrq kbd mouse3 event17
+    B: PROP=0
+    B: EV=10001f
+    B: KEY=3007f 0 0 483ffff17aff32d bf54444600000000 ffff0001 130f938b17c007 ffe77bfad9415fff febeffdfffefffff fffffffffffffffe
+    B: REL=1c3
+    B: ABS=100000000
+    B: MSC=10
+    */
+  }
+
   const bool anyConnectedBefore = anySpotlightDeviceConnected();
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
   QSocketNotifier* notifier = m_eventNotifiers[devicePath].data();
@@ -183,22 +210,7 @@ bool Spotlight::setupDevEventInotify()
       if( (event->mask & (IN_CREATE )) && QString(event->name).startsWith("event") )
       {
         const auto devicePath = QString("/dev/input/").append(event->name);
-
-        // Usually the devices are not fully ready when added to the device file system
-        // We'll try to check several times if the first try fails.
-        // Not elegant - but needs very little code, easy to maintain and no need to parse
-        // linux udev message parsing and similar
-        static std::function<void(const QString&,int,int)> try_connect =
-          [this](const QString& devicePath, int msec, int retries) {
-            --retries;
-            QTimer::singleShot(msec, [this, devicePath, retries, msec]() {
-              if (connectSpotlightDevice(devicePath) == ConnectionResult::CouldNotOpen) {
-                if( retries == 0) return;
-                try_connect(devicePath, msec+100, retries);
-              }
-            });
-          };
-        try_connect(devicePath, 100, 4);
+        tryConnect(devicePath, 100, 4);
       }
       at += sizeof(inotify_event) + event->len;
     }
@@ -209,5 +221,20 @@ bool Spotlight::setupDevEventInotify()
     ::close(static_cast<int>(notifier->socket()));
   });
   return true;
+}
+
+// Usually the devices are not fully ready when added to the device file system
+// We'll try to check several times if the first try fails.
+// Not elegant - but needs very little code, easy to maintain and no need to parse
+// linux udev message parsing and similar
+void Spotlight::tryConnect(const QString& devicePath, int msec, int retries)
+{
+  --retries;
+  QTimer::singleShot(msec, [this, devicePath, retries, msec]() {
+    if (connectSpotlightDevice(devicePath) == ConnectionResult::CouldNotOpen) {
+      if( retries == 0) return;
+      tryConnect(devicePath, msec+100, retries);
+    }
+  });
 }
 

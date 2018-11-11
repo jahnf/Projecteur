@@ -33,6 +33,7 @@ private:
   ConnectionResult connectSpotlightDevice(const QString& devicePath);
   bool setupDevEventInotify();
   int connectDevices();
+  void tryConnect(const QString& devicePath, int msec, int retries);
 
 private:
   std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
