@@ -225,8 +225,8 @@ bool Spotlight::setupDevEventInotify()
 
 // Usually the devices are not fully ready when added to the device file system
 // We'll try to check several times if the first try fails.
-// Not elegant - but needs very little code, easy to maintain and no need to parse
-// linux udev message parsing and similar
+// Not elegant - but needs very little code, easy to maintain and no need for
+// linux udev message parsing
 void Spotlight::tryConnect(const QString& devicePath, int msec, int retries)
 {
   --retries;

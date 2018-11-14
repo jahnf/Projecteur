@@ -12,18 +12,18 @@ namespace {
 }
 
 RunGuard::RunGuard( const QString& key )
-    : m_key(key)
-    , m_memLockKey(generateKeyHash(key, "_memLockKey"))
-    , m_sharedmemKey(generateKeyHash(key, "_sharedmemKey"))
-    , m_sharedMem(m_sharedmemKey)
-    , m_memLock(m_memLockKey, 1)
+  : m_key(key)
+  , m_memLockKey(generateKeyHash(key, "_memLockKey"))
+  , m_sharedmemKey(generateKeyHash(key, "_sharedmemKey"))
+  , m_sharedMem(m_sharedmemKey)
+  , m_memLock(m_memLockKey, 1)
 {
-    m_memLock.acquire();
-    {
-        QSharedMemory fix(m_sharedmemKey);  // Fix for *nix: http://habrahabr.ru/post/173281/
-        fix.attach();
-    }
-    m_memLock.release();
+  m_memLock.acquire();
+  {
+    QSharedMemory fix(m_sharedmemKey);  // Fix for *nix: http://habrahabr.ru/post/173281/
+    fix.attach();
+  }
+  m_memLock.release();
 }
 
 RunGuard::~RunGuard()

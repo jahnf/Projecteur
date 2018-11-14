@@ -212,7 +212,7 @@ bool PreferencesDialog::event(QEvent* e)
 
 void PreferencesDialog::updateAvailableScreens(QList<QScreen*> screens)
 {
-  for (int i = 0; i < screens.size(); ++ i)
+  for (int i = 0; i < screens.size(); ++i)
   {
     const int idx = m_screenCb->findData(i);
     if (idx == -1) {
