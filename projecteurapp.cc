@@ -81,11 +81,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     }
   });
 
-  window->setScreen(screen);
-  window->setPosition(screen->availableGeometry().topLeft());
   window->setFlag(Qt::WindowTransparentForInput, true);
   window->setFlag(Qt::Tool, true);
-
+  window->setScreen(screen);
+  window->setPosition(screen->availableGeometry().topLeft());
+  window->setWidth(screen->availableGeometry().width());
+  window->setHeight(screen->availableGeometry().height());
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
   // Example code for global shortcuts...
@@ -148,8 +149,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     window->hide();
     window->setGeometry(QRect(screen->availableGeometry().topLeft(), QSize(400,320)));
     window->setScreen(screen);
+    window->setPosition(screen->availableGeometry().topLeft());
+    window->setWidth(screen->availableGeometry().width());
+    window->setHeight(screen->availableGeometry().height());
     if (wasVisible) {
-      QTimer::singleShot(0,[window,this]() {
+      QTimer::singleShot(0, [window,this]() {
         window->showMaximized();
         if(m_dialog->isVisible()) {
           m_dialog->raise();
