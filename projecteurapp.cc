@@ -229,7 +229,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 {
   if (ipcCommand.isEmpty())
   {
-    QMetaObject::invokeMethod(this, &QCoreApplication::quit, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
     return;
   }
 
@@ -239,7 +239,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
   [this, localSocket](QLocalSocket::LocalSocketError socketError) {
     qDebug() << "Error sending command: " << localSocket->errorString();
     localSocket->close();
-    QMetaObject::invokeMethod(this, &QCoreApplication::quit, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });
 
   connect(localSocket, &QLocalSocket::connected, [this, localSocket, ipcCommand]()
@@ -262,7 +262,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 
   connect(localSocket, &QLocalSocket::disconnected, [this, localSocket]() {
     localSocket->close();
-    QMetaObject::invokeMethod(this, &QCoreApplication::quit, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });
 
   localSocket->connectToServer(localServerName());
