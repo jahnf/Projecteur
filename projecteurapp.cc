@@ -8,22 +8,30 @@
 #include "spotlight.h"
 
 #include <QDialog>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <QMenu>
 #include <QMessageBox>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QQuickWindow>
-#include <QScopedPointer>
 #include <QScreen>
 #include <QSystemTrayIcon>
 #include <QTimer>
+#include <QWindow>
 
 #include <QDebug>
+
+namespace {
+  QString localServerName() {
+    return QCoreApplication::applicationName() + "_local_socket";
+  }
+}
 
 ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon())
   , m_trayMenu(new QMenu())
+  , m_localServer(new QLocalServer(this))
 {
   if (screens().size() < 1)
   {
@@ -149,8 +157,110 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
       });
     }
   });
+
+  // Open local server for local IPC commands, e.g. from other command line instances
+  QLocalServer::removeServer(localServerName());
+  if (m_localServer->listen(localServerName()))
+  {
+    connect(m_localServer, &QLocalServer::newConnection, [this]()
+    {
+      while(QLocalSocket *clientConnection = m_localServer->nextPendingConnection())
+      {
+        connect(clientConnection, &QLocalSocket::readyRead, [this, clientConnection]() {
+          this->readCommand(clientConnection);
+        });
+        connect(clientConnection, &QLocalSocket::disconnected, [this, clientConnection]() {
+          const auto it = m_commandConnections.find(clientConnection);
+          if (it != m_commandConnections.end()) {
+            m_commandConnections.erase(it);
+          }
+          clientConnection->close();
+          clientConnection->deleteLater();
+        });
+
+        m_commandConnections.emplace(clientConnection, 0);
+      }
+    });
+  }
+  else
+  {
+    qDebug() << "Error starting local socket for inter-process communication.";
+  }
 }
 
 ProjecteurApplication::~ProjecteurApplication()
 {
+  if (m_localServer) m_localServer->close();
 }
+
+void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
+{
+  auto it = m_commandConnections.find(clientConnection);
+  if (it == m_commandConnections.end()) {
+    return;
+  }
+
+  quint32& commandSize = it->second;
+
+  // Read size of command (always quint32) if not already done.
+  if (commandSize == 0) {
+    if (clientConnection->bytesAvailable() < static_cast<int>(sizeof(quint32)))
+      return;
+
+    QDataStream in(clientConnection);
+    in >> commandSize;
+  }
+
+  if (clientConnection->bytesAvailable() < commandSize || clientConnection->atEnd())
+    return;
+
+  const auto command = QString::fromLocal8Bit(clientConnection->read(commandSize));
+  // TODO parse & execute command.
+
+  clientConnection->disconnectFromServer();
+}
+
+ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand, int &argc, char **argv)
+  : QCoreApplication(argc, argv)
+{
+  if (ipcCommand.isEmpty())
+  {
+    QMetaObject::invokeMethod(this, &QCoreApplication::quit, Qt::QueuedConnection);
+    return;
+  }
+
+  QLocalSocket* localSocket = new QLocalSocket(this);
+
+  connect(localSocket, QOverload<QLocalSocket::LocalSocketError>::of(&QLocalSocket::error),
+  [this, localSocket](QLocalSocket::LocalSocketError socketError) {
+    qDebug() << "Error sending command: " << localSocket->errorString();
+    localSocket->close();
+    QMetaObject::invokeMethod(this, &QCoreApplication::quit, Qt::QueuedConnection);
+  });
+
+  connect(localSocket, &QLocalSocket::connected, [this, localSocket, ipcCommand]()
+  {
+    const QByteArray commandBlock = [&ipcCommand](){
+      const QByteArray ipcBytes = ipcCommand.toLocal8Bit();
+      QByteArray block;
+      {
+        QDataStream out(&block, QIODevice::WriteOnly);
+        out << static_cast<quint32>(ipcBytes.size());
+      }
+      block.append(ipcBytes);
+      return block;
+    }();
+
+    localSocket->write(commandBlock);
+    localSocket->flush();
+    localSocket->disconnectFromServer();
+  });
+
+  connect(localSocket, &QLocalSocket::disconnected, [this, localSocket]() {
+    localSocket->close();
+    QMetaObject::invokeMethod(this, &QCoreApplication::quit, Qt::QueuedConnection);
+  });
+
+  localSocket->connectToServer(localServerName());
+}
+
