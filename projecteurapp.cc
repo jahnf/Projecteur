@@ -72,7 +72,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   m_trayMenu->addAction(tr("&Quit"), [this](){ this->quit(); });
   m_trayIcon->setContextMenu(&*m_trayMenu);
 
-  m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray.svg"));
+  m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray-64.png"));
   m_trayIcon->show();
 
   connect(&*m_trayIcon, &QSystemTrayIcon::activated, [this](QSystemTrayIcon::ActivationReason reason) {
