@@ -51,7 +51,7 @@ For more details: Have a look at the source code ;)
 
 * C++11 compiler
 * CMake 3.6 or later
-* Qt 5.6 and later (Might also work in earlier Qt5 versions - but not tested)
+* Qt 5.9 and later
 
 ### Build Example
 
