@@ -75,8 +75,24 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   m_trayIcon->show();
 
   connect(&*m_trayIcon, &QSystemTrayIcon::activated, [this](QSystemTrayIcon::ActivationReason reason) {
-    if (reason == QSystemTrayIcon::Trigger) {
-      m_trayIcon->contextMenu()->popup(m_trayIcon->geometry().center());
+    if (reason == QSystemTrayIcon::Trigger)
+    {
+      //static const bool isKDE = (qgetenv("XDG_CURRENT_DESKTOP") == QByteArray("KDE"));
+      const auto trayGeometry = m_trayIcon->geometry();
+      // This usually won't give us a valid geometry, since Qt isn't drawing the tray icon itself
+      if (trayGeometry.isValid()) {
+        m_trayIcon->contextMenu()->popup(m_trayIcon->geometry().center());
+      } else {
+        // It's tricky to get the same behavior on all desktop environments. While on GNOME3
+        // it behaves as one (or most) would expect it behaves differently on other Desktop
+        // environments.
+        // QSystemTrayIcon is a wrapper around the StatusNotfierItem on modern (Linux) Desktops
+        // see: https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/
+        // Via the Qt API there is not much control over how e.g. KDE or GNOME show the icon
+        // and how it behaves.. e.g. setting something like
+        // org.freedesktop.StatusNotifierItem.ItemIsMenu to True would be good for KDE Plasma
+        // see: https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierItem/
+      }
     }
   });
 
