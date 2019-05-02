@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
 
@@ -22,10 +23,29 @@ AboutDialog::AboutDialog(QWidget* parent)
   iconLabel->setPixmap(QIcon(":/icons/projecteur-tray.svg").pixmap(QSize(128,128)));
   hbox->addWidget(iconLabel);
 
-  auto vbox = new QVBoxLayout();
-  vbox->addWidget(new QLabel(QString("<b>%1</b><br>Version %2")
+  auto tabWidget = new QTabWidget(this);
+  hbox->addWidget(tabWidget, 1);
+
+  tabWidget->addTab(createVersionInfoWidget(), tr("Version"));
+//  tabWidget->addTab(createContributorInfoWidget(), tr("Contributors"));
+
+  auto bbox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
+  connect(bbox, &QDialogButtonBox::clicked, this, &QDialog::accept);
+
+  auto mainVbox = new QVBoxLayout(this);
+  mainVbox->addLayout(hbox);
+  mainVbox->addSpacing(10);
+  mainVbox->addWidget(bbox);
+}
+
+QWidget* AboutDialog::createVersionInfoWidget()
+{
+  auto versionInfoWidget = new QWidget(this);
+  auto vbox = new QVBoxLayout(versionInfoWidget);
+  vbox->addWidget(new QLabel(QString("<b>%1</b><br>%2")
                              .arg(QCoreApplication::applicationName())
-                             .arg(projecteur::version_string()), this));
+                             .arg(tr("Version %1", "%1=application version number")
+                                  .arg(projecteur::version_string()))));
 
   if (QString(projecteur::version_branch()) != "master")
   {
@@ -42,16 +62,19 @@ AboutDialog::AboutDialog(QWidget* parent)
   vbox->addWidget(weblinkLabel);
 
   vbox->addSpacing(20);
-  vbox->addWidget(new QLabel(QString("Qt Version: %1").arg(QT_VERSION_STR), this));
+  vbox->addWidget(new QLabel(tr("Qt Version: %1", "%1=qt version number").arg(QT_VERSION_STR), this));
 
   vbox->addStretch(1);
-  hbox->addLayout(vbox);
+  return versionInfoWidget;
+}
 
-  auto bbox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
-  connect(bbox, &QDialogButtonBox::clicked, this, &QDialog::accept);
+QWidget* AboutDialog::createContributorInfoWidget()
+{
+  auto contributorWidget = new QWidget(this);
+  auto vbox = new QVBoxLayout(contributorWidget);
 
-  auto mainVbox = new QVBoxLayout(this);
-  mainVbox->addLayout(hbox);
-  mainVbox->addSpacing(10);
-  mainVbox->addWidget(bbox);
+  // TODO: list contributors (scroll box)
+
+  vbox->addStretch(1);
+  return contributorWidget;
 }
