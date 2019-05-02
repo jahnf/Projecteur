@@ -12,6 +12,7 @@
 #include <QLocalSocket>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QScreen>
@@ -42,9 +43,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
   setQuitOnLastWindowClosed(false);
 
-  auto spotlight = new Spotlight(this);
+  m_spotlight = new Spotlight(this);
   auto settings = new Settings(this);
-  m_dialog.reset(new PreferencesDialog(settings, spotlight));
+  m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
   auto screen = screens().first();
@@ -59,9 +60,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   auto window = topLevelWindows().first();
 
   m_trayMenu->addAction(tr("&Preferences..."), [this](){
-    m_dialog->show();
-    m_dialog->raise();
-    m_dialog->activateWindow();
+    this->showPreferences(true);
   });
 
   m_trayMenu->addAction(tr("&About"), [this](){
@@ -96,7 +95,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  });
 
   // Handling of spotlight window when input from spotlight device is detected
-  connect(spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
+  connect(m_spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
     if (active)
     {
       window->setFlag(Qt::WindowTransparentForInput, false);
@@ -119,7 +118,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
   // Handling of spotlight window when preferences dialog is active
   connect(&*m_dialog, &PreferencesDialog::dialogActiveChanged,
-  [this, window, spotlight](bool active)
+  [this, window](bool active)
   {
     if (active) {
       window->setFlag(Qt::WindowTransparentForInput, false);
@@ -129,7 +128,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
         m_dialog->raise();
       }
     }
-    else if (spotlight->spotActive()) {
+    else if (m_spotlight->spotActive()) {
       window->setFlag(Qt::WindowStaysOnTopHint, true);
     }
     else {
@@ -182,6 +181,15 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
           clientConnection->deleteLater();
         });
 
+        // Timeout timer - if after 5 seconds the connection is still open just disconnect...
+        auto clientConnPtr = QPointer<QLocalSocket>(clientConnection);
+        QTimer::singleShot(5000, [clientConnPtr](){
+          if (clientConnPtr) {
+            // qDebug() << "timed, disconnected" << clientConnPtr;
+            clientConnPtr->disconnectFromServer();
+          }
+        });
+
         m_commandConnections.emplace(clientConnection, 0);
       }
     });
@@ -213,15 +221,51 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
 
     QDataStream in(clientConnection);
     in >> commandSize;
+
+    if (commandSize > 256)
+    {
+      clientConnection->disconnectFromServer();
+      return ;
+    }
   }
 
-  if (clientConnection->bytesAvailable() < commandSize || clientConnection->atEnd())
+  if (clientConnection->bytesAvailable() < commandSize || clientConnection->atEnd()) {
     return;
+  }
 
   const auto command = QString::fromLocal8Bit(clientConnection->read(commandSize));
-  // TODO parse & execute command.
+  const QString cmdKey = command.section('=', 0, 0).trimmed();
+  const QString cmdValue = command.section('=', 1).trimmed();
+
+  if (cmdKey == "quit")
+  {
+    this->quit();
+  }
+  else if (cmdKey == "spot")
+  {
+    const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
+    emit m_spotlight->spotActiveChanged(active);
+  }
+  else if (cmdKey == "settings" || cmdKey == "preferences")
+  {
+    const bool show = !(cmdValue == "hide" || cmdValue == "0");
+    showPreferences(show);
+  }
 
   clientConnection->disconnectFromServer();
+}
+
+void ProjecteurApplication::showPreferences(bool show)
+{
+  if (show)
+  {
+    m_dialog->show();
+    m_dialog->raise();
+    m_dialog->activateWindow();
+  }
+  else {
+    m_dialog->hide();
+  }
 }
 
 ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand, int &argc, char **argv)

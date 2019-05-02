@@ -10,7 +10,7 @@ class QLocalServer;
 class QLocalSocket;
 class QMenu;
 class QSystemTrayIcon;
-
+class Spotlight;
 
 class ProjecteurApplication : public QApplication
 {
@@ -24,10 +24,14 @@ private slots:
   void readCommand(QLocalSocket* client);
 
 private:
+  void showPreferences(bool show = true);
+
+private:
   QScopedPointer<QSystemTrayIcon> m_trayIcon;
   QScopedPointer<QMenu> m_trayMenu;
   QScopedPointer<PreferencesDialog> m_dialog;
   QLocalServer* m_localServer = nullptr;
+  Spotlight* m_spotlight = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
 };
 

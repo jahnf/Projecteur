@@ -149,7 +149,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd)
   {
     struct input_event ev;
-    auto sz = ::read(fd, &ev, sizeof(ev));
+    const auto sz = ::read(fd, &ev, sizeof(ev));
     if (sz == sizeof(ev) && ev.type & EV_REL) // only for relative mouse events
     {
       if (!m_activeTimer->isActive()) {
