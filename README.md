@@ -55,6 +55,8 @@ For more details: Have a look at the source code ;)
 
 ### Build Example
 
+Note: You can ommit setting the `QTDIR` variable, CMake will then usually find the Qt versin that comes with the distribution's packacke management.
+
       > git clone https://github.com/jahnf/projecteur
       > cd projecteur
       > mkdir build && cd build
