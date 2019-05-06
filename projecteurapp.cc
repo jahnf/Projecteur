@@ -92,6 +92,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
         // and how it behaves.. e.g. setting something like
         // org.freedesktop.StatusNotifierItem.ItemIsMenu to True would be good for KDE Plasma
         // see: https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/StatusNotifierItem/
+        this->showPreferences(true);
       }
     }
   });
