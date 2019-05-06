@@ -99,9 +99,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   window->setFlag(Qt::WindowTransparentForInput, true);
   window->setFlag(Qt::Tool, true);
   window->setScreen(screen);
-  window->setPosition(screen->availableGeometry().topLeft());
-  window->setWidth(screen->availableGeometry().width());
-  window->setHeight(screen->availableGeometry().height());
+  window->setPosition(screen->geometry().topLeft());
+  window->setWidth(screen->geometry().width());
+  window->setHeight(screen->geometry().height());
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
   // Example code for global shortcuts...
@@ -114,19 +114,23 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   connect(m_spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
     if (active)
     {
+      window->setFlag(Qt::SplashScreen, true);
       window->setFlag(Qt::WindowTransparentForInput, false);
       window->setFlag(Qt::WindowStaysOnTopHint, true);
       window->hide();
-//      window->showMaximized();
+      window->setFlag(Qt::SplashScreen, false);
+      window->setFlag(Qt::ToolTip, true);
       window->showFullScreen();
     }
     else {
       if (m_dialog->isActiveWindow()) {
+        window->setFlag(Qt::SplashScreen, true);
         window->setFlag(Qt::WindowStaysOnTopHint, false);
         m_dialog->raise();
       }
       else {
         window->setFlag(Qt::WindowTransparentForInput, true);
+        window->setFlag(Qt::SplashScreen, true);
         window->hide();
       }
     }
@@ -140,15 +144,19 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
       window->setFlag(Qt::WindowTransparentForInput, false);
       window->setFlag(Qt::WindowStaysOnTopHint, false);
       if (!window->isVisible()) {
+        window->setFlag(Qt::SplashScreen, true);
         window->showMaximized();
         m_dialog->raise();
       }
     }
     else if (m_spotlight->spotActive()) {
+      window->setFlag(Qt::SplashScreen, false);
+      window->setFlag(Qt::ToolTip, true);
       window->setFlag(Qt::WindowStaysOnTopHint, true);
     }
     else {
       window->setFlag(Qt::WindowTransparentForInput, true);
+      window->setFlag(Qt::SplashScreen, true);
       window->hide();
     }
   });
@@ -164,13 +172,17 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     window->hide();
     window->setGeometry(QRect(screen->availableGeometry().topLeft(), QSize(400,320)));
     window->setScreen(screen);
-    window->setPosition(screen->availableGeometry().topLeft());
-    window->setWidth(screen->availableGeometry().width());
-    window->setHeight(screen->availableGeometry().height());
+    window->setPosition(screen->geometry().topLeft());
+    window->setWidth(screen->geometry().width());
+    window->setHeight(screen->geometry().height());
     if (wasVisible) {
       QTimer::singleShot(0, [window,this]() {
+        window->setFlag(Qt::SplashScreen, m_dialog->isVisible());
+        if (!m_dialog->isVisible()) {
+          window->setFlag(Qt::ToolTip, true);
+        }
         window->showMaximized();
-        if(m_dialog->isVisible()) {
+        if (m_dialog->isVisible()) {
           m_dialog->raise();
         }
       });

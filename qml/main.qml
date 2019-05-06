@@ -6,7 +6,7 @@ Window {
     id: mainWindow
     width: 480; height: 320
 
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.SplashScreen
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.SplashScreen
 
     color: "transparent"
 
