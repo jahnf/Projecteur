@@ -4,7 +4,7 @@ import QtGraphicalEffects 1.0
 
 Window {
     id: mainWindow
-    width: 480; height: 320
+    width: 300; height: 200
 
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.SplashScreen
 
@@ -17,6 +17,7 @@ Window {
             cursorShape: Settings.cursor
             anchors.fill: parent
             hoverEnabled: true
+            onClicked: { mainWindow.hide() }
         }
     }
 

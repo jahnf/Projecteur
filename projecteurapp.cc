@@ -48,6 +48,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
+  connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
+    emit m_spotlight->spotActiveChanged(true);
+  });
+
   auto screen = screens().first();
   if (settings->screen() < screens().size()) {
     screen = screens().at(settings->screen());
@@ -121,44 +125,27 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
       window->hide();
       window->setFlag(Qt::SplashScreen, false);
       window->setFlag(Qt::ToolTip, true);
+
+      if (window->screen()) {
+        const auto screenGeometry = window->screen()->geometry();
+        if (window->geometry() != screenGeometry)
+          window->setGeometry(screenGeometry);
+      }
+
       window->showFullScreen();
     }
-    else {
-      if (m_dialog->isActiveWindow()) {
-        window->setFlag(Qt::SplashScreen, true);
-        window->setFlag(Qt::WindowStaysOnTopHint, false);
-        m_dialog->raise();
-      }
-      else {
-        window->setFlag(Qt::WindowTransparentForInput, true);
-        window->setFlag(Qt::SplashScreen, true);
-        window->hide();
-      }
-    }
-  });
-
-  // Handling of spotlight window when preferences dialog is active
-  connect(&*m_dialog, &PreferencesDialog::dialogActiveChanged,
-  [this, window](bool active)
-  {
-    if (active) {
-      window->setFlag(Qt::WindowTransparentForInput, false);
-      window->setFlag(Qt::WindowStaysOnTopHint, false);
-      if (!window->isVisible()) {
-        window->setFlag(Qt::SplashScreen, true);
-        window->showMaximized();
-        m_dialog->raise();
-      }
-    }
-    else if (m_spotlight->spotActive()) {
-      window->setFlag(Qt::SplashScreen, false);
-      window->setFlag(Qt::ToolTip, true);
-      window->setFlag(Qt::WindowStaysOnTopHint, true);
-    }
-    else {
+    else
+    {
       window->setFlag(Qt::WindowTransparentForInput, true);
       window->setFlag(Qt::SplashScreen, true);
       window->hide();
+    }
+  });
+
+  connect(window, &QWindow::visibleChanged, [this](bool v){
+    if (!v && m_dialog->isVisible()) {
+      m_dialog->raise();
+      m_dialog->activateWindow();
     }
   });
 
@@ -170,22 +157,17 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
     auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
+
+    window->setFlag(Qt::WindowTransparentForInput, true);
+    window->setFlag(Qt::SplashScreen, true);
     window->hide();
-    window->setGeometry(QRect(screen->availableGeometry().topLeft(), QSize(400,320)));
+    window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
-    window->setPosition(screen->geometry().topLeft());
-    window->setWidth(screen->geometry().width());
-    window->setHeight(screen->geometry().height());
+    window->setGeometry(screen->geometry());
+
     if (wasVisible) {
-      QTimer::singleShot(0, [window,this]() {
-        window->setFlag(Qt::SplashScreen, m_dialog->isVisible());
-        if (!m_dialog->isVisible()) {
-          window->setFlag(Qt::ToolTip, true);
-        }
-        window->showMaximized();
-        if (m_dialog->isVisible()) {
-          m_dialog->raise();
-        }
+      QTimer::singleShot(0, [this](){
+        emit m_spotlight->spotActiveChanged(true);
       });
     }
   });
