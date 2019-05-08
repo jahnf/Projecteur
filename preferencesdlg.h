@@ -24,6 +24,7 @@ public slots:
 
 signals:
   void dialogActiveChanged(bool active);
+  void testButtonClicked();
 
 protected:
   virtual bool event(QEvent* event) override;

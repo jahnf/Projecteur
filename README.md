@@ -5,7 +5,7 @@ master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branc
 
 Linux/X11 application for the Logitech Spotlight device.
 
-Copyright 2018 [Jahn Fuchs](mailto:github.jahnf@wolke7.net)
+Copyright 2018-2019 [Jahn Fuchs](mailto:github.jahnf@wolke7.net)
 
 ## Motivation
 
@@ -26,7 +26,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Supported Environments
 
-The application was tested only on Ubuntu 18.04 (GNOME) and OpenSuse 42.3 (GNOME)
+The application was tested on Ubuntu 18.04 (GNOME) and OpenSuse 42.3 and 15 (GNOME)
 but should work on almost any Linux/X11 Desktop. Make sure you have the correct
 udev rules installed (see Installation Pre-requisites).
 
@@ -51,9 +51,11 @@ For more details: Have a look at the source code ;)
 
 * C++11 compiler
 * CMake 3.6 or later
-* Qt 5.6 (Might also work in earlier Qt5 versions - but not tested)
+* Qt 5.9 and later
 
 ### Build Example
+
+Note: You can ommit setting the `QTDIR` variable, CMake will then usually find the Qt versin that comes with the distribution's packacke management.
 
       > git clone https://github.com/jahnf/projecteur
       > cd projecteur

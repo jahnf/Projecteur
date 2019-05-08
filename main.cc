@@ -30,18 +30,34 @@ int main(int argc, char *argv[])
 {
   QCoreApplication::setApplicationName("Projecteur");
   QCoreApplication::setApplicationVersion(projecteur::version_string());
+  QString ipcCommand;
   {
     QCommandLineParser parser;
     parser.setApplicationDescription("Linux/X11 application for the Logitech Spotlight device.");
-    QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print version information.");
-    parser.addOption(versionOption);
+    const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print version information.");
+    const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Print version information.");
+    const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to running instance.", "cmd");
+    parser.addOptions({versionOption, helpOption, commandOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
       args.push_back(argv[i]);
     }
     parser.process(args);
-    if (parser.isSet(versionOption))
+    if (parser.isSet(helpOption))
+    {
+      print() << QCoreApplication::applicationName().toStdString() << " "
+              << projecteur::version_string() << std::endl;
+      print() << "Usage: projecteur [option]" << std::endl;
+      print() << "<Options>";
+      print() << "  -h, --help             Show command line usage.";
+      print() << "  -v, --version          Print application version.";
+
+      //print() << "  -c, --command=COMMAND  Send command to running instance.";
+      // TODO print valid commands
+      return 0;
+    }
+    else if (parser.isSet(versionOption))
     {
       print() << QCoreApplication::applicationName().toStdString() << " "
               << projecteur::version_string();
@@ -55,13 +71,33 @@ int main(int argc, char *argv[])
         print() << "  - dirty-flag: " << projecteur::version_isdirty();
       return 0;
     }
+    else if (parser.isSet(commandOption))
+    {
+      ipcCommand = parser.value(commandOption);
+      if (ipcCommand.isEmpty()) {
+        error() << "Command cannot be an empty string.";
+        return 44;
+      }
+    }
   }
 
   RunGuard guard(QCoreApplication::applicationName());
   if (!guard.tryToRun())
   {
-    error() << "Another application instance is already running. Exiting.";
-    return 42;
+    if (ipcCommand.size())
+    {
+      return ProjecteurCommandClientApp(ipcCommand, argc, argv).exec();
+    }
+    else {
+      error() << "Another application instance is already running. Exiting.";
+      return 42;
+    }
+  }
+  else if (ipcCommand.size())
+  {
+    // No other application instance running - but command option was used.
+    error() << "Cannot send command '" << ipcCommand.toStdString() << "' - no running application instance found.";
+    return 43;
   }
 
   //QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);

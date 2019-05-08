@@ -10,4 +10,8 @@ class AboutDialog : public QDialog
 public:
   explicit AboutDialog(QWidget* parent = nullptr);
   virtual ~AboutDialog() override = default;
+
+private:
+  QWidget* createVersionInfoWidget();
+  QWidget* createContributorInfoWidget();
 };

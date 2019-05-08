@@ -3,9 +3,8 @@
 
 #include <QColor>
 #include <QObject>
-#include <QSettings>
 
-class QScreen;
+class QSettings;
 
 class Settings : public QObject
 {

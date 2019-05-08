@@ -91,10 +91,14 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   btnHBox->addStretch(1);
   btnHBox->addWidget(closeBtn);
 
+  auto testBtn = new QPushButton(tr("&Show test..."), this);
+  connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
+
   auto vbox = new QVBoxLayout(this);
   vbox->addLayout(grid);
   vbox->addStretch(1);
   vbox->addWidget(createConnectedStateWidget(spotlight));
+  vbox->addWidget(testBtn);
   vbox->addSpacing(10);
   vbox->addLayout(btnHBox);
 }
@@ -212,7 +216,7 @@ bool PreferencesDialog::event(QEvent* e)
 
 void PreferencesDialog::updateAvailableScreens(QList<QScreen*> screens)
 {
-  for (int i = 0; i < screens.size(); ++ i)
+  for (int i = 0; i < screens.size(); ++i)
   {
     const int idx = m_screenCb->findData(i);
     if (idx == -1) {

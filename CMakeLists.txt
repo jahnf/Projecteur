@@ -9,6 +9,13 @@ elseif(QTDIR)
   list(APPEND CMAKE_PREFIX_PATH ${QTDIR})
 endif()
 
+# Set the default build type to release
+if( NOT CMAKE_BUILD_TYPE )
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
 project(Projecteur LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
@@ -42,3 +49,29 @@ add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md 55-spotlight.rules)
+
+# Install
+install(TARGETS projecteur DESTINATION bin)
+
+# Use udev.pc pkg-config file to set the dir path
+if (NOT CMAKE_INSTALL_UDEVRULESDIR)
+  set (UDEVDIR /lib/udev)
+  find_package(PkgConfig)
+  if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PKGCONFIG_UDEV udev)
+    if(PKGCONFIG_UDEV_FOUND)
+      execute_process(
+        COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=udevdir udev
+        OUTPUT_VARIABLE PKGCONFIG_UDEVDIR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+      if(PKGCONFIG_UDEVDIR)
+        file(TO_CMAKE_PATH "${PKGCONFIG_UDEVDIR}" UDEVDIR)
+      endif(PKGCONFIG_UDEVDIR)
+    endif(PKGCONFIG_UDEV_FOUND)
+  endif(PKG_CONFIG_FOUND)
+endif(NOT CMAKE_INSTALL_UDEVRULESDIR)
+set (CMAKE_INSTALL_UDEVRULESDIR ${UDEVDIR}/rules.d CACHE PATH "Where to install udev rules")
+mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
+
+install(FILES 55-spotlight.rules DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
