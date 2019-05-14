@@ -35,9 +35,11 @@ int main(int argc, char *argv[])
     QCommandLineParser parser;
     parser.setApplicationDescription("Linux/X11 application for the Logitech Spotlight device.");
     const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print version information.");
+    QCommandLineOption fullVersionOption(QStringList{ "f" });
+    fullVersionOption.setFlags(QCommandLineOption::HiddenFromHelp);
     const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Print version information.");
     const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to running instance.", "cmd");
-    parser.addOptions({versionOption, helpOption, commandOption});
+    parser.addOptions({versionOption, helpOption, commandOption, fullVersionOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -61,7 +63,9 @@ int main(int argc, char *argv[])
     {
       print() << QCoreApplication::applicationName().toStdString() << " "
               << projecteur::version_string();
-      if (std::string(projecteur::version_branch()) != "master")
+      if (parser.isSet(fullVersionOption) ||
+          (std::string(projecteur::version_branch()) != "master" && 
+           std::string(projecteur::version_branch()) != "not-within-git-repo"))
       { // Not a build from master branch, print out additional information:
         print() << "  - git-branch: " << projecteur::version_branch();
         print() << "  - git-hash: " << projecteur::version_fullhash();

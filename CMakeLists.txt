@@ -45,6 +45,17 @@ target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras
   ${X11_LIBRARIES} xcb)
 
+# Set version project properties for builds not from a git repository (e.g. created with git archive)
+# If creating the version number via git information fails, the following target properties
+# will be used. IMPORTANT - when creating a release tag with git flow: 
+#  Update this information - the version numbers and the version type.
+#  VERSION_TYPE must be either 'release' or 'develop'
+set_target_properties(projecteur PROPERTIES 
+  VERSION_MAJOR 0
+  VERSION_MINOR 5
+  VERSION_PATCH 0
+  VERSION_TYPE develop
+)
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others

@@ -42,17 +42,22 @@ QWidget* AboutDialog::createVersionInfoWidget()
 {
   auto versionInfoWidget = new QWidget(this);
   auto vbox = new QVBoxLayout(versionInfoWidget);
-  vbox->addWidget(new QLabel(QString("<b>%1</b><br>%2")
+  auto versionLabel = new QLabel(QString("<b>%1</b><br>%2")
                              .arg(QCoreApplication::applicationName())
                              .arg(tr("Version %1", "%1=application version number")
-                                  .arg(projecteur::version_string()))));
+                                  .arg(projecteur::version_string())), this);
+  vbox->addWidget(versionLabel);
+  const auto vInfo = QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2")
+                              .arg(projecteur::version_branch())
+                              .arg(projecteur::version_shorthash());
+  versionLabel->setToolTip(vInfo);
 
-  if (QString(projecteur::version_branch()) != "master")
+  if (QString(projecteur::version_flag()).size() || 
+       (QString(projecteur::version_branch()) != "master"
+        && QString(projecteur::version_branch()) != "not-within-git-repo"))
   {
     vbox->addSpacing(10);
-    vbox->addWidget(new QLabel(QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2")
-                               .arg(projecteur::version_branch())
-                               .arg(projecteur::version_shorthash()), this));
+    vbox->addWidget(new QLabel(vInfo, this));
   }
 
   vbox->addSpacing(10);
