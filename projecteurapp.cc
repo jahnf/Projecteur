@@ -67,8 +67,18 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     this->showPreferences(true);
   });
 
-  m_trayMenu->addAction(tr("&About"), [this](){
-    AboutDialog().exec();
+  m_trayMenu->addAction(tr("&About"), [this]()
+  {
+    if (!m_aboutDialog)
+      m_aboutDialog.reset(new AboutDialog);
+
+    if (m_aboutDialog->isVisible()) {
+      m_aboutDialog->show();
+      m_aboutDialog->raise();
+      m_aboutDialog->activateWindow();
+    } else {
+      m_aboutDialog->exec();
+    }
   });
 
   m_trayMenu->addSeparator();

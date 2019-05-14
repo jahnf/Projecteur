@@ -5,6 +5,7 @@
 
 #include <map>
 
+class AboutDialog;
 class PreferencesDialog;
 class QLocalServer;
 class QLocalSocket;
@@ -30,6 +31,7 @@ private:
   QScopedPointer<QSystemTrayIcon> m_trayIcon;
   QScopedPointer<QMenu> m_trayMenu;
   QScopedPointer<PreferencesDialog> m_dialog;
+  QScopedPointer<AboutDialog> m_aboutDialog;
   QLocalServer* m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
