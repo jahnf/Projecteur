@@ -194,7 +194,7 @@ bool Spotlight::setupDevEventInotify()
   const int wd = inotify_add_watch( fd, "/dev/input", IN_CREATE | IN_DELETE );
   // TODO check if wd >=0... else error
   auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-  connect(notifier, &QSocketNotifier::activated, [this](int fd)
+  connect(notifier, &QSocketNotifier::activated, [this, wd](int fd)
   {
     int bytesAvaibable = 0;
     if( ioctl( fd, FIONREAD, &bytesAvaibable ) < 0 || bytesAvaibable <= 0 ) {
@@ -206,7 +206,8 @@ bool Spotlight::setupDevEventInotify()
     const char* const end = at + bytesRead;
     while( at < end )
     {
-      const inotify_event* event = reinterpret_cast<const inotify_event*>( at );
+      inotify_event const * const event = reinterpret_cast<const inotify_event*>( at );
+
       if( (event->mask & (IN_CREATE )) && QString(event->name).startsWith("event") )
       {
         const auto devicePath = QString("/dev/input/").append(event->name);

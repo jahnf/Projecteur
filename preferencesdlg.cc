@@ -23,7 +23,7 @@
 
 namespace {
   #define CURSOR_PATH ":/icons/cursors/"
-  static std::map<const QString, const QPair<const QString, const Qt::CursorShape>> cursorMap {
+  static const std::map<const QString, const QPair<const QString, const Qt::CursorShape>> cursorMap {
     { "", {"No Cursor", Qt::BlankCursor}},
     { CURSOR_PATH "cursor-arrow.png", {"Arrow Cursor", Qt::ArrowCursor}},
     { CURSOR_PATH "cursor-busy.png", {"Busy Cursor", Qt::BusyCursor}},
@@ -82,8 +82,10 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   grid->addWidget(cursorCb, 4, 1);
 
   auto closeBtn = new QPushButton(tr("&Close"), this);
+  closeBtn->setToolTip(tr("Close the preferences dialog."));
   connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
   auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
+  defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
   connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
 
   auto btnHBox = new QHBoxLayout;
@@ -110,6 +112,7 @@ QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
   auto vbox = new QVBoxLayout(group);
   auto lbl = new QLabel(deviceText.arg(spotlight->anySpotlightDeviceConnected() ? "True"
                                                                                 : "False"), this);
+  lbl->setToolTip(tr("Connection status of the spotlight device."));
 
   vbox->addWidget(lbl);
   connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, [lbl](bool connected) {
