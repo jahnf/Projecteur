@@ -55,7 +55,7 @@ For more details: Have a look at the source code ;)
 
 ### Build Example
 
-Note: You can ommit setting the `QTDIR` variable, CMake will then usually find the Qt versin that comes with the distribution's packacke management.
+Note: You can ommit setting the `QTDIR` variable, CMake will then usually find the Qt version that comes with the distribution's packacke management.
 
       > git clone https://github.com/jahnf/projecteur
       > cd projecteur
@@ -77,6 +77,7 @@ file in this repository: `55-spotlight.rules`
   the rules without a reboot.
 * After that the two input devices from the Logitech USB Receiver in /dev/input
   should have the group 'plugdev', i.e. the group you configure in the rules file.
+* When building against the Qt version that comes with your distribution's packages you might need to install some additional QML module packages. For example this is the case for Ubuntu, where you need to install the packages `qml-module-qtgraphicaleffrects`, `qml-module-qtquick-window2` and `qml-modules-qtquick2` to satisfy the application's runtime dependencies.
 
 ### Application Menu
 
