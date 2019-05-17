@@ -36,7 +36,9 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription("Linux/X11 application for the Logitech Spotlight device.");
     const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print version information.");
     QCommandLineOption fullVersionOption(QStringList{ "f" });
-    fullVersionOption.setFlags(QCommandLineOption::HiddenFromHelp);
+    #if QT_VERSION >= 0x050800
+      fullVersionOption.setFlags(QCommandLineOption::HiddenFromHelp);
+    #endif
     const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Print version information.");
     const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to running instance.", "cmd");
     parser.addOptions({versionOption, helpOption, commandOption, fullVersionOption});

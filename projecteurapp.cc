@@ -111,8 +111,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     }
   });
 
-  window->setFlag(Qt::WindowTransparentForInput, true);
-  window->setFlag(Qt::Tool, true);
+  window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   window->setScreen(screen);
   window->setPosition(screen->geometry().topLeft());
   window->setWidth(screen->geometry().width());
@@ -129,12 +128,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   connect(m_spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
     if (active)
     {
-      window->setFlag(Qt::SplashScreen, true);
-      window->setFlag(Qt::WindowTransparentForInput, false);
-      window->setFlag(Qt::WindowStaysOnTopHint, true);
+      window->setFlags(window->flags() | Qt::SplashScreen);
+      window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
+      window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
       window->hide();
-      window->setFlag(Qt::SplashScreen, false);
-      window->setFlag(Qt::ToolTip, true);
+      window->setFlags(window->flags() & ~Qt::SplashScreen);
+      window->setFlags(window->flags() | Qt::ToolTip);
 
       if (window->screen()) {
         const auto screenGeometry = window->screen()->geometry();
@@ -146,8 +145,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     }
     else
     {
-      window->setFlag(Qt::WindowTransparentForInput, true);
-      window->setFlag(Qt::SplashScreen, true);
+      window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
       window->hide();
     }
   });
@@ -168,8 +166,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
 
-    window->setFlag(Qt::WindowTransparentForInput, true);
-    window->setFlag(Qt::SplashScreen, true);
+    window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
     window->hide();
     window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
@@ -300,7 +297,8 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 
   QLocalSocket* localSocket = new QLocalSocket(this);
 
-  connect(localSocket, QOverload<QLocalSocket::LocalSocketError>::of(&QLocalSocket::error),
+  connect(localSocket,
+          static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
   [this, localSocket](QLocalSocket::LocalSocketError socketError) {
     qDebug() << "Error sending command: " << localSocket->errorString();
     localSocket->close();
