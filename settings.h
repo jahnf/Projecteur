@@ -5,6 +5,7 @@
 #include <QObject>
 
 class QSettings;
+class QQmlPropertyMap;
 
 class Settings : public QObject
 {
@@ -18,6 +19,9 @@ class Settings : public QObject
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
   Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
   Q_PROPERTY(Qt::CursorShape cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
+  Q_PROPERTY(QString spotShape READ spotShape WRITE setSpotShape NOTIFY spotShapeChanged)
+  Q_PROPERTY(double spotRotation READ spotRotation WRITE setSpotRotation NOTIFY spotRotationChanged)
+  Q_PROPERTY(QObject* shapeSettings READ shapeSettings CONSTANT)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -43,6 +47,26 @@ public:
   void setScreen(int screen);
   Qt::CursorShape cursor() const { return m_cursor; }
   void setCursor(Qt::CursorShape cursor);
+  QString spotShape() const { return m_spotShape; }
+  void setSpotShape(const QString& spotShapeQmlComponent);
+  double spotRotation() const { return m_spotRotation; }
+  void setSpotRotation(double rotation);
+
+  class SpotShape {
+  public:
+    QString qmlComponent() const { return m_qmlComponent; }
+    QString displayName() const  { return m_displayName; }
+    bool allowRotation() const { return m_allowRotation; }
+  private:
+    SpotShape(const QString& qmlComponent, const QString& displayName, bool allowRotation)
+      : m_qmlComponent(qmlComponent), m_displayName(displayName), m_allowRotation(allowRotation) {}
+    QString m_qmlComponent;
+    QString m_displayName;
+    bool m_allowRotation = true;
+    friend class Settings;
+  };
+
+  const QList<SpotShape>& spotShapes() const { return m_spotShapes; }
 
 signals:
   void showSpotChanged(bool show);
@@ -54,9 +78,15 @@ signals:
   void shadeOpacityChanged(double opcacity);
   void screenChanged(int screen);
   void cursorChanged(Qt::CursorShape cursor);
+  void spotShapeChanged(const QString& spotShapeQmlComponent);
+  void spotRotationChanged(double rotation);
+
+private:
+  QObject* shapeSettings() const;
 
 private:
   QSettings* m_settings = nullptr;
+  QQmlPropertyMap* m_dynamicShapeSettings = nullptr;
 
   bool m_showSpot = true;
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
@@ -67,6 +97,9 @@ private:
   double m_shadeOpacity = 0.3;
   int m_screen = 0;
   Qt::CursorShape m_cursor = Qt::BlankCursor;
+  QString m_spotShape;
+  double m_spotRotation = 0.0;
+  const QList<SpotShape> m_spotShapes;
 
 private:
   void load();

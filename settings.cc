@@ -2,6 +2,7 @@
 #include "settings.h"
 
 #include <QCoreApplication>
+#include <QQmlPropertyMap>
 #include <QSettings>
 
 namespace {
@@ -15,6 +16,8 @@ namespace {
     constexpr char shadeOpacity[] = "shadeOpacity";
     constexpr char screen[] = "screen";
     constexpr char cursor[] = "cursor";
+    constexpr char spotShape[] = "spotShape";
+    constexpr char spotRotation[] ="spotRotation";
 
     namespace defaultValue {
       constexpr bool showSpot = true;
@@ -26,6 +29,8 @@ namespace {
       constexpr double shadeOpacity = 0.3;
       constexpr int screen = 0;
       constexpr Qt::CursorShape cursor = Qt::BlankCursor;
+      constexpr char spotShape[] = "spotshapes/Circle.qml";
+      constexpr double spotRotation = 0.0;
     }
   }
 }
@@ -34,6 +39,9 @@ Settings::Settings(QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(QCoreApplication::applicationName(),
                              QCoreApplication::applicationName(), this))
+  , m_dynamicShapeSettings(new QQmlPropertyMap(this))
+  , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, tr("Circle"), false),
+                  SpotShape("spotshapes/Square.qml", tr("(Rounded) Square"), true)}
 {
   load();
 }
@@ -53,6 +61,8 @@ void Settings::setDefaults()
   setShadeOpacity(settings::defaultValue::shadeOpacity);
   setScreen(settings::defaultValue::screen);
   setCursor(settings::defaultValue::cursor);
+  setSpotShape(settings::defaultValue::spotShape);
+  setSpotRotation(settings::defaultValue::spotRotation);
 }
 
 void Settings::load()
@@ -66,6 +76,8 @@ void Settings::load()
   setShadeOpacity(m_settings->value(::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
   setScreen(m_settings->value(::settings::screen, settings::defaultValue::screen).toInt());
   setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
+  setSpotShape(m_settings->value(::settings::spotShape, settings::defaultValue::spotShape).toString());
+  setSpotRotation(m_settings->value(::settings::spotRotation, settings::defaultValue::spotRotation).toDouble());
 }
 
 void Settings::setShowSpot(bool show)
@@ -156,4 +168,28 @@ void Settings::setCursor(Qt::CursorShape cursor)
   m_cursor = qMin(qMax(static_cast<Qt::CursorShape>(0), cursor), Qt::LastCursor);
   m_settings->setValue(::settings::cursor, static_cast<int>(m_cursor));
   emit cursorChanged(m_cursor);
+}
+
+void Settings::setSpotShape(const QString& spotShapeQmlComponent)
+{
+  if (m_spotShape == spotShapeQmlComponent)
+    return;
+
+  m_spotShape = spotShapeQmlComponent;
+  m_settings->setValue(::settings::spotShape, m_spotShape);
+  emit spotShapeChanged(m_spotShape);
+}
+
+void Settings::setSpotRotation(double rotation)
+{
+  if (rotation > m_spotRotation || rotation < m_spotRotation)
+  {
+    m_spotRotation = qMin(qMax(0.0, rotation), 360.0);
+    m_settings->setValue(::settings::spotRotation, m_spotRotation);
+    emit spotRotationChanged(m_spotRotation);
+  }
+}
+
+QObject* Settings::shapeSettings() const {
+  return m_dynamicShapeSettings;
 }

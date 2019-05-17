@@ -70,13 +70,14 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   for (const auto& item : cursorMap) {
     cursorCb->addItem(QIcon(item.first), item.second.first, static_cast<int>(item.second.second));
   }
-  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-  [settings, cursorCb](int index) {
-    settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
-  });
   connect(settings, &Settings::cursorChanged, [cursorCb](int cursor){
     const int idx = cursorCb->findData(cursor);
     cursorCb->setCurrentIndex((idx == -1) ? Qt::BlankCursor : idx);
+  });
+  emit settings->cursorChanged(settings->cursor()); // set initial value
+  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [settings, cursorCb](int index) {
+    settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
   });
   grid->addWidget(new QLabel(tr("Cursor"), this), 4, 0);
   grid->addWidget(cursorCb, 4, 1);
@@ -144,12 +145,14 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   spotGrid->addWidget(new QLabel(tr("Spot Size"), this), 0, 0);
   spotGrid->addLayout(spotsizeHBox, 0, 1);
 
+  // Shade color setting
   auto shadeColor = new ColorSelector(settings->shadeColor(), this);
   connect(shadeColor, &ColorSelector::colorChanged, settings, &Settings::setShadeColor);
   connect(settings, &Settings::shadeColorChanged, shadeColor, &ColorSelector::setColor);
   spotGrid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
   spotGrid->addWidget(shadeColor, 1, 1);
 
+  // Spotlight shade opacity setting
   auto shadeOpacitySb = new QDoubleSpinBox(this);
   shadeOpacitySb->setMaximum(1.0);
   shadeOpacitySb->setMinimum(0.0);
@@ -161,6 +164,38 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   connect(settings, &Settings::shadeOpacityChanged, shadeOpacitySb, &QDoubleSpinBox::setValue);
   spotGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
   spotGrid->addWidget(shadeOpacitySb, 2, 1);
+
+  // Spotlight shape setting
+  auto shapeCombo = new QComboBox(this);
+  for (const auto& shape : settings->spotShapes()) {
+    shapeCombo->addItem(shape.displayName(), shape.qmlComponent());
+  }
+  connect(settings, &Settings::spotShapeChanged, [shapeCombo](const QString& spotShape){
+    const int idx = shapeCombo->findData(spotShape);
+    if (idx != -1) {
+      shapeCombo->setCurrentIndex(idx);
+    }
+  });
+  emit settings->spotShapeChanged(settings->spotShape());
+  connect(shapeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [settings, shapeCombo](int index) {
+    settings->setSpotShape(shapeCombo->itemData(index).toString());
+  });
+  spotGrid->addWidget(new QLabel(tr("Shape"), this), 3, 0);
+  spotGrid->addWidget(shapeCombo, 3, 1);
+
+  // Spotlight rotation setting
+  auto shapeRotationSb = new QDoubleSpinBox(this);
+  shapeRotationSb->setMaximum(360.0);
+  shapeRotationSb->setMinimum(0.0);
+  shapeRotationSb->setDecimals(1);
+  shapeRotationSb->setSingleStep(1.0);
+  shapeRotationSb->setValue(settings->spotRotation());
+  connect(shapeRotationSb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+          settings, &Settings::setSpotRotation);
+  connect(settings, &Settings::spotRotationChanged, shapeRotationSb, &QDoubleSpinBox::setValue);
+  spotGrid->addWidget(new QLabel(tr("Rotation"), this), 4, 0);
+  spotGrid->addWidget(shapeRotationSb, 4, 1);
 
   return spotGroup;
 }
