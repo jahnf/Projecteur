@@ -5,6 +5,8 @@
 #include <QQmlPropertyMap>
 #include <QSettings>
 
+#include <QDebug>
+
 namespace {
   namespace settings {
     constexpr char showSpot[] = "showSpot";
@@ -39,10 +41,15 @@ Settings::Settings(QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(QCoreApplication::applicationName(),
                              QCoreApplication::applicationName(), this))
-  , m_dynamicShapeSettings(new QQmlPropertyMap(this))
-  , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, tr("Circle"), false),
-                  SpotShape("spotshapes/Square.qml", tr("(Rounded) Square"), true)}
+  , m_shapeSettingsRoot(new QQmlPropertyMap(this))
+  , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
+                  SpotShape("spotshapes/Square.qml", "Square", tr("(Rounded) Square"), true,
+                    {SpotShapeSetting(tr("Radius"), "radius", 50, 0, 100, 0)} ),
+                  SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
+                    {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
+                     SpotShapeSetting(tr("Inner width"), "innerRadius", 0.5f, 0.05f, 1.0f, 2)} ) }
 {
+  shapeSettingsInitialize();
   load();
 }
 
@@ -63,6 +70,84 @@ void Settings::setDefaults()
   setCursor(settings::defaultValue::cursor);
   setSpotShape(settings::defaultValue::spotShape);
   setSpotRotation(settings::defaultValue::spotRotation);
+  shapeSettingsSetDefaults();
+}
+
+void Settings::shapeSettingsSetDefaults()
+{
+  for (const auto& shape : m_spotShapes)
+  {
+    for (const auto& settingDefinition : shape.shapeSettings())
+    {
+      if (auto propertyMap = shapeSettings(shape.name()))
+      {
+        const QString key = settingDefinition.settingsKey();
+        if (propertyMap->property(key.toLocal8Bit()).isValid()) {
+          propertyMap->setProperty(key.toLocal8Bit(), settingDefinition.defaultValue());
+        } else {
+          propertyMap->insert(key, settingDefinition.defaultValue());
+        }
+      }
+    }
+  }
+  shapeSettingsPopulateRoot();
+}
+
+void Settings::shapeSettingsLoad()
+{
+  for (const auto& shape : m_spotShapes)
+  {
+    for (const auto& settingDefinition : shape.shapeSettings())
+    {
+      if (auto propertyMap = shapeSettings(shape.name()))
+      {
+        const QString key = settingDefinition.settingsKey();
+        const QString settingsKey = QString("Shape.%1/%2").arg(shape.name()).arg(key);
+        const QVariant loadedValue = m_settings->value(settingsKey, settingDefinition.defaultValue());
+        if (propertyMap->property(key.toLocal8Bit()).isValid()) {
+          propertyMap->setProperty(key.toLocal8Bit(), loadedValue);
+        } else {
+          propertyMap->insert(key, loadedValue);
+        }
+      }
+    }
+  }
+  shapeSettingsPopulateRoot();
+}
+
+void Settings::shapeSettingsInitialize()
+{
+  for (const auto& shape : m_spotShapes)
+  {
+    if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
+    {
+      auto pm = new QQmlPropertyMap(this);
+      connect(pm, &QQmlPropertyMap::valueChanged, [this, shape, pm](const QString& key, const QVariant& value)
+      {
+        const auto& s = shape.shapeSettings();
+        auto it = std::find_if(s.cbegin(), s.cend(), [&key](const SpotShapeSetting& sss) {
+          return key == sss.settingsKey();
+        });
+
+        if (it != s.cend())
+        {
+          if (it->defaultValue().type() == QVariant::Int)
+          {
+            const auto setValue = value.toInt();
+            const auto min = it->minValue().toInt();
+            const auto max = it->maxValue().toInt();
+            const auto newValue = qMin(qMax(min, setValue), max);
+            if (newValue != setValue) {
+              pm->setProperty(key.toLocal8Bit(), newValue);
+            }
+            m_settings->setValue(QString("Shape.%1/%2").arg(shape.name()).arg(key), newValue);
+          }
+        }
+      });
+      m_shapeSettings.insert(shape.name(), pm);
+    }
+  }
+  shapeSettingsPopulateRoot();
 }
 
 void Settings::load()
@@ -78,6 +163,7 @@ void Settings::load()
   setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
   setSpotShape(m_settings->value(::settings::spotShape, settings::defaultValue::spotShape).toString());
   setSpotRotation(m_settings->value(::settings::spotRotation, settings::defaultValue::spotRotation).toDouble());
+  shapeSettingsLoad();
 }
 
 void Settings::setShowSpot(bool show)
@@ -190,6 +276,29 @@ void Settings::setSpotRotation(double rotation)
   }
 }
 
-QObject* Settings::shapeSettings() const {
-  return m_dynamicShapeSettings;
+QObject* Settings::shapeSettingsRootObject()
+{
+  return m_shapeSettingsRoot;
 }
+
+QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
+{
+  const auto it = m_shapeSettings.find(shapeName);
+  if (it != m_shapeSettings.cend()) {
+    return it.value();
+  }
+  return nullptr;
+}
+
+void Settings::shapeSettingsPopulateRoot()
+{
+  for (auto it = m_shapeSettings.cbegin(), end = m_shapeSettings.cend(); it != end; ++it)
+  {
+    if (m_shapeSettingsRoot->property(it.key().toLocal8Bit()).isValid()) {
+      m_shapeSettingsRoot->setProperty(it.key().toLocal8Bit(), QVariant::fromValue(it.value()));
+    } else {
+      m_shapeSettingsRoot->insert(it.key(), QVariant::fromValue(it.value()));
+    }
+  }
+}
+

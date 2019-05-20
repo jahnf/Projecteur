@@ -39,6 +39,7 @@ add_executable(projecteur
   runguard.cc           runguard.h
   settings.cc           settings.h
   spotlight.cc          spotlight.h
+  spotshapes.cc         spotshapes.h
   resources.qrc         qml/qml.qrc)
 
 target_link_libraries(projecteur

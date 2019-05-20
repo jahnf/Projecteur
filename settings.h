@@ -3,6 +3,7 @@
 
 #include <QColor>
 #include <QObject>
+#include <QVariant>
 
 class QSettings;
 class QQmlPropertyMap;
@@ -21,7 +22,7 @@ class Settings : public QObject
   Q_PROPERTY(Qt::CursorShape cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
   Q_PROPERTY(QString spotShape READ spotShape WRITE setSpotShape NOTIFY spotShapeChanged)
   Q_PROPERTY(double spotRotation READ spotRotation WRITE setSpotRotation NOTIFY spotRotationChanged)
-  Q_PROPERTY(QObject* shapeSettings READ shapeSettings CONSTANT)
+  Q_PROPERTY(QObject* shapes READ shapeSettingsRootObject CONSTANT)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -52,21 +53,50 @@ public:
   double spotRotation() const { return m_spotRotation; }
   void setSpotRotation(double rotation);
 
+  class SpotShapeSetting {
+  public:
+    SpotShapeSetting(const QString& displayName, const QString& key, const QVariant& defaultValue,
+                     const QVariant& minValue, const QVariant& maxValue, int decimals = 0)
+      : m_displayName(displayName), m_settingsKey(key), m_minValue(minValue),
+        m_maxValue(maxValue), m_defaultValue(defaultValue), m_decimals(decimals) {}
+    const QString& displayName() const { return m_displayName; }
+    const QString& settingsKey() const { return m_settingsKey; }
+    const QVariant& minValue() const { return m_minValue; }
+    const QVariant& maxValue() const { return m_maxValue; }
+    const QVariant& defaultValue() const { return m_defaultValue; }
+    int decimals() const { return m_decimals; }
+  private:
+    QString m_displayName;
+    QString m_settingsSection;
+    QString m_settingsKey;
+    QVariant m_minValue = 0;
+    QVariant m_maxValue = 100;
+    QVariant m_defaultValue = m_minValue;
+    int m_decimals = 0;
+  };
+
   class SpotShape {
   public:
     QString qmlComponent() const { return m_qmlComponent; }
+    QString name() const { return m_name; }
     QString displayName() const  { return m_displayName; }
     bool allowRotation() const { return m_allowRotation; }
+    const QList<SpotShapeSetting>& shapeSettings() const { return m_shapeSettings; }
   private:
-    SpotShape(const QString& qmlComponent, const QString& displayName, bool allowRotation)
-      : m_qmlComponent(qmlComponent), m_displayName(displayName), m_allowRotation(allowRotation) {}
+    SpotShape(const QString& qmlComponent, const QString& name,
+              const QString& displayName, bool allowRotation, QList<SpotShapeSetting> shapeSettings= {})
+      : m_qmlComponent(qmlComponent), m_name(name), m_displayName(displayName), m_allowRotation(allowRotation),
+        m_shapeSettings(std::move(shapeSettings)){}
     QString m_qmlComponent;
+    QString m_name;
     QString m_displayName;
     bool m_allowRotation = true;
+    QList<SpotShapeSetting> m_shapeSettings;
     friend class Settings;
   };
 
   const QList<SpotShape>& spotShapes() const { return m_spotShapes; }
+  QQmlPropertyMap* shapeSettings(const QString& shapeName);
 
 signals:
   void showSpotChanged(bool show);
@@ -82,11 +112,10 @@ signals:
   void spotRotationChanged(double rotation);
 
 private:
-  QObject* shapeSettings() const;
-
-private:
   QSettings* m_settings = nullptr;
-  QQmlPropertyMap* m_dynamicShapeSettings = nullptr;
+
+  QMap<QString, QQmlPropertyMap*> m_shapeSettings;
+  QQmlPropertyMap* m_shapeSettingsRoot;
 
   bool m_showSpot = true;
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
@@ -103,4 +132,9 @@ private:
 
 private:
   void load();
+  QObject* shapeSettingsRootObject();
+  void shapeSettingsPopulateRoot();
+  void shapeSettingsInitialize();
+  void shapeSettingsSetDefaults();
+  void shapeSettingsLoad();
 };

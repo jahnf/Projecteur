@@ -34,6 +34,7 @@ private:
 
   QGroupBox* createSpotGroupBox(Settings* settings);
   QGroupBox* createDotGroupBox(Settings* settings);
+  QGroupBox* createScreenGroupBox(Settings* settings);
   QWidget* createConnectedStateWidget(Spotlight* spotlight);
 
 private:
