@@ -47,7 +47,9 @@ Settings::Settings(QObject* parent)
                     {SpotShapeSetting(tr("Radius"), "radius", 50, 0, 100, 0)} ),
                   SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
                     {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
-                     SpotShapeSetting(tr("Inner width"), "innerRadius", 0.5f, 0.05f, 1.0f, 2)} ) }
+                     SpotShapeSetting(tr("Inner width"), "innerRadius", 0.5f, 0.05f, 1.0f, 2)} ),
+                  SpotShape("spotshapes/Ngon.qml", "Ngon", tr("N-gon"), true,
+                    {SpotShapeSetting(tr("Sides"), "sides", 3, 3, 100, 0)} ) }
 {
   shapeSettingsInitialize();
   load();

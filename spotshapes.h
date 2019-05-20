@@ -1,3 +1,4 @@
+// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
 #include <QQuickItem>
@@ -35,4 +36,33 @@ private:
   QColor m_color = Qt::black;
   int m_points = 3;
   float m_innerRadius = 0.5f;
+};
+
+class SpotShapeNGon : public QQuickItem
+{
+  Q_OBJECT
+  Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
+  Q_PROPERTY(int sides READ sides WRITE setSides NOTIFY sidesChanged)
+
+public:
+  static int qmlRegister();
+
+  explicit SpotShapeNGon(QQuickItem* parent = nullptr);
+
+  QColor color() const;
+  void setColor(const QColor &color);
+
+  int sides() const;
+  void setSides(int points);
+
+signals:
+  void colorChanged(QColor color);
+  void sidesChanged(int sides);
+
+protected:
+  virtual QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updatePaintNodeData) override;
+
+private:
+  QColor m_color = Qt::black;
+  int m_sides = 3;
 };

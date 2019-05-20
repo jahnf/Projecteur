@@ -1,3 +1,4 @@
+// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotshapes.h"
 
 #include <QSGGeometryNode>
@@ -6,7 +7,11 @@
 #include <cmath>
 
 namespace {
-  const int typeRegistered = SpotShapeStar::qmlRegister();
+  const bool registered = [](){
+    SpotShapeStar::qmlRegister();
+    SpotShapeNGon::qmlRegister();
+    return true;
+  }();
 }
 
 SpotShapeStar::SpotShapeStar(QQuickItem* parent) : QQuickItem (parent)
@@ -33,31 +38,31 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   const auto vertexCount = m_points*2+2;
 
   // Create geometry node for colored shape
-  QSGGeometryNode *geometryNode = static_cast<QSGGeometryNode *>(oldNode);
+  QSGGeometryNode* geometryNode = static_cast<QSGGeometryNode *>(oldNode);
   if (geometryNode == nullptr)
   {
     geometryNode = new QSGGeometryNode();
 
     // Set geometry
-    QSGGeometry *geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
+    QSGGeometry* const geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
 
     geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
     geometryNode->setGeometry(geometry);
     geometryNode->setFlag(QSGNode::OwnsGeometry, true);
 
-    QSGFlatColorMaterial *material = new QSGFlatColorMaterial();
+    QSGFlatColorMaterial* const material = new QSGFlatColorMaterial();
     material->setColor(m_color);
     geometryNode->setMaterial(material);
     geometryNode->setFlag(QSGNode::OwnsMaterial);
   }
   else {
-    auto geometry = geometryNode->geometry();
+    const auto geometry = geometryNode->geometry();
     if( geometry->vertexCount() != vertexCount ) {
       geometry->allocate(vertexCount);
     }
   }
 
-  QSGGeometry::Point2D *vertices = geometryNode->geometry()->vertexDataAsPoint2D();
+  QSGGeometry::Point2D* const vertices = geometryNode->geometry()->vertexDataAsPoint2D();
   const int numSegments = m_points * 2;
   const float cx = static_cast<float>(width()/2); // center X
   const float cy = static_cast<float>(height()/2); // center Y
@@ -139,4 +144,101 @@ void SpotShapeStar::setInnerRadius(float radiusPercentage)
     emit innerRadiusChanged(m_innerRadius);
     update(); // redraw, schedules updatePaintNode()...
   }
+}
+
+SpotShapeNGon::SpotShapeNGon(QQuickItem* parent) : QQuickItem (parent)
+{
+  setEnabled(false);
+  setFlags(QQuickItem::ItemHasContents);
+}
+
+int SpotShapeNGon::qmlRegister()
+{
+  return qmlRegisterType<SpotShapeNGon>("Projecteur.Shapes", 1, 0, "NGon");
+}
+
+QColor SpotShapeNGon::color() const
+{
+  return m_color;
+}
+
+void SpotShapeNGon::setColor(const QColor &color)
+{
+  if (m_color == color)
+    return;
+
+  m_color = color;
+  emit colorChanged(color);
+  update(); // redraw, schedules updatePaintNode()...
+}
+
+int SpotShapeNGon::sides() const
+{
+  return m_sides;
+}
+
+void SpotShapeNGon::setSides(int sides)
+{
+  if (m_sides == sides)
+    return;
+
+  m_sides = qMin(qMax(3, sides), 100);
+  emit sidesChanged(m_sides);
+  update(); // redraw, schedules updatePaintNode()...
+}
+
+QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updatePaintNodeData)
+{
+  if (width() <= 0 || height() <= 0 || m_color.alpha() == 0 ) {
+    delete oldNode;
+    return nullptr;
+  }
+
+  // Directly access the QSG transformnode for the Items node: updatePaintNodeData->transformNode->...;
+  Q_UNUSED(updatePaintNodeData)
+
+  const auto vertexCount = m_sides + 2;
+
+  // Create geometry node for colored shape
+  QSGGeometryNode* geometryNode = static_cast<QSGGeometryNode *>(oldNode);
+  if (geometryNode == nullptr)
+  {
+    geometryNode = new QSGGeometryNode();
+
+    // Set geometry
+    QSGGeometry* const geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
+
+    geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
+    geometryNode->setGeometry(geometry);
+    geometryNode->setFlag(QSGNode::OwnsGeometry, true);
+
+    QSGFlatColorMaterial * const material = new QSGFlatColorMaterial();
+    material->setColor(m_color);
+    geometryNode->setMaterial(material);
+    geometryNode->setFlag(QSGNode::OwnsMaterial);
+  }
+  else {
+    const auto geometry = geometryNode->geometry();
+    if( geometry->vertexCount() != vertexCount ) {
+      geometry->allocate(vertexCount);
+    }
+  }
+
+  QSGGeometry::Point2D* const vertices = geometryNode->geometry()->vertexDataAsPoint2D();
+  const float cx = static_cast<float>(width()/2); // center X
+  const float cy = static_cast<float>(height()/2); // center Y
+  const float deltaRad = static_cast<float>((360.0 / m_sides) * (M_PI/180.0));
+  float theta = -static_cast<float>(90.0 * M_PI/180.0);
+
+  vertices[0].set(cx, cy);
+  for(int seg=1; seg < vertexCount; ++seg, theta+=deltaRad)
+  {
+    const float x = cx * cosf(theta);
+    const float y = cy * sinf(theta);
+    vertices[seg].set(x + cx, y + cy);
+  }
+  vertices[vertexCount-1] = vertices[1]; // last shape point = first shape point
+
+  geometryNode->markDirty(QSGGeometryNode::DirtyGeometry);
+  return geometryNode;
 }
