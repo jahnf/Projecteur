@@ -32,7 +32,7 @@ private:
   QScopedPointer<QMenu> m_trayMenu;
   QScopedPointer<PreferencesDialog> m_dialog;
   QScopedPointer<AboutDialog> m_aboutDialog;
-  QLocalServer* m_localServer = nullptr;
+  QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
 };

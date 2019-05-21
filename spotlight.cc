@@ -7,7 +7,6 @@
 #include <QVarLengthArray>
 
 #include <functional>
-
 #include <fcntl.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
@@ -140,7 +139,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
 
   const bool anyConnectedBefore = anySpotlightDeviceConnected();
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
-  QSocketNotifier* notifier = m_eventNotifiers[devicePath].data();
+  QSocketNotifier* const notifier = m_eventNotifiers[devicePath].data();
 
   connect(notifier, &QSocketNotifier::destroyed, [notifier, devicePath]() {
     ::close(static_cast<int>(notifier->socket()));
@@ -193,7 +192,7 @@ bool Spotlight::setupDevEventInotify()
   fcntl( fd, F_SETFD, FD_CLOEXEC );
   const int wd = inotify_add_watch( fd, "/dev/input", IN_CREATE | IN_DELETE );
   // TODO check if wd >=0... else error
-  auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
+  const auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
   connect(notifier, &QSocketNotifier::activated, [this, wd](int fd)
   {
     int bytesAvaibable = 0;

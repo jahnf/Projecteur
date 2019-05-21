@@ -44,7 +44,7 @@ Settings::Settings(QObject* parent)
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
   , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
                   SpotShape("spotshapes/Square.qml", "Square", tr("(Rounded) Square"), true,
-                    {SpotShapeSetting(tr("Border-radius (%)"), "radius", 50, 0, 100, 0)} ),
+                    {SpotShapeSetting(tr("Border-radius (%)"), "radius", 20, 0, 100, 0)} ),
                   SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
                     {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
                      SpotShapeSetting(tr("Inner radius (%)"), "innerRadius", 50, 5, 100, 0)} ),
