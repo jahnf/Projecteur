@@ -84,7 +84,7 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
                                     + std::pow(vertices[1].y-vertices[3].y, 2.0f)) / 2.0f;
 
   const float maxInnerDist = std::sqrt(std::pow(dist0_1,2.0f) - std::pow(dist1_3_2, 2.0f));
-  const float innerDistance = maxInnerDist * m_innerRadius;
+  const float innerDistance = maxInnerDist * float(m_innerRadius)/100.0f;
 
   // Vertices for inner radius
   theta = -static_cast<float>(90.0 * M_PI/180.0) + deltaRad/2 ;
@@ -131,16 +131,16 @@ void SpotShapeStar::setPoints(int points)
   update(); // redraw, schedules updatePaintNode()...
 }
 
-float SpotShapeStar::innerRadius() const
+int SpotShapeStar::innerRadius() const
 {
   return m_innerRadius;
 }
 
-void SpotShapeStar::setInnerRadius(float radiusPercentage)
+void SpotShapeStar::setInnerRadius(int radiusPercentage)
 {
   if (radiusPercentage > m_innerRadius || radiusPercentage < m_innerRadius)
   {
-    m_innerRadius = qMin(qMax(0.05f, radiusPercentage), 1.0f);
+    m_innerRadius = qMin(qMax(5, radiusPercentage), 100);
     emit innerRadiusChanged(m_innerRadius);
     update(); // redraw, schedules updatePaintNode()...
   }

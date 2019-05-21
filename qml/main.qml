@@ -16,8 +16,9 @@ Window {
     Item {
         id: rotationItem
         anchors.centerIn: parent
-        width: mainWindow.diagonal; height: width
-        rotation: Settings.spotRotation
+        width: rotation === 0 ? mainWindow.width : mainWindow.diagonal;
+        height: rotation === 0 ? mainWindow.height : width
+        rotation: Settings.spotRotationAllowed ? Settings.spotRotation : 0
 
         Item {
             anchors.fill: parent

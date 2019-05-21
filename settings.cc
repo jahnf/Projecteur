@@ -44,10 +44,10 @@ Settings::Settings(QObject* parent)
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
   , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
                   SpotShape("spotshapes/Square.qml", "Square", tr("(Rounded) Square"), true,
-                    {SpotShapeSetting(tr("Radius"), "radius", 50, 0, 100, 0)} ),
+                    {SpotShapeSetting(tr("Border-radius (%)"), "radius", 50, 0, 100, 0)} ),
                   SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
                     {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
-                     SpotShapeSetting(tr("Inner width"), "innerRadius", 0.5f, 0.05f, 1.0f, 2)} ),
+                     SpotShapeSetting(tr("Inner radius (%)"), "innerRadius", 50, 5, 100, 0)} ),
                   SpotShape("spotshapes/Ngon.qml", "Ngon", tr("N-gon"), true,
                     {SpotShapeSetting(tr("Sides"), "sides", 3, 3, 100, 0)} ) }
 {
@@ -263,9 +263,17 @@ void Settings::setSpotShape(const QString& spotShapeQmlComponent)
   if (m_spotShape == spotShapeQmlComponent)
     return;
 
-  m_spotShape = spotShapeQmlComponent;
-  m_settings->setValue(::settings::spotShape, m_spotShape);
-  emit spotShapeChanged(m_spotShape);
+  const auto it = std::find_if(spotShapes().cbegin(), spotShapes().cend(),
+  [&spotShapeQmlComponent](const SpotShape& s) {
+    return s.qmlComponent() == spotShapeQmlComponent;
+  });
+
+  if (it != spotShapes().cend()) {
+    m_spotShape = it->qmlComponent();
+    m_settings->setValue(::settings::spotShape, m_spotShape);
+    emit spotShapeChanged(m_spotShape);
+    setSpotRotationAllowed(it->allowRotation());
+  }
 }
 
 void Settings::setSpotRotation(double rotation)
@@ -304,3 +312,16 @@ void Settings::shapeSettingsPopulateRoot()
   }
 }
 
+bool Settings::spotRotationAllowed() const
+{
+  return m_spotRotationAllowed;
+}
+
+void Settings::setSpotRotationAllowed(bool allowed)
+{
+  if (allowed == m_spotRotationAllowed)
+    return;
+
+  m_spotRotationAllowed = allowed;
+  emit spotRotationAllowedChanged(allowed);
+}

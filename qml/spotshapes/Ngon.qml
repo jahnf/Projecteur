@@ -6,7 +6,6 @@ import Projecteur.Shapes 1.0 as Shapes
 Shapes.NGon {
     anchors.fill: parent
     sides: Settings.shapes.Ngon.sides
-
     visible: false
     enabled: false
 }

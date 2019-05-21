@@ -8,7 +8,7 @@ class SpotShapeStar : public QQuickItem
   Q_OBJECT
   Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
   Q_PROPERTY(int points READ points WRITE setPoints NOTIFY pointsChanged)
-  Q_PROPERTY(float innerRadius READ innerRadius WRITE setInnerRadius NOTIFY innerRadiusChanged)
+  Q_PROPERTY(int innerRadius READ innerRadius WRITE setInnerRadius NOTIFY innerRadiusChanged)
 
 public:
   static int qmlRegister();
@@ -21,13 +21,13 @@ public:
   int points() const;
   void setPoints(int points);
 
-  float innerRadius() const; // inner star radius in percent (between 0.05 and 1.0)
-  void setInnerRadius(float radiusPercentage);
+  int innerRadius() const; // inner star radius in percent (between 5 and 100)
+  void setInnerRadius(int radiusPercentage);
 
 signals:
   void colorChanged(QColor color);
   void pointsChanged(int points);
-  void innerRadiusChanged(float innerRadius);
+  void innerRadiusChanged(int innerRadius);
 
 protected:
   virtual QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updatePaintNodeData) override;
@@ -35,7 +35,7 @@ protected:
 private:
   QColor m_color = Qt::black;
   int m_points = 3;
-  float m_innerRadius = 0.5f;
+  int m_innerRadius = 50;
 };
 
 class SpotShapeNGon : public QQuickItem

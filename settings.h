@@ -23,6 +23,7 @@ class Settings : public QObject
   Q_PROPERTY(QString spotShape READ spotShape WRITE setSpotShape NOTIFY spotShapeChanged)
   Q_PROPERTY(double spotRotation READ spotRotation WRITE setSpotRotation NOTIFY spotRotationChanged)
   Q_PROPERTY(QObject* shapes READ shapeSettingsRootObject CONSTANT)
+  Q_PROPERTY(bool spotRotationAllowed READ spotRotationAllowed NOTIFY spotRotationAllowedChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -52,6 +53,7 @@ public:
   void setSpotShape(const QString& spotShapeQmlComponent);
   double spotRotation() const { return m_spotRotation; }
   void setSpotRotation(double rotation);
+  bool spotRotationAllowed() const;
 
   class SpotShapeSetting {
   public:
@@ -110,6 +112,7 @@ signals:
   void cursorChanged(Qt::CursorShape cursor);
   void spotShapeChanged(const QString& spotShapeQmlComponent);
   void spotRotationChanged(double rotation);
+  void spotRotationAllowedChanged(bool allowed);
 
 private:
   QSettings* m_settings = nullptr;
@@ -129,6 +132,7 @@ private:
   QString m_spotShape;
   double m_spotRotation = 0.0;
   const QList<SpotShape> m_spotShapes;
+  bool m_spotRotationAllowed = false;
 
 private:
   void load();
@@ -137,4 +141,5 @@ private:
   void shapeSettingsInitialize();
   void shapeSettingsSetDefaults();
   void shapeSettingsLoad();
+  void setSpotRotationAllowed(bool allowed);
 };

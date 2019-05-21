@@ -4,7 +4,7 @@ import QtQuick 2.3
 // Circle spotlight shape
 Rectangle {
     anchors.fill: parent
-    radius: width*0.5
+    radius: width * 0.5
     visible: false
     enabled: false
 }
