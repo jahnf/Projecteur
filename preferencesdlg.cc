@@ -5,8 +5,6 @@
 #include "settings.h"
 #include "spotlight.h"
 
-#include <QDebug>
-
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDoubleSpinBox>
@@ -217,7 +215,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
             [s, pm](int newValue){
               pm->setProperty(s.settingsKey().toLocal8Bit(), newValue);
             });
-            connect(pm, &QQmlPropertyMap::valueChanged, [s, spinbox](const QString& key, const QVariant& value)
+            connect(pm, &QQmlPropertyMap::valueChanged, spinbox, [s, spinbox](const QString& key, const QVariant& value)
             {
               if (key != s.settingsKey() || !value.isValid()) return;
               spinbox->setValue(value.toInt());
