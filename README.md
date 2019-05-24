@@ -10,7 +10,7 @@ Copyright 2018-2019 [Jahn Fuchs](mailto:github.jahnf@wolke7.net)
 ## Motivation
 
 I saw the Logitech Spotlight device in action at a conference and liked it
-immediately. Unfortenately as in a lot of cases software is only provided for Windows
+immediately. Unfortunately as in a lot of cases software is only provided for Windows
 and Mac. The device itself works just fine on Linux, but the cool spot feature
 is done by additional software.
 
