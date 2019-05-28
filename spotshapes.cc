@@ -46,7 +46,11 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     // Set geometry
     QSGGeometry* const geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
 
-    geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
+    #if QT_VERSION >= 0x050800
+      geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
+    #else
+      geometry->setDrawingMode(GL_TRIANGLE_FAN);
+    #endif
     geometryNode->setGeometry(geometry);
     geometryNode->setFlag(QSGNode::OwnsGeometry, true);
 
@@ -208,7 +212,11 @@ QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     // Set geometry
     QSGGeometry* const geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
 
-    geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
+    #if QT_VERSION >= 0x050800
+      geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
+    #else
+      geometry->setDrawingMode(GL_TRIANGLE_FAN);
+    #endif
     geometryNode->setGeometry(geometry);
     geometryNode->setFlag(QSGNode::OwnsGeometry, true);
 
