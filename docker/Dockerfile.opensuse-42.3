@@ -2,22 +2,20 @@
 
 FROM opensuse/leap:42.3
 
-RUN zypper --non-interactive in \
+RUN zypper --non-interactive in --no-recommends \
   pkg-config \
   gcc6-c++ \
   tar \
   make \
   git \
   wget \
-  libQt5Core-devel \
-  libQt5Gui-devel \
-  libQt5Widgets-devel \
   libqt5-qtdeclarative-devel \
   rpmbuild
 
-RUN wget https://cmake.org/files/v3.14/cmake-3.14.4-Linux-x86_64.sh
-RUN chmod +x cmake-3.14.4-Linux-x86_64.sh
-RUN ./cmake-3.14.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
+RUN wget https://cmake.org/files/v3.14/cmake-3.14.4-Linux-x86_64.sh \
+    && chmod +x cmake-3.14.4-Linux-x86_64.sh \
+    && ./cmake-3.14.4-Linux-x86_64.sh --skip-license --prefix=/usr/local \
+    && rm cmake-3.14.4-Linux-x86_64.sh
 
 ENV CXX=g++-6
 
