@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 
 # Try to get the Linux distribution and version as a string (host system)
 # When cross compiling this function won't work to get the target distribution.
-function(get_linux_distribution DISTRIBUTION_VAR)
+function(get_linux_distribution VAR_DIST_NAME VAR_DIST_VERSION)
   # Set fallback defaults
   set(DIST_NAME "linux")
   set(DIST_NAME_SET 0)
@@ -35,7 +35,7 @@ function(get_linux_distribution DISTRIBUTION_VAR)
   endforeach()
 
   # Get distribution version/release - try different keys
-  foreach(var VERSION_ID DISTRIB_RELEASE)
+  foreach(var VERSION_ID DISTRIB_RELEASE VERSION)
     foreach(line IN LISTS rel_info_all)
       if( "${line}" MATCHES "^${var}=[\"]?([^ \"]*)")
         string(STRIP "${CMAKE_MATCH_1}" DIST_VERSION)
@@ -59,5 +59,6 @@ function(get_linux_distribution DISTRIBUTION_VAR)
     message(STATUS "Could not get linux version, defaulting to 'unknown'")
   endif()
 
-  set(${DISTRIBUTION_VAR} "${DIST_NAME}-${DIST_VERSION}" PARENT_SCOPE)
+  set(${VAR_DIST_NAME} "${DIST_NAME}" PARENT_SCOPE)
+  set(${VAR_DIST_VERSION} "${DIST_VERSION}" PARENT_SCOPE)
 endfunction()
