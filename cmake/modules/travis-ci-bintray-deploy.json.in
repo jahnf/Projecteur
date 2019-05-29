@@ -23,7 +23,7 @@
 
     "files":
         [
-        {"includePattern": "dist-pkg/(.*)", "uploadPattern": "packages/@PKG_VERSION_BRANCH@/$1"}
+        {"includePattern": "dist-pkg/(.*)", "uploadPattern": "packages/branches/@PKG_VERSION_BRANCH@/@PKG_VERSION_STRING_FULL@/$1"}
         ],
     "publish": true
 }
