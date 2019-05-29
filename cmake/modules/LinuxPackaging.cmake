@@ -47,6 +47,7 @@ function(add_dist_package_target)
   get_target_property(PKG_VERSION_PATCH ${PKG_TARGET} VERSION_PATCH)
   get_target_property(PKG_VERSION_FLAG ${PKG_TARGET} VERSION_FLAG)
   get_target_property(PKG_VERSION_DISTANCE ${PKG_TARGET} VERSION_DISTANCE)
+  get_target_property(PKG_VERSION_BRANCH ${PKG_TARGET} VERSION_BRANCH)
   if("${PKG_VERSION_MAJOR}" STREQUAL "")
     set(PKG_VERSION_MAJOR 0)
   endif()
@@ -108,6 +109,7 @@ function(add_dist_package_target)
   string(TOLOWER "${PKG_PROJECT}" PKG_NAME)
   set(PKG_LICENSE "MIT")
   set(PKG_DIST "${LINUX_DIST_NAME}-${LINUX_DIST_VERSION}")
+  string(TIMESTAMP PKG_DATE "%Y-%m-%d")
 
   set(PKG_CONFIG_TEMPLATE "${_LinuxPackaging_DIRECTORY}/LinuxPkgCPackConfig.cmake.in")
   set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/CPackConfig-${PKG_TYPE}.cmake")
@@ -118,5 +120,10 @@ function(add_dist_package_target)
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     VERBATIM
   )
+
+  configure_file(
+    "${_LinuxPackaging_DIRECTORY}/travis-ci-bintray-deploy.json.in" 
+    "${CMAKE_CURRENT_BINARY_DIR}/travis-ci-bintray-deploy.json" @ONLY)
+
   message(STATUS "Configured target 'dist-package' with Linux '${PKG_DIST}' and package type '${PKG_TYPE}'")
 endfunction()
