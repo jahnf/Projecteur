@@ -4,6 +4,7 @@ FROM opensuse/leap:15.0
 
 RUN zypper --non-interactive in --no-recommends \
   pkg-config \
+  udev \
   gcc-c++ \
   tar \
   make \

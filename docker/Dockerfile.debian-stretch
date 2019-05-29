@@ -1,6 +1,6 @@
-# Container for building the Projecteur package 
+# Container for building 
 
-FROM ubuntu:18.04
+FROM debian:stretch
 
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
@@ -8,8 +8,8 @@ RUN apt-get install -y --no-install-recommends \
 	g++ \
 	make \
 	cmake \
-	udev \
 	git \
 	pkg-config \
+	udev \
 	qtdeclarative5-dev
 
