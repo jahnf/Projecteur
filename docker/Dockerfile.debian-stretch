@@ -1,0 +1,15 @@
+# Container for building 
+
+FROM debian:stretch
+
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+  ca-certificates \
+	g++ \
+	make \
+	cmake \
+	git \
+	pkg-config \
+	udev \
+	qtdeclarative5-dev
+

@@ -129,6 +129,11 @@ function(get_version_info prefix directory)
     )
 
     if(result EQUAL 0)
+      if("${GIT_BRANCH}" STREQUAL "HEAD"  
+         AND NOT "$ENV{TRAVIS_BRANCH}" STREQUAL "")
+         set(GIT_BRANCH "$ENV{TRAVIS_BRANCH}")
+      endif()
+
       set(${prefix}_VERSION_BRANCH "${GIT_BRANCH}")
       set(${prefix}_VERSION_BRANCH "${GIT_BRANCH}" PARENT_SCOPE)
 

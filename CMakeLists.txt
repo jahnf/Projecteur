@@ -26,8 +26,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 COMPONENTS Core Gui Quick Widgets X11Extras REQUIRED)
-find_package(X11 REQUIRED)
+find_package(Qt5 COMPONENTS Core Gui Quick Widgets 
+                            # X11Extras 
+             REQUIRED)
+#find_package(X11 REQUIRED)
 
 add_executable(projecteur
   main.cc
@@ -35,7 +37,7 @@ add_executable(projecteur
   colorselector.cc      colorselector.h
   preferencesdlg.cc     preferencesdlg.h
   projecteurapp.cc      projecteurapp.h
-  qglobalshortcutx11.cc qglobalshortcutx11.h
+#  qglobalshortcutx11.cc qglobalshortcutx11.h
   runguard.cc           runguard.h
   settings.cc           settings.h
   spotlight.cc          spotlight.h
@@ -43,8 +45,9 @@ add_executable(projecteur
   resources.qrc         qml/qml.qrc)
 
 target_link_libraries(projecteur
-  Qt5::Core Qt5::Quick Qt5::Widgets Qt5::X11Extras
-  ${X11_LIBRARIES} xcb)
+  Qt5::Core Qt5::Quick Qt5::Widgets
+  #Qt5::X11Extras ${X11_LIBRARIES} xcb
+)
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
 # If creating the version number via git information fails, the following target properties
@@ -87,3 +90,14 @@ set (CMAKE_INSTALL_UDEVRULESDIR ${UDEVDIR}/rules.d CACHE PATH "Where to install 
 mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 
 install(FILES 55-spotlight.rules DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
+
+# Add 'distpackage' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+include(LinuxPackaging)
+add_dist_package_target(
+  PROJECT "${CMAKE_PROJECT_NAME}" 
+  TARGET projecteur
+  DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
+  DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: https://github.com/jahnf/Projecteur"
+  CONTACT "Jahn F. <github.jahnf@wolke7.net)>"
+)
+

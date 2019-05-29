@@ -63,11 +63,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
   const auto window = topLevelWindows().first();
 
-  m_trayMenu->addAction(tr("&Preferences..."), [this](){
+  const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
+  connect(actionPref, &QAction::triggered, [this](){
     this->showPreferences(true);
   });
 
-  m_trayMenu->addAction(tr("&About"), [this]()
+  const auto actionAbout = m_trayMenu->addAction(tr("&About"));
+  connect(actionAbout, &QAction::triggered, [this]()
   {
     if (!m_aboutDialog)
       m_aboutDialog.reset(new AboutDialog);
@@ -82,7 +84,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   });
 
   m_trayMenu->addSeparator();
-  m_trayMenu->addAction(tr("&Quit"), [this](){ this->quit(); });
+  const auto actionQuit = m_trayMenu->addAction(tr("&Quit"));
+  connect(actionQuit, &QAction::triggered, [this](){ this->quit(); });
   m_trayIcon->setContextMenu(&*m_trayMenu);
 
   m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray-64.png"));
