@@ -58,7 +58,7 @@ set_target_properties(projecteur PROPERTIES
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md 55-spotlight.rules.in Projecteur.desktop.in copyright.in)
+add_custom_target(non-sources SOURCES README.md LICENSE.md)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
