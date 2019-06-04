@@ -26,10 +26,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 COMPONENTS Core Gui Quick Widgets 
-                            # X11Extras 
-             REQUIRED)
-#find_package(X11 REQUIRED)
+find_package(Qt5 COMPONENTS Core Gui Quick Widgets REQUIRED)
 
 add_executable(projecteur
   main.cc
@@ -37,7 +34,6 @@ add_executable(projecteur
   colorselector.cc      colorselector.h
   preferencesdlg.cc     preferencesdlg.h
   projecteurapp.cc      projecteurapp.h
-#  qglobalshortcutx11.cc qglobalshortcutx11.h
   runguard.cc           runguard.h
   settings.cc           settings.h
   spotlight.cc          spotlight.h
@@ -46,7 +42,6 @@ add_executable(projecteur
 
 target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets
-  #Qt5::X11Extras ${X11_LIBRARIES} xcb
 )
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
@@ -63,10 +58,11 @@ set_target_properties(projecteur PROPERTIES
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md 55-spotlight.rules)
+add_custom_target(non-sources SOURCES README.md LICENSE.md 55-spotlight.rules.in Projecteur.desktop.in copyright.in)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
+set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur")
 
 # Use udev.pc pkg-config file to set the dir path
 if (NOT CMAKE_INSTALL_UDEVRULESDIR)
@@ -89,15 +85,36 @@ endif(NOT CMAKE_INSTALL_UDEVRULESDIR)
 set (CMAKE_INSTALL_UDEVRULESDIR ${UDEVDIR}/rules.d CACHE PATH "Where to install udev rules")
 mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 
-install(FILES 55-spotlight.rules DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
+# Configure and install files
+set(DEVICE_USER_GROUP spotlight-device)
+set(OUTDIR "${CMAKE_CURRENT_BINARY_DIR}")
+set(TMPLDIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates")
 
-# Add 'distpackage' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+configure_file("55-spotlight.rules.in" "55-spotlight.rules" @ONLY)
+install(FILES "${OUTDIR}/55-spotlight.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
+
+install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+
+configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
+install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION /usr/share/applications/)
+
+configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
+
+set(HOMEPAGE "https://github.com/jahnf/Projecteur")
+
+# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
 include(LinuxPackaging)
 add_dist_package_target(
   PROJECT "${CMAKE_PROJECT_NAME}" 
   TARGET projecteur
   DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
-  DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: https://github.com/jahnf/Projecteur"
-  CONTACT "Jahn F. <github.jahnf@wolke7.net)>"
+  DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
+  CONTACT "Jahn Fuchs <github.jahnf@wolke7.net>"
+  HOMEPAGE "${HOMEPAGE}"
+  DEBIAN_SECTION "utils"
+  PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
 )
 

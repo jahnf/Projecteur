@@ -19,6 +19,8 @@ set(_LinuxPackaging_default_pkgtype "TGZ")
 #  DESCRIPTION_BRIEF  : Brief package description.
 #  DESCRIPTION_FULL   : Full package description.
 #  CONTACT            : Package maintainer/contact.
+#  HOMEAPGE           : The project homepage
+#  DEBIAN_SECTION.....: A valid debian package section (default=devel)
 
 function(add_dist_package_target)
   set(oneValueArgs 
@@ -27,6 +29,12 @@ function(add_dist_package_target)
     DESCRIPTION_BRIEF 
     DESCRIPTION_FULL
     CONTACT # Maintainer / contact person
+    HOMEPAGE 
+    DEBIAN_SECTION
+    PREINST_SCRIPT
+    POSTINST_SCRIPT
+    PRERM_SCRIPT
+    POSTRM_SCRIPT
   )
   set(requiredArgs PROJECT TARGET)
   cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN})
@@ -63,6 +71,10 @@ function(add_dist_package_target)
   # Set defaults if not set
   if("${PKG_CONTACT}" STREQUAL "")
     set(PKG_CONTACT "Generic Maintainer <generic@main.tainer>")
+  endif()
+
+  if("${PKG_DEBIAN_SECTION}" STREQUAL "")
+    set(PKG_DEBIAN_SECTION "devel")
   endif()
 
   find_program(CPACK_COMMAND cpack)

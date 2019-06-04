@@ -69,10 +69,10 @@ Note: You can ommit setting the `QTDIR` variable, CMake will then usually find t
 
 The input devices detected from the Spotlight device must be readable to the
 user running the application. To make this easier there is a udev rule template
-file in this repository: `55-spotlight.rules`
+file in this repository: `55-spotlight.rules.in`
 
-* Copy this file to /etc/udev/rules.d/55-spotlight.rules and update the
-  'plugdev' group in the file to a group you are a member in
+* Copy that file to /etc/udev/rules.d/55-spotlight.rules and replace the
+  '@DEVICE_USER_GROUP@' in the file with a group your user is a member in
 * Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger` to load
   the rules without a reboot.
 * After that the two input devices from the Logitech USB Receiver in /dev/input

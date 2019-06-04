@@ -27,7 +27,7 @@ deploy:
   skip_cleanup: true
   on:
     all_branches: true
-    condition: "$TRAVIS_BRANCH =~ ^features/obs-packaging|develop|master$"
+    condition: "$TRAVIS_BRANCH =~ ^develop|master$"
   file: travis-ci-bintray-deploy.json
   user:
     secure: IiLPERfNp3JOj4kLgAaHFWNhYh8ZEMNwbnToo+eg69QsdKOq4gDyPjVA2pjqNjxkHVC8mP846c4RMdx7B3d78cejS+nN8NgwRkGky6pe15ZW6eZ2Ncn4aIaZ35+yL/VIDei+laJv/LWehYypw5qK8hj3kL22VwwzbenMUHUdL6InmB4dVUFnr16BvdNLDPlulgAmeDxgOMYIieiiIPXpQlkHQfZhu9XyFECOunwPRUtipZ0HOck2Q8kJuXeD8Wg0iVVIJbWmXq2BFVexnDMyxvz0WNL2ExK+Nd2wjkccQqQNO2TZVKdW1vt96lataHjfruacWwtFQ95CNLsSJXmmDaTbF6+qG5vKWAPwqe3+kvgyqbYQFt7hAK0YgUHHHgYpZzpQ4EsrvHdld/SACRIr94jX0262FPPb/d7rmCBrmECBHSqKnz+KkIbzdTS/dW5gk+EuInZhef9yfibBjxFHTX7NpCSzrm/jOgQHTnBEoBTzSgeqw1sxdKZ1oPgOmm6FpxvF83B/kfgf1++er4b04BL8tberEgXnTqWQoZNUjhCq8Sx1LIQnT0ySemY1JsnmJMHD79jHSg0wv30EFPhD/TeRoGbbKc+P9ZU+3qle+EAwT33ey34JlRgO9RqHDm2m4jW8snfPgUKWIQazAvwUuilae7VPYPWMMu4a+PR9mjc=
