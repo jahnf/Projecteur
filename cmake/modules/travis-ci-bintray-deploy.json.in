@@ -1,6 +1,6 @@
 {
     "package": {
-        "name": "projecteur",
+        "name": "projecteur-@PKG_VERSION_BRANCH@",
         "repo": "Projecteur",
         "subject": "jahnf",
         "desc": "I was pushed completely automatically",
