@@ -3,7 +3,8 @@
 develop: [![Build Status develop](https://travis-ci.org/jahnf/Projecteur.svg?branch=develop)](https://travis-ci.org/jahnf/Projecteur)
 master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branch=master)](https://travis-ci.org/jahnf/Projecteur)
 
-Linux/X11 application for the Logitech Spotlight device.
+Linux/X11 application for the Logitech Spotlight device. \
+See [Download](#download) section for binary packages.
 
 Copyright 2018-2019 [Jahn Fuchs](mailto:github.jahnf@wolke7.net)
 
@@ -45,6 +46,15 @@ If it is sending mouse events, we will 'turn on' the desktop spot.
 
 For more details: Have a look at the source code ;)
 
+## Download
+
+The lastest automatically built binary packages for some Linux distributions can be downloaded from bintray:
+
+[ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)
+
+_Note_: Packaging is still new and in development. Some things might not work as 
+expected. If so, please create an issue: https://github.com/jahnf/Projecteur/issues
+
 ## Building
 
 ### Requirements
@@ -67,6 +77,17 @@ Note: You can ommit setting the `QTDIR` variable, CMake will then usually find t
 
 ### Pre-requisites
 
+#### When using pre-built binary packages
+
+Make sure the user running the application is in the `spotlight-device` group. \
+This group is created during installation of the automatically built Linux binary 
+packages from the travis-ci servers. 
+
+_Note_: Packaging is still new and in development. Some things might not work as 
+expected. If so, please create an issue: https://github.com/jahnf/Projecteur/issues
+
+#### When building Projecteur yourself
+
 The input devices detected from the Spotlight device must be readable to the
 user running the application. To make this easier there is a udev rule template
 file in this repository: `55-spotlight.rules.in`
@@ -76,7 +97,7 @@ file in this repository: `55-spotlight.rules.in`
 * Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger` to load
   the rules without a reboot.
 * After that the two input devices from the Logitech USB Receiver in /dev/input
-  should have the group 'plugdev', i.e. the group you configure in the rules file.
+  should have the group you used, i.e. the group you configured in the rules file.
 * When building against the Qt version that comes with your distribution's packages
   you might need to install some  additional QML module packages. For example this
   is the case for Ubuntu, where you need to install the packages
