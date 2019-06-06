@@ -19,7 +19,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Features
 
-* Configurable desktop spotlight. Configure color, opacity, cursor, center dot.
+* Configurable desktop spotlight. Configure color, opacity, cursor, center dot and shape.
 * Multiple screen support
 
 ![Settings](./doc/screenshot-settings.png)
@@ -39,7 +39,7 @@ The mouse input device sends relative cursor coordinates and left button presses
 The keyboard device basically just sends left and right arrow key events when
 forward or back on the device is pressed.
 
-The dectected mouse input device is what we are interested in. Since it's
+The detected mouse input device is what we are interested in. Since it's
 already detected as a mouse input device and able to move the cursor, we will
 simply detect if it is the Spotlight device which is sending mouse events.
 If it is sending mouse events, we will 'turn on' the desktop spot.
@@ -48,7 +48,8 @@ For more details: Have a look at the source code ;)
 
 ## Download
 
-The lastest automatically built binary packages for some Linux distributions can be downloaded from bintray:
+The latest automatically built binary packages for some Linux distributions
+can be downloaded from bintray:
 
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)
 
@@ -65,7 +66,8 @@ expected. If so, please create an issue: https://github.com/jahnf/Projecteur/iss
 
 ### Build Example
 
-Note: You can ommit setting the `QTDIR` variable, CMake will then usually find the Qt version that comes with the distribution's packacke management.
+Note: You can omit setting the `QTDIR` variable, CMake will then usually find 
+the Qt version that comes with the distribution's package management.
 
       > git clone https://github.com/jahnf/projecteur
       > cd projecteur
@@ -80,8 +82,8 @@ Note: You can ommit setting the `QTDIR` variable, CMake will then usually find t
 #### When using pre-built binary packages
 
 Make sure the user running the application is in the `spotlight-device` group. \
-This group is created during installation of the automatically built Linux binary 
-packages from the travis-ci servers. 
+This group is created during installation of the automatically built Linux binary
+packages from the travis-ci servers.
 
 _Note_: Packaging is still new and in development. Some things might not work as 
 expected. If so, please create an issue: https://github.com/jahnf/Projecteur/issues
