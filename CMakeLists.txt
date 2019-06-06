@@ -102,6 +102,7 @@ configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
 install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION /usr/share/applications/)
 
 configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
+configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
 
 set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
@@ -116,5 +117,6 @@ add_dist_package_target(
   HOMEPAGE "${HOMEPAGE}"
   DEBIAN_SECTION "utils"
   PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
+  POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
 )
 
