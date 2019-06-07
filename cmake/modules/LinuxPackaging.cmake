@@ -164,7 +164,7 @@ function(add_source_archive_target target)
     set(GIT_TAR_FILE_PATH "${ARCHIVE_STAGE_DIR}/${FILE_BASENAME}.git-stage.tar")
     add_custom_command(OUTPUT "${GIT_TAR_FILE_PATH}"
       COMMAND ${CMAKE_COMMAND} ARGS -E make_directory "${ARCHIVE_STAGE_DIR}"
-      COMMAND ${GIT_EXECUTABLE} ARGS archive --format=tar --output="${GIT_TAR_FILE_PATH}" ${GIT_TREEISH}
+      COMMAND ${GIT_EXECUTABLE} ARGS archive --format=tar --prefix=${target}-${VERSION_STRING}/ --output="${GIT_TAR_FILE_PATH}" ${GIT_TREEISH}
       WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
       COMMENT "Running git archive (${target})..."
     )
@@ -175,9 +175,10 @@ function(add_source_archive_target target)
     add_custom_command(OUTPUT "${TARGZ_FILE_PATH}"
       DEPENDS "${GIT_TAR_FILE_PATH}"
       COMMAND ${CMAKE_COMMAND} ARGS -E copy "${GIT_TAR_FILE_PATH}" "${TAR_FILE_PATH}"
-      COMMAND ${TAR_EXECUTABLE} ARGS -rf "${TAR_FILE_PATH}" "*"
-      COMMAND ${GZIP_EXECUTABLE} ARGS -8 "${TAR_FILE_PATH}"
-      WORKING_DIRECTORY ${TAR_APPEND_DIR}
+      COMMAND ${CMAKE_COMMAND} ARGS -E create_symlink "${PROJECT_BINARY_DIR}/archive_append" "${ARCHIVE_STAGE_DIR}/${target}-${VERSION_STRING}"
+      COMMAND ${TAR_EXECUTABLE} ARGS -rf "${TAR_FILE_PATH}" "${target}-${VERSION_STRING}/*"
+      COMMAND ${GZIP_EXECUTABLE} ARGS -9f "${TAR_FILE_PATH}"
+      WORKING_DIRECTORY ${ARCHIVE_STAGE_DIR}
       COMMENT "Add version information to git archive (${target})..."
     )
     add_custom_target(source-archive DEPENDS "${TARGZ_FILE_PATH}")
