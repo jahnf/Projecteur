@@ -3,10 +3,14 @@ matrix:
   include:
   - os: linux
     dist: xenial
-    env: DOCKER_IMG=jahnf/projecteur:debian-stretch
+    env: 
+      - DOCKER_IMG=jahnf/projecteur:debian-stretch
+      - BUILD_SOURCE_PKG=0
   - os: linux
     dist: xenial
-    env: DOCKER_IMG=jahnf/projecteur:ubuntu-16.04
+    env: 
+      - DOCKER_IMG=jahnf/projecteur:ubuntu-16.04
+      - BUILD_SOURCE_PKG=0
   - os: linux
     dist: xenial
     env: 
@@ -14,10 +18,14 @@ matrix:
       - BUILD_SOURCE_PKG=1
   - os: linux
     dist: xenial
-    env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
+    env: 
+      - DOCKER_IMG=jahnf/projecteur:opensuse-15.0
+      - BUILD_SOURCE_PKG=0
   - os: linux
     dist: xenial
-    env: DOCKER_IMG=jahnf/projecteur:opensuse-42.3
+    env: 
+      - DOCKER_IMG=jahnf/projecteur:opensuse-42.3
+      - BUILD_SOURCE_PKG=0
 script:
 - git fetch --tags
 - "[ -f $(git rev-parse --git-dir)/shallow ] && git fetch --unshallow || echo No need to unshallow..."
