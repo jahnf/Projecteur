@@ -3,14 +3,10 @@ matrix:
   include:
   - os: linux
     dist: xenial
-    env: 
-      - DOCKER_IMG=jahnf/projecteur:debian-stretch
-      - BUILD_SOURCE_PKG=0
+    env: DOCKER_IMG=jahnf/projecteur:debian-stretch
   - os: linux
     dist: xenial
-    env: 
-      - DOCKER_IMG=jahnf/projecteur:ubuntu-16.04
-      - BUILD_SOURCE_PKG=0
+    env: DOCKER_IMG=jahnf/projecteur:ubuntu-16.04
   - os: linux
     dist: xenial
     env: 
@@ -18,14 +14,10 @@ matrix:
       - BUILD_SOURCE_PKG=1
   - os: linux
     dist: xenial
-    env: 
-      - DOCKER_IMG=jahnf/projecteur:opensuse-15.0
-      - BUILD_SOURCE_PKG=0
+    env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
   - os: linux
     dist: xenial
-    env: 
-      - DOCKER_IMG=jahnf/projecteur:opensuse-42.3
-      - BUILD_SOURCE_PKG=0
+    env: DOCKER_IMG=jahnf/projecteur:opensuse-42.3
 script:
 - git fetch --tags
 - "[ -f $(git rev-parse --git-dir)/shallow ] && git fetch --unshallow || echo No need to unshallow..."
@@ -39,8 +31,8 @@ script:
 - docker exec -it build /bin/bash -c "mv /build/*.rpm /build/dist-pkg || true"
 - docker exec -it build /bin/bash -c "mv /build/*.tgz /build/dist-pkg || true"
 - docker exec -it build /bin/bash -c "mv /build/*.tar.gz /build/dist-pkg || true"
-- "[ ${BUILD_SOURCE_PKG} = 1 ] && docker exec -it build /bin/bash -c \"cd /build && cmake --build . --target source-archive\""
-- "[ ${BUILD_SOURCE_PKG} = 1 ] && docker exec -it build /bin/bash -c \"mv /build/archive_output/* /build/dist-pkg\""
+- "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"cd /build && cmake --build . --target source-archive\" || true"
+- "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"mv /build/archive_output/* /build/dist-pkg\" || treu"
 - docker cp build:/build/dist-pkg .
 - docker cp build:/build/travis-ci-bintray-deploy.json .
 - ls -alh dist-pkg
