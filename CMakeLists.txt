@@ -120,3 +120,6 @@ add_dist_package_target(
   POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
 )
 
+# Add 'source-archive' target
+add_source_archive_target(projecteur)
+

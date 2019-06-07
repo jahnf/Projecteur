@@ -346,12 +346,19 @@ function(add_version_info_custom_prefix target prefix directory)
     set(${prefix}_FALLBACK_VERSION_TYPE ${TARGET_VTYPE})
   endif()
 
-  get_version_info(${prefix} "${directory}")
+  include(ArchiveVersionInfo_${prefix} OPTIONAL RESULT_VARIABLE ARCHIVE_VERSION_PRESENT)
+  if(ARCHIVE_VERSION_PRESENT AND ${prefix}_VERSION_SUCCESS)
+    message(STATUS "Info: Version information from archive file.")
+  else()
+    get_version_info(${prefix} "${directory}")
+  endif()
+
   if(${${prefix}_VERSION_SUCCESS})
     # All informations gathered via git
   else()
     message(STATUS "Version-Info: Failure during version retrieval. Possible incomplete version information!")
   endif()
+  # Test if we are building from an archive that has generated version information
   set(VERSION_MAJOR ${${prefix}_VERSION_MAJOR})
   set(VERSION_MINOR ${${prefix}_VERSION_MINOR})
   set(VERSION_PATCH ${${prefix}_VERSION_PATCH})
@@ -362,7 +369,7 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_STRING ${${prefix}_VERSION_STRING})
   set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
   set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
-  set_target_properties(projecteur PROPERTIES 
+  set_target_properties(${target} PROPERTIES 
     VERSION_MAJOR "${VERSION_MAJOR}"
     VERSION_MINOR "${VERSION_MINOR}"
     VERSION_PATCH "${VERSION_PATCH}"
@@ -386,6 +393,9 @@ function(add_version_info_custom_prefix target prefix directory)
     configure_file("${template_file}" "${output_file}")
     list(APPEND output_files "${output_file}")
   endforeach()
+
+  configure_file("${_GitVersion_DIRECTORY}/ArchiveVersionInfo.cmake.in"
+                 "archive_append/cmake/modules/ArchiveVersionInfo_${prefix}.cmake" @ONLY)
 
   get_target_property(type ${target} TYPE)
   if(type STREQUAL "SHARED_LIBRARY")

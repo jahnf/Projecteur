@@ -139,3 +139,49 @@ function(add_dist_package_target)
 
   message(STATUS "Configured target 'dist-package' with Linux '${PKG_DIST}' and package type '${PKG_TYPE}'")
 endfunction()
+
+## Add 'source-archive' target
+function(add_source_archive_target target)
+  find_package(Git)
+  find_program(TAR_EXECUTABLE tar)
+  find_program(GZIP_EXECUTABLE gzip)
+  if(GIT_FOUND)
+    get_target_property(VERSION_STRING ${target} VERSION_STRING)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --always
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE GIT_TREEISH
+      ERROR_VARIABLE error_out
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    )
+    if(NOT result EQUAL 0)
+      set(GIT_TREEISH "HEAD")
+    endif()
+
+    # Write
+    set(ARCHIVE_STAGE_DIR "${PROJECT_BINARY_DIR}/archive_stage")
+    set(FILE_BASENAME "${target}-${VERSION_STRING}_source")
+    set(GIT_TAR_FILE_PATH "${ARCHIVE_STAGE_DIR}/${FILE_BASENAME}.git-stage.tar")
+    add_custom_command(OUTPUT "${GIT_TAR_FILE_PATH}"
+      COMMAND ${CMAKE_COMMAND} ARGS -E make_directory "${ARCHIVE_STAGE_DIR}"
+      COMMAND ${GIT_EXECUTABLE} ARGS archive --format=tar --output="${GIT_TAR_FILE_PATH}" ${GIT_TREEISH}
+      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+      COMMENT "Running git archive (${target})..."
+    )
+    set(ARCHIVE_OUTPUT_DIR "${PROJECT_BINARY_DIR}/archive_output")
+    set(TAR_FILE_PATH "${ARCHIVE_OUTPUT_DIR}/${FILE_BASENAME}.tar")
+    set(TARGZ_FILE_PATH "${TAR_FILE_PATH}.gz")
+    set(TAR_APPEND_DIR "${PROJECT_BINARY_DIR}/archive_append")
+    add_custom_command(OUTPUT "${TARGZ_FILE_PATH}"
+      DEPENDS "${GIT_TAR_FILE_PATH}"
+      COMMAND ${CMAKE_COMMAND} ARGS -E copy "${GIT_TAR_FILE_PATH}" "${TAR_FILE_PATH}"
+      COMMAND ${TAR_EXECUTABLE} ARGS -rf "${TAR_FILE_PATH}" "*"
+      COMMAND ${GZIP_EXECUTABLE} ARGS -8 "${TAR_FILE_PATH}"
+      WORKING_DIRECTORY ${TAR_APPEND_DIR}
+      COMMENT "Add version information to git archive (${target})..."
+    )
+    add_custom_target(source-archive DEPENDS "${TARGZ_FILE_PATH}")
+  else()
+    message(STATUS "Cannot add 'source-archive' target, git not found.")
+  endif()
+endfunction()
