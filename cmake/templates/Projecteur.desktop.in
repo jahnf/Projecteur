@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Exec=@PROJECTEUR_INSTALL_PATH@
+Name=Projecteur
+GenericName=Linux/X11 application for the Logitech Spotlight device.
+Icon=projecteur
+Terminal=false
+Categories=Utility;Presentation;

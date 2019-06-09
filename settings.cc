@@ -2,7 +2,10 @@
 #include "settings.h"
 
 #include <QCoreApplication>
+#include <QQmlPropertyMap>
 #include <QSettings>
+
+#include <QDebug>
 
 namespace {
   namespace settings {
@@ -15,6 +18,8 @@ namespace {
     constexpr char shadeOpacity[] = "shadeOpacity";
     constexpr char screen[] = "screen";
     constexpr char cursor[] = "cursor";
+    constexpr char spotShape[] = "spotShape";
+    constexpr char spotRotation[] ="spotRotation";
 
     namespace defaultValue {
       constexpr bool showSpot = true;
@@ -26,6 +31,8 @@ namespace {
       constexpr double shadeOpacity = 0.3;
       constexpr int screen = 0;
       constexpr Qt::CursorShape cursor = Qt::BlankCursor;
+      constexpr char spotShape[] = "spotshapes/Circle.qml";
+      constexpr double spotRotation = 0.0;
     }
   }
 }
@@ -34,7 +41,17 @@ Settings::Settings(QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(QCoreApplication::applicationName(),
                              QCoreApplication::applicationName(), this))
+  , m_shapeSettingsRoot(new QQmlPropertyMap(this))
+  , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
+                  SpotShape("spotshapes/Square.qml", "Square", tr("(Rounded) Square"), true,
+                    {SpotShapeSetting(tr("Border-radius (%)"), "radius", 20, 0, 100, 0)} ),
+                  SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
+                    {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
+                     SpotShapeSetting(tr("Inner radius (%)"), "innerRadius", 50, 5, 100, 0)} ),
+                  SpotShape("spotshapes/Ngon.qml", "Ngon", tr("N-gon"), true,
+                    {SpotShapeSetting(tr("Sides"), "sides", 3, 3, 100, 0)} ) }
 {
+  shapeSettingsInitialize();
   load();
 }
 
@@ -53,6 +70,86 @@ void Settings::setDefaults()
   setShadeOpacity(settings::defaultValue::shadeOpacity);
   setScreen(settings::defaultValue::screen);
   setCursor(settings::defaultValue::cursor);
+  setSpotShape(settings::defaultValue::spotShape);
+  setSpotRotation(settings::defaultValue::spotRotation);
+  shapeSettingsSetDefaults();
+}
+
+void Settings::shapeSettingsSetDefaults()
+{
+  for (const auto& shape : m_spotShapes)
+  {
+    for (const auto& settingDefinition : shape.shapeSettings())
+    {
+      if (auto propertyMap = shapeSettings(shape.name()))
+      {
+        const QString key = settingDefinition.settingsKey();
+        if (propertyMap->property(key.toLocal8Bit()).isValid()) {
+          propertyMap->setProperty(key.toLocal8Bit(), settingDefinition.defaultValue());
+        } else {
+          propertyMap->insert(key, settingDefinition.defaultValue());
+        }
+      }
+    }
+  }
+  shapeSettingsPopulateRoot();
+}
+
+void Settings::shapeSettingsLoad()
+{
+  for (const auto& shape : m_spotShapes)
+  {
+    for (const auto& settingDefinition : shape.shapeSettings())
+    {
+      if (auto propertyMap = shapeSettings(shape.name()))
+      {
+        const QString key = settingDefinition.settingsKey();
+        const QString settingsKey = QString("Shape.%1/%2").arg(shape.name()).arg(key);
+        const QVariant loadedValue = m_settings->value(settingsKey, settingDefinition.defaultValue());
+        if (propertyMap->property(key.toLocal8Bit()).isValid()) {
+          propertyMap->setProperty(key.toLocal8Bit(), loadedValue);
+        } else {
+          propertyMap->insert(key, loadedValue);
+        }
+      }
+    }
+  }
+  shapeSettingsPopulateRoot();
+}
+
+void Settings::shapeSettingsInitialize()
+{
+  for (const auto& shape : m_spotShapes)
+  {
+    if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
+    {
+      auto pm = new QQmlPropertyMap(this);
+      connect(pm, &QQmlPropertyMap::valueChanged, [this, shape, pm](const QString& key, const QVariant& value)
+      {
+        const auto& s = shape.shapeSettings();
+        auto it = std::find_if(s.cbegin(), s.cend(), [&key](const SpotShapeSetting& sss) {
+          return key == sss.settingsKey();
+        });
+
+        if (it != s.cend())
+        {
+          if (it->defaultValue().type() == QVariant::Int)
+          {
+            const auto setValue = value.toInt();
+            const auto min = it->minValue().toInt();
+            const auto max = it->maxValue().toInt();
+            const auto newValue = qMin(qMax(min, setValue), max);
+            if (newValue != setValue) {
+              pm->setProperty(key.toLocal8Bit(), newValue);
+            }
+            m_settings->setValue(QString("Shape.%1/%2").arg(shape.name()).arg(key), newValue);
+          }
+        }
+      });
+      m_shapeSettings.insert(shape.name(), pm);
+    }
+  }
+  shapeSettingsPopulateRoot();
 }
 
 void Settings::load()
@@ -66,6 +163,9 @@ void Settings::load()
   setShadeOpacity(m_settings->value(::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
   setScreen(m_settings->value(::settings::screen, settings::defaultValue::screen).toInt());
   setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
+  setSpotShape(m_settings->value(::settings::spotShape, settings::defaultValue::spotShape).toString());
+  setSpotRotation(m_settings->value(::settings::spotRotation, settings::defaultValue::spotRotation).toDouble());
+  shapeSettingsLoad();
 }
 
 void Settings::setShowSpot(bool show)
@@ -156,4 +256,72 @@ void Settings::setCursor(Qt::CursorShape cursor)
   m_cursor = qMin(qMax(static_cast<Qt::CursorShape>(0), cursor), Qt::LastCursor);
   m_settings->setValue(::settings::cursor, static_cast<int>(m_cursor));
   emit cursorChanged(m_cursor);
+}
+
+void Settings::setSpotShape(const QString& spotShapeQmlComponent)
+{
+  if (m_spotShape == spotShapeQmlComponent)
+    return;
+
+  const auto it = std::find_if(spotShapes().cbegin(), spotShapes().cend(),
+  [&spotShapeQmlComponent](const SpotShape& s) {
+    return s.qmlComponent() == spotShapeQmlComponent;
+  });
+
+  if (it != spotShapes().cend()) {
+    m_spotShape = it->qmlComponent();
+    m_settings->setValue(::settings::spotShape, m_spotShape);
+    emit spotShapeChanged(m_spotShape);
+    setSpotRotationAllowed(it->allowRotation());
+  }
+}
+
+void Settings::setSpotRotation(double rotation)
+{
+  if (rotation > m_spotRotation || rotation < m_spotRotation)
+  {
+    m_spotRotation = qMin(qMax(0.0, rotation), 360.0);
+    m_settings->setValue(::settings::spotRotation, m_spotRotation);
+    emit spotRotationChanged(m_spotRotation);
+  }
+}
+
+QObject* Settings::shapeSettingsRootObject()
+{
+  return m_shapeSettingsRoot;
+}
+
+QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
+{
+  const auto it = m_shapeSettings.find(shapeName);
+  if (it != m_shapeSettings.cend()) {
+    return it.value();
+  }
+  return nullptr;
+}
+
+void Settings::shapeSettingsPopulateRoot()
+{
+  for (auto it = m_shapeSettings.cbegin(), end = m_shapeSettings.cend(); it != end; ++it)
+  {
+    if (m_shapeSettingsRoot->property(it.key().toLocal8Bit()).isValid()) {
+      m_shapeSettingsRoot->setProperty(it.key().toLocal8Bit(), QVariant::fromValue(it.value()));
+    } else {
+      m_shapeSettingsRoot->insert(it.key(), QVariant::fromValue(it.value()));
+    }
+  }
+}
+
+bool Settings::spotRotationAllowed() const
+{
+  return m_spotRotationAllowed;
+}
+
+void Settings::setSpotRotationAllowed(bool allowed)
+{
+  if (allowed == m_spotRotationAllowed)
+    return;
+
+  m_spotRotationAllowed = allowed;
+  emit spotRotationAllowedChanged(allowed);
 }

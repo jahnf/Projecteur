@@ -34,10 +34,11 @@ int main(int argc, char *argv[])
   {
     QCommandLineParser parser;
     parser.setApplicationDescription("Linux/X11 application for the Logitech Spotlight device.");
-    const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print version information.");
-    const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Print version information.");
-    const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to running instance.", "cmd");
-    parser.addOptions({versionOption, helpOption, commandOption});
+    const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print application version.");
+    const QCommandLineOption fullVersionOption(QStringList{ "f", "fullversion" });
+    const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Show command line usage.");
+    const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to a running instance.", "cmd");
+    parser.addOptions({versionOption, helpOption, commandOption, fullVersionOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -50,18 +51,22 @@ int main(int argc, char *argv[])
               << projecteur::version_string() << std::endl;
       print() << "Usage: projecteur [option]" << std::endl;
       print() << "<Options>";
-      print() << "  -h, --help             Show command line usage.";
-      print() << "  -v, --version          Print application version.";
-
-      //print() << "  -c, --command=COMMAND  Send command to running instance.";
-      // TODO print valid commands
+      print() << "  -h, --help             " << helpOption.description().toStdString();
+      print() << "  -v, --version          " << versionOption.description().toStdString();
+      print() << "  -c COMMAND             " << commandOption.description().toStdString() << std::endl;
+      print() << "<Commands>";
+      print() << "  spot=[on|off]          Turn spotlight on/off.";
+      print() << "  settings=[show|hide]   Show/hide preferences dialog.";
+      print() << "  quit                   Quit the running instance.";
       return 0;
     }
-    else if (parser.isSet(versionOption))
+    else if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))
     {
       print() << QCoreApplication::applicationName().toStdString() << " "
               << projecteur::version_string();
-      if (std::string(projecteur::version_branch()) != "master")
+      if (parser.isSet(fullVersionOption) ||
+          (std::string(projecteur::version_branch()) != "master" && 
+           std::string(projecteur::version_branch()) != "not-within-git-repo"))
       { // Not a build from master branch, print out additional information:
         print() << "  - git-branch: " << projecteur::version_branch();
         print() << "  - git-hash: " << projecteur::version_fullhash();

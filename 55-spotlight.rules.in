@@ -1,0 +1,22 @@
+# Set up permissions for non root users to open the Logitech Spotlight USB Receiver
+# Enables the Projecteur application to access the device.
+
+# Copy this file to /etc/udev/rules.d/55-spotlight.rules and replace '@DEVICE_USER_GROUP@'
+# with a group your user is a member in. 
+#
+# Existing groups like 'plugdev' and 'dialout' can be used, but the `install` target
+# uses a group called 'spotlight-device' by default. 
+# Linux packages created with the 'dist-package' target will create this group if not
+# present during installation.
+#
+# Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
+# to load rules without rebooting.
+
+# Note that for kernels before 2.6.24, you will need to substitute "usb" with "usb_device".
+
+# Rule for USB Receiver
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="660", GROUP="@DEVICE_USER_GROUP@", ENV{USB_HUB_TYPE}="046d:c53e"
+
+# Rule when connected via Bluetooth
+# Updated rule, thanks to Torsten Maehne (https://github.com/maehne)
+SUBSYSTEMS=="input", ATTRS{name}=="SPOTLIGHT*", MODE="660", GROUP="@DEVICE_USER_GROUP@"

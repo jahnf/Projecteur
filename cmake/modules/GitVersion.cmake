@@ -47,16 +47,30 @@ set(_GitVersion_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
 # - ${prefix}_OR_VERSION_MAJOR
 # - ${prefix}_OR_VERSION_MINOR
 # - ${prefix}_OR_VERSION_PATCH
+#
+# A version 'type' (release or develop) in case the branch cannot be determined via git
+# - #{prefix}_FALLBACK_VERSION_TYPE
 function(get_version_info prefix directory)
   set(${prefix}_VERSION_SUCCESS 0 PARENT_SCOPE)
   set(${prefix}_VERSION_MAJOR 0)
   set(${prefix}_VERSION_MINOR 0)
   set(${prefix}_VERSION_PATCH 0)
-  set(${prefix}_VERSION_BRANCH unknown PARENT_SCOPE)
+  set(${prefix}_VERSION_BRANCH unknown)
   set(${prefix}_VERSION_FLAG unknown)
   set(${prefix}_VERSION_DISTANCE 0)
   set(${prefix}_VERSION_STRING 0.0.0-unknown)
   set(${prefix}_VERSION_ISDIRTY 0 PARENT_SCOPE)
+
+  if("${${prefix}_OR_VERSION_MAJOR}" STREQUAL "")
+    set(${prefix}_OR_VERSION_MAJOR 0)
+  endif()
+  if("${${prefix}_OR_VERSION_MINOR}" STREQUAL "")
+    set(${prefix}_OR_VERSION_MINOR 0)
+  endif()
+  if("${${prefix}_OR_VERSION_PATCH}" STREQUAL "")
+    set(${prefix}_OR_VERSION_PATCH 0)
+  endif()
+
   find_package(Git)
   if(GIT_FOUND)
     # Get the version info from the last tag
@@ -84,6 +98,7 @@ function(get_version_info prefix directory)
         RESULT_VARIABLE result
         OUTPUT_VARIABLE GIT_DISTANCE
         OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_VARIABLE error_out
         WORKING_DIRECTORY ${directory}
       )
       if(result EQUAL 0)
@@ -95,6 +110,7 @@ function(get_version_info prefix directory)
       RESULT_VARIABLE result
       OUTPUT_VARIABLE GIT_ALWAYS_VERSION
       OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_VARIABLE error_out
       WORKING_DIRECTORY ${directory}
     )
     if(result EQUAL 0)
@@ -108,10 +124,17 @@ function(get_version_info prefix directory)
       RESULT_VARIABLE result
       OUTPUT_VARIABLE GIT_BRANCH
       OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_VARIABLE error_out
       WORKING_DIRECTORY ${directory}
     )
 
     if(result EQUAL 0)
+      if("${GIT_BRANCH}" STREQUAL "HEAD"  
+         AND NOT "$ENV{TRAVIS_BRANCH}" STREQUAL "")
+         set(GIT_BRANCH "$ENV{TRAVIS_BRANCH}")
+      endif()
+
+      set(${prefix}_VERSION_BRANCH "${GIT_BRANCH}")
       set(${prefix}_VERSION_BRANCH "${GIT_BRANCH}" PARENT_SCOPE)
 
       # Check for release branch
@@ -201,74 +224,80 @@ function(get_version_info prefix directory)
       set(${prefix}_VERSION_FLAG ${VERSION_ALPHA_FLAG})
     endif()
 
-    # Check if overrule version is greater than dynamically created one
-    if("${${prefix}_OR_VERSION_MAJOR}" STREQUAL "")
-      set(${prefix}_OR_VERSION_MAJOR 0)
-    endif()
-    if("${${prefix}_OR_VERSION_MINOR}" STREQUAL "")
-      set(${prefix}_OR_VERSION_MINOR 0)
-    endif()
-    if("${${prefix}_OR_VERSION_PATCH}" STREQUAL "")
-      set(${prefix}_OR_VERSION_PATCH 0)
-    endif()
-    if("${${prefix}_OR_VERSION_MAJOR}.${${prefix}_OR_VERSION_MINOR}.${${prefix}_OR_VERSION_PATCH}" VERSION_GREATER
-        "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}.${${prefix}_VERSION_PATCH}")
-      set(${prefix}_VERSION_MAJOR ${${prefix}_OR_VERSION_MAJOR})
-      set(${prefix}_VERSION_MINOR ${${prefix}_OR_VERSION_MINOR})
-      set(${prefix}_VERSION_PATCH ${${prefix}_OR_VERSION_PATCH})
-    endif()
-
-    set(VERSION_STRING "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}")
-    if(NOT ${${prefix}_VERSION_PATCH} EQUAL 0)
-      set(VERSION_STRING "${VERSION_STRING}.${${prefix}_VERSION_PATCH}")
-    endif()
-    if(NOT ON_MASTER OR NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0)
-      set(VERSION_STRING "${VERSION_STRING}-${${prefix}_VERSION_FLAG}")
-    endif()
-    if(NOT ${${prefix}_VERSION_FLAG} STREQUAL "")
-      set(VERSION_STRING "${VERSION_STRING}.")
-    endif()
-    if(NOT ON_MASTER OR (NOT ON_MASTER AND NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0))
-      set(VERSION_STRING "${VERSION_STRING}${${prefix}_VERSION_DISTANCE}")
-    endif()
-
-    set(${prefix}_VERSION_MAJOR ${${prefix}_VERSION_MAJOR} PARENT_SCOPE)
-    set(${prefix}_VERSION_MINOR ${${prefix}_VERSION_MINOR} PARENT_SCOPE)
-    set(${prefix}_VERSION_PATCH ${${prefix}_VERSION_PATCH} PARENT_SCOPE)
     set(${prefix}_VERSION_FLAG ${${prefix}_VERSION_FLAG} PARENT_SCOPE)
     set(${prefix}_VERSION_DISTANCE ${${prefix}_VERSION_DISTANCE} PARENT_SCOPE)
-    set(${prefix}_VERSION_STRING "${VERSION_STRING}" PARENT_SCOPE)
 
     execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
       RESULT_VARIABLE resultSH
       OUTPUT_VARIABLE GIT_SHORT_HASH
       OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_VARIABLE error_out
       WORKING_DIRECTORY ${directory}
     )
     if(resultSH EQUAL 0)
       set(${prefix}_VERSION_SHORTHASH ${GIT_SHORT_HASH} PARENT_SCOPE)
     else()
-      message(WARNING "Could not fetch short version hash.")
+      message(STATUS "Version-Info: Could not fetch short version hash.")
+      set(${prefix}_VERSION_SHORTHASH "unknown" PARENT_SCOPE)
     endif()
 
     execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
       RESULT_VARIABLE resultFH
       OUTPUT_VARIABLE GIT_FULL_HASH
       OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_VARIABLE error_out
       WORKING_DIRECTORY ${directory}
     )
     if(resultFH EQUAL 0)
       set(${prefix}_VERSION_FULLHASH ${GIT_FULL_HASH} PARENT_SCOPE)
     else()
-      message(WARNING "Could not fetch full version hash.")
+      message(STATUS "Version-Info: Could not fetch full version hash.")
+      set(${prefix}_VERSION_FULLHASH "unknown" PARENT_SCOPE)
     endif()
 
     if(resultSH EQUAL 0 AND resultFH EQUAL 0)
       set(${prefix}_VERSION_SUCCESS 1 PARENT_SCOPE)
     endif()
   else()
-    message(WARNING "Git not found. Incomplete version information.")
+    message(STATUS "Version-Info: Git not found. Possible incomplete version information.")
   endif()
+
+  if("${${prefix}_VERSION_BRANCH}" STREQUAL "unknown" OR "${${prefix}_VERSION_BRANCH}" STREQUAL "")
+    if("${${prefix}_FALLBACK_VERSION_TYPE}" STREQUAL "release")
+      set(ON_MASTER ON)
+      set(${prefix}_VERSION_FLAG "")
+      set(${prefix}_VERSION_FLAG "" PARENT_SCOPE)
+    endif()
+    set(${prefix}_VERSION_BRANCH "not-within-git-repo" PARENT_SCOPE)
+  endif()
+
+  # Check if overrule version is greater than dynamically created one
+  if("${${prefix}_OR_VERSION_MAJOR}.${${prefix}_OR_VERSION_MINOR}.${${prefix}_OR_VERSION_PATCH}" VERSION_GREATER
+  "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}.${${prefix}_VERSION_PATCH}")
+    set(${prefix}_VERSION_MAJOR ${${prefix}_OR_VERSION_MAJOR})
+    set(${prefix}_VERSION_MINOR ${${prefix}_OR_VERSION_MINOR})
+    set(${prefix}_VERSION_PATCH ${${prefix}_OR_VERSION_PATCH})
+  endif()
+
+  set(${prefix}_VERSION_MAJOR ${${prefix}_VERSION_MAJOR} PARENT_SCOPE)
+  set(${prefix}_VERSION_MINOR ${${prefix}_VERSION_MINOR} PARENT_SCOPE)
+  set(${prefix}_VERSION_PATCH ${${prefix}_VERSION_PATCH} PARENT_SCOPE)
+
+  # Build version string...
+  set(VERSION_STRING "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}")
+  if(NOT ${${prefix}_VERSION_PATCH} EQUAL 0)
+    set(VERSION_STRING "${VERSION_STRING}.${${prefix}_VERSION_PATCH}")
+  endif()
+  if(NOT ON_MASTER OR NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0)
+    set(VERSION_STRING "${VERSION_STRING}-${${prefix}_VERSION_FLAG}")
+  endif()
+  if(NOT ${${prefix}_VERSION_FLAG} STREQUAL "")
+    set(VERSION_STRING "${VERSION_STRING}.")
+  endif()
+  if(NOT ON_MASTER OR (NOT ON_MASTER AND NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0))
+    set(VERSION_STRING "${VERSION_STRING}${${prefix}_VERSION_DISTANCE}")
+  endif()
+  set(${prefix}_VERSION_STRING "${VERSION_STRING}" PARENT_SCOPE)
 endfunction()
 
 # Add version information to a target, header and source file are configured from templates.
@@ -286,7 +315,7 @@ function(add_version_info_custom_prefix target prefix directory)
   endif()
   string(MAKE_C_IDENTIFIER "${target}" targetid)
 
-  # Set default values, in case sth goes wrong, e.g. we are not inside a git repo
+  # Set default values, in case sth goes wrong badly
   set(VERSION_MAJOR 0)
   set(VERSION_MINOR 0)
   set(VERSION_PATCH 0)
@@ -299,21 +328,59 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_BRANCH unknown)
   set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/version/${targetid}")
 
-  get_version_info(${prefix} "${directory}")
-  if(${${prefix}_VERSION_SUCCESS})
-    set(VERSION_MAJOR ${${prefix}_VERSION_MAJOR})
-    set(VERSION_MINOR ${${prefix}_VERSION_MINOR})
-    set(VERSION_PATCH ${${prefix}_VERSION_PATCH})
-    set(VERSION_FLAG ${${prefix}_VERSION_FLAG})
-    set(VERSION_DISTANCE ${${prefix}_VERSION_DISTANCE})
-    set(VERSION_SHORTHASH ${${prefix}_VERSION_SHORTHASH})
-    set(VERSION_FULLHASH ${${prefix}_VERSION_FULLHASH})
-    set(VERSION_STRING ${${prefix}_VERSION_STRING})
-    set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
-    set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
-  else()
-    message(WARNING "Error during version retrieval. Incomplete version information!")
+  get_target_property(TARGET_VMAJOR ${target} VERSION_MAJOR)
+  if(TARGET_VMAJOR)
+    set(${prefix}_OR_VERSION_MAJOR ${TARGET_VMAJOR})
   endif()
+  get_target_property(TARGET_VMINOR ${target} VERSION_MINOR)
+  if(TARGET_VMINOR)
+    set(${prefix}_OR_VERSION_MINOR ${TARGET_VMINOR})
+    set(VERSION_MINOR ${TARGET_VMINOR})
+  endif()
+  get_target_property(TARGET_VPATCH ${target} VERSION_PATCH)
+  if(TARGET_VPATCH)
+    set(${prefix}_OR_VERSION_PATCH ${TARGET_VPATCH})
+  endif()
+  get_target_property(TARGET_VTYPE ${target} VERSION_TYPE)
+  if(TARGET_VTYPE)
+    set(${prefix}_FALLBACK_VERSION_TYPE ${TARGET_VTYPE})
+  endif()
+
+  include(ArchiveVersionInfo_${prefix} OPTIONAL RESULT_VARIABLE ARCHIVE_VERSION_PRESENT)
+  if(ARCHIVE_VERSION_PRESENT AND ${prefix}_VERSION_SUCCESS)
+    message(STATUS "Info: Version information from archive file.")
+  else()
+    get_version_info(${prefix} "${directory}")
+  endif()
+
+  if(${${prefix}_VERSION_SUCCESS})
+    # All informations gathered via git
+  else()
+    message(STATUS "Version-Info: Failure during version retrieval. Possible incomplete version information!")
+  endif()
+  # Test if we are building from an archive that has generated version information
+  set(VERSION_MAJOR ${${prefix}_VERSION_MAJOR})
+  set(VERSION_MINOR ${${prefix}_VERSION_MINOR})
+  set(VERSION_PATCH ${${prefix}_VERSION_PATCH})
+  set(VERSION_FLAG ${${prefix}_VERSION_FLAG})
+  set(VERSION_DISTANCE ${${prefix}_VERSION_DISTANCE})
+  set(VERSION_SHORTHASH ${${prefix}_VERSION_SHORTHASH})
+  set(VERSION_FULLHASH ${${prefix}_VERSION_FULLHASH})
+  set(VERSION_STRING ${${prefix}_VERSION_STRING})
+  set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
+  set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
+  set_target_properties(${target} PROPERTIES 
+    VERSION_MAJOR "${VERSION_MAJOR}"
+    VERSION_MINOR "${VERSION_MINOR}"
+    VERSION_PATCH "${VERSION_PATCH}"
+    VERSION_FLAG "${VERSION_FLAG}"
+    VERSION_DISTANCE "${VERSION_DISTANCE}"
+    VERSION_SHORTHASH "${VERSION_SHORTHASH}"
+    VERSION_FULLHASH "${VERSION_FULLHASH}"
+    VERSION_STRING "${VERSION_STRING}"
+    VERSION_ISDIRTY "${VERSION_ISDIRTY}"
+    VERSION_BRANCH "${VERSION_BRANCH}"
+  )
 
   set(TARGET ${prefix})
   foreach(template_file ${ARGN})
@@ -326,6 +393,9 @@ function(add_version_info_custom_prefix target prefix directory)
     configure_file("${template_file}" "${output_file}")
     list(APPEND output_files "${output_file}")
   endforeach()
+
+  configure_file("${_GitVersion_DIRECTORY}/ArchiveVersionInfo.cmake.in"
+                 "archive_append/cmake/modules/ArchiveVersionInfo_${prefix}.cmake" @ONLY)
 
   get_target_property(type ${target} TYPE)
   if(type STREQUAL "SHARED_LIBRARY")

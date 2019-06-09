@@ -7,7 +7,6 @@
 #include <QVarLengthArray>
 
 #include <functional>
-
 #include <fcntl.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
@@ -140,7 +139,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
 
   const bool anyConnectedBefore = anySpotlightDeviceConnected();
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
-  QSocketNotifier* notifier = m_eventNotifiers[devicePath].data();
+  QSocketNotifier* const notifier = m_eventNotifiers[devicePath].data();
 
   connect(notifier, &QSocketNotifier::destroyed, [notifier, devicePath]() {
     ::close(static_cast<int>(notifier->socket()));
@@ -193,8 +192,8 @@ bool Spotlight::setupDevEventInotify()
   fcntl( fd, F_SETFD, FD_CLOEXEC );
   const int wd = inotify_add_watch( fd, "/dev/input", IN_CREATE | IN_DELETE );
   // TODO check if wd >=0... else error
-  auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-  connect(notifier, &QSocketNotifier::activated, [this](int fd)
+  const auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
+  connect(notifier, &QSocketNotifier::activated, [this, wd](int fd)
   {
     int bytesAvaibable = 0;
     if( ioctl( fd, FIONREAD, &bytesAvaibable ) < 0 || bytesAvaibable <= 0 ) {
@@ -206,7 +205,8 @@ bool Spotlight::setupDevEventInotify()
     const char* const end = at + bytesRead;
     while( at < end )
     {
-      const inotify_event* event = reinterpret_cast<const inotify_event*>( at );
+      inotify_event const * const event = reinterpret_cast<const inotify_event*>( at );
+
       if( (event->mask & (IN_CREATE )) && QString(event->name).startsWith("event") )
       {
         const auto devicePath = QString("/dev/input/").append(event->name);

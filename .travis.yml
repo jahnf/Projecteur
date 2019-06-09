@@ -1,48 +1,49 @@
-language: generic
+language: cpp
 matrix:
   include:
-    - os: linux
-      dist: trusty
-      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
-      addons:
-        apt:
-          sources: &sources
-            - llvm-toolchain-trusty-5.0
-            - ubuntu-toolchain-r-test
-            - sourceline: 'ppa:beineri/opt-qt596-trusty'
-          packages:
-            - g++-5
-            - qt59base
-            - qt59declarative
-            - qt59x11extras
-            - libx11-xcb-dev
-    - os: linux
-      dist: trusty
-      env: COMPILER_NAME=gcc CXX=g++-6 CC=gcc-6
-      addons:
-        apt:
-          packages:
-            - g++-6
-            - qt59base
-            - qt59declarative
-            - qt59x11extras
-            - libx11-xcb-dev
-          sources: *sources
-    - os: linux
-      dist: trusty
-      env: COMPILER_NAME=clang CXX=clang++ CC=clang
-      addons:
-        apt:
-          packages:
-            - clang-5.0
-            - qt59base
-            - qt59declarative
-            - qt59x11extras
-            - libx11-xcb-dev
-          sources: *sources
-          
-script: 
-  - mkdir build && cd build
-  - . /opt/qt59/bin/qt59-env.sh && cmake ..
-  - make
-  - ./projecteur -v
+  - os: linux
+    dist: xenial
+    env: DOCKER_IMG=jahnf/projecteur:debian-stretch
+  - os: linux
+    dist: xenial
+    env: DOCKER_IMG=jahnf/projecteur:ubuntu-16.04
+  - os: linux
+    dist: xenial
+    env: 
+      - DOCKER_IMG=jahnf/projecteur:ubuntu-18.04
+      - BUILD_SOURCE_PKG=1
+  - os: linux
+    dist: xenial
+    env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
+  - os: linux
+    dist: xenial
+    env: DOCKER_IMG=jahnf/projecteur:opensuse-42.3
+script:
+- git fetch --tags
+- "[ -f $(git rev-parse --git-dir)/shallow ] && git fetch --unshallow || echo No need to unshallow..."
+- docker pull ${DOCKER_IMG}
+- docker run --name build --env TRAVIS_BRANCH=${TRAVIS_BRANCH} -d -v `pwd`:/source:ro -ti ${DOCKER_IMG}
+- docker exec -it build /bin/bash -c "mkdir -p /build/dist-pkg && cd /build && cmake /source"
+- docker exec -it build /bin/bash -c "cd /build && cmake --build ."
+- docker exec -it build /bin/bash -c "cd /build && cmake --build . --target dist-package"
+- docker exec -it build /bin/bash -c "cd /build && ./projecteur --version"
+- docker exec -it build /bin/bash -c "mv /build/*.deb /build/dist-pkg || true"
+- docker exec -it build /bin/bash -c "mv /build/*.rpm /build/dist-pkg || true"
+- docker exec -it build /bin/bash -c "mv /build/*.tgz /build/dist-pkg || true"
+- docker exec -it build /bin/bash -c "mv /build/*.tar.gz /build/dist-pkg || true"
+- "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"cd /build && cmake --build . --target source-archive\" || true"
+- "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"mv /build/archive_output/* /build/dist-pkg\" || true"
+- docker cp build:/build/dist-pkg .
+- docker cp build:/build/travis-ci-bintray-deploy.json .
+- ls -alh dist-pkg
+deploy:
+  provider: bintray
+  skip_cleanup: true
+  on:
+    all_branches: true
+    condition: "$TRAVIS_BRANCH =~ ^develop|master$"
+  file: travis-ci-bintray-deploy.json
+  user:
+    secure: IiLPERfNp3JOj4kLgAaHFWNhYh8ZEMNwbnToo+eg69QsdKOq4gDyPjVA2pjqNjxkHVC8mP846c4RMdx7B3d78cejS+nN8NgwRkGky6pe15ZW6eZ2Ncn4aIaZ35+yL/VIDei+laJv/LWehYypw5qK8hj3kL22VwwzbenMUHUdL6InmB4dVUFnr16BvdNLDPlulgAmeDxgOMYIieiiIPXpQlkHQfZhu9XyFECOunwPRUtipZ0HOck2Q8kJuXeD8Wg0iVVIJbWmXq2BFVexnDMyxvz0WNL2ExK+Nd2wjkccQqQNO2TZVKdW1vt96lataHjfruacWwtFQ95CNLsSJXmmDaTbF6+qG5vKWAPwqe3+kvgyqbYQFt7hAK0YgUHHHgYpZzpQ4EsrvHdld/SACRIr94jX0262FPPb/d7rmCBrmECBHSqKnz+KkIbzdTS/dW5gk+EuInZhef9yfibBjxFHTX7NpCSzrm/jOgQHTnBEoBTzSgeqw1sxdKZ1oPgOmm6FpxvF83B/kfgf1++er4b04BL8tberEgXnTqWQoZNUjhCq8Sx1LIQnT0ySemY1JsnmJMHD79jHSg0wv30EFPhD/TeRoGbbKc+P9ZU+3qle+EAwT33ey34JlRgO9RqHDm2m4jW8snfPgUKWIQazAvwUuilae7VPYPWMMu4a+PR9mjc=
+  key:
+    secure: Qggdx4BL+0iB+lU8maLQw1VzGS/015rdUFeIobTje8P+kEmVkSXAA4IS48zX0Ls0JjotzwYjZyzs+lAk7RYYlj0RMexodPXaiMgN01RygKtpg3g4ZFlDgnWB/gK7dhGhjEryUq4K1mMBJBAu5rO7JUqbpWB2hX8TpwuE1IPuE3vEylGCBbfJn8IBDDJ+1qG1pMMSOvCvg4exBVsYdCUHWnQRYHo+luw9G+jqNB0NHp4ASIYcdGwULejTXvDZ5U+FEL4ftv8v3n4gj8ZFVvgfpXrzrmWCf5SlBAoIXCrpCdirz5k4IuW76vOPufjb+2LfWR4Yoou6tVmZe1tqPKEo9cl4OIzYabNyCaeKznw7vLswh1eY3uG5xdbfdSTdlHBmhq8no2IsMyvqCPWYjrLR20uKOE80tAayMDHeDKZI9UluIRgXiXF0OMP6Yz34mo7VwQZF511GBJa5DxngD64Fc+84YP4GqRqYgKVTL0Rd6fyTHzVTlM63yPYxpzBE5IpU8LtPUgbMR9JU2CNNZx39nuqBde74x6/7yiMMqoDv3AkMSydqzKyMFfzR3EmPC7ZCFoalwkIkK4aVmpRw/EbmjaQ2NOc/N6TNraR5W8JcOhBZNfAQ8gpVXZtQnhxyxdqkrEIO0Glg4IPWonUO2025dq0eycfXyf38NovDz6+weBE=

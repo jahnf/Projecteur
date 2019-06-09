@@ -44,7 +44,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   setQuitOnLastWindowClosed(false);
 
   m_spotlight = new Spotlight(this);
-  auto settings = new Settings(this);
+  const auto settings = new Settings(this);
   m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
@@ -57,22 +57,35 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     screen = screens().at(settings->screen());
   }
 
-  auto engine = new QQmlApplicationEngine(this);
+  const auto engine = new QQmlApplicationEngine(this);
   engine->rootContext()->setContextProperty("Settings", settings);
   engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
-  auto window = topLevelWindows().first();
+  const auto window = topLevelWindows().first();
 
-  m_trayMenu->addAction(tr("&Preferences..."), [this](){
+  const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
+  connect(actionPref, &QAction::triggered, [this](){
     this->showPreferences(true);
   });
 
-  m_trayMenu->addAction(tr("&About"), [this](){
-    AboutDialog().exec();
+  const auto actionAbout = m_trayMenu->addAction(tr("&About"));
+  connect(actionAbout, &QAction::triggered, [this]()
+  {
+    if (!m_aboutDialog)
+      m_aboutDialog.reset(new AboutDialog);
+
+    if (m_aboutDialog->isVisible()) {
+      m_aboutDialog->show();
+      m_aboutDialog->raise();
+      m_aboutDialog->activateWindow();
+    } else {
+      m_aboutDialog->exec();
+    }
   });
 
   m_trayMenu->addSeparator();
-  m_trayMenu->addAction(tr("&Quit"), [this](){ this->quit(); });
+  const auto actionQuit = m_trayMenu->addAction(tr("&Quit"));
+  connect(actionQuit, &QAction::triggered, [this](){ this->quit(); });
   m_trayIcon->setContextMenu(&*m_trayMenu);
 
   m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray-64.png"));
@@ -101,8 +114,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     }
   });
 
-  window->setFlag(Qt::WindowTransparentForInput, true);
-  window->setFlag(Qt::Tool, true);
+  window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   window->setScreen(screen);
   window->setPosition(screen->geometry().topLeft());
   window->setWidth(screen->geometry().width());
@@ -116,28 +128,29 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  });
 
   // Handling of spotlight window when input from spotlight device is detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, [this, window](bool active){
+  connect(m_spotlight, &Spotlight::spotActiveChanged, [window](bool active)
+  {
     if (active)
     {
-      window->setFlag(Qt::SplashScreen, true);
-      window->setFlag(Qt::WindowTransparentForInput, false);
-      window->setFlag(Qt::WindowStaysOnTopHint, true);
+      window->setFlags(window->flags() | Qt::SplashScreen);
+      window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
+      window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
       window->hide();
-      window->setFlag(Qt::SplashScreen, false);
-      window->setFlag(Qt::ToolTip, true);
+      window->setFlags(window->flags() & ~Qt::SplashScreen);
+      window->setFlags(window->flags() | Qt::ToolTip);
 
-      if (window->screen()) {
+      if (window->screen())
+      {
         const auto screenGeometry = window->screen()->geometry();
-        if (window->geometry() != screenGeometry)
+        if (window->geometry() != screenGeometry) {
           window->setGeometry(screenGeometry);
+        }
       }
-
       window->showFullScreen();
     }
     else
     {
-      window->setFlag(Qt::WindowTransparentForInput, true);
-      window->setFlag(Qt::SplashScreen, true);
+      window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
       window->hide();
     }
   });
@@ -152,14 +165,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   // Handling if the screen in the settings was changed
   connect(settings, &Settings::screenChanged, [this, window](int screenIdx)
   {
-    if (screenIdx >= screens().size() )
+    if (screenIdx >= screens().size())
       return;
 
-    auto screen = screens()[screenIdx];
+    const auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
 
-    window->setFlag(Qt::WindowTransparentForInput, true);
-    window->setFlag(Qt::SplashScreen, true);
+    window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
     window->hide();
     window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
@@ -193,10 +205,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
         });
 
         // Timeout timer - if after 5 seconds the connection is still open just disconnect...
-        auto clientConnPtr = QPointer<QLocalSocket>(clientConnection);
+        const auto clientConnPtr = QPointer<QLocalSocket>(clientConnection);
         QTimer::singleShot(5000, [clientConnPtr](){
           if (clientConnPtr) {
-            // qDebug() << "timed, disconnected" << clientConnPtr;
+            // time out
             clientConnPtr->disconnectFromServer();
           }
         });
@@ -288,16 +300,17 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
     return;
   }
 
-  QLocalSocket* localSocket = new QLocalSocket(this);
+  QLocalSocket* const localSocket = new QLocalSocket(this);
 
-  connect(localSocket, QOverload<QLocalSocket::LocalSocketError>::of(&QLocalSocket::error),
-  [this, localSocket](QLocalSocket::LocalSocketError socketError) {
+  connect(localSocket,
+          static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
+  [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
     qDebug() << "Error sending command: " << localSocket->errorString();
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });
 
-  connect(localSocket, &QLocalSocket::connected, [this, localSocket, ipcCommand]()
+  connect(localSocket, &QLocalSocket::connected, [localSocket, ipcCommand]()
   {
     const QByteArray commandBlock = [&ipcCommand](){
       const QByteArray ipcBytes = ipcCommand.toLocal8Bit();
