@@ -51,10 +51,16 @@ For more details: Have a look at the source code ;)
 The latest automatically built binary packages for some Linux distributions
 can be downloaded from bintray:
 
+Make sure to add the user running the application to the `spotlight-device` group
+after package installation. This group is created during installation of the binary packages.
+_Note_: When adding your user to a new group you will need to login and logout again
+for the change to take full effect.
+
+Latest develop:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)
 
-_Note_: Packaging is still new and in development. Some things might not work as 
-expected. If so, please create an issue: https://github.com/jahnf/Projecteur/issues
+Latest release:
+[ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
 
 ## Building
 
@@ -66,7 +72,7 @@ expected. If so, please create an issue: https://github.com/jahnf/Projecteur/iss
 
 ### Build Example
 
-Note: You can omit setting the `QTDIR` variable, CMake will then usually find 
+Note: You can omit setting the `QTDIR` variable, CMake will then usually find
 the Qt version that comes with the distribution's package management.
 
       > git clone https://github.com/jahnf/projecteur
@@ -81,12 +87,10 @@ the Qt version that comes with the distribution's package management.
 
 #### When using pre-built binary packages
 
-Make sure the user running the application is in the `spotlight-device` group. \
-This group is created during installation of the automatically built Linux binary
-packages from the travis-ci servers.
-
-_Note_: Packaging is still new and in development. Some things might not work as 
-expected. If so, please create an issue: https://github.com/jahnf/Projecteur/issues
+Make sure to add the user running the application to the `spotlight-device` group
+after package installation. This group is created during installation of the binary packages. \
+_Note_: When adding your user to a new group you will need to login and logout again
+for the change to take full effect.
 
 #### When building Projecteur yourself
 
@@ -94,7 +98,7 @@ The input devices detected from the Spotlight device must be readable to the
 user running the application. To make this easier there is a udev rule template
 file in this repository: `55-spotlight.rules.in`
 
-* Copy that file to /etc/udev/rules.d/55-spotlight.rules and replace the
+* Copy that file to `/etc/udev/rules.d/55-spotlight.rules` and replace the
   '@DEVICE_USER_GROUP@' in the file with a group your user is a member in
 * Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger` to load
   the rules without a reboot.
@@ -150,3 +154,18 @@ variable to `wayland`:
 user@ubuntu1904:~/Projecteur/build$ QT_QPA_PLATFORM=wayland ./projecteur
 Using Wayland-EGL
 ```
+
+#### Device shows as not connected
+
+If the device shows as not connected, there are some things you can do:
+
+* Make sure the device is detected by the Linux system: Run 
+  `cat /proc/bus/input/devices | grep -A 3 "Vendor=046d"` \
+  This should show one or multiple spotlight devices (among other Logitech devices)
+* Make sure the detected devices have the correct user/group asssigned. \ 
+  Run `ls -al /dev/input/event* | grep spotlight` 
+  (or replace `spotlight` by a string that matches the group you put into the 
+   udev rule file in case you edited it yourself). \
+* Make sure you don't have conflicting udev rules installed, e.g. first you installed
+  the udev rule yourself and later you used the automatically built Linux packages to
+  install _Projecteur_. 
