@@ -28,8 +28,9 @@ So here it is: a Linux application for the Logitech Spotlight.
 ## Supported Environments
 
 The application was tested on Ubuntu 18.04 (GNOME) and OpenSuse 42.3 and 15 (GNOME)
-but should work on almost any Linux/X11 Desktop. Make sure you have the correct
-udev rules installed (see Installation Pre-requisites).
+but should work on almost any Linux/X11 Desktop. In case you are building the 
+application youself, make sure you have the correct udev rules installed 
+(see Installation Pre-requisites).
 
 ## How it works
 
