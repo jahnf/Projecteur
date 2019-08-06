@@ -52,10 +52,10 @@ void MagnifyingGlass::showMagnifyingGlass(int x, int y, int radius, double facto
 
     // limits for the region to zoom
     int fr = radius/factor;  // factored radius
-    int roi_xlo = std::max(x-fr,   (int)(x/factor));
-    int roi_xhi = std::min(x+fr+1, (int)((x+w)/factor));
-    int roi_ylo = std::max(y-fr,   (int)(y/factor));
-    int roi_yhi = std::min(y+fr+1, (int)((y+h)/factor));
+    int roi_xlo = std::max(x-fr,   (int)(x-x/factor));
+    int roi_xhi = std::min(x+fr+1, (int)(x+(w-x)/factor));
+    int roi_ylo = std::max(y-fr,   (int)(y-y/factor));
+    int roi_yhi = std::min(y+fr+1, (int)(y+(h-y)/factor));
 
     // limits for the region after zoom
     int xlo = std::max(x-radius,   0);
