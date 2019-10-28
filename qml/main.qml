@@ -60,7 +60,7 @@ Window {
             onVisibleChanged: {
                 spotShapeLoader2.item.color="transparent";
                 if (Settings.showBorder){
-                    spotShapeLoader2.item.opacity=Settings.shadeOpacity;
+                    spotShapeLoader2.item.opacity=1-Settings.shadeOpacity;
                     spotShapeLoader2.item.border.width=Settings.borderSize/100*spotShapeLoader2.width;
                     spotShapeLoader2.item.border.color=Settings.borderColor;
                     spotShapeLoader2.item.visible=true;
