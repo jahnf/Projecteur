@@ -363,7 +363,7 @@ void Settings::setBorderSize(int size)
   if (size == m_borderSize)
     return;
 
-  m_borderSize = qMin(qMax(3, size), 50);
+  m_borderSize = qMin(qMax(0, size), 50);
   m_settings->setValue(::settings::borderSize, m_borderSize);
   emit borderSizeChanged(m_borderSize);
 }

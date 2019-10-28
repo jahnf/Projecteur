@@ -128,7 +128,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  });
 
   // Handling of spotlight window when input from spotlight device is detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, [window](bool active)
+  connect(m_spotlight, &Spotlight::spotActiveChanged, [window, settings](bool active)
   {
     if (active)
     {
@@ -138,6 +138,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
       window->hide();
       window->setFlags(window->flags() & ~Qt::SplashScreen);
       window->setFlags(window->flags() | Qt::ToolTip);
+
+      // A hack to automatically update border changes
+      QObject *spotarea = window->findChild<QObject*>("spotarea");
+      spotarea->setProperty("visible", false);
+      spotarea->setProperty("visible", settings->showBorder());
 
       if (window->screen())
       {

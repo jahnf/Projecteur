@@ -291,7 +291,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
 
   const auto borderSizeSpinBox = new QSpinBox(this);
   borderSizeSpinBox->setMaximum(50);
-  borderSizeSpinBox->setMinimum(3);
+  borderSizeSpinBox->setMinimum(0);
   borderSizeSpinBox->setValue(settings->borderSize());
   auto bordersizeHBox = new QHBoxLayout;
   bordersizeHBox->addWidget(borderSizeSpinBox);
