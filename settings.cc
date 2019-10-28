@@ -20,6 +20,9 @@ namespace {
     constexpr char cursor[] = "cursor";
     constexpr char spotShape[] = "spotShape";
     constexpr char spotRotation[] ="spotRotation";
+    constexpr char showBorder[] = "showBorder";
+    constexpr char borderColor[] ="borderColor";
+    constexpr char borderSize[] = "borderSize";
 
     namespace defaultValue {
       constexpr bool showSpot = true;
@@ -33,6 +36,9 @@ namespace {
       constexpr Qt::CursorShape cursor = Qt::BlankCursor;
       constexpr char spotShape[] = "spotshapes/Circle.qml";
       constexpr double spotRotation = 0.0;
+      constexpr bool showBorder = false;
+      constexpr auto borderColor =Qt::red;
+      constexpr int borderSize = 3;
     }
   }
 }
@@ -72,6 +78,9 @@ void Settings::setDefaults()
   setCursor(settings::defaultValue::cursor);
   setSpotShape(settings::defaultValue::spotShape);
   setSpotRotation(settings::defaultValue::spotRotation);
+  setShowBorder(settings::defaultValue::showBorder);
+  setBorderColor(settings::defaultValue::borderColor);
+  setBorderSize(settings::defaultValue::borderSize);
   shapeSettingsSetDefaults();
 }
 
@@ -165,6 +174,9 @@ void Settings::load()
   setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
   setSpotShape(m_settings->value(::settings::spotShape, settings::defaultValue::spotShape).toString());
   setSpotRotation(m_settings->value(::settings::spotRotation, settings::defaultValue::spotRotation).toDouble());
+  setShowBorder(m_settings->value(::settings::showBorder, settings::defaultValue::showBorder).toBool());
+  setBorderColor(m_settings->value(::settings::borderColor, QColor(settings::defaultValue::borderColor)).value<QColor>());
+  setBorderSize(m_settings->value(::settings::borderSize, settings::defaultValue::borderSize).toInt());
   shapeSettingsLoad();
 }
 
@@ -324,4 +336,34 @@ void Settings::setSpotRotationAllowed(bool allowed)
 
   m_spotRotationAllowed = allowed;
   emit spotRotationAllowedChanged(allowed);
+}
+
+void Settings::setShowBorder(bool show)
+{
+  if (show == m_showBorder)
+    return;
+
+  m_showBorder = show;
+  m_settings->setValue(::settings::showBorder, m_showBorder);
+  emit showBorderChanged(m_showBorder);
+}
+
+void Settings::setBorderColor(const QColor& color)
+{
+  if (color == m_borderColor)
+    return;
+
+  m_borderColor = color;
+  m_settings->setValue(::settings::borderColor, m_borderColor);
+  emit borderColorChanged(m_borderColor);
+}
+
+void Settings::setBorderSize(int size)
+{
+  if (size == m_borderSize)
+    return;
+
+  m_borderSize = qMin(qMax(3, size), 50);
+  m_settings->setValue(::settings::borderSize, m_borderSize);
+  emit borderSizeChanged(m_borderSize);
 }
