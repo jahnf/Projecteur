@@ -139,11 +139,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
       window->setFlags(window->flags() & ~Qt::SplashScreen);
       window->setFlags(window->flags() | Qt::ToolTip);
 
-      // A hack to automatically update border changes
-      QObject *spotarea = window->findChild<QObject*>("spotarea");
-      spotarea->setProperty("visible", false);
-      spotarea->setProperty("visible", settings->showBorder());
-
       if (window->screen())
       {
         const auto screenGeometry = window->screen()->geometry();

@@ -51,21 +51,20 @@ Window {
             sourceComponent: Qt.createComponent(Settings.spotShape)
         }
         Loader {
-            id: spotShapeLoader2
-            objectName: "spotarea"
+            id: borderShapeLoader
             anchors.centerIn: centerRect
             width: centerRect.width;  height: width
             sourceComponent: Qt.createComponent(Settings.spotShape)
-            visible: Settings.shoSpot || Settings.showBorder
-            onVisibleChanged: {
-                spotShapeLoader2.item.color="transparent";
-                if (Settings.showBorder){
-                    spotShapeLoader2.item.opacity=1-Settings.shadeOpacity;
-                    spotShapeLoader2.item.border.width=Settings.borderSize/100*spotShapeLoader2.width;
-                    spotShapeLoader2.item.border.color=Settings.borderColor;
-                    spotShapeLoader2.item.visible=true;
-                }
+
+            onSourceComponentChanged: {
+                if (!borderShapeLoader.item.border) return;
+                borderShapeLoader.item.visible = true;
+                borderShapeLoader.item.color = "transparent";
+                borderShapeLoader.item.opacity = Qt.binding(function() {return 1-Settings.shadeOpacity});
+                borderShapeLoader.item.border.width = Qt.binding(function() {return Settings.borderSize/100*borderShapeLoader.width});
+                borderShapeLoader.item.border.color = Qt.binding(function() {return Settings.borderColor});
             }
+            visible: Settings.showBorder
         }
 
         OpacityMask {
