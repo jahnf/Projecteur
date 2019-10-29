@@ -9,8 +9,39 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QTabWidget>
+#include <QTextBrowser>
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
+
+namespace {
+  struct Contributor
+  {
+    Contributor(const QString& name = "", const QString& github_name ="", const QString& email ="", const QString& url ="")
+      : name(name), github_name(github_name), email(email), url(url) {}
+
+    QString toHtml() const
+    {
+      auto html = QString("<b>%1</b>").arg(name.isEmpty() ? QString("<a href=\"https://github.com/%1\">%1</a>").arg(github_name)
+                                                          : name);
+      if (email.size()) {
+        html += QString(" &lt;%1&gt;").arg(email);
+      }
+
+      if (url.size()) {
+        html += QString(" <a href=\"%1\">%1</a>").arg(url);
+      }
+      else if (!name.isEmpty()) {
+        html += QString(" - <i>github:</i> <a href=\"https://github.com/%1\">%1</a>").arg(github_name);
+      }
+      return html;
+    }
+
+    const QString name;
+    const QString github_name;
+    const QString email;
+    const QString url;
+  };
+}
 
 AboutDialog::AboutDialog(QWidget* parent)
   : QDialog(parent)
@@ -27,7 +58,7 @@ AboutDialog::AboutDialog(QWidget* parent)
   hbox->addWidget(tabWidget, 1);
 
   tabWidget->addTab(createVersionInfoWidget(), tr("Version"));
-//  tabWidget->addTab(createContributorInfoWidget(), tr("Contributors"));
+  tabWidget->addTab(createContributorInfoWidget(), tr("Contributors"));
 
   const auto bbox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
   connect(bbox, &QDialogButtonBox::clicked, this, &QDialog::accept);
@@ -78,8 +109,32 @@ QWidget* AboutDialog::createContributorInfoWidget()
   const auto contributorWidget = new QWidget(this);
   const auto vbox = new QVBoxLayout(contributorWidget);
 
-  // TODO: list contributors (scroll box)
+  const auto label = new QLabel(tr("Contributors, in no specific order:"), contributorWidget);
+  vbox->addWidget(label);
 
-  vbox->addStretch(1);
+  const auto textBrowser = new QTextBrowser(contributorWidget);
+  textBrowser->setWordWrapMode(QTextOption::NoWrap);
+  textBrowser->setOpenLinks(true);
+  textBrowser->setOpenExternalLinks(true);
+  textBrowser->setFont([textBrowser]()
+  {
+    auto font = textBrowser->font();
+    font.setPointSize(font.pointSize() - 3);
+    return font;
+  }());
+
+  const QList<Contributor> contributors =
+  {
+    Contributor("Ricardo Jesus", "rj-jesus", ""/*email*/, ""/*url*/),
+    Contributor("Mayank Suman", "mayanksuman", ""/*email*/, ""/*url*/),
+  };
+
+  QStringList contributorsHtml;
+  for (const auto& contributor : contributors) {
+    contributorsHtml.append(contributor.toHtml());
+  }
+  textBrowser->setHtml(contributorsHtml.join("<br>"));
+
+  vbox->addWidget(textBrowser);
   return contributorWidget;
 }
