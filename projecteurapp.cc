@@ -2,6 +2,7 @@
 #include "projecteurapp.h"
 
 #include "aboutdlg.h"
+#include "imageitem.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
@@ -57,9 +58,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
     screen = screens().at(settings->screen());
   }
 
+  const auto desktopImageProvider = new PixmapProvider(this);
+
   const auto engine = new QQmlApplicationEngine(this);
   engine->rootContext()->setContextProperty("Settings", settings);
   engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
+  engine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
   const auto window = topLevelWindows().first();
 
@@ -128,7 +132,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  });
 
   // Handling of spotlight window when input from spotlight device is detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, [window](bool active)
+  connect(m_spotlight, &Spotlight::spotActiveChanged,
+  [window, settings, desktopImageProvider](bool active)
   {
     if (active)
     {
@@ -141,6 +146,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
       if (window->screen())
       {
+        if (settings->zoomEnabled()) {
+          desktopImageProvider->setPixmap(window->screen()->grabWindow(0));
+        }
+
         const auto screenGeometry = window->screen()->geometry();
         if (window->geometry() != screenGeometry) {
           window->setGeometry(screenGeometry);
@@ -219,7 +228,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   }
   else
   {
-    qDebug() << "Error starting local socket for inter-process communication.";
+    qDebug() << tr("Error starting local socket for inter-process communication.");
   }
 }
 
@@ -305,7 +314,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
   connect(localSocket,
           static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
   [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
-    qDebug() << "Error sending command: " << localSocket->errorString();
+    qDebug() << tr("Error sending command: %1", "%1=error message").arg(localSocket->errorString());
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });

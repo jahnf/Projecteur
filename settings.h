@@ -28,6 +28,8 @@ class Settings : public QObject
   Q_PROPERTY(QColor borderColor READ borderColor WRITE setBorderColor NOTIFY borderColorChanged)
   Q_PROPERTY(int borderSize READ borderSize WRITE setBorderSize NOTIFY borderSizeChanged)
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
+  Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
+  Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -66,6 +68,10 @@ public:
   int borderSize() const { return m_borderSize; }
   void setBorderOpacity(double opacity);
   double borderOpacity() const { return m_borderOpacity; }
+  bool zoomEnabled() const { return m_zoomEnabled; }
+  void setZoomEnabled(bool enabled);
+  double zoomFactor() const { return m_zoomFactor; }
+  void setZoomFactor(double factor);
 
   class SpotShapeSetting {
   public:
@@ -129,6 +135,8 @@ signals:
   void borderColorChanged(const QColor& color);
   void borderSizeChanged(int size);
   void borderOpacityChanged(double opacity);
+  void zoomEnabledChanged(bool enabled);
+  void zoomFactorChanged(double zoomFactor);
 
 private:
   QSettings* m_settings = nullptr;
@@ -153,6 +161,8 @@ private:
   QColor m_borderColor;
   int m_borderSize = 3;
   double m_borderOpacity = 0.8;
+  bool m_zoomEnabled = false;
+  double m_zoomFactor = 2.0;
 
 private:
   void load();

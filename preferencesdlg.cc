@@ -50,6 +50,7 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   spotScreenVBoxRight->addWidget(createSpotGroupBox(settings));
   spotScreenVBoxRight->addWidget(createDotGroupBox(settings));
   spotScreenVBoxRight->addWidget(createBorderGroupBox(settings));
+  spotScreenVBoxRight->addWidget(createZoomGroupBox(settings));
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
@@ -345,6 +346,36 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
 
   borderGrid->setColumnStretch(1, 1);
   return borderGroup;
+}
+
+QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
+{
+  const auto zoomGroup = new QGroupBox(tr("Enable Zoom"), this);
+  zoomGroup->setCheckable(true);
+  zoomGroup->setChecked(settings->zoomEnabled());
+  connect(zoomGroup, &QGroupBox::toggled, settings, &Settings::setZoomEnabled);
+  connect(settings, &Settings::zoomEnabledChanged, zoomGroup, &QGroupBox::setChecked);
+
+  const auto zoomGrid = new QGridLayout(zoomGroup);
+
+  // zoom level setting
+  const auto zoomLevelSb = new QDoubleSpinBox(this);
+  zoomLevelSb->setMaximum(20.0);
+  zoomLevelSb->setMinimum(1.5);
+  zoomLevelSb->setDecimals(2);
+  zoomLevelSb->setSingleStep(0.1);
+  zoomLevelSb->setValue(settings->zoomFactor());
+  connect(zoomLevelSb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+          settings, &Settings::setZoomFactor);
+  connect(settings, &Settings::zoomFactorChanged, zoomLevelSb, &QDoubleSpinBox::setValue);
+  zoomGrid->addWidget(new QLabel(tr("Zoom Level"), this), 1, 0);
+  zoomGrid->addWidget(zoomLevelSb, 1, 1);
+
+  zoomGrid->addWidget(new QWidget(this), 100, 0);
+  zoomGrid->setRowStretch(100, 100);
+
+  zoomGrid->setColumnStretch(1, 1);
+  return zoomGroup;
 }
 
 QGroupBox* PreferencesDialog::createScreenGroupBox(Settings* settings)
