@@ -22,7 +22,9 @@ void PixmapProvider::setPixmap(QPixmap pm)
 
 ProjecteurImage::ProjecteurImage(QQuickItem *parent)
   : QQuickPaintedItem(parent)
-{}
+{
+  setRenderTarget(QQuickPaintedItem::FramebufferObject);
+}
 
 int ProjecteurImage::qmlRegister()
 {
