@@ -43,12 +43,15 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
   const auto mainHBox = new QHBoxLayout();
-  mainHBox->addWidget(createSpotGroupBox(settings));
-  const auto spotScreenVBox = new QVBoxLayout();
-  spotScreenVBox->addWidget(createDotGroupBox(settings));
-  spotScreenVBox->addWidget(createBorderGroupBox(settings));
-  spotScreenVBox->addWidget(createScreenGroupBox(settings));
-  mainHBox->addLayout(spotScreenVBox);
+  const auto spotScreenVBoxLeft = new QVBoxLayout();
+  spotScreenVBoxLeft->addWidget(createShapeGroupBox(settings));
+  spotScreenVBoxLeft->addWidget(createScreenGroupBox(settings));
+  const auto spotScreenVBoxRight = new QVBoxLayout();
+  spotScreenVBoxRight->addWidget(createSpotGroupBox(settings));
+  spotScreenVBoxRight->addWidget(createDotGroupBox(settings));
+  spotScreenVBoxRight->addWidget(createBorderGroupBox(settings));
+  mainHBox->addLayout(spotScreenVBoxLeft);
+  mainHBox->addLayout(spotScreenVBoxRight);
 
   const auto closeBtn = new QPushButton(tr("&Close"), this);
   closeBtn->setToolTip(tr("Close the preferences dialog."));
@@ -91,13 +94,9 @@ QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
   return group;
 }
 
-QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
+QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
 {
-  const auto spotGroup = new QGroupBox(tr("Show Spotlight"), this);
-  spotGroup->setCheckable(true);
-  spotGroup->setChecked(settings->showSpot());
-  connect(spotGroup, &QGroupBox::toggled, settings, &Settings::setShowSpot);
-  connect(settings, &Settings::showSpotChanged, spotGroup, &QGroupBox::setChecked);
+  const auto shapeGroup = new QGroupBox(tr("Shape Settings"), this);
 
   const auto spotSizeSpinBox = new QSpinBox(this);
   spotSizeSpinBox->setMaximum(100);
@@ -110,29 +109,9 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
           settings, &Settings::setSpotSize);
   connect(settings, &Settings::spotSizeChanged, spotSizeSpinBox, &QSpinBox::setValue);
 
-  const auto spotGrid = new QGridLayout(spotGroup);
+  const auto spotGrid = new QGridLayout(shapeGroup);
   spotGrid->addWidget(new QLabel(tr("Spot Size"), this), 0, 0);
   spotGrid->addLayout(spotsizeHBox, 0, 1);
-
-  // Shade color setting
-  const auto shadeColor = new ColorSelector(settings->shadeColor(), this);
-  connect(shadeColor, &ColorSelector::colorChanged, settings, &Settings::setShadeColor);
-  connect(settings, &Settings::shadeColorChanged, shadeColor, &ColorSelector::setColor);
-  spotGrid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
-  spotGrid->addWidget(shadeColor, 1, 1);
-
-  // Spotlight shade opacity setting
-  const auto shadeOpacitySb = new QDoubleSpinBox(this);
-  shadeOpacitySb->setMaximum(1.0);
-  shadeOpacitySb->setMinimum(0.0);
-  shadeOpacitySb->setDecimals(2);
-  shadeOpacitySb->setSingleStep(0.1);
-  shadeOpacitySb->setValue(settings->shadeOpacity());
-  connect(shadeOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-          settings, &Settings::setShadeOpacity);
-  connect(settings, &Settings::shadeOpacityChanged, shadeOpacitySb, &QDoubleSpinBox::setValue);
-  spotGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
-  spotGrid->addWidget(shadeOpacitySb, 2, 1);
 
   // Spotlight shape setting
   const auto shapeCombo = new QComboBox(this);
@@ -242,6 +221,44 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   spotGrid->setRowStretch(200, 200);
 
   spotGrid->setColumnStretch(1, 1);
+  return shapeGroup;
+}
+
+
+QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
+{
+  const auto spotGroup = new QGroupBox(tr("Show Spotlight Shade"), this);
+  spotGroup->setCheckable(true);
+  spotGroup->setChecked(settings->showSpot());
+  connect(spotGroup, &QGroupBox::toggled, settings, &Settings::setShowSpot);
+  connect(settings, &Settings::showSpotChanged, spotGroup, &QGroupBox::setChecked);
+
+  const auto spotGrid = new QGridLayout(spotGroup);
+
+  // Shade color setting
+  const auto shadeColor = new ColorSelector(settings->shadeColor(), this);
+  connect(shadeColor, &ColorSelector::colorChanged, settings, &Settings::setShadeColor);
+  connect(settings, &Settings::shadeColorChanged, shadeColor, &ColorSelector::setColor);
+  spotGrid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
+  spotGrid->addWidget(shadeColor, 1, 1);
+
+  // Spotlight shade opacity setting
+  const auto shadeOpacitySb = new QDoubleSpinBox(this);
+  shadeOpacitySb->setMaximum(1.0);
+  shadeOpacitySb->setMinimum(0.0);
+  shadeOpacitySb->setDecimals(2);
+  shadeOpacitySb->setSingleStep(0.1);
+  shadeOpacitySb->setValue(settings->shadeOpacity());
+  connect(shadeOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+          settings, &Settings::setShadeOpacity);
+  connect(settings, &Settings::shadeOpacityChanged, shadeOpacitySb, &QDoubleSpinBox::setValue);
+  spotGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
+  spotGrid->addWidget(shadeOpacitySb, 2, 1);
+
+  spotGrid->addWidget(new QWidget(this), 100, 0);
+  spotGrid->setRowStretch(100, 100);
+
+  spotGrid->setColumnStretch(1, 1);
   return spotGroup;
 }
 
@@ -290,7 +307,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   connect(settings, &Settings::showBorderChanged, borderGroup, &QGroupBox::setChecked);
 
   const auto borderSizeSpinBox = new QSpinBox(this);
-  borderSizeSpinBox->setMaximum(50);
+  borderSizeSpinBox->setMaximum(100);
   borderSizeSpinBox->setMinimum(0);
   borderSizeSpinBox->setValue(settings->borderSize());
   auto bordersizeHBox = new QHBoxLayout;
@@ -309,6 +326,19 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   connect(settings, &Settings::borderColorChanged, borderColor, &ColorSelector::setColor);
   borderGrid->addWidget(new QLabel(tr("Border Color"), this), 1, 0);
   borderGrid->addWidget(borderColor, 1, 1);
+
+  // Spotlight border opacity setting
+  const auto borderOpacitySb = new QDoubleSpinBox(this);
+  borderOpacitySb->setMaximum(1.0);
+  borderOpacitySb->setMinimum(0.0);
+  borderOpacitySb->setDecimals(2);
+  borderOpacitySb->setSingleStep(0.1);
+  borderOpacitySb->setValue(settings->borderOpacity());
+  connect(borderOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+          settings, &Settings::setBorderOpacity);
+  connect(settings, &Settings::borderOpacityChanged, borderOpacitySb, &QDoubleSpinBox::setValue);
+  borderGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
+  borderGrid->addWidget(borderOpacitySb, 2, 1);
 
   borderGrid->addWidget(new QWidget(this), 100, 0);
   borderGrid->setRowStretch(100, 100);

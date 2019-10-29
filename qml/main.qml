@@ -50,22 +50,6 @@ Window {
             width: centerRect.width;  height: width
             sourceComponent: Qt.createComponent(Settings.spotShape)
         }
-        Loader {
-            id: borderShapeLoader
-            anchors.centerIn: centerRect
-            width: centerRect.width;  height: width
-            sourceComponent: Qt.createComponent(Settings.spotShape)
-
-            onSourceComponentChanged: {
-                if (!borderShapeLoader.item.border) return;
-                borderShapeLoader.item.visible = true;
-                borderShapeLoader.item.color = "transparent";
-                borderShapeLoader.item.opacity = Qt.binding(function() {return 1-Settings.shadeOpacity});
-                borderShapeLoader.item.border.width = Qt.binding(function() {return Settings.borderSize/100*borderShapeLoader.width});
-                borderShapeLoader.item.border.color = Qt.binding(function() {return Settings.borderColor});
-            }
-            visible: Settings.showBorder
-        }
 
         OpacityMask {
             id: spot
@@ -76,6 +60,50 @@ Window {
             anchors.fill: centerRect
             source: centerRect
             maskSource: spotShapeLoader.item
+            enabled: false
+        }
+
+        Loader {
+            id: borderShapeLoader
+            anchors.centerIn: centerRect
+            width: centerRect.width;  height: width
+            visible: false; enabled: false
+            sourceComponent: Qt.createComponent(Settings.spotShape)
+            onStatusChanged: {
+                if (status == Loader.Ready) {
+                    borderShapeLoader.item.color = Qt.binding(function(){ return Settings.borderColor; })
+                }
+            }
+        }
+
+        Item {
+            id: borderShapeMask
+            anchors.centerIn: centerRect
+            width: centerRect.width;  height: width
+            enabled: false; visible: false
+            Item {
+                id: borderShapeScaled
+                anchors.centerIn: parent
+                width: parent.width; height: width
+                scale: (100 - Settings.borderSize) * 1.0 / 100.0
+                property Component component: borderShapeLoader.sourceComponent
+                property QtObject innerObject
+                onComponentChanged: {
+                    if (innerObject) innerObject.destroy()
+                    innerObject = component.createObject(borderShapeScaled, {visible: true})
+                }
+            }
+        }
+
+        OpacityMask {
+            id: spotBorder
+            visible: Settings.showBorder && Settings.borderSize > 0
+            opacity: Settings.borderOpacity
+            cached: true
+            invert: true
+            anchors.fill: centerRect
+            source: borderShapeLoader.item
+            maskSource: borderShapeMask
             enabled: false
         }
 

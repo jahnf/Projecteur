@@ -32,6 +32,7 @@ protected:
 private:
   void setDialogActive(bool active);
 
+  QGroupBox* createShapeGroupBox(Settings* settings);
   QGroupBox* createSpotGroupBox(Settings* settings);
   QGroupBox* createDotGroupBox(Settings* settings);
   QGroupBox* createBorderGroupBox(Settings* settings);

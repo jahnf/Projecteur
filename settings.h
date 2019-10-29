@@ -27,6 +27,7 @@ class Settings : public QObject
   Q_PROPERTY(bool showBorder READ showBorder WRITE setShowBorder NOTIFY showBorderChanged)
   Q_PROPERTY(QColor borderColor READ borderColor WRITE setBorderColor NOTIFY borderColorChanged)
   Q_PROPERTY(int borderSize READ borderSize WRITE setBorderSize NOTIFY borderSizeChanged)
+  Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -63,6 +64,8 @@ public:
   QColor borderColor() const { return m_borderColor; }
   void setBorderSize(int size);
   int borderSize() const { return m_borderSize; }
+  void setBorderOpacity(double opacity);
+  double borderOpacity() const { return m_borderOpacity; }
 
   class SpotShapeSetting {
   public:
@@ -125,6 +128,7 @@ signals:
   void showBorderChanged(bool show);
   void borderColorChanged(const QColor& color);
   void borderSizeChanged(int size);
+  void borderOpacityChanged(double opacity);
 
 private:
   QSettings* m_settings = nullptr;
@@ -148,6 +152,7 @@ private:
   bool m_showBorder=false;
   QColor m_borderColor;
   int m_borderSize = 3;
+  double m_borderOpacity = 0.8;
 
 private:
   void load();

@@ -23,6 +23,7 @@ namespace {
     constexpr char showBorder[] = "showBorder";
     constexpr char borderColor[] ="borderColor";
     constexpr char borderSize[] = "borderSize";
+    constexpr char borderOpacity[] = "borderOpacity";
 
     namespace defaultValue {
       constexpr bool showSpot = true;
@@ -37,8 +38,9 @@ namespace {
       constexpr char spotShape[] = "spotshapes/Circle.qml";
       constexpr double spotRotation = 0.0;
       constexpr bool showBorder = false;
-      constexpr auto borderColor =Qt::red;
+      constexpr auto borderColor = Qt::red;
       constexpr int borderSize = 3;
+      constexpr double borderOpacity = 0.8;
     }
   }
 }
@@ -81,6 +83,7 @@ void Settings::setDefaults()
   setShowBorder(settings::defaultValue::showBorder);
   setBorderColor(settings::defaultValue::borderColor);
   setBorderSize(settings::defaultValue::borderSize);
+  setBorderOpacity(settings::defaultValue::borderOpacity);
   shapeSettingsSetDefaults();
 }
 
@@ -177,6 +180,7 @@ void Settings::load()
   setShowBorder(m_settings->value(::settings::showBorder, settings::defaultValue::showBorder).toBool());
   setBorderColor(m_settings->value(::settings::borderColor, QColor(settings::defaultValue::borderColor)).value<QColor>());
   setBorderSize(m_settings->value(::settings::borderSize, settings::defaultValue::borderSize).toInt());
+  setBorderOpacity(m_settings->value(::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   shapeSettingsLoad();
 }
 
@@ -363,7 +367,17 @@ void Settings::setBorderSize(int size)
   if (size == m_borderSize)
     return;
 
-  m_borderSize = qMin(qMax(0, size), 50);
+  m_borderSize = qMin(qMax(0, size), 100);
   m_settings->setValue(::settings::borderSize, m_borderSize);
   emit borderSizeChanged(m_borderSize);
+}
+
+void Settings::setBorderOpacity(double opacity)
+{
+  if (opacity > m_borderOpacity || opacity < m_borderOpacity)
+  {
+    m_borderOpacity = qMin(qMax(0.0, opacity), 1.0);
+    m_settings->setValue(::settings::borderOpacity, m_borderOpacity);
+    emit borderOpacityChanged(m_borderOpacity);
+  }
 }
