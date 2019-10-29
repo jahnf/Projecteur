@@ -128,7 +128,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  });
 
   // Handling of spotlight window when input from spotlight device is detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, [window, settings](bool active)
+  connect(m_spotlight, &Spotlight::spotActiveChanged, [window](bool active)
   {
     if (active)
     {
