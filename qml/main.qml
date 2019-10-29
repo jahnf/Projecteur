@@ -46,6 +46,7 @@ Window {
 
         Loader {
             id: spotShapeLoader
+            visible: false; enabled: false
             anchors.centerIn: centerRect
             width: centerRect.width;  height: width
             sourceComponent: Qt.createComponent(Settings.spotShape)
@@ -68,7 +69,7 @@ Window {
             anchors.centerIn: centerRect
             width: centerRect.width;  height: width
             visible: false; enabled: false
-            sourceComponent: Qt.createComponent(Settings.spotShape)
+            sourceComponent: spotShapeLoader.sourceComponent
             onStatusChanged: {
                 if (status == Loader.Ready) {
                     borderShapeLoader.item.color = Qt.binding(function(){ return Settings.borderColor; })

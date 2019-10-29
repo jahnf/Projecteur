@@ -61,8 +61,11 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   }
   else {
     const auto geometry = geometryNode->geometry();
-    if( geometry->vertexCount() != vertexCount ) {
+    if (geometry->vertexCount() != vertexCount) {
       geometry->allocate(vertexCount);
+    }
+    if (auto material = static_cast<QSGFlatColorMaterial*>(geometryNode->material())) {
+      material->setColor(m_color);
     }
   }
 
@@ -227,8 +230,11 @@ QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   }
   else {
     const auto geometry = geometryNode->geometry();
-    if( geometry->vertexCount() != vertexCount ) {
+    if (geometry->vertexCount() != vertexCount) {
       geometry->allocate(vertexCount);
+    }
+    if (auto material = static_cast<QSGFlatColorMaterial*>(geometryNode->material())) {
+      material->setColor(m_color);
     }
   }
 
