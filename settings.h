@@ -24,6 +24,9 @@ class Settings : public QObject
   Q_PROPERTY(double spotRotation READ spotRotation WRITE setSpotRotation NOTIFY spotRotationChanged)
   Q_PROPERTY(QObject* shapes READ shapeSettingsRootObject CONSTANT)
   Q_PROPERTY(bool spotRotationAllowed READ spotRotationAllowed NOTIFY spotRotationAllowedChanged)
+  Q_PROPERTY(bool showBorder READ showBorder WRITE setShowBorder NOTIFY showBorderChanged)
+  Q_PROPERTY(QColor borderColor READ borderColor WRITE setBorderColor NOTIFY borderColorChanged)
+  Q_PROPERTY(int borderSize READ borderSize WRITE setBorderSize NOTIFY borderSizeChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -54,6 +57,12 @@ public:
   double spotRotation() const { return m_spotRotation; }
   void setSpotRotation(double rotation);
   bool spotRotationAllowed() const;
+  bool showBorder() const { return m_showBorder; }
+  void setShowBorder(bool show);
+  void setBorderColor(const QColor& color);
+  QColor borderColor() const { return m_borderColor; }
+  void setBorderSize(int size);
+  int borderSize() const { return m_borderSize; }
 
   class SpotShapeSetting {
   public:
@@ -113,6 +122,9 @@ signals:
   void spotShapeChanged(const QString& spotShapeQmlComponent);
   void spotRotationChanged(double rotation);
   void spotRotationAllowedChanged(bool allowed);
+  void showBorderChanged(bool show);
+  void borderColorChanged(const QColor& color);
+  void borderSizeChanged(int size);
 
 private:
   QSettings* m_settings = nullptr;
@@ -133,6 +145,9 @@ private:
   double m_spotRotation = 0.0;
   const QList<SpotShape> m_spotShapes;
   bool m_spotRotationAllowed = false;
+  bool m_showBorder=false;
+  QColor m_borderColor;
+  int m_borderSize = 3;
 
 private:
   void load();

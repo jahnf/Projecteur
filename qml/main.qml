@@ -46,8 +46,25 @@ Window {
 
         Loader {
             id: spotShapeLoader
+            anchors.centerIn: centerRect
             width: centerRect.width;  height: width
             sourceComponent: Qt.createComponent(Settings.spotShape)
+        }
+        Loader {
+            id: borderShapeLoader
+            anchors.centerIn: centerRect
+            width: centerRect.width;  height: width
+            sourceComponent: Qt.createComponent(Settings.spotShape)
+
+            onSourceComponentChanged: {
+                if (!borderShapeLoader.item.border) return;
+                borderShapeLoader.item.visible = true;
+                borderShapeLoader.item.color = "transparent";
+                borderShapeLoader.item.opacity = Qt.binding(function() {return 1-Settings.shadeOpacity});
+                borderShapeLoader.item.border.width = Qt.binding(function() {return Settings.borderSize/100*borderShapeLoader.width});
+                borderShapeLoader.item.border.color = Qt.binding(function() {return Settings.borderColor});
+            }
+            visible: Settings.showBorder
         }
 
         OpacityMask {

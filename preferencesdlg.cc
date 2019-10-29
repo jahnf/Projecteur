@@ -46,6 +46,7 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   mainHBox->addWidget(createSpotGroupBox(settings));
   const auto spotScreenVBox = new QVBoxLayout();
   spotScreenVBox->addWidget(createDotGroupBox(settings));
+  spotScreenVBox->addWidget(createBorderGroupBox(settings));
   spotScreenVBox->addWidget(createScreenGroupBox(settings));
   mainHBox->addLayout(spotScreenVBox);
 
@@ -278,6 +279,42 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
 
   dotGrid->setColumnStretch(1, 1);
   return dotGroup;
+}
+
+QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
+{
+  const auto borderGroup = new QGroupBox(tr("Show Border"), this);
+  borderGroup->setCheckable(true);
+  borderGroup->setChecked(settings->showBorder());
+  connect(borderGroup, &QGroupBox::toggled, settings, &Settings::setShowBorder);
+  connect(settings, &Settings::showBorderChanged, borderGroup, &QGroupBox::setChecked);
+
+  const auto borderSizeSpinBox = new QSpinBox(this);
+  borderSizeSpinBox->setMaximum(50);
+  borderSizeSpinBox->setMinimum(0);
+  borderSizeSpinBox->setValue(settings->borderSize());
+  auto bordersizeHBox = new QHBoxLayout;
+  bordersizeHBox->addWidget(borderSizeSpinBox);
+  bordersizeHBox->addWidget(new QLabel(tr("% of spotsize")));
+  connect(borderSizeSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+          settings, &Settings::setBorderSize);
+  connect(settings, &Settings::borderSizeChanged, borderSizeSpinBox, &QSpinBox::setValue);
+
+  const auto borderGrid = new QGridLayout(borderGroup);
+  borderGrid->addWidget(new QLabel(tr("Border Size"), this), 0, 0);
+  borderGrid->addLayout(bordersizeHBox, 0, 1);
+
+  const auto borderColor = new ColorSelector(settings->borderColor(), this);
+  connect(borderColor, &ColorSelector::colorChanged, settings, &Settings::setBorderColor);
+  connect(settings, &Settings::borderColorChanged, borderColor, &ColorSelector::setColor);
+  borderGrid->addWidget(new QLabel(tr("Border Color"), this), 1, 0);
+  borderGrid->addWidget(borderColor, 1, 1);
+
+  borderGrid->addWidget(new QWidget(this), 100, 0);
+  borderGrid->setRowStretch(100, 100);
+
+  borderGrid->setColumnStretch(1, 1);
+  return borderGroup;
 }
 
 QGroupBox* PreferencesDialog::createScreenGroupBox(Settings* settings)
