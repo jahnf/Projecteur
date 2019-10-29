@@ -4,6 +4,11 @@
 #include <QCoreApplication>
 #include <QQmlPropertyMap>
 #include <QSettings>
+#include <QMessageBox>
+
+#ifdef Q_OS_UNIX
+    #include <QX11Info>
+#endif
 
 #include <QDebug>
 
@@ -240,6 +245,16 @@ void Settings::setShadeOpacity(double opacity)
 
 void Settings::setScreen(int screen)
 {
+	// Check for composite window manager running on screen if not inform user
+	// and forward them to troubleshooting section
+	// Please refer to issue 24 and 10.
+#ifdef Q_OS_UNIX
+    if (QX11Info::isPlatformX11() && !QX11Info::isCompositingManagerRunning(screen)){
+        QMessageBox msgBox;
+        char msg[] = "No Compositing Window Magager found running on the selected screen. It might result in improper functioning of SpotLight. \n\nPlease check troubleshooting guide.";
+        msgBox.warning(nullptr, tr("No compositer on screen"), tr(msg));
+    }
+#endif
   if (screen == m_screen)
     return;
 

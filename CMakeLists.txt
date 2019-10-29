@@ -28,6 +28,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Gui Quick Widgets REQUIRED)
 
+if (UNIX)
+	find_package(Qt5 COMPONENTS X11Extras REQUIRED)
+endif (UNIX)
+
 add_executable(projecteur
   main.cc
   aboutdlg.cc           aboutdlg.h
@@ -43,6 +47,10 @@ add_executable(projecteur
 target_link_libraries(projecteur
   Qt5::Core Qt5::Quick Qt5::Widgets
 )
+
+if (UNIX)
+target_link_libraries(projecteur  Qt5::X11Extras)
+endif (UNIX)
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
 # If creating the version number via git information fails, the following target properties

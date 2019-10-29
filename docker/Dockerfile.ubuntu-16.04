@@ -12,7 +12,8 @@ RUN apt-get install -y --no-install-recommends \
 	git \
 	pkg-config \
 	qtdeclarative5-dev \
-  wget
+	wget \
+	libqt5x11extras5-dev
 
 RUN cd /tmp && wget https://cmake.org/files/v3.14/cmake-3.14.4-Linux-x86_64.sh \
 	&& chmod +x cmake-3.14.4-Linux-x86_64.sh \

@@ -12,5 +12,6 @@ RUN apt-get install -y --no-install-recommends \
 	udev \
 	git \
 	pkg-config \
-	qtdeclarative5-dev
+	qtdeclarative5-dev \
+	libqt5x11extras5-dev
 
