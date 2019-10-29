@@ -337,7 +337,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   connect(borderOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setBorderOpacity);
   connect(settings, &Settings::borderOpacityChanged, borderOpacitySb, &QDoubleSpinBox::setValue);
-  borderGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
+  borderGrid->addWidget(new QLabel(tr("Border Opacity"), this), 2, 0);
   borderGrid->addWidget(borderOpacitySb, 2, 1);
 
   borderGrid->addWidget(new QWidget(this), 100, 0);
