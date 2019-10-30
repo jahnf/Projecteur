@@ -33,8 +33,10 @@ Window {
                 id: desktopImage
                 pixmap: DesktopImage.pixmap
                 rotation: -rotationItem.rotation
-                x: -ma.mouseX + parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2);
-                y: -ma.mouseY + parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2);
+                readonly property real xOffset: parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2)
+                readonly property real yOffset: parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2)
+                x: -ma.mouseX + xOffset
+                y: -ma.mouseY + yOffset
                 width: mainWindow.width; height: mainWindow.height
             }
         }

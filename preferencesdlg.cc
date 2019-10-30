@@ -84,13 +84,13 @@ QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
   const auto group = new QGroupBox(this);
   const auto vbox = new QVBoxLayout(group);
   const auto lbl = new QLabel(deviceText.arg(
-                                spotlight->anySpotlightDeviceConnected() ? "True"
-                                                                         : "False"), this);
+                                spotlight->anySpotlightDeviceConnected() ? tr("True")
+                                                                         : tr("False")), this);
   lbl->setToolTip(tr("Connection status of the spotlight device."));
 
   vbox->addWidget(lbl);
   connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, [lbl](bool connected) {
-    lbl->setText(deviceText.arg(connected ? "True" : "False"));
+    lbl->setText(deviceText.arg(connected ? tr("True") : tr("False")));
   });
   return group;
 }

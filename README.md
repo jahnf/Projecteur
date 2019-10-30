@@ -69,7 +69,7 @@ Latest release:
 
 * C++11 compiler
 * CMake 3.6 or later
-* Qt 5.6 and later
+* Qt 5.7 and later
 
 ### Build Example
 
@@ -160,13 +160,13 @@ Using Wayland-EGL
 
 If the device shows as not connected, there are some things you can do:
 
-* Make sure the device is detected by the Linux system: Run 
+* Make sure the device is detected by the Linux system: Run
   `cat /proc/bus/input/devices | grep -A 3 "Vendor=046d"` \
   This should show one or multiple spotlight devices (among other Logitech devices)
-* Make sure the detected devices have the correct user/group asssigned. \ 
+* Make sure the detected devices have the correct user/group asssigned. \
   Run `ls -al /dev/input/event* | grep spotlight` 
-  (or replace `spotlight` by a string that matches the group you put into the 
-   udev rule file in case you edited it yourself). \
+  (or replace `spotlight` by a string that matches the group you put into the
+   udev rule file in case you edited it yourself). 
 * Make sure you don't have conflicting udev rules installed, e.g. first you installed
   the udev rule yourself and later you used the automatically built Linux packages to
-  install _Projecteur_. 
+  install _Projecteur_.

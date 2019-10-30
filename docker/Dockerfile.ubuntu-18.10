@@ -6,11 +6,11 @@ FROM ubuntu:18.10
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
   ca-certificates \
-	g++ \
-	make \
-	cmake \
-	git \
-	pkg-config \
-	qtdeclarative5-dev
+  g++ \
+  make \
+  cmake \
+  git \
+  pkg-config \
+  qtdeclarative5-dev
 
 RUN apt-get install -y --no-install-recommends udev

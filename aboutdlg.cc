@@ -46,7 +46,7 @@ namespace {
 AboutDialog::AboutDialog(QWidget* parent)
   : QDialog(parent)
 {
-  setWindowTitle(tr("About %1").arg(QCoreApplication::applicationName()));
+  setWindowTitle(tr("About %1", "%1=application name").arg(QCoreApplication::applicationName()));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
   const auto hbox = new QHBoxLayout();
@@ -92,8 +92,8 @@ QWidget* AboutDialog::createVersionInfoWidget()
   }
 
   vbox->addSpacing(10);
-  const auto weblinkLabel = new QLabel(QString("<a href=\"https://github.com/jahnf/projecteur\">"
-                                               "https://github.com/jahnf/projecteur</a>"), this);
+  const auto weblinkLabel = new QLabel(QString("<a href=\"https://github.com/jahnf/Projecteur\">"
+                                               "https://github.com/jahnf/Projecteur</a>"), this);
   weblinkLabel->setOpenExternalLinks(true);
   vbox->addWidget(weblinkLabel);
 
@@ -119,7 +119,7 @@ QWidget* AboutDialog::createContributorInfoWidget()
   textBrowser->setFont([textBrowser]()
   {
     auto font = textBrowser->font();
-    font.setPointSize(font.pointSize() - 3);
+    font.setPointSize(font.pointSize() - 2);
     return font;
   }());
 

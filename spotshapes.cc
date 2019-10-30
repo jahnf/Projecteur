@@ -223,7 +223,7 @@ QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     geometryNode->setGeometry(geometry);
     geometryNode->setFlag(QSGNode::OwnsGeometry, true);
 
-    QSGFlatColorMaterial * const material = new QSGFlatColorMaterial();
+    QSGFlatColorMaterial* const material = new QSGFlatColorMaterial();
     material->setColor(m_color);
     geometryNode->setMaterial(material);
     geometryNode->setFlag(QSGNode::OwnsMaterial);
