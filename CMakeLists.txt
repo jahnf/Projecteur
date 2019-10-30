@@ -32,6 +32,7 @@ add_executable(projecteur
   main.cc
   aboutdlg.cc           aboutdlg.h
   colorselector.cc      colorselector.h
+  imageitem.cc          imageitem.h
   preferencesdlg.cc     preferencesdlg.h
   projecteurapp.cc      projecteurapp.h
   runguard.cc           runguard.h

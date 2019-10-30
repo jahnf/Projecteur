@@ -24,6 +24,8 @@ namespace {
     constexpr char borderColor[] ="borderColor";
     constexpr char borderSize[] = "borderSize";
     constexpr char borderOpacity[] = "borderOpacity";
+    constexpr char zoomEnabled[] = "enableZoom";
+    constexpr char zoomFactor[] = "zoomFactor";
 
     namespace defaultValue {
       constexpr bool showSpot = true;
@@ -41,6 +43,8 @@ namespace {
       constexpr auto borderColor = Qt::red;
       constexpr int borderSize = 3;
       constexpr double borderOpacity = 0.8;
+      constexpr bool zoomEnabled = false;
+      constexpr double zoomFactor = 2.0;
     }
   }
 }
@@ -84,6 +88,8 @@ void Settings::setDefaults()
   setBorderColor(settings::defaultValue::borderColor);
   setBorderSize(settings::defaultValue::borderSize);
   setBorderOpacity(settings::defaultValue::borderOpacity);
+  setZoomEnabled(settings::defaultValue::zoomEnabled);
+  setZoomFactor(settings::defaultValue::zoomFactor);
   shapeSettingsSetDefaults();
 }
 
@@ -181,6 +187,8 @@ void Settings::load()
   setBorderColor(m_settings->value(::settings::borderColor, QColor(settings::defaultValue::borderColor)).value<QColor>());
   setBorderSize(m_settings->value(::settings::borderSize, settings::defaultValue::borderSize).toInt());
   setBorderOpacity(m_settings->value(::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
+  setZoomEnabled(m_settings->value(::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
+  setZoomFactor(m_settings->value(::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
   shapeSettingsLoad();
 }
 
@@ -379,5 +387,25 @@ void Settings::setBorderOpacity(double opacity)
     m_borderOpacity = qMin(qMax(0.0, opacity), 1.0);
     m_settings->setValue(::settings::borderOpacity, m_borderOpacity);
     emit borderOpacityChanged(m_borderOpacity);
+  }
+}
+
+void Settings::setZoomEnabled(bool enabled)
+{
+  if (enabled == m_zoomEnabled)
+    return;
+
+  m_zoomEnabled = enabled;
+  m_settings->setValue(::settings::zoomEnabled, m_zoomEnabled);
+  emit zoomEnabledChanged(m_zoomEnabled);
+}
+
+void Settings::setZoomFactor(double factor)
+{
+  if (factor > m_zoomFactor || factor < m_zoomFactor)
+  {
+    m_zoomFactor = qMin(qMax(1.5, factor), 20.0);
+    m_settings->setValue(::settings::zoomFactor, m_zoomFactor);
+    emit zoomFactorChanged(m_zoomFactor);
   }
 }

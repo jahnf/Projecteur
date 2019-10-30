@@ -3,6 +3,8 @@ import QtQuick 2.3
 import QtQuick.Window 2.2
 import QtGraphicalEffects 1.0
 
+import Projecteur.Utils 1.0 as Utils
+
 Window {
     id: mainWindow
     width: 300; height: 200
@@ -19,6 +21,32 @@ Window {
         width: rotation === 0 ? mainWindow.width : mainWindow.diagonal;
         height: rotation === 0 ? mainWindow.height : width
         rotation: Settings.spotRotationAllowed ? Settings.spotRotation : 0
+
+        Item {
+            id: desktopItem
+            anchors.centerIn: centerRect
+            visible: false; enabled: false; clip: true
+            scale: Settings.zoomFactor
+            width: centerRect.width / scale; height: centerRect.height / scale
+
+            Utils.Image {
+                id: desktopImage
+                pixmap: DesktopImage.pixmap
+                rotation: -rotationItem.rotation
+                x: -ma.mouseX + parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2);
+                y: -ma.mouseY + parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2);
+                width: mainWindow.width; height: mainWindow.height
+            }
+        }
+
+        OpacityMask {
+            visible: Settings.zoomEnabled
+            cached: true
+            anchors.fill: centerRect
+            source: desktopItem
+            maskSource: spotShapeLoader.item
+            enabled: false
+        }
 
         Item {
             anchors.fill: parent
