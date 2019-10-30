@@ -13,15 +13,13 @@ matrix:
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
   - os: linux
-    dist: xenial
-    env: 
-      - DOCKER_IMG=jahnf/projecteur:fedora-30
-      - PRIVILEGED=---privileged
+    dist: bionic
+    env: DOCKER_IMG=jahnf/projecteur:fedora-30
 script:
 - git fetch --tags
 - "[ -f $(git rev-parse --git-dir)/shallow ] && git fetch --unshallow || echo No need to unshallow..."
 - docker pull ${DOCKER_IMG}
-- docker run ${PRIVILEGED} --name build --env TRAVIS_BRANCH=${TRAVIS_BRANCH} -d -v `pwd`:/source:ro -ti ${DOCKER_IMG}
+- docker run --name build --env TRAVIS_BRANCH=${TRAVIS_BRANCH} -d -v `pwd`:/source:ro -ti ${DOCKER_IMG}
 - docker exec -it build /bin/bash -c "mkdir -p /build/dist-pkg && cd /build && cmake /source"
 - docker exec -it build /bin/bash -c "cd /build && cmake --build ."
 - docker exec -it build /bin/bash -c "cd /build && cmake --build . --target dist-package"
