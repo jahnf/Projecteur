@@ -9,6 +9,7 @@ list(APPEND _LinuxPackaging_MAP_dist_pkgtype
   "ubuntu::DEB"
   "opensuse::RPM"
   "opensuse-leap::RPM"
+  "fedora::RPM"
 )
 set(_LinuxPackaging_default_pkgtype "TGZ")
 
