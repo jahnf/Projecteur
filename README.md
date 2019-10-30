@@ -145,6 +145,11 @@ is not showing, commands can be send to the application to bring up the preferen
 dialog, to test the spotlight or quit the application.
 See [Command Line Interface](#command-line-interface).
 
+On some distributions that have a GNOME Desktop by default there is no system tray 
+extensions installed (_Fedora_ for example). You can install the "TopIcons Plus" GNOME
+extension to have a system tray that can show the Projecteur tray icon (and also from other
+applications like Dropbox or Skype)
+
 #### Wayland
 
 While not developed with Wayland in mind, some users reported _Projecteur_ works with
