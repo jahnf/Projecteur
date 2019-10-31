@@ -6,6 +6,9 @@ matrix:
     env: DOCKER_IMG=jahnf/projecteur:debian-stretch
   - os: linux
     dist: xenial
+    env: DOCKER_IMG=jahnf/projecteur:debian-buster
+  - os: linux
+    dist: xenial
     env: 
       - DOCKER_IMG=jahnf/projecteur:ubuntu-18.04
       - BUILD_SOURCE_PKG=1
@@ -13,8 +16,14 @@ matrix:
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
   - os: linux
+    dist: xenial
+    env: DOCKER_IMG=jahnf/projecteur:opensuse-15.1
+  - os: linux
     dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:fedora-30
+  - os: linux
+    dist: bionic
+    env: DOCKER_IMG=jahnf/projecteur:fedora-31
 script:
 - git fetch --tags
 - "[ -f $(git rev-parse --git-dir)/shallow ] && git fetch --unshallow || echo No need to unshallow..."
