@@ -87,7 +87,6 @@ set (CMAKE_INSTALL_UDEVRULESDIR ${UDEVDIR}/rules.d CACHE PATH "Where to install 
 mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 
 # Configure and install files
-set(DEVICE_USER_GROUP spotlight-device)
 set(OUTDIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(TMPLDIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates")
 
