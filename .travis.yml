@@ -5,7 +5,7 @@ matrix:
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:debian-stretch
   - os: linux
-    dist: xenial
+    dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:debian-buster
   - os: linux
     dist: xenial
