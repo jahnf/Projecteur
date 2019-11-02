@@ -12,6 +12,21 @@
 #include <sys/ioctl.h>
 #include <linux/input.h>
 #include <unistd.h>
+#include <vector>
+
+namespace {
+  struct Device {
+    const quint16 vendorId;
+    const quint16 productId;
+    const bool isBluetooth;
+  };
+
+  // List of supported devices
+  static const std::vector<Device> supportedDevices {
+    {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
+    {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
+  };
+}
 
 Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
@@ -89,11 +104,12 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   struct input_id id{};
   ioctl(evfd, EVIOCGID, &id);
 
-  constexpr quint16 vendorId = 0x46d;
-  constexpr quint16 usbProductId = 0xc53e;
-  constexpr quint16 btProductId = 0xb503;
+  const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
+  [&id](const Device& d) {
+    return id.vendor == d.vendorId && id.product == d.productId;
+  });
 
-  if (id.vendor != vendorId || (id.product != usbProductId && id.product != btProductId))
+  if (it == supportedDevices.cend())
   {
     ::close(evfd);
     return ConnectionResult::NotASpotlightDevice;
@@ -101,7 +117,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
 
   unsigned long bitmask = 0;
   const int len = ioctl(evfd, EVIOCGBIT(0, sizeof(bitmask)), &bitmask);
-  if ( len < 0 )
+  if (len < 0)
   {
     ::close(evfd);
     return ConnectionResult::NotASpotlightDevice;
@@ -182,39 +198,42 @@ bool Spotlight::setupDevEventInotify()
 #if defined(IN_CLOEXEC)
   fd = inotify_init1(IN_CLOEXEC);
 #endif
-  if( fd == -1 )
+  if (fd == -1)
   {
     fd = inotify_init();
-    if( fd == -1 ) {
+    if (fd == -1) {
        return false; // TODO: error msg - without it we cannot detect attachting of new devices
     }
   }
-  fcntl( fd, F_SETFD, FD_CLOEXEC );
-  const int wd = inotify_add_watch( fd, "/dev/input", IN_CREATE | IN_DELETE );
-  // TODO check if wd >=0... else error
+  fcntl(fd, F_SETFD, FD_CLOEXEC);
+  const int wd = inotify_add_watch(fd, "/dev/input", IN_CREATE | IN_DELETE);
+
+  if (wd < 0) {
+    return false; // TODO: error msg - without it we cannot detect attachting of new devices
+  }
+
   const auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
   connect(notifier, &QSocketNotifier::activated, [this, wd](int fd)
   {
     int bytesAvaibable = 0;
-    if( ioctl( fd, FIONREAD, &bytesAvaibable ) < 0 || bytesAvaibable <= 0 ) {
+    if (ioctl(fd, FIONREAD, &bytesAvaibable) < 0 || bytesAvaibable <= 0) {
       return; // Error or no bytes available
     }
-    QVarLengthArray<char, 2048> buffer( bytesAvaibable );
-    const auto bytesRead = read( fd, buffer.data(), static_cast<size_t>(bytesAvaibable) );
+    QVarLengthArray<char, 2048> buffer(bytesAvaibable);
+    const auto bytesRead = read(fd, buffer.data(), static_cast<size_t>(bytesAvaibable));
     const char* at = buffer.data();
     const char* const end = at + bytesRead;
-    while( at < end )
+    while (at < end)
     {
-      inotify_event const * const event = reinterpret_cast<const inotify_event*>( at );
+      inotify_event const * const event = reinterpret_cast<const inotify_event*>(at);
 
-      if( (event->mask & (IN_CREATE )) && QString(event->name).startsWith("event") )
+      if ((event->mask & (IN_CREATE )) && QString(event->name).startsWith("event"))
       {
         const auto devicePath = QString("/dev/input/").append(event->name);
         tryConnect(devicePath, 100, 4);
       }
       at += sizeof(inotify_event) + event->len;
     }
-
   });
 
   connect(notifier, &QSocketNotifier::destroyed, [notifier]() {
@@ -232,7 +251,7 @@ void Spotlight::tryConnect(const QString& devicePath, int msec, int retries)
   --retries;
   QTimer::singleShot(msec, [this, devicePath, retries, msec]() {
     if (connectSpotlightDevice(devicePath) == ConnectionResult::CouldNotOpen) {
-      if( retries == 0) return;
+      if (retries == 0) return;
       tryConnect(devicePath, msec+100, retries);
     }
   });
