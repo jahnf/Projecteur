@@ -33,6 +33,7 @@ class Settings : public QObject
 
 public:
   explicit Settings(QObject* parent = nullptr);
+  explicit Settings(const QString& configFile, QObject* parent = nullptr);
   virtual ~Settings() override;
 
   void setDefaults();
@@ -115,7 +116,7 @@ public:
     friend class Settings;
   };
 
-  const QList<SpotShape>& spotShapes() const { return m_spotShapes; }
+  const QList<SpotShape>& spotShapes() const;
   QQmlPropertyMap* shapeSettings(const QString& shapeName);
 
 signals:
@@ -155,7 +156,6 @@ private:
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;
-  const QList<SpotShape> m_spotShapes;
   bool m_spotRotationAllowed = false;
   bool m_showBorder=false;
   QColor m_borderColor;

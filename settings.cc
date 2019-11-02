@@ -54,14 +54,15 @@ Settings::Settings(QObject* parent)
   , m_settings(new QSettings(QCoreApplication::applicationName(),
                              QCoreApplication::applicationName(), this))
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
-  , m_spotShapes{ SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
-                  SpotShape("spotshapes/Square.qml", "Square", tr("(Rounded) Square"), true,
-                    {SpotShapeSetting(tr("Border-radius (%)"), "radius", 20, 0, 100, 0)} ),
-                  SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
-                    {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
-                     SpotShapeSetting(tr("Inner radius (%)"), "innerRadius", 50, 5, 100, 0)} ),
-                  SpotShape("spotshapes/Ngon.qml", "Ngon", tr("N-gon"), true,
-                    {SpotShapeSetting(tr("Sides"), "sides", 3, 3, 100, 0)} ) }
+{
+  shapeSettingsInitialize();
+  load();
+}
+
+Settings::Settings(const QString& configFile, QObject* parent)
+  : QObject(parent)
+  , m_settings(new QSettings(configFile, QSettings::NativeFormat, this))
+  , m_shapeSettingsRoot(new QQmlPropertyMap(this))
 {
   shapeSettingsInitialize();
   load();
@@ -69,6 +70,20 @@ Settings::Settings(QObject* parent)
 
 Settings::~Settings()
 {
+}
+
+const QList<Settings::SpotShape>& Settings::spotShapes() const
+{
+  static const QList<SpotShape> shapes{
+    SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
+    SpotShape("spotshapes/Square.qml", "Square", tr("(Rounded) Square"), true,
+      {SpotShapeSetting(tr("Border-radius (%)"), "radius", 20, 0, 100, 0)} ),
+    SpotShape("spotshapes/Star.qml", "Star", tr("Star"), true,
+      {SpotShapeSetting(tr("Star points"), "points", 5, 3, 100, 0),
+       SpotShapeSetting(tr("Inner radius (%)"), "innerRadius", 50, 5, 100, 0)} ),
+    SpotShape("spotshapes/Ngon.qml", "Ngon", tr("N-gon"), true,
+      {SpotShapeSetting(tr("Sides"), "sides", 3, 3, 100, 0)} ) };
+  return shapes;
 }
 
 void Settings::setDefaults()
@@ -95,7 +110,7 @@ void Settings::setDefaults()
 
 void Settings::shapeSettingsSetDefaults()
 {
-  for (const auto& shape : m_spotShapes)
+  for (const auto& shape : spotShapes())
   {
     for (const auto& settingDefinition : shape.shapeSettings())
     {
@@ -115,7 +130,7 @@ void Settings::shapeSettingsSetDefaults()
 
 void Settings::shapeSettingsLoad()
 {
-  for (const auto& shape : m_spotShapes)
+  for (const auto& shape : spotShapes())
   {
     for (const auto& settingDefinition : shape.shapeSettings())
     {
@@ -137,7 +152,7 @@ void Settings::shapeSettingsLoad()
 
 void Settings::shapeSettingsInitialize()
 {
-  for (const auto& shape : m_spotShapes)
+  for (const auto& shape : spotShapes())
   {
     if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
     {

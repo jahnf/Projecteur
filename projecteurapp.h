@@ -18,7 +18,11 @@ class ProjecteurApplication : public QApplication
   Q_OBJECT
 
 public:
-  explicit ProjecteurApplication(int &argc, char **argv);
+  struct Options {
+    QString configFile;
+  };
+
+  explicit ProjecteurApplication(int &argc, char **argv, const Options& options);
   virtual ~ProjecteurApplication() override;
 
 private slots:

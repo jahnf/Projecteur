@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
 {
   QCoreApplication::setApplicationName("Projecteur");
   QCoreApplication::setApplicationVersion(projecteur::version_string());
+  ProjecteurApplication::Options options;
   QString ipcCommand;
   {
     QCommandLineParser parser;
@@ -37,8 +38,9 @@ int main(int argc, char *argv[])
     const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print application version.");
     const QCommandLineOption fullVersionOption(QStringList{ "f", "fullversion" });
     const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Show command line usage.");
+    const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, "Set custom config file.", "file");
     const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to a running instance.", "cmd");
-    parser.addOptions({versionOption, helpOption, commandOption, fullVersionOption});
+    parser.addOptions({versionOption, helpOption, commandOption, cfgFileOption, fullVersionOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -53,6 +55,7 @@ int main(int argc, char *argv[])
       print() << "<Options>";
       print() << "  -h, --help             " << helpOption.description().toStdString();
       print() << "  -v, --version          " << versionOption.description().toStdString();
+      print() << "  --cfg FILE             " << cfgFileOption.description().toStdString();
       print() << "  -c COMMAND             " << commandOption.description().toStdString() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          Turn spotlight on/off.";
@@ -84,6 +87,9 @@ int main(int argc, char *argv[])
         return 44;
       }
     }
+    if (parser.isSet(cfgFileOption)) {
+      options.configFile = parser.value(cfgFileOption);
+    }
   }
 
   RunGuard guard(QCoreApplication::applicationName());
@@ -106,6 +112,6 @@ int main(int argc, char *argv[])
   }
 
   //QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-  ProjecteurApplication app(argc, argv);
+  ProjecteurApplication app(argc, argv, options);
   return app.exec();
 }

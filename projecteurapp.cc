@@ -29,7 +29,7 @@ namespace {
   }
 }
 
-ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
+ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Options& options)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon())
   , m_trayMenu(new QMenu())
@@ -45,7 +45,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   setQuitOnLastWindowClosed(false);
 
   m_spotlight = new Spotlight(this);
-  const auto settings = new Settings(this);
+  const auto settings = options.configFile.isEmpty() ? new Settings(this)
+                                                     : new Settings(options.configFile, this);
   m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
