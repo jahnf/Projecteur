@@ -1,4 +1,1 @@
-# Create `@DEVICE_USER_GROUP@` group if it does not exist (used in udev rules).
-if ! getent group @DEVICE_USER_GROUP@ >/dev/null; then
-    groupadd --system --force @DEVICE_USER_GROUP@
-fi
+#

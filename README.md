@@ -28,8 +28,8 @@ So here it is: a Linux application for the Logitech Spotlight.
 ## Supported Environments
 
 The application was tested on Ubuntu 18.04 (GNOME) and OpenSuse 42.3 and 15 (GNOME)
-but should work on almost any Linux/X11 Desktop. In case you are building the 
-application youself, make sure you have the correct udev rules installed 
+but should work on almost any Linux/X11 Desktop. In case you are building the
+application youself, make sure you have the correct udev rules installed
 (see Installation Pre-requisites).
 
 ## How it works
@@ -99,10 +99,10 @@ The input devices detected from the Spotlight device must be readable to the
 user running the application. To make this easier there is a udev rule template
 file in this repository: `55-spotlight.rules.in`
 
-* Copy that file to `/etc/udev/rules.d/55-spotlight.rules` and replace the
-  '@DEVICE_USER_GROUP@' in the file with a group your user is a member in
-* Run `sudo udevadm control --reload-rules` and `sudo udevadm trigger` to load
-  the rules without a reboot.
+* Copy that file to `/etc/udev/rules.d/55-spotlight.rules`
+* Most recent systems (using systemd) will automatically pick up the rule.
+  If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
+  to load the rules without a reboot.
 * After that the two input devices from the Logitech USB Receiver in /dev/input
   should have the group you used, i.e. the group you configured in the rules file.
 * When building against the Qt version that comes with your distribution's packages
@@ -145,7 +145,7 @@ is not showing, commands can be send to the application to bring up the preferen
 dialog, to test the spotlight or quit the application.
 See [Command Line Interface](#command-line-interface).
 
-On some distributions that have a GNOME Desktop by default there is no system tray 
+On some distributions that have a GNOME Desktop by default there is no system tray
 extensions installed (_Fedora_ for example). You can install the "TopIcons Plus" GNOME
 extension to have a system tray that can show the Projecteur tray icon (and also from other
 applications like Dropbox or Skype)
@@ -169,9 +169,9 @@ If the device shows as not connected, there are some things you can do:
   `cat /proc/bus/input/devices | grep -A 3 "Vendor=046d"` \
   This should show one or multiple spotlight devices (among other Logitech devices)
 * Make sure the detected devices have the correct user/group asssigned. \
-  Run `ls -al /dev/input/event* | grep spotlight` 
+  Run `ls -al /dev/input/event* | grep spotlight`
   (or replace `spotlight` by a string that matches the group you put into the
-   udev rule file in case you edited it yourself). 
+   udev rule file in case you edited it yourself).
 * Make sure you don't have conflicting udev rules installed, e.g. first you installed
   the udev rule yourself and later you used the automatically built Linux packages to
   install _Projecteur_.
