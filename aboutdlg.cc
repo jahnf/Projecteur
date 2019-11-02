@@ -4,6 +4,10 @@
 
 #include "projecteur-GitVersion.h"
 
+#include <algorithm>
+#include <random>
+#include <vector>
+
 #include <QCoreApplication>
 #include <QIcon>
 #include <QLabel>
@@ -36,11 +40,32 @@ namespace {
       return html;
     }
 
-    const QString name;
-    const QString github_name;
-    const QString email;
-    const QString url;
+    QString name;
+    QString github_name;
+    QString email;
+    QString url;
   };
+
+  QString getContributorsHtml()
+  {
+    static std::vector<Contributor> contributors =
+    {
+      Contributor("Ricardo Jesus", "rj-jesus"),
+      Contributor("Mayank Suman", "mayanksuman"),
+      Contributor("Tiziano Müller", "dev-zero"),
+      Contributor("Torsten Maehne", "maehne"),
+    };
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(contributors.begin(), contributors.end(), g);
+
+    QStringList contributorsHtml;
+    for (const auto& contributor : contributors) {
+      contributorsHtml.append(contributor.toHtml());
+    }
+    return contributorsHtml.join("<br>");
+  }
 }
 
 AboutDialog::AboutDialog(QWidget* parent)
@@ -109,7 +134,7 @@ QWidget* AboutDialog::createContributorInfoWidget()
   const auto contributorWidget = new QWidget(this);
   const auto vbox = new QVBoxLayout(contributorWidget);
 
-  const auto label = new QLabel(tr("Contributors, in no specific order:"), contributorWidget);
+  const auto label = new QLabel(tr("Contributors, in random order:"), contributorWidget);
   vbox->addWidget(label);
 
   const auto textBrowser = new QTextBrowser(contributorWidget);
@@ -123,18 +148,12 @@ QWidget* AboutDialog::createContributorInfoWidget()
     return font;
   }());
 
-  const QList<Contributor> contributors =
-  {
-    Contributor("Ricardo Jesus", "rj-jesus", ""/*email*/, ""/*url*/),
-    Contributor("Mayank Suman", "mayanksuman", ""/*email*/, ""/*url*/),
-  };
 
-  QStringList contributorsHtml;
-  for (const auto& contributor : contributors) {
-    contributorsHtml.append(contributor.toHtml());
-  }
-  textBrowser->setHtml(contributorsHtml.join("<br>"));
+  connect(this, &QDialog::finished, [textBrowser](){
+    textBrowser->setHtml(getContributorsHtml());
+  });
 
+  textBrowser->setHtml(getContributorsHtml());
   vbox->addWidget(textBrowser);
   return contributorWidget;
 }
