@@ -15,6 +15,7 @@ Window {
 
     readonly property double diagonal: Math.sqrt(Math.pow(Math.max(width, height),2)*2)
 
+
     Item {
         id: rotationItem
         anchors.centerIn: parent
@@ -32,7 +33,7 @@ Window {
             Utils.Image {
                 id: desktopImage
                 pixmap: DesktopImage.pixmap
-                smooth: false
+                smooth: rotation == 0 ? false : true
                 rotation: -rotationItem.rotation
                 readonly property real xOffset: Math.floor(parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2))
                 readonly property real yOffset: Math.floor(parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2))
