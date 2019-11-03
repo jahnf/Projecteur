@@ -32,9 +32,10 @@ Window {
             Utils.Image {
                 id: desktopImage
                 pixmap: DesktopImage.pixmap
+                smooth: false
                 rotation: -rotationItem.rotation
-                readonly property real xOffset: parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2)
-                readonly property real yOffset: parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2)
+                readonly property real xOffset: Math.floor(parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2))
+                readonly property real yOffset: Math.floor(parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2))
                 x: -ma.mouseX + xOffset
                 y: -ma.mouseY + yOffset
                 width: mainWindow.width; height: mainWindow.height
