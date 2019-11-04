@@ -58,8 +58,9 @@ Latest develop:
 Latest release:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
 
-_For versions v0.6-alpha.30 and older_: Make sure to add the user running the application to the `spotlight-device` group
-after package installation. This group is created during installation of the binary packages.
+_**Only** for versions v0.6-alpha.30 and older_: 
+Make sure to add the user running the application to the `spotlight-device` group
+after package installation. This group is created during installation of the binary packages. \
 When adding your user to a new group you will need to login and logout again
 for the change to take full effect.
 
@@ -88,9 +89,10 @@ the Qt version that comes with the distribution's package management.
 
 #### When using pre-built binary packages
 
+_**Only** for versions v0.6-alpha.30 and older_: 
 Make sure to add the user running the application to the `spotlight-device` group
 after package installation. This group is created during installation of the binary packages. \
-_Note_: When adding your user to a new group you will need to login and logout again
+When adding your user to a new group you will need to login and logout again
 for the change to take full effect.
 
 #### When building Projecteur yourself
