@@ -52,16 +52,16 @@ For more details: Have a look at the source code ;)
 The latest automatically built binary packages for some Linux distributions
 can be downloaded from bintray:
 
-Make sure to add the user running the application to the `spotlight-device` group
-after package installation. This group is created during installation of the binary packages.
-_Note_: When adding your user to a new group you will need to login and logout again
-for the change to take full effect.
-
 Latest develop:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)
 
 Latest release:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
+
+_For versions v0.6-alpha.30 and older_: Make sure to add the user running the application to the `spotlight-device` group
+after package installation. This group is created during installation of the binary packages.
+When adding your user to a new group you will need to login and logout again
+for the change to take full effect.
 
 ## Building
 
