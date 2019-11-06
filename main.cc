@@ -13,6 +13,13 @@
 #include <iostream>
 
 namespace {
+  class Main : public QObject {};
+
+  std::ostream& operator<<(std::ostream& os, const QString& s) {
+    os << s.toStdString();
+    return os;
+  }
+
   struct print {
     template<typename T>
     auto& operator<<(const T& a) const { return std::cout << a; }
@@ -34,12 +41,12 @@ int main(int argc, char *argv[])
   QString ipcCommand;
   {
     QCommandLineParser parser;
-    parser.setApplicationDescription("Linux/X11 application for the Logitech Spotlight device.");
-    const QCommandLineOption versionOption(QStringList{ "v", "version"}, "Print application version.");
+    parser.setApplicationDescription(Main::tr("Linux/X11 application for the Logitech Spotlight device."));
+    const QCommandLineOption versionOption(QStringList{ "v", "version"}, Main::tr("Print application version."));
     const QCommandLineOption fullVersionOption(QStringList{ "f", "fullversion" });
-    const QCommandLineOption helpOption(QStringList{ "h", "help"}, "Show command line usage.");
-    const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, "Set custom config file.", "file");
-    const QCommandLineOption commandOption(QStringList{ "c", "command"}, "Send command to a running instance.", "cmd");
+    const QCommandLineOption helpOption(QStringList{ "h", "help"}, Main::tr("Show command line usage."));
+    const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, Main::tr("Set custom config file."), "file");
+    const QCommandLineOption commandOption(QStringList{ "c", "command"}, Main::tr("Send command to a running instance."), "cmd");
     parser.addOptions({versionOption, helpOption, commandOption, cfgFileOption, fullVersionOption});
 
     QStringList args;
@@ -58,9 +65,9 @@ int main(int argc, char *argv[])
       print() << "  --cfg FILE             " << cfgFileOption.description().toStdString();
       print() << "  -c COMMAND             " << commandOption.description().toStdString() << std::endl;
       print() << "<Commands>";
-      print() << "  spot=[on|off]          Turn spotlight on/off.";
-      print() << "  settings=[show|hide]   Show/hide preferences dialog.";
-      print() << "  quit                   Quit the running instance.";
+      print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
+      print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
+      print() << "  quit                   " << Main::tr("Quit the running instance.");
       return 0;
     }
     else if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))
@@ -83,7 +90,7 @@ int main(int argc, char *argv[])
     {
       ipcCommand = parser.value(commandOption);
       if (ipcCommand.isEmpty()) {
-        error() << "Command cannot be an empty string.";
+        error() << Main::tr("Command cannot be an empty string.");
         return 44;
       }
     }
@@ -100,14 +107,14 @@ int main(int argc, char *argv[])
       return ProjecteurCommandClientApp(ipcCommand, argc, argv).exec();
     }
     else {
-      error() << "Another application instance is already running. Exiting.";
+      error() << Main::tr("Another application instance is already running. Exiting.");
       return 42;
     }
   }
   else if (ipcCommand.size())
   {
     // No other application instance running - but command option was used.
-    error() << "Cannot send command '" << ipcCommand.toStdString() << "' - no running application instance found.";
+    error() << Main::tr("Cannot send command '%1' - no running application instance found.").arg(ipcCommand);
     return 43;
   }
 

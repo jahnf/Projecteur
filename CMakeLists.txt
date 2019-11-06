@@ -20,6 +20,7 @@ project(Projecteur LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
+include(Translation)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -57,6 +58,12 @@ set_target_properties(projecteur PROPERTIES
   VERSION_TYPE develop
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Translation
+list(APPEND languages en de)
+set(ts_directories "${CMAKE_CURRENT_SOURCE_DIR}/i18n")
+add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directories}" "${languages}")
+add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md)
