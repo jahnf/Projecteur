@@ -1,4 +1,4 @@
-# Container for building the Projecteur package 
+# Container for building the Projecteur package
 # Images available at: https://hub.docker.com/r/jahnf/projecteur/tags
 
 FROM opensuse/leap:15.0
@@ -15,4 +15,6 @@ RUN zypper --non-interactive in --no-recommends \
   libqt5-qtdeclarative-devel \
   rpmbuild
 
+RUN zypper --non-interactive in --no-recommends \
+  libqt5-linguist
 

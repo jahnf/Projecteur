@@ -1,4 +1,4 @@
-# Container for building the Projecteur package 
+# Container for building the Projecteur package
 # Images available at: https://hub.docker.com/r/jahnf/projecteur/tags
 
 FROM fedora:31
@@ -13,3 +13,7 @@ RUN dnf -y install --setopt=install_weak_deps=False --best \
   qt5-qtdeclarative-devel \
   pkg-config \
   rpm-build
+
+RUN dnf -y install --setopt=install_weak_deps=False --best \
+  qt5-linguist
+

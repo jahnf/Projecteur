@@ -1,16 +1,22 @@
-# Container for building the Projecteur package 
+# Container for building the Projecteur package
 # Images available at: https://hub.docker.com/r/jahnf/projecteur/tags
 
 FROM debian:buster
 
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
-  ca-certificates \
+  ca-certificates
+
+RUN apt-get install -y --no-install-recommends \
   g++ \
   make \
   cmake \
-  git \
-  pkg-config \
   udev \
-  qtdeclarative5-dev
+  git \
+  pkg-config
+
+RUN apt-get install -y --no-install-recommends \
+  qtdeclarative5-dev \
+  qttools5-dev-tools \
+  qt5-default
 
