@@ -6,7 +6,7 @@ master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branc
 Linux/X11 application for the Logitech Spotlight device. \
 See [Download](#download) section for binary packages.
 
-Copyright 2018-2019 [Jahn Fuchs](mailto:github.jahnf@wolke7.net)
+Copyright 2018-2019 [Jahn Fuchs](mailto:projecteur@jahn.textmo.de)
 
 ## Motivation
 
@@ -49,8 +49,9 @@ For more details: Have a look at the source code ;)
 
 ## Download
 
-The latest automatically built binary packages for some Linux distributions
-can be downloaded from bintray:
+The latest binary packages for some Linux distributions are available for downloaded on bintray. 
+Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and 
+_Arch_ Linux are automatically built.
 
 Latest develop:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)

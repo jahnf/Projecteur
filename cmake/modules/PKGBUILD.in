@@ -1,0 +1,26 @@
+# PKGBUILD template file
+pkgname=@PKG_NAME@
+pkgver=@PKG_PKGBUILD_VER@
+pkgrel=@PKG_PKGBUILD_PKGREL@
+pkgdesc="@PKG_DESCRIPTION_BRIEF@"
+arch=('@PKG_PKGBUILD_ARCH@')
+url="@PKG_HOMEPAGE@"
+license=('@PKG_LICENSE@')
+replaces=('')
+depends=(@PKG_DEPENDENCIES@)
+makedepends=(@PKG_BUILD_DEPENDENCIES@)
+install=@PKG_PKGBUILD_INSTALL_FILE@
+source=("@PKG_SOURCE_ARCHIVE_FILE@")
+
+build() {
+  cd $srcdir
+  mkdir -p builddir
+  cd builddir
+  cmake $srcdir/@PKG_NAME@-@PKG_VERSION_STRING_FULL@
+  make -j2
+}
+
+package() {
+  cd builddir
+  make DESTDIR=$pkgdir/ install
+}

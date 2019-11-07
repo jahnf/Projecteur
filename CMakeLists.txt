@@ -70,7 +70,6 @@ add_custom_target(non-sources SOURCES README.md LICENSE.md)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
-set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur")
 
 # Use udev.pc pkg-config file to set the dir path
 if (NOT CMAKE_INSTALL_UDEVRULESDIR)
@@ -113,20 +112,22 @@ configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
 
 set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
-# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+# --- Linux packaging ---
 include(LinuxPackaging)
+
+# Add 'source-archive' target
+add_source_archive_target(projecteur)
+
+# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
 add_dist_package_target(
   PROJECT "${CMAKE_PROJECT_NAME}" 
   TARGET projecteur
   DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
   DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
-  CONTACT "Jahn Fuchs <github.jahnf@wolke7.net>"
+  CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
   HOMEPAGE "${HOMEPAGE}"
   DEBIAN_SECTION "utils"
   PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
   POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
 )
-
-# Add 'source-archive' target
-add_source_archive_target(projecteur)
 

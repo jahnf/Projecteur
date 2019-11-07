@@ -2,6 +2,9 @@ language: cpp
 matrix:
   include:
   - os: linux
+    dist: bionic
+    env: DOCKER_IMG=jahnf/projecteur:archlinux
+  - os: linux
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:debian-stretch
   - os: linux
@@ -9,9 +12,7 @@ matrix:
     env: DOCKER_IMG=jahnf/projecteur:debian-buster
   - os: linux
     dist: xenial
-    env: 
-      - DOCKER_IMG=jahnf/projecteur:ubuntu-18.04
-      - BUILD_SOURCE_PKG=1
+    env: DOCKER_IMG=jahnf/projecteur:ubuntu-18.04
   - os: linux
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
@@ -33,12 +34,7 @@ script:
 - docker exec -it build /bin/bash -c "cd /build && cmake --build ."
 - docker exec -it build /bin/bash -c "cd /build && cmake --build . --target dist-package"
 - docker exec -it build /bin/bash -c "cd /build && ./projecteur --version"
-- docker exec -it build /bin/bash -c "mv /build/*.deb /build/dist-pkg || true"
-- docker exec -it build /bin/bash -c "mv /build/*.rpm /build/dist-pkg || true"
-- docker exec -it build /bin/bash -c "mv /build/*.tgz /build/dist-pkg || true"
-- docker exec -it build /bin/bash -c "mv /build/*.tar.gz /build/dist-pkg || true"
 - "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"cd /build && cmake --build . --target source-archive\" || true"
-- "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"mv /build/archive_output/* /build/dist-pkg\" || true"
 - docker cp build:/build/dist-pkg .
 - docker cp build:/build/travis-ci-bintray-deploy.json .
 - ls -alh dist-pkg
