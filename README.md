@@ -19,15 +19,23 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Features
 
-* Configurable desktop spotlight. Configure color, opacity, cursor, center dot and shape.
+* Configurable desktop spotlight 
+  * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_.
+  * Zoom (magnifier) functionality.
 * Multiple screen support
 
 ![Settings](./doc/screenshot-settings.png)
 ![Settings](./doc/screenshot-traymenu.png)
 
+### Planned features
+
+* Possibly support other devices besides the Logitech Spotlight
+* Vibration (Timer) Support (Logitech Spotlight)
+* Support for device button configuration
+
 ## Supported Environments
 
-The application was tested on Ubuntu 18.04 (GNOME) and OpenSuse 42.3 and 15 (GNOME)
+The application was mostly tested on Ubuntu 18.04 (GNOME) and OpenSuse 15 (GNOME)
 but should work on almost any Linux/X11 Desktop. In case you are building the
 application youself, make sure you have the correct udev rules installed
 (see Installation Pre-requisites).
