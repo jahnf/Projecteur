@@ -24,8 +24,11 @@ So here it is: a Linux application for the Logitech Spotlight.
   * Zoom (magnifier) functionality.
 * Multiple screen support
 
-![Settings](./doc/screenshot-settings.png)
-![Settings](./doc/screenshot-traymenu.png)
+### Screenshots
+
+[<img src="doc/screenshot-settings.png" height="300" />](./doc/screenshot-settings.png)
+[<img src="doc/screenshot-spot.png" height="300" />](./doc/screenshot-spot.png)
+[<img src="doc/screenshot-traymenu.png">](./doc/screenshot-traymenu.png)
 
 ### Planned features
 
