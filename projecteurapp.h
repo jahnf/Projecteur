@@ -11,6 +11,7 @@ class QLocalServer;
 class QLocalSocket;
 class QMenu;
 class QSystemTrayIcon;
+class Settings;
 class Spotlight;
 
 class ProjecteurApplication : public QApplication
@@ -25,6 +26,9 @@ public:
   explicit ProjecteurApplication(int &argc, char **argv, const Options& options);
   virtual ~ProjecteurApplication() override;
 
+public slots:
+  void cursorExitedWindow();
+
 private slots:
   void readCommand(QLocalSocket* client);
 
@@ -38,6 +42,7 @@ private:
   QScopedPointer<AboutDialog> m_aboutDialog;
   QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
+  Settings* m_settings = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
 };
 

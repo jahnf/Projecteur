@@ -19,9 +19,6 @@ public:
 
   bool dialogActive() const { return m_active; }
 
-public slots:
-  void updateAvailableScreens(QList<QScreen*> screens);
-
 signals:
   void dialogActiveChanged(bool active);
   void testButtonClicked();
@@ -36,7 +33,7 @@ private:
   QGroupBox* createSpotGroupBox(Settings* settings);
   QGroupBox* createDotGroupBox(Settings* settings);
   QGroupBox* createBorderGroupBox(Settings* settings);
-  QGroupBox* createScreenGroupBox(Settings* settings);
+  QGroupBox* createCursorGroupBox(Settings* settings);
   QGroupBox* createZoomGroupBox(Settings* settings);
   QWidget* createConnectedStateWidget(Spotlight* spotlight);
 

@@ -15,7 +15,6 @@ Window {
 
     readonly property double diagonal: Math.sqrt(Math.pow(Math.max(width, height),2)*2)
 
-
     Item {
         id: rotationItem
         anchors.centerIn: parent
@@ -60,6 +59,7 @@ Window {
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: { mainWindow.hide() }
+                onExited: { ProjecteurApp.cursorExitedWindow() }
             }
         }
 
