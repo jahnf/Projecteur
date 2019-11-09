@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
       print() << "  -c COMMAND             " << commandOption.description().toStdString() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
+      print() << "  zoom=[on|off]          " << Main::tr("Turn spotlight zoom on/off.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       print() << "  quit                   " << Main::tr("Quit the running instance.");
       return 0;

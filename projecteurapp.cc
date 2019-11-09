@@ -280,6 +280,11 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
     const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
     emit m_spotlight->spotActiveChanged(active);
   }
+  else if (cmdKey == "zoom")
+  {
+    const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
+    m_settings->setZoomEnabled(active);
+  }
   else if (cmdKey == "settings" || cmdKey == "preferences")
   {
     const bool show = !(cmdValue == "hide" || cmdValue == "0");
