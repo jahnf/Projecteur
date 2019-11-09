@@ -47,6 +47,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   m_spotlight = new Spotlight(this);
   const auto settings = options.configFile.isEmpty() ? new Settings(this)
                                                      : new Settings(options.configFile, this);
+  m_settings = settings;
   m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
@@ -345,4 +346,3 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 
   localSocket->connectToServer(localServerName());
 }
-
