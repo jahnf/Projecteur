@@ -22,7 +22,7 @@ namespace {
   };
 
   // List of supported devices
-  static const std::vector<Device> supportedDevices {
+  const std::vector<Device> supportedDevices {
     {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
     {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
   };
@@ -106,7 +106,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
 
   const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
   [&id](const Device& d) {
-    return id.vendor == d.vendorId && id.product == d.productId;
+    return (id.vendor == d.vendorId) && (id.product == d.productId);
   });
 
   if (it == supportedDevices.cend())
@@ -213,7 +213,7 @@ bool Spotlight::setupDevEventInotify()
   }
 
   const auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-  connect(notifier, &QSocketNotifier::activated, [this, wd](int fd)
+  connect(notifier, &QSocketNotifier::activated, [this](int fd)
   {
     int bytesAvaibable = 0;
     if (ioctl(fd, FIONREAD, &bytesAvaibable) < 0 || bytesAvaibable <= 0) {
@@ -225,7 +225,7 @@ bool Spotlight::setupDevEventInotify()
     const char* const end = at + bytesRead;
     while (at < end)
     {
-      inotify_event const * const event = reinterpret_cast<const inotify_event*>(at);
+      const auto event = reinterpret_cast<const inotify_event*>(at);
 
       if ((event->mask & (IN_CREATE )) && QString(event->name).startsWith("event"))
       {

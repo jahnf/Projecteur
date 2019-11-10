@@ -36,7 +36,7 @@ class Settings : public QObject
 public:
   explicit Settings(QObject* parent = nullptr);
   explicit Settings(const QString& configFile, QObject* parent = nullptr);
-  virtual ~Settings() override;
+  ~Settings() override;
 
   void setDefaults();
 
@@ -139,9 +139,9 @@ public:
     enum Type { Integer, Double, Bool, StringEnum, Color };
     static QString typeToString(Type type);
 
-    const Type type;
-    const QVariantList range;
-    const std::function<void(const QString&)> setFunction;
+    Type type;
+    QVariantList range;
+    std::function<void(const QString&)> setFunction;
   };
 
   const QList<QPair<QString, StringProperty>>& stringProperties() const;

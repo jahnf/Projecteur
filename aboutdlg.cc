@@ -106,8 +106,7 @@ QWidget* AboutDialog::createVersionInfoWidget()
                                       .arg(projecteur::version_string())), this);
   vbox->addWidget(versionLabel);
   const auto vInfo = QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2")
-                              .arg(projecteur::version_branch())
-                              .arg(projecteur::version_shorthash());
+                              .arg(projecteur::version_branch(), projecteur::version_shorthash());
   versionLabel->setToolTip(vInfo);
 
   if (QString(projecteur::version_flag()).size() || 

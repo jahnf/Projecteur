@@ -157,14 +157,11 @@ int main(int argc, char *argv[])
   RunGuard guard(QCoreApplication::applicationName());
   if (!guard.tryToRun())
   {
-    if (ipcCommands.size())
-    {
+    if (ipcCommands.size()) {
       return ProjecteurCommandClientApp(ipcCommands, argc, argv).exec();
     }
-    else {
-      error() << Main::tr("Another application instance is already running. Exiting.");
-      return 42;
-    }
+    error() << Main::tr("Another application instance is already running. Exiting.");
+    return 42;
   }
   else if (ipcCommands.size())
   {
