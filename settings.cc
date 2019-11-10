@@ -535,3 +535,15 @@ void Settings::setZoomFactor(double factor)
     emit zoomFactorChanged(m_zoomFactor);
   }
 }
+
+QString Settings::StringProperty::typeToString(Type type)
+{
+  switch(type) {
+  case Type::Bool: return "Bool";
+  case Type::Color: return "Color";
+  case Type::Double: return "Double";
+  case Type::Integer: return "Integer";
+  case Type::StringEnum: return "Value";
+  }
+  return QString::null;
+}

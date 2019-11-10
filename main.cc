@@ -3,6 +3,7 @@
 #include "projecteur-GitVersion.h"
 
 #include "runguard.h"
+#include "settings.h"
 
 #include <QCommandLineParser>
 
@@ -63,12 +64,38 @@ int main(int argc, char *argv[])
       print() << "  -h, --help             " << helpOption.description().toStdString();
       print() << "  -v, --version          " << versionOption.description().toStdString();
       print() << "  --cfg FILE             " << cfgFileOption.description().toStdString();
-      print() << "  -c COMMAND             " << commandOption.description().toStdString() << std::endl;
+      print() << "  -c COMMAND|PROPERTY    " << commandOption.description().toStdString() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
-      print() << "  zoom=[on|off]          " << Main::tr("Turn spotlight zoom on/off.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       print() << "  quit                   " << Main::tr("Quit the running instance.");
+
+      print() << "" << std::endl << "<Properties>";
+
+      const auto getValues = [](const Settings::StringProperty& sp) -> QString
+      {
+        if (sp.type == Settings::StringProperty::Type::Integer
+            || sp.type == Settings::StringProperty::Type::Double) {
+          return QString("(%1 ... %2)").arg(sp.range[0].toString()).arg(sp.range[1].toString());
+        }
+
+        if (sp.type == Settings::StringProperty::Type::StringEnum) {
+          QStringList values;
+          for (const auto& v : sp.range) {
+            values.push_back(v.toString());
+          }
+          return QString("(%1)").arg(values.join(", "));
+        }
+        return QString::null;
+      };
+
+      Settings settings;
+      const auto& sp = settings.stringProperties();
+      for (auto it = sp.cbegin(), end = sp.cend(); it != end; ++it)
+      {
+        print() << "  " << it.key() << "=[" << it.value().typeToString(it.value().type)<< "]"
+                << "   " << getValues(*it);
+      }
       return 0;
     }
     else if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))

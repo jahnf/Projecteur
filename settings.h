@@ -136,9 +136,9 @@ public:
 
   struct StringProperty
   {
-    enum Type {
-      Integer, Double, Bool, StringEnum, Color
-    };
+    enum Type { Integer, Double, Bool, StringEnum, Color };
+    static QString typeToString(Type type);
+
     Type type;
     QVariantList range;
     std::function<void(const QString&)> setFunction;
