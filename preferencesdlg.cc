@@ -45,12 +45,12 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   const auto mainHBox = new QHBoxLayout();
   const auto spotScreenVBoxLeft = new QVBoxLayout();
   spotScreenVBoxLeft->addWidget(createShapeGroupBox(settings));
-  spotScreenVBoxLeft->addWidget(createScreenGroupBox(settings));
+  spotScreenVBoxLeft->addWidget(createZoomGroupBox(settings));
+  spotScreenVBoxLeft->addWidget(createCursorGroupBox(settings));
   const auto spotScreenVBoxRight = new QVBoxLayout();
   spotScreenVBoxRight->addWidget(createSpotGroupBox(settings));
   spotScreenVBoxRight->addWidget(createDotGroupBox(settings));
   spotScreenVBoxRight->addWidget(createBorderGroupBox(settings));
-  spotScreenVBoxRight->addWidget(createZoomGroupBox(settings));
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
@@ -225,7 +225,6 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   return shapeGroup;
 }
 
-
 QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
 {
   const auto spotGroup = new QGroupBox(tr("Show Spotlight Shade"), this);
@@ -368,38 +367,17 @@ QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
   connect(zoomLevelSb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setZoomFactor);
   connect(settings, &Settings::zoomFactorChanged, zoomLevelSb, &QDoubleSpinBox::setValue);
-  zoomGrid->addWidget(new QLabel(tr("Zoom Level"), this), 1, 0);
-  zoomGrid->addWidget(zoomLevelSb, 1, 1);
-
-  zoomGrid->addWidget(new QWidget(this), 100, 0);
-  zoomGrid->setRowStretch(100, 100);
-
+  zoomGrid->addWidget(new QLabel(tr("Zoom Level"), this), 0, 0);
+  zoomGrid->addWidget(zoomLevelSb, 0, 1);
   zoomGrid->setColumnStretch(1, 1);
   return zoomGroup;
 }
 
-QGroupBox* PreferencesDialog::createScreenGroupBox(Settings* settings)
+QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
 {
-  const auto screenGroup = new QGroupBox(tr("Screen Settings"), this);
-  screenGroup->setCheckable(false);
-  const auto grid = new QGridLayout(screenGroup);
-
-  m_screenCb = new QComboBox(this);
-  m_screenCb->addItem(tr("%1: (not connected)").arg(settings->screen()), settings->screen());
-  connect(m_screenCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-  [settings, this](int index) {
-    settings->setScreen(m_screenCb->itemData(index).toInt());
-  });
-  connect(settings, &Settings::screenChanged, [this](int screen){
-    const int idx = m_screenCb->findData(screen);
-    if (idx == -1) {
-      m_screenCb->addItem(tr("%1: (not connected)").arg(screen), screen);
-    } else {
-      m_screenCb->setCurrentIndex(idx);
-    }
-  });
-  grid->addWidget(new QLabel(tr("Screen"), this), 1, 0);
-  grid->addWidget(m_screenCb, 1, 1);
+  const auto cursorGroup = new QGroupBox(tr("Cursor Settings"), this);
+  cursorGroup->setCheckable(false);
+  const auto grid = new QGridLayout(cursorGroup);
 
   const auto cursorCb = new QComboBox(this);
   for (const auto& item : cursorMap) {
@@ -414,11 +392,11 @@ QGroupBox* PreferencesDialog::createScreenGroupBox(Settings* settings)
   [settings, cursorCb](int index) {
     settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
   });
-  grid->addWidget(new QLabel(tr("Cursor"), this), 2, 0);
-  grid->addWidget(cursorCb, 2, 1);
-  grid->setColumnStretch(1, 1);
 
-  return screenGroup;
+  grid->addWidget(new QLabel(tr("Cursor"), this), 0, 0);
+  grid->addWidget(cursorCb, 0, 1);
+  grid->setColumnStretch(1, 1);
+  return cursorGroup;
 }
 
 void PreferencesDialog::setDialogActive(bool active)
@@ -439,25 +417,4 @@ bool PreferencesDialog::event(QEvent* e)
     setDialogActive(false);
   }
   return QDialog::event(e);
-}
-
-void PreferencesDialog::updateAvailableScreens(QList<QScreen*> screens)
-{
-  for (int i = 0; i < screens.size(); ++i)
-  {
-    const int idx = m_screenCb->findData(i);
-    if (idx == -1) {
-      m_screenCb->addItem(QString("%1: %2 (%3x%4)").arg(i)
-                                                   .arg(screens[i]->name())
-                                                   .arg(screens[i]->size().width())
-                                                   .arg(screens[i]->size().height()), i);
-    }
-    else {
-      m_screenCb->setItemText(idx, QString("%1: %2 (%3x%4)").arg(i)
-                                                   .arg(screens[i]->name())
-                                                   .arg(screens[i]->size().width())
-                                                   .arg(screens[i]->size().height()));
-    }
-  }
-  m_screenCb->model()->sort(0);
 }

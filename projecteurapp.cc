@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "spotlight.h"
 
+#include <QDesktopWidget>
 #include <QDialog>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -48,7 +49,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
   m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
-  m_dialog->updateAvailableScreens(screens());
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
     emit m_spotlight->spotActiveChanged(true);
@@ -65,6 +65,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   engine->rootContext()->setContextProperty("Settings", m_settings);
   engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
   engine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
+  engine->rootContext()->setContextProperty("ProjecteurApp", this);
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
   const auto window = topLevelWindows().first();
 
@@ -138,6 +139,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   {
     if (active)
     {
+      m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
+
       window->setFlags(window->flags() | Qt::SplashScreen);
       window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
       window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
@@ -236,6 +239,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 ProjecteurApplication::~ProjecteurApplication()
 {
   if (m_localServer) m_localServer->close();
+}
+
+void ProjecteurApplication::cursorExitedWindow()
+{
+  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
 }
 
 void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
