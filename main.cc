@@ -12,6 +12,7 @@
 #endif
 
 #include <iostream>
+#include <iomanip>
 
 namespace {
   class Main : public QObject {};
@@ -46,9 +47,9 @@ int main(int argc, char *argv[])
     const QCommandLineOption versionOption(QStringList{ "v", "version"}, Main::tr("Print application version."));
     const QCommandLineOption fullVersionOption(QStringList{ "f", "fullversion" });
     const QCommandLineOption helpOption(QStringList{ "h", "help"}, Main::tr("Show command line usage."));
-    const QCommandLineOption fullHelpOption(QStringList{ "help-all"}, Main::tr("Show complete command line usage."));
+    const QCommandLineOption fullHelpOption(QStringList{ "help-all"}, Main::tr("Show complete command line usage with all properties."));
     const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, Main::tr("Set custom config file."), "file");
-    const QCommandLineOption commandOption(QStringList{ "c", "command"}, Main::tr("Send command to a running instance."), "cmd");
+    const QCommandLineOption commandOption(QStringList{ "c", "command"}, Main::tr("Send command/property to a running instance."), "cmd");
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption, cfgFileOption, fullVersionOption});
 
     QStringList args;
@@ -72,17 +73,24 @@ int main(int argc, char *argv[])
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       print() << "  quit                   " << Main::tr("Quit the running instance.");
 
+      // Early return if the user not explicitly requested the full help
       if (!parser.isSet(fullHelpOption)) return 0;
 
-      print() << "" << std::endl << "<Properties>";
+      print() << "\n" << "<Properties>";
+      // Helper function to get the range of valid values for a string property
       const auto getValues = [](const Settings::StringProperty& sp) -> QString
       {
         if (sp.type == Settings::StringProperty::Type::Integer
             || sp.type == Settings::StringProperty::Type::Double) {
           return QString("(%1 ... %2)").arg(sp.range[0].toString()).arg(sp.range[1].toString());
         }
-
-        if (sp.type == Settings::StringProperty::Type::StringEnum) {
+        else if (sp.type == Settings::StringProperty::Type::Bool) {
+          return "(false, true)";
+        }
+        else if (sp.type == Settings::StringProperty::Type::Color) {
+          return "(HTML-color; #RRGGBB)";
+        }
+        else if (sp.type == Settings::StringProperty::Type::StringEnum) {
           QStringList values;
           for (const auto& v : sp.range) {
             values.push_back(v.toString());
@@ -93,12 +101,23 @@ int main(int argc, char *argv[])
       };
 
       Settings settings;
-      const auto& sp = settings.stringProperties();
-      for (auto it = sp.cbegin(), end = sp.cend(); it != end; ++it)
+      QList<QPair<QString, QString>> propertiesList;
+      int propertyMaxLen = 0;
+
+      // Fill temporary list with properties to be able to format our output better
+      for (const auto& sp : settings.stringProperties())
       {
-        print() << "  " << it.key() << "=[" << it.value().typeToString(it.value().type)<< "]"
-                << "   " << getValues(*it);
+        propertiesList.push_back(
+          {QString("%1=[%2]").arg(sp.first).arg(sp.second.typeToString(sp.second.type)),
+           getValues(sp.second)});
+
+        propertyMaxLen = qMax(propertyMaxLen, propertiesList.last().first.size());
       }
+
+      for (const auto& sp : propertiesList) {
+        print() << "  " << std::left << std::setw(propertyMaxLen + 3) << sp.first << sp.second;
+      }
+
       return 0;
     }
     else if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))

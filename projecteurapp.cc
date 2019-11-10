@@ -286,9 +286,13 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
   }
   else if (cmdValue.size())
   {
-    const auto it = m_settings->stringProperties().find(cmdKey);
+    const auto& properties = m_settings->stringProperties();
+    const auto it = std::find_if(properties.cbegin(), properties.cend(),
+    [&cmdKey](const auto& pair){
+      return (pair.first == cmdKey);
+    });
     if (it != m_settings->stringProperties().cend()) {
-      it->setFunction(cmdValue);
+      it->second.setFunction(cmdValue);
     }
     else {
       // string property not found...

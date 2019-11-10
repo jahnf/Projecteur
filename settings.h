@@ -139,12 +139,12 @@ public:
     enum Type { Integer, Double, Bool, StringEnum, Color };
     static QString typeToString(Type type);
 
-    Type type;
-    QVariantList range;
-    std::function<void(const QString&)> setFunction;
+    const Type type;
+    const QVariantList range;
+    const std::function<void(const QString&)> setFunction;
   };
 
-  const QMap<QString, StringProperty>& stringProperties() const;
+  const QList<QPair<QString, StringProperty>>& stringProperties() const;
 
 signals:
   void showSpotShadeChanged(bool show);
@@ -191,7 +191,7 @@ private:
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
 
-  QMap<QString, StringProperty> m_stringPropertyMap;
+  QList<QPair<QString, StringProperty>> m_stringPropertyMap;
 
 private:
   void load();
