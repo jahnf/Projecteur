@@ -43,8 +43,16 @@ add_executable(projecteur
   resources.qrc         qml/qml.qrc)
 
 target_link_libraries(projecteur
-  Qt5::Core Qt5::Quick Qt5::Widgets
+  PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
 )
+
+target_compile_options(projecteur
+  PRIVATE
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall -Wextra>
+)
+
+target_compile_definitions(projecteur PRIVATE
+  CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} CXX_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION})
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
 # If creating the version number via git information fails, the following target properties
@@ -60,7 +68,7 @@ set_target_properties(projecteur PROPERTIES
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Translation
-list(APPEND languages en de)
+list(APPEND languages de fr es)
 set(ts_directories "${CMAKE_CURRENT_SOURCE_DIR}/i18n")
 add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directories}" "${languages}")
 add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")

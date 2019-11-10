@@ -4,7 +4,7 @@ develop: [![Build Status develop](https://travis-ci.org/jahnf/Projecteur.svg?bra
 master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branch=master)](https://travis-ci.org/jahnf/Projecteur)
 
 Linux/X11 application for the Logitech Spotlight device. \
-See [Download](#download) section for binary packages.
+See **[Download](#download)** section for binary packages.
 
 Copyright 2018-2019 [Jahn Fuchs](mailto:projecteur@jahn.textmo.de)
 
@@ -60,7 +60,7 @@ For more details: Have a look at the source code ;)
 
 ## Download
 
-The latest binary packages for some Linux distributions are available for downloaded on bintray. 
+The latest binary packages for some Linux distributions are available for download on bintray.
 Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and 
 _Arch_ Linux are automatically built.
 
@@ -80,7 +80,7 @@ for the change to take full effect.
 
 ### Requirements
 
-* C++11 compiler
+* C++14 compiler
 * CMake 3.6 or later
 * Qt 5.7 and later
 

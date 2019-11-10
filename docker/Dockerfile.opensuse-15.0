@@ -18,3 +18,6 @@ RUN zypper --non-interactive in --no-recommends \
 RUN zypper --non-interactive in --no-recommends \
   libqt5-linguist
 
+RUN zypper --non-interactive in --no-recommends \
+  libqt5-qtx11extras-devel \
+  libusb-1_0-devel

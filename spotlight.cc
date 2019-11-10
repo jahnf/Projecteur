@@ -227,7 +227,7 @@ bool Spotlight::setupDevEventInotify()
     {
       const auto event = reinterpret_cast<const inotify_event*>(at);
 
-      if ((event->mask & (IN_CREATE )) && QString(event->name).startsWith("event"))
+      if ((event->mask & (IN_CREATE)) && QString(event->name).startsWith("event"))
       {
         const auto devicePath = QString("/dev/input/").append(event->name);
         tryConnect(devicePath, 100, 4);

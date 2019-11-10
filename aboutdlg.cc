@@ -101,8 +101,8 @@ QWidget* AboutDialog::createVersionInfoWidget()
   const auto versionInfoWidget = new QWidget(this);
   const auto vbox = new QVBoxLayout(versionInfoWidget);
   const auto versionLabel = new QLabel(QString("<b>%1</b><br>%2")
-                                 .arg(QCoreApplication::applicationName())
-                                 .arg(tr("Version %1", "%1=application version number")
+                                 .arg(QCoreApplication::applicationName(),
+                                      tr("Version %1", "%1=application version number")
                                       .arg(projecteur::version_string())), this);
   vbox->addWidget(versionLabel);
   const auto vInfo = QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2")

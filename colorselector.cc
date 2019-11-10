@@ -9,13 +9,13 @@ ColorSelector::ColorSelector(QWidget* parent)
 }
 
 ColorSelector::ColorSelector(const QColor& color, QWidget* parent)
-  : QPushButton( parent )
+  : QPushButton(parent)
   , m_color(color)
 {
   setMinimumWidth(30);
   updateButton();
   connect(this, &QPushButton::clicked, [this](){
-    const QColor c = QColorDialog::getColor(m_color,this, tr("Select Dot Color"));
+    const QColor c = QColorDialog::getColor(m_color, this, tr("Select Dot Color"));
     if (c.isValid())
       setColor(c);
   });
@@ -28,7 +28,7 @@ void ColorSelector::setColor(const QColor& color)
 
   m_color = color;
   updateButton();
-  emit colorChanged( color );
+  emit colorChanged(color);
 }
 
 void ColorSelector::updateButton()

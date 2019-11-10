@@ -20,3 +20,7 @@ RUN apt-get install -y --no-install-recommends \
   qttools5-dev-tools \
   qt5-default
 
+RUN apt-get install -y --no-install-recommends \
+  libqt5x11extras5-dev \
+  libusb-1.0-0-dev
+
