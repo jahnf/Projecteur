@@ -45,8 +45,8 @@ application youself, make sure you have the correct udev rules installed
 
 ## How it works
 
-Basically the USB Dongle Receiver of the Logitech Spotlight device will end up
-being detected as one mouse input device and one keyboard input device.
+With a connection via the USB Dongle Receiver or via Bluetooth, the Logitech Spotlight
+device will end up being detected by Linux as a mouse input device and a keyboard input device.
 The mouse input device sends relative cursor coordinates and left button presses.
 The keyboard device basically just sends left and right arrow key events when
 forward or back on the device is pressed.
