@@ -46,32 +46,35 @@ int main(int argc, char *argv[])
     const QCommandLineOption versionOption(QStringList{ "v", "version"}, Main::tr("Print application version."));
     const QCommandLineOption fullVersionOption(QStringList{ "f", "fullversion" });
     const QCommandLineOption helpOption(QStringList{ "h", "help"}, Main::tr("Show command line usage."));
+    const QCommandLineOption fullHelpOption(QStringList{ "help-all"}, Main::tr("Show complete command line usage."));
     const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, Main::tr("Set custom config file."), "file");
     const QCommandLineOption commandOption(QStringList{ "c", "command"}, Main::tr("Send command to a running instance."), "cmd");
-    parser.addOptions({versionOption, helpOption, commandOption, cfgFileOption, fullVersionOption});
+    parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption, cfgFileOption, fullVersionOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
       args.push_back(argv[i]);
     }
     parser.process(args);
-    if (parser.isSet(helpOption))
+    if (parser.isSet(helpOption) || parser.isSet(fullHelpOption))
     {
-      print() << QCoreApplication::applicationName().toStdString() << " "
+      print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << std::endl;
       print() << "Usage: projecteur [option]" << std::endl;
       print() << "<Options>";
-      print() << "  -h, --help             " << helpOption.description().toStdString();
-      print() << "  -v, --version          " << versionOption.description().toStdString();
-      print() << "  --cfg FILE             " << cfgFileOption.description().toStdString();
-      print() << "  -c COMMAND|PROPERTY    " << commandOption.description().toStdString() << std::endl;
+      print() << "  -h, --help             " << helpOption.description();
+      print() << "  --help-all             " << fullHelpOption.description();
+      print() << "  -v, --version          " << versionOption.description();
+      print() << "  --cfg FILE             " << cfgFileOption.description();
+      print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       print() << "  quit                   " << Main::tr("Quit the running instance.");
 
-      print() << "" << std::endl << "<Properties>";
+      if (!parser.isSet(fullHelpOption)) return 0;
 
+      print() << "" << std::endl << "<Properties>";
       const auto getValues = [](const Settings::StringProperty& sp) -> QString
       {
         if (sp.type == Settings::StringProperty::Type::Integer
