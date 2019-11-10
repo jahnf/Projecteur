@@ -100,8 +100,8 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   const auto shapeGroup = new QGroupBox(tr("Shape Settings"), this);
 
   const auto spotSizeSpinBox = new QSpinBox(this);
-  spotSizeSpinBox->setMaximum(100);
-  spotSizeSpinBox->setMinimum(5);
+  spotSizeSpinBox->setMaximum(settings->spotSizeRange().max);
+  spotSizeSpinBox->setMinimum(settings->spotSizeRange().min);
   spotSizeSpinBox->setValue(settings->spotSize());
   const auto spotsizeHBox = new QHBoxLayout;
   spotsizeHBox->addWidget(spotSizeSpinBox);
@@ -131,8 +131,8 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
 
   // Spotlight rotation setting
   const auto shapeRotationSb = new QDoubleSpinBox(this);
-  shapeRotationSb->setMaximum(360.0);
-  shapeRotationSb->setMinimum(0.0);
+  shapeRotationSb->setMaximum(settings->spotRotationRange().max);
+  shapeRotationSb->setMinimum(settings->spotRotationRange().min);
   shapeRotationSb->setDecimals(1);
   shapeRotationSb->setSingleStep(1.0);
   shapeRotationSb->setValue(settings->spotRotation());
@@ -230,9 +230,9 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
 {
   const auto spotGroup = new QGroupBox(tr("Show Spotlight Shade"), this);
   spotGroup->setCheckable(true);
-  spotGroup->setChecked(settings->showSpot());
-  connect(spotGroup, &QGroupBox::toggled, settings, &Settings::setShowSpot);
-  connect(settings, &Settings::showSpotChanged, spotGroup, &QGroupBox::setChecked);
+  spotGroup->setChecked(settings->showSpotShade());
+  connect(spotGroup, &QGroupBox::toggled, settings, &Settings::setShowSpotShade);
+  connect(settings, &Settings::showSpotShadeChanged, spotGroup, &QGroupBox::setChecked);
 
   const auto spotGrid = new QGridLayout(spotGroup);
 
@@ -245,8 +245,8 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
 
   // Spotlight shade opacity setting
   const auto shadeOpacitySb = new QDoubleSpinBox(this);
-  shadeOpacitySb->setMaximum(1.0);
-  shadeOpacitySb->setMinimum(0.0);
+  shadeOpacitySb->setMaximum(settings->shadeOpacityRange().max);
+  shadeOpacitySb->setMinimum(settings->shadeOpacityRange().min);
   shadeOpacitySb->setDecimals(2);
   shadeOpacitySb->setSingleStep(0.1);
   shadeOpacitySb->setValue(settings->shadeOpacity());
@@ -272,8 +272,8 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   connect(settings, &Settings::showCenterDotChanged, dotGroup, &QGroupBox::setChecked);
 
   const auto dotSizeSpinBox = new QSpinBox(this);
-  dotSizeSpinBox->setMaximum(100);
-  dotSizeSpinBox->setMinimum(3);
+  dotSizeSpinBox->setMaximum(settings->dotSizeRange().max);
+  dotSizeSpinBox->setMinimum(settings->dotSizeRange().min);
   dotSizeSpinBox->setValue(settings->dotSize());
   auto dotsizeHBox = new QHBoxLayout;
   dotsizeHBox->addWidget(dotSizeSpinBox);
@@ -308,8 +308,8 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   connect(settings, &Settings::showBorderChanged, borderGroup, &QGroupBox::setChecked);
 
   const auto borderSizeSpinBox = new QSpinBox(this);
-  borderSizeSpinBox->setMaximum(100);
-  borderSizeSpinBox->setMinimum(0);
+  borderSizeSpinBox->setMaximum(settings->borderSizeRange().max);
+  borderSizeSpinBox->setMinimum(settings->borderSizeRange().min);
   borderSizeSpinBox->setValue(settings->borderSize());
   auto bordersizeHBox = new QHBoxLayout;
   bordersizeHBox->addWidget(borderSizeSpinBox);
@@ -330,8 +330,8 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
 
   // Spotlight border opacity setting
   const auto borderOpacitySb = new QDoubleSpinBox(this);
-  borderOpacitySb->setMaximum(1.0);
-  borderOpacitySb->setMinimum(0.0);
+  borderOpacitySb->setMaximum(settings->borderOpacityRange().max);
+  borderOpacitySb->setMinimum(settings->borderOpacityRange().min);
   borderOpacitySb->setDecimals(2);
   borderOpacitySb->setSingleStep(0.1);
   borderOpacitySb->setValue(settings->borderOpacity());
@@ -360,8 +360,8 @@ QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
 
   // zoom level setting
   const auto zoomLevelSb = new QDoubleSpinBox(this);
-  zoomLevelSb->setMaximum(20.0);
-  zoomLevelSb->setMinimum(1.5);
+  zoomLevelSb->setMaximum(settings->zoomFactorRange().max);
+  zoomLevelSb->setMinimum(settings->zoomFactorRange().min);
   zoomLevelSb->setDecimals(2);
   zoomLevelSb->setSingleStep(0.1);
   zoomLevelSb->setValue(settings->zoomFactor());

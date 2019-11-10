@@ -9,7 +9,7 @@
 
 namespace {
   namespace settings {
-    constexpr char showSpot[] = "showSpot";
+    constexpr char showSpotShade[] = "showSpot";
     constexpr char spotSize[] = "spotSize";
     constexpr char showCenterDot[] = "showCenterDot";
     constexpr char dotSize[] = "dotSize";
@@ -28,7 +28,7 @@ namespace {
     constexpr char zoomFactor[] = "zoomFactor";
 
     namespace defaultValue {
-      constexpr bool showSpot = true;
+      constexpr bool showSpotShade = true;
       constexpr int spotSize = 32;
       constexpr bool showCenterDot = false;
       constexpr int dotSize = 5;
@@ -45,6 +45,16 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
+    }
+
+    namespace ranges {
+      constexpr SettingRange<int> spotSize{ 5, 100 };
+      constexpr SettingRange<int> dotSize{ 3, 100 };
+      constexpr SettingRange<double> shadeOpacity{ 0.0, 1.0 };
+      constexpr SettingRange<double> spotRotation{ 0.0, 360.0 };
+      constexpr SettingRange<int> borderSize{ 0, 100 };
+      constexpr SettingRange<double> borderOpacity{ 0.0, 1.0 };
+      constexpr SettingRange<double> zoomFactor{ 1.5, 20.0 };
     }
   }
 }
@@ -72,6 +82,14 @@ Settings::~Settings()
 {
 }
 
+const SettingRange<int>& Settings::spotSizeRange() { return ::settings::ranges::spotSize; }
+const SettingRange<int>& Settings::dotSizeRange() { return ::settings::ranges::dotSize; }
+const SettingRange<double>& Settings::shadeOpacityRange() { return ::settings::ranges::shadeOpacity; }
+const SettingRange<double>& Settings::spotRotationRange() { return ::settings::ranges::spotRotation; }
+const SettingRange<int>& Settings::borderSizeRange() { return settings::ranges::borderSize; }
+const SettingRange<double>& Settings::borderOpacityRange() { return settings::ranges::borderOpacity; }
+const SettingRange<double>& Settings::zoomFactorRange() { return settings::ranges::zoomFactor; }
+
 const QList<Settings::SpotShape>& Settings::spotShapes() const
 {
   static const QList<SpotShape> shapes{
@@ -88,7 +106,7 @@ const QList<Settings::SpotShape>& Settings::spotShapes() const
 
 void Settings::setDefaults()
 {
-  setShowSpot(settings::defaultValue::showSpot);
+  setShowSpotShade(settings::defaultValue::showSpotShade);
   setSpotSize(settings::defaultValue::spotSize);
   setShowCenterDot(settings::defaultValue::showCenterDot);
   setDotSize(settings::defaultValue::dotSize);
@@ -187,7 +205,7 @@ void Settings::shapeSettingsInitialize()
 
 void Settings::load()
 {
-  setShowSpot(m_settings->value(::settings::showSpot, settings::defaultValue::showSpot).toBool());
+  setShowSpotShade(m_settings->value(::settings::showSpotShade, settings::defaultValue::showSpotShade).toBool());
   setSpotSize(m_settings->value(::settings::spotSize, settings::defaultValue::spotSize).toInt());
   setShowCenterDot(m_settings->value(::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
   setDotSize(m_settings->value(::settings::dotSize, settings::defaultValue::dotSize).toInt());
@@ -207,14 +225,14 @@ void Settings::load()
   shapeSettingsLoad();
 }
 
-void Settings::setShowSpot(bool show)
+void Settings::setShowSpotShade(bool show)
 {
-  if (show == m_showSpot)
+  if (show == m_showSpotShade)
     return;
 
-  m_showSpot = show;
-  m_settings->setValue(::settings::showSpot, m_showSpot);
-  emit showSpotChanged(m_showSpot);
+  m_showSpotShade = show;
+  m_settings->setValue(::settings::showSpotShade, m_showSpotShade);
+  emit showSpotShadeChanged(m_showSpotShade);
 }
 
 void Settings::setSpotSize(int size)
@@ -222,7 +240,7 @@ void Settings::setSpotSize(int size)
   if (size == m_spotSize)
     return;
 
-  m_spotSize = qMin(qMax(3, size), 100);
+  m_spotSize = qMin(qMax(::settings::ranges::spotSize.min, size), ::settings::ranges::spotSize.max);
   m_settings->setValue(::settings::spotSize, m_spotSize);
   emit spotSizeChanged(m_spotSize);
 }
@@ -242,7 +260,7 @@ void Settings::setDotSize(int size)
   if (size == m_dotSize)
     return;
 
-  m_dotSize = qMin(qMax(3, size), 100);
+  m_dotSize = qMin(qMax(::settings::ranges::dotSize.min, size), ::settings::ranges::dotSize.max);
   m_settings->setValue(::settings::dotSize, m_dotSize);
   emit dotSizeChanged(m_dotSize);
 }
@@ -271,7 +289,7 @@ void Settings::setShadeOpacity(double opacity)
 {
   if (opacity > m_shadeOpacity || opacity < m_shadeOpacity)
   {
-    m_shadeOpacity = qMin(qMax(0.0, opacity), 1.0);
+    m_shadeOpacity = qMin(qMax(::settings::ranges::shadeOpacity.min, opacity), ::settings::ranges::shadeOpacity.max);
     m_settings->setValue(::settings::shadeOpacity, m_shadeOpacity);
     emit shadeOpacityChanged(m_shadeOpacity);
   }
@@ -319,7 +337,7 @@ void Settings::setSpotRotation(double rotation)
 {
   if (rotation > m_spotRotation || rotation < m_spotRotation)
   {
-    m_spotRotation = qMin(qMax(0.0, rotation), 360.0);
+    m_spotRotation = qMin(qMax(::settings::ranges::spotRotation.min, rotation), ::settings::ranges::spotRotation.max);
     m_settings->setValue(::settings::spotRotation, m_spotRotation);
     emit spotRotationChanged(m_spotRotation);
   }
@@ -390,7 +408,7 @@ void Settings::setBorderSize(int size)
   if (size == m_borderSize)
     return;
 
-  m_borderSize = qMin(qMax(0, size), 100);
+  m_borderSize = qMin(qMax(::settings::ranges::borderSize.min, size), ::settings::ranges::borderSize.max);
   m_settings->setValue(::settings::borderSize, m_borderSize);
   emit borderSizeChanged(m_borderSize);
 }
@@ -399,7 +417,7 @@ void Settings::setBorderOpacity(double opacity)
 {
   if (opacity > m_borderOpacity || opacity < m_borderOpacity)
   {
-    m_borderOpacity = qMin(qMax(0.0, opacity), 1.0);
+    m_borderOpacity = qMin(qMax(::settings::ranges::borderOpacity.min, opacity), ::settings::ranges::borderOpacity.max);
     m_settings->setValue(::settings::borderOpacity, m_borderOpacity);
     emit borderOpacityChanged(m_borderOpacity);
   }
@@ -419,7 +437,7 @@ void Settings::setZoomFactor(double factor)
 {
   if (factor > m_zoomFactor || factor < m_zoomFactor)
   {
-    m_zoomFactor = qMin(qMax(1.5, factor), 20.0);
+    m_zoomFactor = qMin(qMax(::settings::ranges::zoomFactor.min, factor), ::settings::ranges::zoomFactor.max);
     m_settings->setValue(::settings::zoomFactor, m_zoomFactor);
     emit zoomFactorChanged(m_zoomFactor);
   }

@@ -45,10 +45,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   setQuitOnLastWindowClosed(false);
 
   m_spotlight = new Spotlight(this);
-  const auto settings = options.configFile.isEmpty() ? new Settings(this)
-                                                     : new Settings(options.configFile, this);
-  m_settings = settings;
-  m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
+  m_settings = options.configFile.isEmpty() ? new Settings(this)
+                                            : new Settings(options.configFile, this);
+  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
@@ -56,14 +55,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   auto screen = screens().first();
-  if (settings->screen() < screens().size()) {
-    screen = screens().at(settings->screen());
+  if (m_settings->screen() < screens().size()) {
+    screen = screens().at(m_settings->screen());
   }
 
   const auto desktopImageProvider = new PixmapProvider(this);
 
   const auto engine = new QQmlApplicationEngine(this);
-  engine->rootContext()->setContextProperty("Settings", settings);
+  engine->rootContext()->setContextProperty("Settings", m_settings);
   engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
   engine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
@@ -135,7 +134,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   // Handling of spotlight window when input from spotlight device is detected
   connect(m_spotlight, &Spotlight::spotActiveChanged,
-  [window, settings, desktopImageProvider](bool active)
+  [window, desktopImageProvider, this](bool active)
   {
     if (active)
     {
@@ -148,7 +147,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
       if (window->screen())
       {
-        if (settings->zoomEnabled()) {
+        if (m_settings->zoomEnabled()) {
           desktopImageProvider->setPixmap(window->screen()->grabWindow(0));
         }
 
@@ -174,7 +173,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   // Handling if the screen in the settings was changed
-  connect(settings, &Settings::screenChanged, [this, window](int screenIdx)
+  connect(m_settings, &Settings::screenChanged, [this, window](int screenIdx)
   {
     if (screenIdx >= screens().size())
       return;
