@@ -12,6 +12,7 @@ class QLocalSocket;
 class QMenu;
 class QSystemTrayIcon;
 class Spotlight;
+class Settings;
 
 class ProjecteurApplication : public QApplication
 {
@@ -38,6 +39,7 @@ private:
   QScopedPointer<AboutDialog> m_aboutDialog;
   QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
+  Settings* m_settings = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
 };
 

@@ -47,6 +47,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   m_spotlight = new Spotlight(this);
   const auto settings = options.configFile.isEmpty() ? new Settings(this)
                                                      : new Settings(options.configFile, this);
+  m_settings = settings;
   m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
   m_dialog->updateAvailableScreens(screens());
 
@@ -279,6 +280,11 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
     const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
     emit m_spotlight->spotActiveChanged(active);
   }
+  else if (cmdKey == "zoom")
+  {
+    const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
+    m_settings->setZoomEnabled(active);
+  }
   else if (cmdKey == "settings" || cmdKey == "preferences")
   {
     const bool show = !(cmdValue == "hide" || cmdValue == "0");
@@ -345,4 +351,3 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 
   localSocket->connectToServer(localServerName());
 }
-
