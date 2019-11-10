@@ -1,17 +1,14 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 # pragma once
 
+#include <functional>
+
 #include <QColor>
 #include <QObject>
 #include <QVariant>
 
 class QSettings;
 class QQmlPropertyMap;
-
-template <typename T> struct SettingRange {
-  const T min;
-  const T max;
-};
 
 class Settings : public QObject
 {
@@ -79,6 +76,11 @@ public:
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
 
+  template <typename T> struct SettingRange {
+    const T min;
+    const T max;
+  };
+
   static const SettingRange<int>& spotSizeRange();
   static const SettingRange<int>& dotSizeRange();
   static const SettingRange<double>& shadeOpacityRange();
@@ -132,6 +134,18 @@ public:
   const QList<SpotShape>& spotShapes() const;
   QQmlPropertyMap* shapeSettings(const QString& shapeName);
 
+  struct StringProperty
+  {
+    enum Type {
+      Integer, Double, Bool, StringEnum, Color
+    };
+    Type type;
+    QVariantList range;
+    std::function<void(const QString&)> setFunction;
+  };
+
+  const QMap<QString, StringProperty>& stringProperties() const;
+
 signals:
   void showSpotShadeChanged(bool show);
   void spotSizeChanged(int size);
@@ -177,6 +191,8 @@ private:
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
 
+  QMap<QString, StringProperty> m_stringPropertyMap;
+
 private:
   void load();
   QObject* shapeSettingsRootObject();
@@ -185,4 +201,5 @@ private:
   void shapeSettingsSetDefaults();
   void shapeSettingsLoad();
   void setSpotRotationAllowed(bool allowed);
+  void initializeStringProperties();
 };
