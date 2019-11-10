@@ -70,6 +70,7 @@ add_custom_target(non-sources SOURCES README.md LICENSE.md)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
+set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur") #used in desktop file template
 
 # Use udev.pc pkg-config file to set the dir path
 if (NOT CMAKE_INSTALL_UDEVRULESDIR)
