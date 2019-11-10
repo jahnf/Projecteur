@@ -52,5 +52,5 @@ class ProjecteurCommandClientApp : public QCoreApplication
   Q_OBJECT
 
 public:
-  explicit ProjecteurCommandClientApp(const QString& ipcCommand, int &argc, char **argv);
+  explicit ProjecteurCommandClientApp(const QStringList& ipcCommands, int &argc, char **argv);
 };

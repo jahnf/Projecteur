@@ -210,7 +210,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         });
         connect(clientConnection, &QLocalSocket::disconnected, [this, clientConnection]() {
           const auto it = m_commandConnections.find(clientConnection);
-          if (it != m_commandConnections.end()) {
+          if (it != m_commandConnections.end())
+          {
+            quint32& commandSize = it->second;
+            while (clientConnection->bytesAvailable() && commandSize <= clientConnection->bytesAvailable()) {
+              this->readCommand(clientConnection);
+            }
             m_commandConnections.erase(it);
           }
           clientConnection->close();
@@ -306,7 +311,8 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
       // string property not found...
     }
   }
-  clientConnection->disconnectFromServer();
+  // reset command size, for next command
+  commandSize = 0;
 }
 
 void ProjecteurApplication::showPreferences(bool show)
@@ -322,10 +328,10 @@ void ProjecteurApplication::showPreferences(bool show)
   }
 }
 
-ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand, int &argc, char **argv)
+ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCommands, int &argc, char **argv)
   : QCoreApplication(argc, argv)
 {
-  if (ipcCommand.isEmpty())
+  if (ipcCommands.isEmpty())
   {
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
     return;
@@ -336,26 +342,32 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
   connect(localSocket,
           static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
   [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
-    qDebug() << tr("Error sending command: %1", "%1=error message").arg(localSocket->errorString());
+    qDebug() << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });
 
-  connect(localSocket, &QLocalSocket::connected, [localSocket, ipcCommand]()
+  connect(localSocket, &QLocalSocket::connected, [localSocket, &ipcCommands]()
   {
-    const QByteArray commandBlock = [&ipcCommand](){
-      const QByteArray ipcBytes = ipcCommand.toLocal8Bit();
-      QByteArray block;
-      {
-        QDataStream out(&block, QIODevice::WriteOnly);
-        out << static_cast<quint32>(ipcBytes.size());
-      }
-      block.append(ipcBytes);
-      return block;
-    }();
+    for (const auto& ipcCommand : ipcCommands)
+    {
+      if (ipcCommand.isEmpty()) continue;
 
-    localSocket->write(commandBlock);
-    localSocket->flush();
+      const QByteArray commandBlock = [&ipcCommand]()
+      {
+        const QByteArray ipcBytes = ipcCommand.toLocal8Bit();
+        QByteArray block;
+        {
+          QDataStream out(&block, QIODevice::WriteOnly);
+          out << static_cast<quint32>(ipcBytes.size());
+        }
+        block.append(ipcBytes);
+        return block;
+      }();
+
+      localSocket->write(commandBlock);
+      localSocket->flush();
+    }
     localSocket->disconnectFromServer();
   });
 

@@ -55,6 +55,7 @@ namespace {
       Contributor("Tiziano Müller", "dev-zero"),
       Contributor("Torsten Maehne", "maehne"),
       Contributor("TBK", "TBK"),
+      Contributor("Louie Lu", "mlouielu"),
     };
 
     std::random_device rd;
@@ -149,7 +150,7 @@ QWidget* AboutDialog::createContributorInfoWidget()
     return font;
   }());
 
-
+  // randomize contributors list on every close
   connect(this, &QDialog::finished, [textBrowser](){
     textBrowser->setHtml(getContributorsHtml());
   });

@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
   QCoreApplication::setApplicationName("Projecteur");
   QCoreApplication::setApplicationVersion(projecteur::version_string());
   ProjecteurApplication::Options options;
-  QString ipcCommand;
+  QStringList ipcCommands;
   {
     QCommandLineParser parser;
     parser.setApplicationDescription(Main::tr("Linux/X11 application for the Logitech Spotlight device."));
@@ -138,9 +138,14 @@ int main(int argc, char *argv[])
     }
     else if (parser.isSet(commandOption))
     {
-      ipcCommand = parser.value(commandOption);
-      if (ipcCommand.isEmpty()) {
-        error() << Main::tr("Command cannot be an empty string.");
+      ipcCommands = parser.values(commandOption);
+      for (auto& value : ipcCommands) {
+        value = value.trimmed();
+      }
+      ipcCommands.removeAll("");
+
+      if (ipcCommands.isEmpty()) {
+        error() << Main::tr("Command/Properties cannot be an empty string.");
         return 44;
       }
     }
@@ -152,19 +157,19 @@ int main(int argc, char *argv[])
   RunGuard guard(QCoreApplication::applicationName());
   if (!guard.tryToRun())
   {
-    if (ipcCommand.size())
+    if (ipcCommands.size())
     {
-      return ProjecteurCommandClientApp(ipcCommand, argc, argv).exec();
+      return ProjecteurCommandClientApp(ipcCommands, argc, argv).exec();
     }
     else {
       error() << Main::tr("Another application instance is already running. Exiting.");
       return 42;
     }
   }
-  else if (ipcCommand.size())
+  else if (ipcCommands.size())
   {
     // No other application instance running - but command option was used.
-    error() << Main::tr("Cannot send command '%1' - no running application instance found.").arg(ipcCommand);
+    error() << Main::tr("Cannot send commands '%1' - no running application instance found.").arg(ipcCommands.join("; "));
     return 43;
   }
 
