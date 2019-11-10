@@ -86,7 +86,7 @@ Window {
 
         OpacityMask {
             id: spot
-            visible: Settings.showSpot
+            visible: Settings.showSpotShade
             opacity: centerRect.opacity
             cached: true
             invert: true

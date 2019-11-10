@@ -1,6 +1,8 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 # pragma once
 
+#include <functional>
+
 #include <QColor>
 #include <QObject>
 #include <QVariant>
@@ -11,7 +13,7 @@ class QQmlPropertyMap;
 class Settings : public QObject
 {
   Q_OBJECT
-  Q_PROPERTY(bool showSpot READ showSpot WRITE setShowSpot NOTIFY showSpotChanged)
+  Q_PROPERTY(bool showSpotShade READ showSpotShade WRITE setShowSpotShade NOTIFY showSpotShadeChanged)
   Q_PROPERTY(int spotSize READ spotSize WRITE setSpotSize NOTIFY spotSizeChanged)
   Q_PROPERTY(bool showCenterDot READ showCenterDot WRITE setShowCenterDot NOTIFY showCenterDotChanged)
   Q_PROPERTY(int dotSize READ dotSize WRITE setDotSize NOTIFY dotSizeChanged)
@@ -38,8 +40,8 @@ public:
 
   void setDefaults();
 
-  bool showSpot() const { return m_showSpot; }
-  void setShowSpot(bool show);
+  bool showSpotShade() const { return m_showSpotShade; }
+  void setShowSpotShade(bool show);
   int spotSize() const { return m_spotSize; }
   void setSpotSize(int size);
   bool showCenterDot() const { return m_showCenterDot; }
@@ -73,6 +75,19 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
+
+  template <typename T> struct SettingRange {
+    const T min;
+    const T max;
+  };
+
+  static const SettingRange<int>& spotSizeRange();
+  static const SettingRange<int>& dotSizeRange();
+  static const SettingRange<double>& shadeOpacityRange();
+  static const SettingRange<double>& spotRotationRange();
+  static const SettingRange<int>& borderSizeRange();
+  static const SettingRange<double>& borderOpacityRange();
+  static const SettingRange<double>& zoomFactorRange();
 
   class SpotShapeSetting {
   public:
@@ -119,8 +134,20 @@ public:
   const QList<SpotShape>& spotShapes() const;
   QQmlPropertyMap* shapeSettings(const QString& shapeName);
 
+  struct StringProperty
+  {
+    enum Type { Integer, Double, Bool, StringEnum, Color };
+    static QString typeToString(Type type);
+
+    const Type type;
+    const QVariantList range;
+    const std::function<void(const QString&)> setFunction;
+  };
+
+  const QList<QPair<QString, StringProperty>>& stringProperties() const;
+
 signals:
-  void showSpotChanged(bool show);
+  void showSpotShadeChanged(bool show);
   void spotSizeChanged(int size);
   void dotSizeChanged(int size);
   void showCenterDotChanged(bool show);
@@ -145,7 +172,7 @@ private:
   QMap<QString, QQmlPropertyMap*> m_shapeSettings;
   QQmlPropertyMap* m_shapeSettingsRoot;
 
-  bool m_showSpot = true;
+  bool m_showSpotShade = true;
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
   bool m_showCenterDot = false;
   int m_dotSize = 5; ///< Center Dot Size (3-100 pixels)
@@ -164,6 +191,8 @@ private:
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
 
+  QList<QPair<QString, StringProperty>> m_stringPropertyMap;
+
 private:
   void load();
   QObject* shapeSettingsRootObject();
@@ -172,4 +201,5 @@ private:
   void shapeSettingsSetDefaults();
   void shapeSettingsLoad();
   void setSpotRotationAllowed(bool allowed);
+  void initializeStringProperties();
 };

@@ -45,8 +45,8 @@ application youself, make sure you have the correct udev rules installed
 
 ## How it works
 
-Basically the USB Dongle Receiver of the Logitech Spotlight device will end up
-being detected as one mouse input device and one keyboard input device.
+With a connection via the USB Dongle Receiver or via Bluetooth, the Logitech Spotlight
+device will end up being detected by Linux as a mouse input device and a keyboard input device.
 The mouse input device sends relative cursor coordinates and left button presses.
 The keyboard device basically just sends left and right arrow key events when
 forward or back on the device is pressed.
@@ -133,21 +133,25 @@ the preferences and the menu entry to exit the application.
 ### Command Line Interface
 
 Additional to the standard `--help` and `--version` options, there is an option to send
-commands to a running instance of _Projecteur_.
+commands to a running instance of _Projecteur_ and the ability to set properties.
 
 ```
 Usage: projecteur [option]
 
 <Options>
   -h, --help             Show command line usage.
+  --help-all             Show complete command line usage with all properties.
   -v, --version          Print application version.
-  -c COMMAND             Send command to a running instance.
+  --cfg FILE             Set custom config file.
+  -c COMMAND|PROPERTY    Send command/property to a running instance.
 
 <Commands>
   spot=[on|off]          Turn spotlight on/off.
   settings=[show|hide]   Show/hide preferences dialog.
   quit                   Quit the running instance.
 ```
+
+All the properties that can be set via the command line, are listed with the `--help-all` option.
 
 ### Troubleshooting
 

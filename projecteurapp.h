@@ -13,6 +13,7 @@ class QMenu;
 class QSystemTrayIcon;
 class Settings;
 class Spotlight;
+class Settings;
 
 class ProjecteurApplication : public QApplication
 {

@@ -292,7 +292,20 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
     const bool show = !(cmdValue == "hide" || cmdValue == "0");
     showPreferences(show);
   }
-
+  else if (cmdValue.size())
+  {
+    const auto& properties = m_settings->stringProperties();
+    const auto it = std::find_if(properties.cbegin(), properties.cend(),
+    [&cmdKey](const auto& pair){
+      return (pair.first == cmdKey);
+    });
+    if (it != m_settings->stringProperties().cend()) {
+      it->second.setFunction(cmdValue);
+    }
+    else {
+      // string property not found...
+    }
+  }
   clientConnection->disconnectFromServer();
 }
 
@@ -353,4 +366,3 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 
   localSocket->connectToServer(localServerName());
 }
-
