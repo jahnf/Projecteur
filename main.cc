@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
           }
           return QString("(%1)").arg(values.join(", "));
         }
-        return QString::null;
+        return QString();
       };
 
       Settings settings;
