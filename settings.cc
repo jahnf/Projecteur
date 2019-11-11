@@ -544,5 +544,5 @@ QString Settings::StringProperty::typeToString(Type type)
   case Type::Integer: return "Integer";
   case Type::StringEnum: return "Value";
   }
-  return QString::null;
+  return QString();
 }
