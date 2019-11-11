@@ -179,7 +179,7 @@ private:
   QColor m_dotColor;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
-  int m_screen = 0;
+  int m_screen = -1; // inital invalid value, see #26
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;

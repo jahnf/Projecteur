@@ -54,13 +54,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     emit m_spotlight->spotActiveChanged(true);
   });
 
-  auto screen = screens().first();
-  if (m_settings->screen() < screens().size()) {
-    screen = screens().at(m_settings->screen());
-  }
-
   const auto desktopImageProvider = new PixmapProvider(this);
-
   const auto engine = new QQmlApplicationEngine(this);
   engine->rootContext()->setContextProperty("Settings", m_settings);
   engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
@@ -121,10 +115,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
-  window->setScreen(screen);
-  window->setPosition(screen->geometry().topLeft());
-  window->setWidth(screen->geometry().width());
-  window->setHeight(screen->geometry().height());
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
   // Example code for global shortcuts...
