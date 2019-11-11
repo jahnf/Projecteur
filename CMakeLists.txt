@@ -30,17 +30,17 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Gui Quick Widgets REQUIRED)
 
 add_executable(projecteur
-  main.cc
-  aboutdlg.cc           aboutdlg.h
-  colorselector.cc      colorselector.h
-  imageitem.cc          imageitem.h
-  preferencesdlg.cc     preferencesdlg.h
-  projecteurapp.cc      projecteurapp.h
-  runguard.cc           runguard.h
-  settings.cc           settings.h
-  spotlight.cc          spotlight.h
-  spotshapes.cc         spotshapes.h
-  resources.qrc         qml/qml.qrc)
+  src/main.cc
+  src/aboutdlg.cc           src/aboutdlg.h
+  src/colorselector.cc      src/colorselector.h
+  src/imageitem.cc          src/imageitem.h
+  src/preferencesdlg.cc     src/preferencesdlg.h
+  src/projecteurapp.cc      src/projecteurapp.h
+  src/runguard.cc           src/runguard.h
+  src/settings.cc           src/settings.h
+  src/spotlight.cc          src/spotlight.h
+  src/spotshapes.cc         src/spotshapes.h
+  resources.qrc             qml/qml.qrc)
 
 target_link_libraries(projecteur
   PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
