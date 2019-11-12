@@ -196,4 +196,4 @@ If the device shows as not connected, there are some things you can do:
 
 Copyright 2018-2019 [Jahn Fuchs](mailto:projecteur@jahn.textmo.de)
 
-This SDK is distributed under the [MIT License](https://opensource.org/licenses/MIT), see [LICENSE.md](./LICENSE.md) for more information.
+This project is distributed under the [MIT License](https://opensource.org/licenses/MIT), see [LICENSE.md](./LICENSE.md) for more information.
