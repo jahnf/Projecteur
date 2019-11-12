@@ -6,8 +6,6 @@ master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branc
 Linux/X11 application for the Logitech Spotlight device. \
 See **[Download](#download)** section for binary packages.
 
-Copyright 2018-2019 [Jahn Fuchs](mailto:projecteur@jahn.textmo.de)
-
 ## Motivation
 
 I saw the Logitech Spotlight device in action at a conference and liked it
@@ -193,3 +191,9 @@ If the device shows as not connected, there are some things you can do:
 * Make sure you don't have conflicting udev rules installed, e.g. first you installed
   the udev rule yourself and later you used the automatically built Linux packages to
   install _Projecteur_.
+
+## License
+
+Copyright 2018-2019 [Jahn Fuchs](mailto:projecteur@jahn.textmo.de)
+
+This SDK is distributed under the [MIT License](https://opensource.org/licenses/MIT), see [LICENSE.md](./LICENSE.md) for more information.
