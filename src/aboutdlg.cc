@@ -122,9 +122,16 @@ QWidget* AboutDialog::createVersionInfoWidget()
                                                "https://github.com/jahnf/Projecteur</a>"), this);
   weblinkLabel->setOpenExternalLinks(true);
   vbox->addWidget(weblinkLabel);
-
   vbox->addSpacing(20);
-  vbox->addWidget(new QLabel(tr("Qt Version: %1", "%1=qt version number").arg(QT_VERSION_STR), this));
+
+  if (QString(QT_VERSION_STR) != qVersion())
+  {
+    vbox->addWidget(new QLabel(tr("Qt Build Version: %1", "%1=qt version number").arg(QT_VERSION_STR), this));
+    vbox->addWidget(new QLabel(tr("Qt Runtime Version: %1", "%1=qt version number").arg(qVersion()), this));
+  }
+  else {
+    vbox->addWidget(new QLabel(tr("Qt Version: %1", "%1=qt version number").arg(QT_VERSION_STR), this));
+  }
 
   vbox->addStretch(1);
   return versionInfoWidget;

@@ -128,12 +128,6 @@ int main(int argc, char *argv[])
       print() << QCoreApplication::applicationName().toStdString() << " "
               << projecteur::version_string();
 
-      if (parser.isSet(fullVersionOption))
-      {
-        print() << "  - compiler: " << XSTRINGIFY(CXX_COMPILER_ID) << " "
-                                    << XSTRINGIFY(CXX_COMPILER_VERSION);
-      }
-
       if (parser.isSet(fullVersionOption) ||
           (std::string(projecteur::version_branch()) != "master" && 
            std::string(projecteur::version_branch()) != "not-within-git-repo"))
@@ -145,6 +139,14 @@ int main(int argc, char *argv[])
       // Show if we have a build from modified sources
       if (projecteur::version_isdirty())
         print() << "  - dirty-flag: " << projecteur::version_isdirty();
+
+      // Additional useful information
+      if (parser.isSet(fullVersionOption))
+      {
+        print() << "  - compiler: " << XSTRINGIFY(CXX_COMPILER_ID) << " "
+                                    << XSTRINGIFY(CXX_COMPILER_VERSION);
+        print() << "  - Qt-version: build: " << QT_VERSION_STR << ", runtime: " << qVersion();
+      }
 
       return 0;
     }
