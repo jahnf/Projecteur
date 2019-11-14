@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+class QTabWidget;
+
 class AboutDialog : public QDialog
 {
   Q_OBJECT
@@ -12,5 +14,5 @@ public:
 
 private:
   QWidget* createVersionInfoWidget();
-  QWidget* createContributorInfoWidget();
+  QWidget* createContributorInfoWidget(QTabWidget* tabWidget);
 };

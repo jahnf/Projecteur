@@ -17,7 +17,7 @@
 #include <QQmlPropertyMap>
 #include <QScreen>
 #include <QSpinBox>
-#include <QtGlobal>
+#include <QStyle>
 #include <QVBoxLayout>
 
 #include <map>
@@ -82,16 +82,27 @@ QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
 {
   static const auto deviceText = tr("Device connected: %1", "%1=True or False");
   const auto group = new QGroupBox(this);
-  const auto vbox = new QVBoxLayout(group);
+  const auto hbox = new QHBoxLayout(group);
   const auto lbl = new QLabel(deviceText.arg(
                                 spotlight->anySpotlightDeviceConnected() ? tr("True")
                                                                          : tr("False")), this);
   lbl->setToolTip(tr("Connection status of the spotlight device."));
 
-  vbox->addWidget(lbl);
-  connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, [lbl](bool connected) {
+  auto icon = style()->standardIcon(QStyle::SP_MessageBoxWarning); //SP_DialogOkButton
+  const auto iconLbl = new QLabel(this);
+  iconLbl->setPixmap(icon.pixmap(16,16));
+
+  hbox->addWidget(iconLbl);
+  hbox->addWidget(lbl);
+  hbox->setStretch(1,2);
+
+  auto updateStatus = [this, lbl, iconLbl](bool connected) {
     lbl->setText(deviceText.arg(connected ? tr("True") : tr("False")));
-  });
+    iconLbl->setPixmap(style()->standardIcon(connected ? QStyle::SP_DialogOkButton
+                                                       : QStyle::SP_MessageBoxWarning).pixmap(16,16));
+  };
+  updateStatus(spotlight->anySpotlightDeviceConnected());
+  connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, std::move(updateStatus));
   return group;
 }
 

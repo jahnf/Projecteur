@@ -40,9 +40,9 @@ namespace {
       constexpr Qt::CursorShape cursor = Qt::BlankCursor;
       constexpr char spotShape[] = "spotshapes/Circle.qml";
       constexpr double spotRotation = 0.0;
-      constexpr bool showBorder = false;
-      constexpr auto borderColor = Qt::red;
-      constexpr int borderSize = 3;
+      constexpr bool showBorder = true;
+      constexpr auto borderColor = "#73d216"; // some kind of neon-like-green
+      constexpr int borderSize = 4;
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;

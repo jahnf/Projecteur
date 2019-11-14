@@ -133,7 +133,7 @@ add_dist_package_target(
   TARGET projecteur
   DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
   DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
-  CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
+  CONTACT "Jahn Fuchs <github.jahnf@wolke7.net>"
   HOMEPAGE "${HOMEPAGE}"
   DEBIAN_SECTION "utils"
   PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
