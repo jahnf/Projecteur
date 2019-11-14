@@ -28,6 +28,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
+find_package(Qt5 QUIET COMPONENTS X11Extras)
+set(HAS_Qt5_X11Extras ${Qt5_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -53,6 +55,11 @@ add_executable(projecteur
 target_link_libraries(projecteur
   PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
 )
+
+if(HAS_Qt5_X11Extras)
+  target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
+  target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+endif()
 
 target_compile_options(projecteur
   PRIVATE

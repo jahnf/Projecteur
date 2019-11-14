@@ -36,6 +36,9 @@ private:
   QGroupBox* createCursorGroupBox(Settings* settings);
   QGroupBox* createZoomGroupBox(Settings* settings);
   QWidget* createConnectedStateWidget(Spotlight* spotlight);
+#if HAS_Qt5_X11Extras
+  QWidget* createCompositorWarningWidget();
+#endif
 
 private:
   bool m_active = false;

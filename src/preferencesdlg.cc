@@ -18,7 +18,12 @@
 #include <QScreen>
 #include <QSpinBox>
 #include <QStyle>
+#include <QTimer>
 #include <QVBoxLayout>
+
+#if HAS_Qt5_X11Extras
+#include <QX11Info>
+#endif
 
 #include <map>
 
@@ -71,8 +76,10 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
 
   const auto mainVBox = new QVBoxLayout(this);
   mainVBox->addLayout(mainHBox);
-  mainVBox->addStretch(1);
   mainVBox->addWidget(createConnectedStateWidget(spotlight));
+#if HAS_Qt5_X11Extras
+  mainVBox->addWidget(createCompositorWarningWidget());
+#endif
   mainVBox->addWidget(testBtn);
   mainVBox->addSpacing(10);
   mainVBox->addLayout(btnHBox);
@@ -88,7 +95,7 @@ QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
                                                                          : tr("False")), this);
   lbl->setToolTip(tr("Connection status of the spotlight device."));
 
-  auto icon = style()->standardIcon(QStyle::SP_MessageBoxWarning); //SP_DialogOkButton
+  auto icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
   const auto iconLbl = new QLabel(this);
   iconLbl->setPixmap(icon.pixmap(16,16));
 
@@ -105,6 +112,53 @@ QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
   connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, std::move(updateStatus));
   return group;
 }
+
+#if HAS_Qt5_X11Extras
+QWidget* PreferencesDialog::createCompositorWarningWidget()
+{
+  if (!QX11Info::isPlatformX11())
+  { // Platform ist not X11, possibly wayland or others...
+    const auto widget = new QWidget(this);
+    widget->setVisible(false);
+    return widget;
+  }
+
+  const auto widget = new QFrame(this);
+  widget->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
+  const auto hbox = new QHBoxLayout(widget);
+
+  const auto iconLabel = new QLabel(this);
+  iconLabel->setPixmap(style()->standardPixmap(QStyle::SP_MessageBoxCritical));
+  hbox->addWidget(iconLabel);
+  const auto textLabel = new QLabel(tr("<b>Warning: No running compositing manager detected!</b>"), this);
+  textLabel->setTextFormat(Qt::RichText);
+  textLabel->setToolTip(tr("Please make sure a compositing manager is running. "
+                           "On some systems one way is to run <tt>xcompmgr</tt> manually."));
+  hbox->addWidget(textLabel);
+  hbox->setStretch(1, 1);
+
+  const auto timer = new QTimer(this);
+  timer->setInterval(1000);
+  timer->setSingleShot(false);
+
+  auto checkForCompositorAndUpdate = [widget](){
+    // Warning visible if no compositor is running.
+    widget->setVisible(!QX11Info::isCompositingManagerRunning());
+  };
+
+  checkForCompositorAndUpdate();
+
+  connect(this, &PreferencesDialog::dialogActiveChanged, this, [timer, checkForCompositorAndUpdate](bool active) {
+    if (active) { checkForCompositorAndUpdate(); timer->start(); } else { timer->stop(); }
+  });
+
+  connect(timer, &QTimer::timeout, this, [checkForCompositorAndUpdate=std::move(checkForCompositorAndUpdate)]() {
+    checkForCompositorAndUpdate();
+  });
+
+  return widget;
+}
+#endif
 
 QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
 {
