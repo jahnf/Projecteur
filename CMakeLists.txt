@@ -27,7 +27,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 COMPONENTS Core Gui Quick Widgets REQUIRED)
+find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
+
+# Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
+# let's warn the user about it.
+if(Qt5_VERSION VERSION_EQUAL "5.8"
+    OR (Qt5_VERSION VERSION_GREATER "5.8" AND Qt5_VERSION VERSION_LESS "5.9"))
+  message(WARNING "There are known issues when using Projecteur with Qt Version 5.8, "
+                  "please use a different Qt Version.")
+endif()
 
 add_executable(projecteur
   src/main.cc
