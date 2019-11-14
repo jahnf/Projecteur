@@ -150,6 +150,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         }
       }
       window->showFullScreen();
+      window->raise();
     }
     else
     {
