@@ -11,11 +11,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-...
-3. See error
+Please describe the steps to reproduce the behavior
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
@@ -23,9 +19,10 @@ A clear and concise description of what you expected to happen.
 **Desktop/Linux Environment (please complete the following information):**
  - Linux Distribution and Version: [e.g. Ubuntu 18.04]
  - Desktop/Window Manager and Version [e.g. GNOME 3.28, KDE 5.4...]
- - Qt Version: [e.g. Qt 5.9.5]
- - Did you built _Projecteur_ yourself?: [y/n]
- - What is the output of `projecteur -f`:
+ - Did you built _Projecteur_ yourself?: `[y/n]` \
+   _(If yes: Please run cmake for existing build directories, to ensure the generated version info is up to date)_
+ - What is the output of `projecteur -f` ?: ...
+ - What is the output of `projecteur -d` ?: ...
 
 **Screenshots**
-If applicable, add screenshots to help explain your problem.
+Only if applicable, add screenshots to help explain your problem.
