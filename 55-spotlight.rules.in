@@ -1,7 +1,7 @@
 # Set up permissions for non root users to open the Logitech Spotlight USB Receiver
 # Enables the Projecteur application to access the device.
 
-# Copy this file to /etc/udev/rules.d/55-spotlight.rules
+# Copy this file to /lib/udev/rules.d/55-spotlight.rules
 
 # Rule for USB Receiver
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="0660", TAG+="uaccess"
