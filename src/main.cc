@@ -4,6 +4,7 @@
 
 #include "runguard.h"
 #include "settings.h"
+#include "spotlight.h"
 
 #include <QCommandLineParser>
 
@@ -53,7 +54,10 @@ int main(int argc, char *argv[])
     const QCommandLineOption fullHelpOption(QStringList{ "help-all"}, Main::tr("Show complete command line usage with all properties."));
     const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, Main::tr("Set custom config file."), "file");
     const QCommandLineOption commandOption(QStringList{ "c", "command"}, Main::tr("Send command/property to a running instance."), "cmd");
-    parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption, cfgFileOption, fullVersionOption});
+    const QCommandLineOption deviceInfoOption(QStringList{ "d", "device-scan"}, Main::tr("Print device-scan results."));
+
+    parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
+                       cfgFileOption, fullVersionOption, deviceInfoOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -70,6 +74,7 @@ int main(int argc, char *argv[])
       print() << "  --help-all             " << fullHelpOption.description();
       print() << "  -v, --version          " << versionOption.description();
       print() << "  --cfg FILE             " << cfgFileOption.description();
+      print() << "  -d, --device-scan      " << deviceInfoOption.description();
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
@@ -129,7 +134,7 @@ int main(int argc, char *argv[])
               << projecteur::version_string();
 
       if (parser.isSet(fullVersionOption) ||
-          (std::string(projecteur::version_branch()) != "master" && 
+          (std::string(projecteur::version_branch()) != "master" &&
            std::string(projecteur::version_branch()) != "not-within-git-repo"))
       { // Not a build from master branch, print out additional information:
         print() << "  - git-branch: " << projecteur::version_branch();
@@ -145,9 +150,48 @@ int main(int argc, char *argv[])
       {
         print() << "  - compiler: " << XSTRINGIFY(CXX_COMPILER_ID) << " "
                                     << XSTRINGIFY(CXX_COMPILER_VERSION);
-        print() << "  - Qt-version: build: " << QT_VERSION_STR << ", runtime: " << qVersion();
+        print() << "  - qt-version: (build: " << QT_VERSION_STR << ", runtime: " << qVersion() << ")";
+
+        const auto result = Spotlight::scanForDevices();
+        print() << "  - device-scan: "
+                << QString("(errors: %1, devices: %2 [readable: %3, writable: %4])")
+                   .arg(result.errorMessages.size()).arg(result.devices.size())
+                   .arg(result.numDevicesReadable).arg(result.numDevicesWritable);
+      }
+      return 0;
+    }
+    else if (parser.isSet(deviceInfoOption))
+    {
+      const auto result = Spotlight::scanForDevices();
+      print() << QCoreApplication::applicationName().toStdString() << " "
+              << projecteur::version_string() << "; " << Main::tr("device scan") << std::endl;
+
+      for (const auto& errmsg : result.errorMessages) {
+        print() << "** " << Main::tr("Error: ") << errmsg;
       }
 
+      print() << (result.errorMessages.size() ? "\n" : "")
+              << Main::tr(" * Found %1 supported devices. (%2 readable, %3 writable)")
+                 .arg(result.devices.size()).arg(result.numDevicesReadable).arg(result.numDevicesWritable);
+
+      const auto busTypeToString = [](Spotlight::Device::BusType type) -> QString {
+        if (type == Spotlight::Device::BusType::Usb) return "USB";
+        if (type == Spotlight::Device::BusType::Bluetooth) return "Bluetooth";
+        return "unknwon";
+      };
+
+      for (const auto& device : result.devices)
+      {
+        print() << "\n"
+                << " +++ " << "name:     '" << device.name << "'";
+        print() << "     " << "vendorId:  " << QString("%1").arg(device.vendorId, 4, 16, QChar('0'));
+        print() << "     " << "productId: " << QString("%1").arg(device.productId, 4, 16, QChar('0'));
+        print() << "     " << "phys:      " << device.phys;
+        print() << "     " << "busType:   " << busTypeToString(device.busType);
+        print() << "     " << "device:    " << device.inputDeviceFile;
+        print() << "     " << "readable:  " << (device.inputDeviceReadable ? "true" : "false");
+        print() << "     " << "writable:  " << (device.inputDeviceWritable ? "true" : "false");
+      }
       return 0;
     }
     else if (parser.isSet(commandOption))

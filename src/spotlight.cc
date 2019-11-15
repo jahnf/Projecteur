@@ -2,7 +2,9 @@
 #include "spotlight.h"
 
 #include <QDirIterator>
+#include <QFileInfo>
 #include <QSocketNotifier>
+#include <QTextStream>
 #include <QTimer>
 #include <QVarLengthArray>
 
@@ -26,6 +28,60 @@ namespace {
     {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
     {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
   };
+
+  bool isDeviceSupported(quint16 vendorId, quint16 productId)
+  {
+    const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
+    [vendorId, productId](const Device& d) {
+      return (vendorId == d.vendorId) && (productId == d.productId);
+    });
+    return it != supportedDevices.cend();
+  }
+
+  quint16 readUShortFromDeviceFile(const QString& filename)
+  {
+    QFile f(filename);
+    if (f.open(QIODevice::ReadOnly)) {
+      return f.readAll().trimmed().toUShort(nullptr, 16);
+    }
+    return 0;
+  }
+
+  quint64 readULongLongFromDeviceFile(const QString& filename)
+  {
+    QFile f(filename);
+    if (f.open(QIODevice::ReadOnly)) {
+      return f.readAll().trimmed().toULongLong(nullptr, 16);
+    }
+    return 0;
+  }
+
+  QString readStringFromDeviceFile(const QString& filename)
+  {
+    QFile f(filename);
+    if (f.open(QIODevice::ReadOnly)) {
+      return f.readAll().trimmed();
+    }
+    return QString();
+  }
+
+  QString readPropertyFromDeviceFile(const QString& filename, const QString& property)
+  {
+    QFile f(filename);
+    if (f.open(QIODevice::ReadOnly)) {
+      auto contents = f.readAll();
+      QTextStream in(&contents, QIODevice::ReadOnly);
+      while (!in.atEnd())
+      {
+        auto line = in.readLine();
+        if (line.startsWith(property) && line.size() > property.size() && line[property.size()] == '=')
+        {
+          return line.mid(property.size() + 1);
+        }
+      }
+    }
+    return QString();
+  }
 }
 
 Spotlight::Spotlight(QObject* parent)
@@ -80,6 +136,7 @@ int Spotlight::connectDevices()
     it.next();
     if (it.fileName().startsWith("event"))
     {
+
       const auto found = m_eventNotifiers.find(it.filePath());
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
@@ -104,27 +161,34 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   struct input_id id{};
   ioctl(evfd, EVIOCGID, &id);
 
-  const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
-  [&id](const Device& d) {
-    return (id.vendor == d.vendorId) && (id.product == d.productId);
-  });
-
-  if (it == supportedDevices.cend())
+  if (!isDeviceSupported(id.vendor, id.product))
   {
     ::close(evfd);
     return ConnectionResult::NotASpotlightDevice;
   }
 
   unsigned long bitmask = 0;
-  const int len = ioctl(evfd, EVIOCGBIT(0, sizeof(bitmask)), &bitmask);
+  int len = ioctl(evfd, EVIOCGBIT(0, sizeof(bitmask)), &bitmask);
   if (len < 0)
   {
     ::close(evfd);
     return ConnectionResult::NotASpotlightDevice;
   }
 
+  // Checking if the device supports relative events,
+  // e.g. the second HID device acts just as keyboard and has no relative events
   const bool hasRelEv = !!(bitmask & (1 << EV_REL));
   if (!hasRelEv) { return ConnectionResult::NotASpotlightDevice; }
+
+  unsigned long relEvents = 0;
+  len = ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
+
+  const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
+  const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
+
+  if (!hasRelXEvents || !hasRelYEvents) {
+    return ConnectionResult::NotASpotlightDevice;
+  }
 
   if(id.bustype == BUS_BLUETOOTH)
   {
@@ -165,7 +229,8 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    if (sz == sizeof(ev) && ev.type & EV_REL) // only for relative mouse events
+    // only for relative x/y events
+    if (sz == sizeof(ev) && ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y))
     {
       if (!m_activeTimer->isActive()) {
         m_spotActive = true;
@@ -257,3 +322,87 @@ void Spotlight::tryConnect(const QString& devicePath, int msec, int retries)
   });
 }
 
+Spotlight::ScanResult Spotlight::scanForDevices()
+{
+  constexpr char hidDevicePath[] = "/sys/bus/hid/devices";
+
+  ScanResult result;
+  const QFileInfo dpInfo(hidDevicePath);
+
+  if (!dpInfo.exists()) {
+    result.errorMessages.push_back(tr("HID device path '%1' does not exist.").arg(hidDevicePath));
+    return result;
+  }
+
+  if (!dpInfo.isExecutable()) {
+    result.errorMessages.push_back(tr("HID device path '%1': Cannot list files.").arg(hidDevicePath));
+    return result;
+  }
+
+  QDirIterator hidIt(hidDevicePath, QDir::System | QDir::Dirs | QDir::Executable | QDir::NoDotAndDotDot);
+  while (hidIt.hasNext())
+  {
+    hidIt.next();
+    const QFileInfo inputSubdir(QDir(hidIt.filePath()).filePath("input"));
+    if (!inputSubdir.exists() || !inputSubdir.isExecutable()) continue;
+
+    QDirIterator inputIt(inputSubdir.filePath(), QDir::System | QDir::Dirs | QDir::Executable | QDir::NoDotAndDotDot);
+    while (inputIt.hasNext())
+    {
+      inputIt.next();
+
+      Device device;
+      device.vendorId = readUShortFromDeviceFile(QDir(inputIt.filePath()).filePath("id/vendor"));
+      device.productId = readUShortFromDeviceFile(QDir(inputIt.filePath()).filePath("id/product"));
+
+      // Skip unsupported and devices where the vendor or product id could not be read
+      if (device.vendorId == 0 || device.productId == 0) continue;
+      if (!isDeviceSupported(device.vendorId, device.productId)) continue;
+
+      // Check if device supports relative events
+      const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));
+      const bool hasRelativeEvents = !!(supportedEvents & (1 << EV_REL));
+      // .. if not skip this device
+      if (!hasRelativeEvents) continue;
+
+      // Check if device supports relative x and y event types
+      const auto supportedRelEv = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/rel"));
+      const bool hasRelXEvents = !!(supportedRelEv & (1 << REL_X));
+      const bool hasRelYEvents = !!(supportedRelEv & (1 << REL_Y));
+      // .. if not skip this device
+      if (!hasRelXEvents || !hasRelYEvents) continue;
+
+
+      QDirIterator dirIt(inputIt.filePath(), QDir::System | QDir::Dirs | QDir::Executable | QDir::NoDotAndDotDot);
+      while (dirIt.hasNext())
+      {
+        dirIt.next();
+        if (!dirIt.fileName().startsWith("event")) continue;
+        device.inputDeviceFile = readPropertyFromDeviceFile(QDir(dirIt.filePath()).filePath("uevent"), "DEVNAME");
+        if (!device.inputDeviceFile.isEmpty()) {
+          device.inputDeviceFile = QDir("/dev").filePath(device.inputDeviceFile);
+          break;
+        }
+      }
+
+      // read the rest of the device info
+      device.name = readStringFromDeviceFile(QDir(inputIt.filePath()).filePath("name"));
+      device.phys = readStringFromDeviceFile(QDir(inputIt.filePath()).filePath("phys"));
+      const auto busType = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("id/bustype"));
+      switch (busType)
+      {
+        case BUS_USB: device.busType = Device::BusType::Usb; break;
+        case BUS_BLUETOOTH: device.busType = Device::BusType::Bluetooth; break;
+        default: break;
+      }
+
+      const QFileInfo fi(device.inputDeviceFile);
+      device.inputDeviceReadable = fi.isReadable();
+      device.inputDeviceWritable = fi.isWritable();
+      result.numDevicesReadable += device.inputDeviceReadable;
+      result.numDevicesWritable += device.inputDeviceWritable;
+      result.devices.push_back(device);
+    }
+  }
+  return result;
+}
