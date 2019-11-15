@@ -35,6 +35,7 @@ private slots:
 
 private:
   void showPreferences(bool show = true);
+  void setScreenForCursorPos();
 
 private:
   QScopedPointer<QSystemTrayIcon> m_trayIcon;
