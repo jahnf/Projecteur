@@ -32,6 +32,7 @@ class Settings : public QObject
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
+  Q_PROPERTY(int dblClickDuration READ dblClickDuration WRITE setDblClickDuration NOTIFY dblClickDurationChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -75,6 +76,8 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
+  int dblClickDuration() const { return m_dblClickDuration; }
+  void setDblClickDuration(int duration_msec);
 
   template <typename T> struct SettingRange {
     const T min;
@@ -165,6 +168,7 @@ signals:
   void borderOpacityChanged(double opacity);
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
+  void dblClickDurationChanged(int duration_msec);
 
 private:
   QSettings* m_settings = nullptr;
@@ -190,6 +194,7 @@ private:
   double m_borderOpacity = 0.8;
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
+  int m_dblClickDuration = 300;
 
   QList<QPair<QString, StringProperty>> m_stringPropertyMap;
 

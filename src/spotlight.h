@@ -1,6 +1,8 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
+#include "uinputevents.h"
+
 #include <QObject>
 #include <map>
 
@@ -50,6 +52,7 @@ signals:
   void disconnected(const QString& devicePath); //!< signal for every device disconnected
   void anySpotlightDeviceConnectedChanged(bool connected);
   void spotActiveChanged(bool isActive);
+  void spotModeChanged();
 
 private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
@@ -62,4 +65,7 @@ private:
   std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
   QTimer* m_activeTimer;
   bool m_spotActive = false;
+  bool m_presenterClicked = false;
+  QTimer* m_presenterClickTimer;
+  uinputEvents* m_virtualdev;
 };

@@ -1,5 +1,6 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
+#include "uinputevents.h"
 
 #include <QDirIterator>
 #include <QFileInfo>
@@ -87,13 +88,26 @@ namespace {
 Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
   , m_activeTimer(new QTimer(this))
+  , m_presenterClickTimer(new QTimer(this))
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
+  m_presenterClickTimer->setSingleShot(true);
+  m_presenterClickTimer->setInterval(300);
+  m_virtualdev->getInstance();
 
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
+  });
+
+  connect(m_presenterClickTimer, &QTimer::timeout, [this](){
+    if (m_presenterClicked)
+    {
+      //Send fake mouse click
+      m_virtualdev->mouseLeftClick();
+      m_presenterClicked = false;
+    }
   });
 
   // Try to find an already attached device(s) and connect to it.
@@ -136,13 +150,13 @@ int Spotlight::connectDevices()
     it.next();
     if (it.fileName().startsWith("event"))
     {
-
       const auto found = m_eventNotifiers.find(it.filePath());
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
       }
-
-      if (connectSpotlightDevice(it.filePath()) == ConnectionResult::Connected) {
+      const QString& dev_file = it.filePath();
+      if (connectSpotlightDevice(dev_file) == ConnectionResult::Connected) {
+        qDebug("Connected device: %s", qUtf8Printable(dev_file));
         ++count;
       }
     }
@@ -190,6 +204,16 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     return ConnectionResult::NotASpotlightDevice;
   }
 
+  // The device is a valid spotlight mouse events device. Grab its input
+  int res = ioctl(evfd, EVIOCGRAB, 1);
+  if (res!=0) {
+    // Grab not successful
+    ioctl(evfd, EVIOCGRAB, 0);
+    ::close(evfd);
+    return ConnectionResult::CouldNotOpen;
+  }
+
+
   if(id.bustype == BUS_BLUETOOTH)
   {
     // Known issue (at least on Ubuntu systems):
@@ -230,13 +254,29 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
     // only for relative x/y events
-    if (sz == sizeof(ev) && ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y))
+    if (sz == sizeof(ev))
     {
-      if (!m_activeTimer->isActive()) {
-        m_spotActive = true;
-        emit spotActiveChanged(true);
-      }
-      m_activeTimer->start();
+      if (ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y)){
+        if (!m_activeTimer->isActive()) {
+          m_spotActive = true;
+          emit spotActiveChanged(true);
+        }
+          // Send the relative event as fake mouse movement
+          m_virtualdev->emitEvent(ev);
+          m_activeTimer->start();
+      }else
+        if (ev.type == EV_KEY && (ev.code == 272 && ev.value == 0)) {// BTN_LEFT released
+          //Check for possible double click event
+          if (m_presenterClickTimer->isActive()){
+            // Double Click Event
+            emit spotModeChanged();
+            m_presenterClicked = false;
+          } else {
+            // Start the Dbl Click timer and if it times out then go for single click event
+            m_presenterClickTimer->start();
+            m_presenterClicked = true;
+          }
+        }
     }
     else if (sz == -1)
     {

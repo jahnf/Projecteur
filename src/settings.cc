@@ -28,6 +28,7 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
+    constexpr char dblClickDuration[] = "dblClickDuration";
 
     namespace defaultValue {
       constexpr bool showSpotShade = true;
@@ -46,6 +47,7 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
+      constexpr int dblClickDuration = 300;
     }
 
     namespace ranges {
@@ -213,6 +215,7 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
+  setDblClickDuration(settings::defaultValue::dblClickDuration);
   shapeSettingsSetDefaults();
 }
 
@@ -311,6 +314,7 @@ void Settings::load()
   setBorderOpacity(m_settings->value(::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   setZoomEnabled(m_settings->value(::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
   setZoomFactor(m_settings->value(::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
+  setDblClickDuration(m_settings->value(::settings::dblClickDuration, settings::defaultValue::dblClickDuration).toInt());
   shapeSettingsLoad();
 }
 
@@ -530,6 +534,17 @@ void Settings::setZoomFactor(double factor)
     m_settings->setValue(::settings::zoomFactor, m_zoomFactor);
     emit zoomFactorChanged(m_zoomFactor);
   }
+}
+
+void Settings::setDblClickDuration(int duration_msec)
+{
+  if (m_dblClickDuration == duration_msec)
+      return;
+
+  m_dblClickDuration = duration_msec;
+  m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
+  emit dblClickDurationChanged(m_dblClickDuration);
+
 }
 
 QString Settings::StringProperty::typeToString(Type type)

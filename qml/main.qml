@@ -60,6 +60,7 @@ Window {
                 hoverEnabled: true
                 onClicked: { mainWindow.hide() }
                 onExited: { ProjecteurApp.cursorExitedWindow() }
+                onDoubleClicked: {Settings.setZoomEnabled(!Settings.zoomEnabled())}
             }
         }
 

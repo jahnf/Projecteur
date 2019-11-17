@@ -158,6 +158,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       window->hide();
     }
   });
+  connect(m_spotlight, &Spotlight::spotModeChanged,
+  [this]()
+  {
+    m_settings->setZoomEnabled(!m_settings->zoomEnabled());
+  });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){
     if (!v && m_dialog->isVisible()) {
