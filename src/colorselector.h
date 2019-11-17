@@ -16,7 +16,7 @@ public:
   QColor color() const { return m_color; }
 
 signals:
-  void colorChanged(const QColor);
+  void colorChanged(QColor);
 
 private:
   void updateButton();

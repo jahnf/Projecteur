@@ -1,7 +1,7 @@
 # Container for building the Projecteur package
 # Images available at: https://hub.docker.com/r/jahnf/projecteur/tags
 
-FROM ubuntu:18.04
+FROM ubuntu:19.10
 
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \

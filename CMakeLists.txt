@@ -20,29 +20,54 @@ project(Projecteur LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
+include(Translation)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 COMPONENTS Core Gui Quick Widgets REQUIRED)
+find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
+find_package(Qt5 QUIET COMPONENTS X11Extras)
+set(HAS_Qt5_X11Extras ${Qt5_FOUND})
+
+# Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
+# let's warn the user about it.
+if(Qt5_VERSION VERSION_EQUAL "5.8"
+    OR (Qt5_VERSION VERSION_GREATER "5.8" AND Qt5_VERSION VERSION_LESS "5.9"))
+  message(WARNING "There are known issues when using Projecteur with Qt Version 5.8, "
+                  "please use a different Qt Version.")
+endif()
 
 add_executable(projecteur
-  main.cc
-  aboutdlg.cc           aboutdlg.h
-  colorselector.cc      colorselector.h
-  preferencesdlg.cc     preferencesdlg.h
-  projecteurapp.cc      projecteurapp.h
-  runguard.cc           runguard.h
-  settings.cc           settings.h
-  spotlight.cc          spotlight.h
-  spotshapes.cc         spotshapes.h
-  resources.qrc         qml/qml.qrc)
+  src/main.cc
+  src/aboutdlg.cc           src/aboutdlg.h
+  src/colorselector.cc      src/colorselector.h
+  src/imageitem.cc          src/imageitem.h
+  src/preferencesdlg.cc     src/preferencesdlg.h
+  src/projecteurapp.cc      src/projecteurapp.h
+  src/runguard.cc           src/runguard.h
+  src/settings.cc           src/settings.h
+  src/spotlight.cc          src/spotlight.h
+  src/spotshapes.cc         src/spotshapes.h
+  resources.qrc             qml/qml.qrc)
 
 target_link_libraries(projecteur
-  Qt5::Core Qt5::Quick Qt5::Widgets
+  PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
 )
+
+if(HAS_Qt5_X11Extras)
+  target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
+  target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+endif()
+
+target_compile_options(projecteur
+  PRIVATE
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall -Wextra>
+)
+
+target_compile_definitions(projecteur PRIVATE
+  CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} CXX_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION})
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
 # If creating the version number via git information fails, the following target properties
@@ -51,18 +76,31 @@ target_link_libraries(projecteur
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES 
   VERSION_MAJOR 0
-  VERSION_MINOR 5
+  VERSION_MINOR 6
   VERSION_PATCH 0
   VERSION_TYPE release
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Create files containing generated version strings, helping package maintainers
+get_target_property(PROJECTEUR_VERSION_STRING projecteur VERSION_STRING)
+# Arch Linux = PKGBUILD/makepkg: '-' is not allowed in version number
+string(REPLACE "-" "" PROJECTEUR_VERSION_STRING_ARCHLINUX "${PROJECTEUR_VERSION_STRING}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version-string" "${PROJECTEUR_VERSION_STRING}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version-string.archlinux" "${PROJECTEUR_VERSION_STRING_ARCHLINUX}")
+
+# Translation
+list(APPEND languages de fr es)
+set(ts_directories "${CMAKE_CURRENT_SOURCE_DIR}/i18n")
+add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directories}" "${languages}")
+add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
-set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur")
+set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur") #used in desktop file template
 
 # Use udev.pc pkg-config file to set the dir path
 if (NOT CMAKE_INSTALL_UDEVRULESDIR)
@@ -86,7 +124,6 @@ set (CMAKE_INSTALL_UDEVRULESDIR ${UDEVDIR}/rules.d CACHE PATH "Where to install 
 mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 
 # Configure and install files
-set(DEVICE_USER_GROUP spotlight-device)
 set(OUTDIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(TMPLDIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates")
 
@@ -106,8 +143,13 @@ configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
 
 set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
-# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+# --- Linux packaging ---
 include(LinuxPackaging)
+
+# Add 'source-archive' target
+add_source_archive_target(projecteur)
+
+# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
 add_dist_package_target(
   PROJECT "${CMAKE_PROJECT_NAME}" 
   TARGET projecteur
@@ -119,7 +161,4 @@ add_dist_package_target(
   PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
   POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
 )
-
-# Add 'source-archive' target
-add_source_archive_target(projecteur)
 

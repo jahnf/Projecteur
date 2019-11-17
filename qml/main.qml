@@ -3,6 +3,8 @@ import QtQuick 2.3
 import QtQuick.Window 2.2
 import QtGraphicalEffects 1.0
 
+import Projecteur.Utils 1.0 as Utils
+
 Window {
     id: mainWindow
     width: 300; height: 200
@@ -21,6 +23,35 @@ Window {
         rotation: Settings.spotRotationAllowed ? Settings.spotRotation : 0
 
         Item {
+            id: desktopItem
+            anchors.centerIn: centerRect
+            visible: false; enabled: false; clip: true
+            scale: Settings.zoomFactor
+            width: centerRect.width / scale; height: centerRect.height / scale
+
+            Utils.Image {
+                id: desktopImage
+                pixmap: DesktopImage.pixmap
+                smooth: rotation == 0 ? false : true
+                rotation: -rotationItem.rotation
+                readonly property real xOffset: Math.floor(parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2))
+                readonly property real yOffset: Math.floor(parent.height/2.0 + ((rotationItem.height-mainWindow.height)/2))
+                x: -ma.mouseX + xOffset
+                y: -ma.mouseY + yOffset
+                width: mainWindow.width; height: mainWindow.height
+            }
+        }
+
+        OpacityMask {
+            visible: Settings.zoomEnabled
+            cached: true
+            anchors.fill: centerRect
+            source: desktopItem
+            maskSource: spotShapeLoader.item
+            enabled: false
+        }
+
+        Item {
             anchors.fill: parent
             MouseArea {
                 id: ma
@@ -28,6 +59,7 @@ Window {
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: { mainWindow.hide() }
+                onExited: { ProjecteurApp.cursorExitedWindow() }
             }
         }
 
@@ -46,19 +78,65 @@ Window {
 
         Loader {
             id: spotShapeLoader
+            visible: false; enabled: false
+            anchors.centerIn: centerRect
             width: centerRect.width;  height: width
             sourceComponent: Qt.createComponent(Settings.spotShape)
         }
 
         OpacityMask {
             id: spot
-            visible: Settings.showSpot
+            visible: Settings.showSpotShade
             opacity: centerRect.opacity
             cached: true
             invert: true
             anchors.fill: centerRect
             source: centerRect
             maskSource: spotShapeLoader.item
+            enabled: false
+        }
+
+        Loader {
+            id: borderShapeLoader
+            anchors.centerIn: centerRect
+            width: centerRect.width;  height: width
+            visible: false; enabled: false
+            sourceComponent: spotShapeLoader.sourceComponent
+            onStatusChanged: {
+                if (status == Loader.Ready) {
+                    borderShapeLoader.item.color = Qt.binding(function(){ return Settings.borderColor; })
+                }
+            }
+        }
+
+        Item {
+            id: borderShapeMask
+            anchors.centerIn: centerRect
+            width: centerRect.width;  height: width
+            enabled: false; visible: false
+            Item {
+                id: borderShapeScaled
+                anchors.centerIn: parent
+                width: parent.width; height: width
+                scale: (100 - Settings.borderSize) * 1.0 / 100.0
+                property Component component: borderShapeLoader.sourceComponent
+                property QtObject innerObject
+                onComponentChanged: {
+                    if (innerObject) innerObject.destroy()
+                    innerObject = component.createObject(borderShapeScaled, {visible: true})
+                }
+            }
+        }
+
+        OpacityMask {
+            id: spotBorder
+            visible: Settings.showBorder && Settings.borderSize > 0
+            opacity: Settings.borderOpacity
+            cached: true
+            invert: true
+            anchors.fill: centerRect
+            source: borderShapeLoader.item
+            maskSource: borderShapeMask
             enabled: false
         }
 

@@ -3,15 +3,16 @@
 
 #include <QDialog>
 
+class QTabWidget;
+
 class AboutDialog : public QDialog
 {
   Q_OBJECT
 
 public:
   explicit AboutDialog(QWidget* parent = nullptr);
-  virtual ~AboutDialog() override = default;
 
 private:
   QWidget* createVersionInfoWidget();
-  QWidget* createContributorInfoWidget();
+  QWidget* createContributorInfoWidget(QTabWidget* tabWidget);
 };

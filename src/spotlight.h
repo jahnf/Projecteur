@@ -7,8 +7,8 @@
 class QSocketNotifier;
 class QTimer;
 
-/// Simple class to notify the application if the Logitech Spotlight sending mouse move events.
-/// Used to turn the applications spot on or off.
+/// Simple class to notify the application if the Logitech Spotlight and other supported devices
+/// are sending mouse move events. Used to turn the applications spot on or off.
 class Spotlight : public QObject
 {
   Q_OBJECT
@@ -20,6 +20,29 @@ public:
   bool spotActive() const { return m_spotActive; }
   bool anySpotlightDeviceConnected() const;
   QStringList connectedDevices() const;
+
+
+  struct Device {
+    enum class BusType { Unknown, Usb, Bluetooth };
+    QString name;
+    quint16 vendorId = 0;
+    quint16 productId = 0;
+    BusType busType = BusType::Unknown;
+    QString phys;
+    QString inputDeviceFile;
+    bool inputDeviceReadable = false;
+    bool inputDeviceWritable = false;
+  };
+
+  struct ScanResult {
+    QList<Device> devices;
+    quint16 numDevicesReadable = 0;
+    quint16 numDevicesWritable = 0;
+    QStringList errorMessages;
+  };
+
+  /// scan for supported devices and check if they are accessible
+  static ScanResult scanForDevices();
 
 signals:
   void error(const QString& errMsg);

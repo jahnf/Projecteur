@@ -27,7 +27,7 @@ int SpotShapeStar::qmlRegister()
 
 QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updatePaintNodeData)
 {
-  if (width() <= 0 || height() <= 0 || m_color.alpha() == 0 ) {
+  if (width() <= 0 || height() <= 0 || m_color.alpha() == 0) {
     delete oldNode;
     return nullptr;
   }
@@ -38,13 +38,13 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   const auto vertexCount = m_points*2+2;
 
   // Create geometry node for colored shape
-  QSGGeometryNode* geometryNode = static_cast<QSGGeometryNode *>(oldNode);
+  auto geometryNode = static_cast<QSGGeometryNode *>(oldNode);
   if (geometryNode == nullptr)
   {
     geometryNode = new QSGGeometryNode();
 
     // Set geometry
-    QSGGeometry* const geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
+    const auto geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
 
     #if QT_VERSION >= 0x050800
       geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
@@ -61,8 +61,11 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   }
   else {
     const auto geometry = geometryNode->geometry();
-    if( geometry->vertexCount() != vertexCount ) {
+    if (geometry->vertexCount() != vertexCount) {
       geometry->allocate(vertexCount);
+    }
+    if (auto material = static_cast<QSGFlatColorMaterial*>(geometryNode->material())) {
+      material->setColor(m_color);
     }
   }
 
@@ -193,7 +196,7 @@ void SpotShapeNGon::setSides(int sides)
 
 QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* updatePaintNodeData)
 {
-  if (width() <= 0 || height() <= 0 || m_color.alpha() == 0 ) {
+  if (width() <= 0 || height() <= 0 || m_color.alpha() == 0) {
     delete oldNode;
     return nullptr;
   }
@@ -204,13 +207,13 @@ QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   const auto vertexCount = m_sides + 2;
 
   // Create geometry node for colored shape
-  QSGGeometryNode* geometryNode = static_cast<QSGGeometryNode *>(oldNode);
+  auto geometryNode = static_cast<QSGGeometryNode *>(oldNode);
   if (geometryNode == nullptr)
   {
     geometryNode = new QSGGeometryNode();
 
     // Set geometry
-    QSGGeometry* const geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
+    const auto geometry = new QSGGeometry(QSGGeometry::defaultAttributes_Point2D(), vertexCount);
 
     #if QT_VERSION >= 0x050800
       geometry->setDrawingMode(QSGGeometry::DrawTriangleFan);
@@ -220,15 +223,18 @@ QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     geometryNode->setGeometry(geometry);
     geometryNode->setFlag(QSGNode::OwnsGeometry, true);
 
-    QSGFlatColorMaterial * const material = new QSGFlatColorMaterial();
+    const auto material = new QSGFlatColorMaterial();
     material->setColor(m_color);
     geometryNode->setMaterial(material);
     geometryNode->setFlag(QSGNode::OwnsMaterial);
   }
   else {
     const auto geometry = geometryNode->geometry();
-    if( geometry->vertexCount() != vertexCount ) {
+    if (geometry->vertexCount() != vertexCount) {
       geometry->allocate(vertexCount);
+    }
+    if (auto material = static_cast<QSGFlatColorMaterial*>(geometryNode->material())) {
+      material->setColor(m_color);
     }
   }
 

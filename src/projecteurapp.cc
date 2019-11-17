@@ -2,11 +2,13 @@
 #include "projecteurapp.h"
 
 #include "aboutdlg.h"
+#include "imageitem.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
 #include "spotlight.h"
 
+#include <QDesktopWidget>
 #include <QDialog>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -28,7 +30,7 @@ namespace {
   }
 }
 
-ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
+ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Options& options)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon())
   , m_trayMenu(new QMenu())
@@ -44,22 +46,20 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   setQuitOnLastWindowClosed(false);
 
   m_spotlight = new Spotlight(this);
-  const auto settings = new Settings(this);
-  m_dialog.reset(new PreferencesDialog(settings, m_spotlight));
-  m_dialog->updateAvailableScreens(screens());
+  m_settings = options.configFile.isEmpty() ? new Settings(this)
+                                            : new Settings(options.configFile, this);
+  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
     emit m_spotlight->spotActiveChanged(true);
   });
 
-  auto screen = screens().first();
-  if (settings->screen() < screens().size()) {
-    screen = screens().at(settings->screen());
-  }
-
+  const auto desktopImageProvider = new PixmapProvider(this);
   const auto engine = new QQmlApplicationEngine(this);
-  engine->rootContext()->setContextProperty("Settings", settings);
+  engine->rootContext()->setContextProperty("Settings", m_settings);
   engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
+  engine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
+  engine->rootContext()->setContextProperty("ProjecteurApp", this);
   engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
   const auto window = topLevelWindows().first();
 
@@ -115,10 +115,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   });
 
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
-  window->setScreen(screen);
-  window->setPosition(screen->geometry().topLeft());
-  window->setWidth(screen->geometry().width());
-  window->setHeight(screen->geometry().height());
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
   // Example code for global shortcuts...
@@ -128,10 +124,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   //  });
 
   // Handling of spotlight window when input from spotlight device is detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, [window](bool active)
+  connect(m_spotlight, &Spotlight::spotActiveChanged,
+  [window, desktopImageProvider, this](bool active)
   {
     if (active)
     {
+      setScreenForCursorPos();
+
       window->setFlags(window->flags() | Qt::SplashScreen);
       window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
       window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
@@ -141,12 +140,17 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
 
       if (window->screen())
       {
+        if (m_settings->zoomEnabled()) {
+          desktopImageProvider->setPixmap(window->screen()->grabWindow(0));
+        }
+
         const auto screenGeometry = window->screen()->geometry();
         if (window->geometry() != screenGeometry) {
           window->setGeometry(screenGeometry);
         }
       }
       window->showFullScreen();
+      window->raise();
     }
     else
     {
@@ -163,7 +167,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   });
 
   // Handling if the screen in the settings was changed
-  connect(settings, &Settings::screenChanged, [this, window](int screenIdx)
+  connect(m_settings, &Settings::screenChanged, [this, window](int screenIdx)
   {
     if (screenIdx >= screens().size())
       return;
@@ -197,7 +201,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
         });
         connect(clientConnection, &QLocalSocket::disconnected, [this, clientConnection]() {
           const auto it = m_commandConnections.find(clientConnection);
-          if (it != m_commandConnections.end()) {
+          if (it != m_commandConnections.end())
+          {
+            quint32& commandSize = it->second;
+            while (clientConnection->bytesAvailable() && commandSize <= clientConnection->bytesAvailable()) {
+              this->readCommand(clientConnection);
+            }
             m_commandConnections.erase(it);
           }
           clientConnection->close();
@@ -219,13 +228,34 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv)
   }
   else
   {
-    qDebug() << "Error starting local socket for inter-process communication.";
+    qDebug() << tr("Error starting local socket for inter-process communication.");
   }
 }
 
 ProjecteurApplication::~ProjecteurApplication()
 {
   if (m_localServer) m_localServer->close();
+}
+
+void ProjecteurApplication::cursorExitedWindow()
+{
+  setScreenForCursorPos();
+}
+
+void ProjecteurApplication::setScreenForCursorPos()
+{
+  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
+
+  // Alternative to using QApplication->desktop() / just in case QDesktopWidget gets removed in the future from Qt.
+//  int screenNumber = 0;
+//  const auto pos = QCursor::pos();
+//  for (const auto& screen : screens()) {
+//    if (screen->geometry().contains(pos)) {
+//      m_settings->setScreen(screenNumber);
+//      break;
+//    }
+//    ++screenNumber;
+//  }
 }
 
 void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
@@ -274,8 +304,22 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
     const bool show = !(cmdValue == "hide" || cmdValue == "0");
     showPreferences(show);
   }
-
-  clientConnection->disconnectFromServer();
+  else if (cmdValue.size())
+  {
+    const auto& properties = m_settings->stringProperties();
+    const auto it = std::find_if(properties.cbegin(), properties.cend(),
+    [&cmdKey](const auto& pair){
+      return (pair.first == cmdKey);
+    });
+    if (it != m_settings->stringProperties().cend()) {
+      it->second.setFunction(cmdValue);
+    }
+    else {
+      // string property not found...
+    }
+  }
+  // reset command size, for next command
+  commandSize = 0;
 }
 
 void ProjecteurApplication::showPreferences(bool show)
@@ -291,10 +335,10 @@ void ProjecteurApplication::showPreferences(bool show)
   }
 }
 
-ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand, int &argc, char **argv)
+ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCommands, int &argc, char **argv)
   : QCoreApplication(argc, argv)
 {
-  if (ipcCommand.isEmpty())
+  if (ipcCommands.isEmpty())
   {
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
     return;
@@ -305,26 +349,32 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
   connect(localSocket,
           static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
   [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
-    qDebug() << "Error sending command: " << localSocket->errorString();
+    qDebug() << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });
 
-  connect(localSocket, &QLocalSocket::connected, [localSocket, ipcCommand]()
+  connect(localSocket, &QLocalSocket::connected, [localSocket, &ipcCommands]()
   {
-    const QByteArray commandBlock = [&ipcCommand](){
-      const QByteArray ipcBytes = ipcCommand.toLocal8Bit();
-      QByteArray block;
-      {
-        QDataStream out(&block, QIODevice::WriteOnly);
-        out << static_cast<quint32>(ipcBytes.size());
-      }
-      block.append(ipcBytes);
-      return block;
-    }();
+    for (const auto& ipcCommand : ipcCommands)
+    {
+      if (ipcCommand.isEmpty()) continue;
 
-    localSocket->write(commandBlock);
-    localSocket->flush();
+      const QByteArray commandBlock = [&ipcCommand]()
+      {
+        const QByteArray ipcBytes = ipcCommand.toLocal8Bit();
+        QByteArray block;
+        {
+          QDataStream out(&block, QIODevice::WriteOnly);
+          out << static_cast<quint32>(ipcBytes.size());
+        }
+        block.append(ipcBytes);
+        return block;
+      }();
+
+      localSocket->write(commandBlock);
+      localSocket->flush();
+    }
     localSocket->disconnectFromServer();
   });
 
@@ -335,4 +385,3 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QString& ipcCommand
 
   localSocket->connectToServer(localServerName());
 }
-
