@@ -50,6 +50,7 @@ add_executable(projecteur
   src/settings.cc           src/settings.h
   src/spotlight.cc          src/spotlight.h
   src/spotshapes.cc         src/spotshapes.h
+  src/virtualdevice.h       src/virtualdevice.cc
   resources.qrc             qml/qml.qrc)
 
 target_link_libraries(projecteur
@@ -76,11 +77,18 @@ target_compile_definitions(projecteur PRIVATE
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES 
   VERSION_MAJOR 0
-  VERSION_MINOR 6
+  VERSION_MINOR 7
   VERSION_PATCH 0
   VERSION_TYPE develop
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Create files containing generated version strings, helping package maintainers
+get_target_property(PROJECTEUR_VERSION_STRING projecteur VERSION_STRING)
+# Arch Linux = PKGBUILD/makepkg: '-' is not allowed in version number
+string(REPLACE "-" "" PROJECTEUR_VERSION_STRING_ARCHLINUX "${PROJECTEUR_VERSION_STRING}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version-string" "${PROJECTEUR_VERSION_STRING}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version-string.archlinux" "${PROJECTEUR_VERSION_STRING_ARCHLINUX}")
 
 # Translation
 list(APPEND languages de fr es)

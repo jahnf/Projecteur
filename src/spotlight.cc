@@ -7,6 +7,7 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QVarLengthArray>
+#include <QMessageBox>
 
 #include <functional>
 #include <fcntl.h>
@@ -87,13 +88,40 @@ namespace {
 Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
   , m_activeTimer(new QTimer(this))
+  , m_clickTimer(new QTimer(this))
+  , m_virtualDevice(new VirtualDevice)
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
+  m_clickTimer->setSingleShot(true);
+  m_clickTimer->setInterval(dblClickDuration);
+
+  if (!m_virtualDevice->isDeviceCreated()){
+      QString msg = tr("A virtual device was not created. "\
+                       "Some features like changing pointer modes might not work.\n\n");
+
+      if (m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputNotFound)
+        msg += tr("Please check if uinput kernel module is loaded.");
+
+      if ((m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputAccessDenied) ||\
+          (m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::CouldNotCreate))
+        msg += tr("Please check whether the user has write permission to /dev/uinput.");
+
+      QMessageBox::warning(nullptr, tr("Virtual Device Creation Failed"), msg);
+  }
 
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
+  });
+
+  connect(m_clickTimer, &QTimer::timeout, [this](){
+    if (m_clicked)
+    {
+      //Send fake mouse click
+      m_virtualDevice->mouseLeftClick();
+      m_clicked = false;
+    }
   });
 
   // Try to find an already attached device(s) and connect to it.
@@ -190,6 +218,20 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     return ConnectionResult::NotASpotlightDevice;
   }
 
+  // The device is a valid spotlight mouse events device. Grab its inputs if virtual device exists.
+  if (m_virtualDevice->isDeviceCreated()) {
+    int res = ioctl(evfd, EVIOCGRAB, 1);
+    if (res!=0) {
+      // Grab not successful
+      ioctl(evfd, EVIOCGRAB, 0);
+      ::close(evfd);
+      m_spotDeviceGrabbed = false;
+      return ConnectionResult::CouldNotOpen;
+    } else
+      m_spotDeviceGrabbed = true;
+  }
+
+
   if(id.bustype == BUS_BLUETOOTH)
   {
     // Known issue (at least on Ubuntu systems):
@@ -225,24 +267,53 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     ::close(static_cast<int>(notifier->socket()));
   });
 
-  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd)
-  {
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd) {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    // only for relative x/y events
-    if (sz == sizeof(ev) && ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y))
-    {
-      if (!m_activeTimer->isActive()) {
-        m_spotActive = true;
-        emit spotActiveChanged(true);
+    if (sz == sizeof(ev)) {
+      // only for valid events
+      switch(ev.type){
+
+        case EV_REL :
+          if (ev.code == REL_X || ev.code == REL_Y){
+            if (!m_activeTimer->isActive()) {
+              m_spotActive = true;
+              emit spotActiveChanged(true);
+            }
+            // Send the relative event as fake mouse movement
+            m_virtualDevice->emitEvent(ev);
+            m_activeTimer->start();
+          }
+          break;
+
+        case EV_KEY :
+          // Only Process left click events if the spotlight device is grabbed.
+          if (m_spotDeviceGrabbed && ev.code == BTN_LEFT){
+            if (ev.value == 0) {// BTN_LEFT released
+              if (m_clickTimer->isActive()){
+                // Double Click Event
+                emit spotModeChanged();
+                m_clicked = false;
+              } else {
+                // Start the Click timer and if it times out then go for single click event
+                m_clickTimer->start();
+                m_clicked = true;
+              }
+            }
+          } else
+            m_virtualDevice->emitEvent(ev);
+          break;
+
+        default :
+          m_virtualDevice->emitEvent(ev);
       }
-      m_activeTimer->start();
     }
     else if (sz == -1)
     {
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
+      qDebug("Disconnected Spotlight device: /dev/input/%s", qPrintable(devicePath));
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
@@ -251,6 +322,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   });
 
   emit connected(devicePath);
+  qDebug("Connected Spotlight device: /dev/input/%s", qPrintable(devicePath));
   if (!anyConnectedBefore) {
     emit anySpotlightDeviceConnectedChanged(true);
   }
