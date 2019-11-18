@@ -14,11 +14,8 @@ void uinputEvents::emitEvent(uint16_t type, uint16_t code, int val) {
   ie.type = type;
   ie.code = code;
   ie.value = val;
-  // timestamp values below are ignored
-  ie.time.tv_sec = 0;
-  ie.time.tv_usec = 0;
 
-  write(uinp_fd, &ie, sizeof(ie));
+  emitEvent(ie);
 }
 
 void uinputEvents::emitEvent(struct input_event ie)
