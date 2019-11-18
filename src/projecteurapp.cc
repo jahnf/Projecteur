@@ -163,7 +163,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   connect(m_settings, &Settings::dblClickDurationChanged, [this](int duration) {
-      m_spotlight->dblClickDuration = duration;
+    m_spotlight->dblClickDuration = duration;
   });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){

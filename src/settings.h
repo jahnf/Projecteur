@@ -78,7 +78,7 @@ public:
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
   int dblClickDuration() const { return m_dblClickDuration; }
-  void setDblClickDuration(int duration_msec);
+  void setDblClickDuration(int duration);
 
   template <typename T> struct SettingRange {
     const T min;
@@ -169,7 +169,7 @@ signals:
   void borderOpacityChanged(double opacity);
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
-  void dblClickDurationChanged(int duration_msec);
+  void dblClickDurationChanged(int duration);
 
 private:
   QSettings* m_settings = nullptr;

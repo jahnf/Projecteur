@@ -536,12 +536,13 @@ void Settings::setZoomFactor(double factor)
   }
 }
 
-void Settings::setDblClickDuration(int duration_msec)
+void Settings::setDblClickDuration(int duration)
 {
-  if (m_dblClickDuration == duration_msec)
-      return;
+  // duration in millisecond
+  if (m_dblClickDuration == duration)
+    return;
 
-  m_dblClickDuration = duration_msec;
+  m_dblClickDuration = duration;
   m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
   emit dblClickDurationChanged(m_dblClickDuration);
 }
