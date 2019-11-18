@@ -154,9 +154,7 @@ int Spotlight::connectDevices()
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
       }
-      const QString& dev_file = it.filePath();
-      if (connectSpotlightDevice(dev_file) == ConnectionResult::Connected) {
-        qDebug("Connected device: %s", qUtf8Printable(dev_file));
+      if (connectSpotlightDevice(it.filePath()) == ConnectionResult::Connected) {
         ++count;
       }
     }
@@ -283,6 +281,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
+      qDebug("Disconnected Spotlight device: %s", qUtf8Printable(devicePath));
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
@@ -291,6 +290,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   });
 
   emit connected(devicePath);
+  qDebug("Connected Spotlight device: %s", qUtf8Printable(devicePath));
   if (!anyConnectedBefore) {
     emit anySpotlightDeviceConnectedChanged(true);
   }

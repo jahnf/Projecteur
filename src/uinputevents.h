@@ -25,7 +25,9 @@ class uinputEvents{
   public:
     static shared_ptr<uinputEvents> getInstance() {
       static shared_ptr<uinputEvents> s_instance{new uinputEvents};
-      s_instance->setup_uinputDevice();
+      // Try to setup the device. If it fails exit.
+      if (s_instance->setup_uinputDevice() != 1)
+         exit(1);
       return s_instance;
     }
     ~uinputEvents() {

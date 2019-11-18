@@ -32,8 +32,10 @@ void uinputEvents::emitEvent(struct input_event ie)
 
 int uinputEvents::setup_uinputDevice() {
   int i=0;
+
+  // No need to setup if inputdevice already open
   if (uinp_fd > 0)
-    return -1;
+    return 1;
 
   // Open the input device
   uinp_fd = open("/dev/uinput", O_WRONLY | O_NDELAY);
@@ -72,7 +74,7 @@ int uinputEvents::setup_uinputDevice() {
   // Log the device name
   char sysfs_device_name[16];
   ioctl(uinp_fd, UI_GET_SYSNAME(sizeof(sysfs_device_name)), sysfs_device_name);
-  qDebug("uinput device: /sys/devices/virtual/input/%s\n", sysfs_device_name);
+  qDebug("uinput device: /sys/devices/virtual/input/%s", sysfs_device_name);
 
   return 1;
 }
