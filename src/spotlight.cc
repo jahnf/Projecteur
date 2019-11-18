@@ -157,10 +157,12 @@ int Spotlight::connectDevices()
     it.next();
     if (it.fileName().startsWith("event"))
     {
+
       const auto found = m_eventNotifiers.find(it.filePath());
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
       }
+
       if (connectSpotlightDevice(it.filePath()) == ConnectionResult::Connected) {
         ++count;
       }
@@ -259,8 +261,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd) {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    if (sz == sizeof(ev))
-    {
+    if (sz == sizeof(ev)) {
       // only for valid events
       switch(ev.type){
 
@@ -303,7 +304,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
-      qDebug("Disconnected Spotlight device: %s", qUtf8Printable(devicePath));
+      qDebug("Disconnected Spotlight device: /dev/input/%s", qPrintable(devicePath));
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
@@ -312,7 +313,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   });
 
   emit connected(devicePath);
-  qDebug("Connected Spotlight device: %s", qUtf8Printable(devicePath));
+  qDebug("Connected Spotlight device: /dev/input/%s", qPrintable(devicePath));
   if (!anyConnectedBefore) {
     emit anySpotlightDeviceConnectedChanged(true);
   }

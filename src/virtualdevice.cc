@@ -6,14 +6,12 @@
 #include <QDebug>
 
 class VirtualDevice;
-int VirtualDevice::uinp_fd;
 
-VirtualDevice::VirtualDevice(){
-  uinp_fd = -1;
+VirtualDevice::VirtualDevice() {
   setupVirtualDevice();
 }
 
-VirtualDevice::~VirtualDevice(){
+VirtualDevice::~VirtualDevice() {
   if (deviceCreated) {
     ioctl(uinp_fd, UI_DEV_DESTROY);
     close(uinp_fd);
@@ -90,8 +88,7 @@ void VirtualDevice::emitEvent(uint16_t type, uint16_t code, int val) {
   emitEvent(ie, true);
 }
 
-void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp)
-{
+void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp) {
   // If no virtual device is present then do not emit the event.
   if (!deviceCreated)
     return;

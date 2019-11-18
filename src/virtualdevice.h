@@ -15,7 +15,7 @@
 class VirtualDevice{
   private:
     struct uinput_user_dev uinp;
-    static int uinp_fd;
+    int uinp_fd;
     bool deviceCreated = false;
 
     void setupVirtualDevice();
