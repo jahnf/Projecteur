@@ -15,18 +15,21 @@ void uinputEvents::emitEvent(uint16_t type, uint16_t code, int val) {
   ie.code = code;
   ie.value = val;
 
-  emitEvent(ie);
+  emitEvent(ie, true);
 }
 
-void uinputEvents::emitEvent(struct input_event ie)
+void uinputEvents::emitEvent(struct input_event ie, bool remove_timestamp)
 {
-  // timestamp values below are ignored
-  ie.time.tv_sec = 0;
-  ie.time.tv_usec = 0;
+   if (remove_timestamp) {
+    // timestamp values below are ignored
+    ie.time.tv_sec = 0;
+    ie.time.tv_usec = 0;
+   }
 
   write(uinp_fd, &ie, sizeof(ie));
 }
 
+// Setup uinput device that cna send mouse and keyboard events
 int uinputEvents::setup_uinputDevice() {
   int i=0;
 
@@ -55,6 +58,9 @@ int uinputEvents::setup_uinputDevice() {
     ioctl(uinp_fd, UI_SET_KEYBIT, i); }
 
   ioctl(uinp_fd, UI_SET_KEYBIT, BTN_MOUSE);
+  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_TOUCH);
+
+  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_MOUSE);
   ioctl(uinp_fd, UI_SET_KEYBIT, BTN_LEFT);
   ioctl(uinp_fd, UI_SET_KEYBIT, BTN_MIDDLE);
   ioctl(uinp_fd, UI_SET_KEYBIT, BTN_RIGHT);
@@ -76,6 +82,7 @@ int uinputEvents::setup_uinputDevice() {
   return 1;
 }
 
+// Simulate mouse clicks
 void uinputEvents::mouseLeftClick(){
   emitEvent(EV_KEY, 272, 1);
   emitEvent(EV_SYN, SYN_REPORT, 0);

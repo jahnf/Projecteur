@@ -37,7 +37,7 @@ class uinputEvents{
     }
 
     void emitEvent(uint16_t type, uint16_t code, int val);
-    void emitEvent(struct input_event ie);
+    void emitEvent(struct input_event ie, bool remove_timestamp=false);
     int setup_uinputDevice();
     uinputEvents(uinputEvents const&) = delete;
     void operator=(uinputEvents const&) = delete;
