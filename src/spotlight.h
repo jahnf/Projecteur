@@ -22,6 +22,7 @@ public:
   bool spotActive() const { return m_spotActive; }
   bool anySpotlightDeviceConnected() const;
   QStringList connectedDevices() const;
+  int dblClickDuration = 300;
 
 
   struct Device {

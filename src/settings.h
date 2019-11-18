@@ -40,6 +40,7 @@ public:
   ~Settings() override;
 
   void setDefaults();
+  void changeSpotMode();
 
   bool showSpotShade() const { return m_showSpotShade; }
   void setShowSpotShade(bool show);

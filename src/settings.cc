@@ -544,7 +544,6 @@ void Settings::setDblClickDuration(int duration_msec)
   m_dblClickDuration = duration_msec;
   m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
   emit dblClickDurationChanged(m_dblClickDuration);
-
 }
 
 QString Settings::StringProperty::typeToString(Type type)
@@ -557,4 +556,10 @@ QString Settings::StringProperty::typeToString(Type type)
   case Type::StringEnum: return "Value";
   }
   return QString();
+}
+
+void Settings::changeSpotMode()
+{
+  // Mode changing logic
+  setZoomEnabled(!zoomEnabled());
 }

@@ -93,7 +93,7 @@ Spotlight::Spotlight(QObject* parent)
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
   m_presenterClickTimer->setSingleShot(true);
-  m_presenterClickTimer->setInterval(300);
+  m_presenterClickTimer->setInterval(dblClickDuration);
   m_virtualdev->getInstance();
 
   connect(m_activeTimer, &QTimer::timeout, [this](){

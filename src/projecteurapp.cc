@@ -161,7 +161,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   connect(m_spotlight, &Spotlight::spotModeChanged,
   [this]()
   {
-    m_settings->setZoomEnabled(!m_settings->zoomEnabled());
+    m_settings->changeSpotMode();
+  });
+
+  connect(m_settings, &Settings::dblClickDurationChanged, [this](int duration){
+      m_spotlight->dblClickDuration = duration;
   });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){
