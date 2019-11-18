@@ -1,7 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
-#include "uinputevents.h"
+#include "virtualdevice.h"
 
 #include <QObject>
 #include <map>
@@ -68,5 +68,5 @@ private:
   bool m_spotActive = false;
   bool m_clicked = false;
   QTimer* m_clickTimer;
-  uinputEvents* m_virtualDevice;
+  VirtualDevice* m_virtualDevice;
 };

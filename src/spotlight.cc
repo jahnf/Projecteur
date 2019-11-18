@@ -1,6 +1,5 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
-#include "uinputevents.h"
 
 #include <QDirIterator>
 #include <QFileInfo>
@@ -8,6 +7,7 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QVarLengthArray>
+#include <QMessageBox>
 
 #include <functional>
 #include <fcntl.h>
@@ -89,12 +89,19 @@ Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
   , m_activeTimer(new QTimer(this))
   , m_clickTimer(new QTimer(this))
+  , m_virtualDevice(new VirtualDevice)
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
   m_clickTimer->setSingleShot(true);
   m_clickTimer->setInterval(dblClickDuration);
-  m_virtualDevice->getInstance();
+
+  if (!m_virtualDevice->isDeviceCreated()){
+      char msg[] = "A virtual device was not created. "\
+                   "Some features like changing pointer modes might not work.\n\n"\
+                   "Please check if uinput kernel module is loaded.";
+      QMessageBox::warning(nullptr, tr("Virtual Device Creation Failed"), tr(msg));
+  }
 
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
@@ -202,13 +209,15 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     return ConnectionResult::NotASpotlightDevice;
   }
 
-  // The device is a valid spotlight mouse events device. Grab its input
-  int res = ioctl(evfd, EVIOCGRAB, 1);
-  if (res!=0) {
-    // Grab not successful
-    ioctl(evfd, EVIOCGRAB, 0);
-    ::close(evfd);
-    return ConnectionResult::CouldNotOpen;
+  // The device is a valid spotlight mouse events device. Grab its input if virtual device exists.
+  if (m_virtualDevice->isDeviceCreated()) {
+    int res = ioctl(evfd, EVIOCGRAB, 1);
+    if (res!=0) {
+      // Grab not successful
+      ioctl(evfd, EVIOCGRAB, 0);
+      ::close(evfd);
+      return ConnectionResult::CouldNotOpen;
+    }
   }
 
 
@@ -247,13 +256,12 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     ::close(static_cast<int>(notifier->socket()));
   });
 
-  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd)
-  {
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd) {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
     if (sz == sizeof(ev))
     {
-	  // only for valid events
+      // only for valid events
       switch(ev.type){
 
         case EV_REL :
@@ -269,22 +277,21 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
           break;
 
         case EV_KEY :
-          // Only Process left click events. Let all other events pass.
-          if (ev.code == 272){  //BTN_LEFT event
-              if (ev.value == 0) {// BTN_LEFT released
-            //Check for possible double click event
-            if (m_clickTimer->isActive()){
-              // Double Click Event
-              emit spotModeChanged();
-              m_clicked = false;
-            } else {
-               // Start the Click timer and if it times out then go for single click event
-               m_clickTimer->start();
-               m_clicked = true;
+          // Only Process left click events if virtual device exist.
+          if (m_virtualDevice->isDeviceCreated() && ev.code == BTN_LEFT){
+            if (ev.value == 0) {// BTN_LEFT released
+              if (m_clickTimer->isActive()){
+                // Double Click Event
+                emit spotModeChanged();
+                m_clicked = false;
+              } else {
+                // Start the Click timer and if it times out then go for single click event
+                m_clickTimer->start();
+                m_clicked = true;
+              }
             }
-          }
           } else
-              m_virtualDevice->emitEvent(ev);
+            m_virtualDevice->emitEvent(ev);
           break;
 
         default :
