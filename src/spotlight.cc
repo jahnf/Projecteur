@@ -251,30 +251,45 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    // only for relative x/y events
     if (sz == sizeof(ev))
     {
-      if (ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y)){
-        if (!m_activeTimer->isActive()) {
-          m_spotActive = true;
-          emit spotActiveChanged(true);
-        }
-          // Send the relative event as fake mouse movement
-          m_virtualdev->emitEvent(ev);
-          m_activeTimer->start();
-      }else
-        if (ev.type == EV_KEY && (ev.code == 272 && ev.value == 0)) {// BTN_LEFT released
-          //Check for possible double click event
-          if (m_presenterClickTimer->isActive()){
-            // Double Click Event
-            emit spotModeChanged();
-            m_presenterClicked = false;
-          } else {
-            // Start the Dbl Click timer and if it times out then go for single click event
-            m_presenterClickTimer->start();
-            m_presenterClicked = true;
+	  // only for valid events
+      switch(ev.type){
+
+        case EV_REL :
+          if (ev.code == REL_X || ev.code == REL_Y){
+            if (!m_activeTimer->isActive()) {
+              m_spotActive = true;
+              emit spotActiveChanged(true);
+            }
+            // Send the relative event as fake mouse movement
+            m_virtualdev->emitEvent(ev);
+            m_activeTimer->start();
           }
-        }
+          break;
+
+        case EV_KEY :
+          // Only Process left click events. Let all other events pass.
+          if (ev.code == 272){  //BTN_LEFT event
+              if (ev.value == 0) {// BTN_LEFT released
+            //Check for possible double click event
+            if (m_presenterClickTimer->isActive()){
+              // Double Click Event
+              emit spotModeChanged();
+              m_presenterClicked = false;
+            } else {
+               // Start the Click timer and if it times out then go for single click event
+               m_presenterClickTimer->start();
+               m_presenterClicked = true;
+            }
+          }
+          } else
+              m_virtualdev->emitEvent(ev);
+          break;
+
+        default :
+          m_virtualdev->emitEvent(ev);
+      }
     }
     else if (sz == -1)
     {
