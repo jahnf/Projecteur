@@ -50,6 +50,7 @@ add_executable(projecteur
   src/settings.cc           src/settings.h
   src/spotlight.cc          src/spotlight.h
   src/spotshapes.cc         src/spotshapes.h
+  src/virtualdevice.h       src/virtualdevice.cc
   resources.qrc             qml/qml.qrc)
 
 target_link_libraries(projecteur

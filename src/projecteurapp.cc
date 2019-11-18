@@ -158,6 +158,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       window->hide();
     }
   });
+  connect(m_spotlight, &Spotlight::spotModeChanged, [this]() {
+    m_settings->changeSpotMode();
+  });
+
+  connect(m_settings, &Settings::dblClickDurationChanged, [this](int duration) {
+    m_spotlight->dblClickDuration = duration;
+  });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){
     if (!v && m_dialog->isVisible()) {
