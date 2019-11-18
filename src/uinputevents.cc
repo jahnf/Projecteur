@@ -8,34 +8,10 @@
 class uinputEvents;
 int uinputEvents::uinp_fd;
 
-void uinputEvents::emitEvent(uint16_t type, uint16_t code, int val) {
-  struct input_event ie;
-
-  ie.type = type;
-  ie.code = code;
-  ie.value = val;
-
-  emitEvent(ie, true);
-}
-
-void uinputEvents::emitEvent(struct input_event ie, bool remove_timestamp)
-{
-   if (remove_timestamp) {
-    // timestamp values below are ignored
-    ie.time.tv_sec = 0;
-    ie.time.tv_usec = 0;
-   }
-
-  write(uinp_fd, &ie, sizeof(ie));
-}
-
-// Setup uinput device that cna send mouse and keyboard events
+// Setup uinput device that can send mouse and keyboard events
+// Returns 1 if successful otherwise -1. Logs the result too.
 int uinputEvents::setup_uinputDevice() {
   int i=0;
-
-  // No need to setup if inputdevice already open
-  if (uinp_fd > 0)
-    return 1;
 
   // Open the input device
   uinp_fd = open("/dev/uinput", O_WRONLY | O_NDELAY);
@@ -45,7 +21,7 @@ int uinputEvents::setup_uinputDevice() {
 
   memset(&uinp,0,sizeof(uinp));
   // Intialize the uInput device to NULL
-  strncpy(uinp.name, "Projecteur Input Device", UINPUT_MAX_NAME_SIZE);
+  strncpy(uinp.name, "Projecteur_input_device", UINPUT_MAX_NAME_SIZE);
   uinp.id.version = 5;
   uinp.id.bustype = BUS_USB;
   // Setup the uinput device
@@ -80,6 +56,28 @@ int uinputEvents::setup_uinputDevice() {
   qDebug("uinput device: /sys/devices/virtual/input/%s", sysfs_device_name);
 
   return 1;
+}
+
+// Public methods to emit event from the device
+void uinputEvents::emitEvent(uint16_t type, uint16_t code, int val) {
+  struct input_event ie;
+
+  ie.type = type;
+  ie.code = code;
+  ie.value = val;
+
+  emitEvent(ie, true);
+}
+
+void uinputEvents::emitEvent(struct input_event ie, bool remove_timestamp)
+{
+   if (remove_timestamp) {
+    // timestamp values below are ignored
+    ie.time.tv_sec = 0;
+    ie.time.tv_usec = 0;
+   }
+
+  write(uinp_fd, &ie, sizeof(ie));
 }
 
 // Simulate mouse clicks

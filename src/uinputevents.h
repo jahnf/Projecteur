@@ -20,7 +20,16 @@ class uinputEvents{
     // Device that can act as virtual keyboard and mouse
     struct uinput_user_dev uinp;
 	static int uinp_fd;
-    uinputEvents(){uinp_fd = -1;}
+
+    uinputEvents(){
+      uinp_fd = -1;
+      // Try to setup the device. If it fails exit.
+      if (setup_uinputDevice() != 1)
+         exit(1);
+    }
+
+    int setup_uinputDevice();
+
 
   public:
 	uinputEvents(uinputEvents const&) = delete;
@@ -33,14 +42,10 @@ class uinputEvents{
 
     static shared_ptr<uinputEvents> getInstance() {
       static shared_ptr<uinputEvents> s_instance{new uinputEvents};
-      // Try to setup the device. If it fails exit.
-      if (s_instance->setup_uinputDevice() != 1)
-         exit(1);
       return s_instance;
     }
 
     void emitEvent(uint16_t type, uint16_t code, int val);
     void emitEvent(struct input_event ie, bool remove_timestamp=false);
-    int setup_uinputDevice();
     void mouseLeftClick();
 };
