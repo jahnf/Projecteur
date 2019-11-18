@@ -88,25 +88,25 @@ namespace {
 Spotlight::Spotlight(QObject* parent)
   : QObject(parent)
   , m_activeTimer(new QTimer(this))
-  , m_presenterClickTimer(new QTimer(this))
+  , m_clickTimer(new QTimer(this))
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
-  m_presenterClickTimer->setSingleShot(true);
-  m_presenterClickTimer->setInterval(dblClickDuration);
-  m_virtualdev->getInstance();
+  m_clickTimer->setSingleShot(true);
+  m_clickTimer->setInterval(dblClickDuration);
+  m_virtualDevice->getInstance();
 
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
   });
 
-  connect(m_presenterClickTimer, &QTimer::timeout, [this](){
-    if (m_presenterClicked)
+  connect(m_clickTimer, &QTimer::timeout, [this](){
+    if (m_clicked)
     {
       //Send fake mouse click
-      m_virtualdev->mouseLeftClick();
-      m_presenterClicked = false;
+      m_virtualDevice->mouseLeftClick();
+      m_clicked = false;
     }
   });
 
@@ -263,7 +263,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
               emit spotActiveChanged(true);
             }
             // Send the relative event as fake mouse movement
-            m_virtualdev->emitEvent(ev);
+            m_virtualDevice->emitEvent(ev);
             m_activeTimer->start();
           }
           break;
@@ -273,22 +273,22 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
           if (ev.code == 272){  //BTN_LEFT event
               if (ev.value == 0) {// BTN_LEFT released
             //Check for possible double click event
-            if (m_presenterClickTimer->isActive()){
+            if (m_clickTimer->isActive()){
               // Double Click Event
               emit spotModeChanged();
-              m_presenterClicked = false;
+              m_clicked = false;
             } else {
                // Start the Click timer and if it times out then go for single click event
-               m_presenterClickTimer->start();
-               m_presenterClicked = true;
+               m_clickTimer->start();
+               m_clicked = true;
             }
           }
           } else
-              m_virtualdev->emitEvent(ev);
+              m_virtualDevice->emitEvent(ev);
           break;
 
         default :
-          m_virtualdev->emitEvent(ev);
+          m_virtualDevice->emitEvent(ev);
       }
     }
     else if (sz == -1)

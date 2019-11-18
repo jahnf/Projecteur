@@ -66,7 +66,7 @@ private:
   std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
   QTimer* m_activeTimer;
   bool m_spotActive = false;
-  bool m_presenterClicked = false;
-  QTimer* m_presenterClickTimer;
-  uinputEvents* m_virtualdev;
+  bool m_clicked = false;
+  QTimer* m_clickTimer;
+  uinputEvents* m_virtualDevice;
 };
