@@ -97,7 +97,7 @@ add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directo
 add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md)
+add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
@@ -127,6 +127,35 @@ mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 # Configure and install files
 set(OUTDIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(TMPLDIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates")
+
+# Read devices.conf file
+set(idRegex "0x([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])")
+set(lineRegex "^[ \t]*${idRegex}[ \t]*,[ \t]*${idRegex}[ \t]*,[ \t]*(usb|bt)[ \t]*,[ \t]*(.*)[ \t]*")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/devices.conf" CONFLINES REGEX "${lineRegex}")
+foreach(line ${CONFLINES})
+  #message(STATUS "## ${line}")
+  if(line MATCHES "${lineRegex}")
+    # message(STATUS "vendorId: ${CMAKE_MATCH_1}, productId: ${CMAKE_MATCH_2}, ${CMAKE_MATCH_3}, '${CMAKE_MATCH_4}'")
+    set(vendorId "${CMAKE_MATCH_1}")
+    set(productId "${CMAKE_MATCH_2}")
+
+    if("${CMAKE_MATCH_3}" STREQUAL "usb")
+      string(APPEND EXTRA_USB_UDEV_RULES "\nSUBSYSTEMS==\"usb\", ATTRS{idVendor}==\"${vendorId}\"")
+      string(APPEND EXTRA_USB_UDEV_RULES ", ATTRS{idProduct}==\"${productId}\", MODE=\"0660\", TAG+=\"uaccess\"")
+    elseif("${CMAKE_MATCH_3}" STREQUAL "bt")
+      if("${vendorId}" MATCHES "0*([0-9a-fA-F]+)")
+        set(vendorId "${CMAKE_MATCH_1}")
+      endif()
+      if("${productId}" MATCHES "0*([0-9a-fA-F]+)")
+        set(productId "${CMAKE_MATCH_1}")
+      endif()
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "\nSUBSYSTEMS==\"input\", ")
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "ENV{LIBINPUT_DEVICE_GROUP}=\"5/${vendorId}/${productId}*\", ")
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "MODE=\"0660\", TAG+=\"uaccess\"")
+    endif()
+  endif()
+endforeach()
+
 
 configure_file("55-spotlight.rules.in" "55-spotlight.rules" @ONLY)
 install(FILES "${OUTDIR}/55-spotlight.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
