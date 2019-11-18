@@ -17,12 +17,20 @@ class uinputEvents;
 
 class uinputEvents{
   private:
-    static int uinp_fd;
     // Device that can act as virtual keyboard and mouse
     struct uinput_user_dev uinp;
-    uinputEvents(){}
+	static int uinp_fd;
+    uinputEvents(){uinp_fd = -1;}
 
   public:
+	uinputEvents(uinputEvents const&) = delete;
+	void operator=(uinputEvents const&) = delete;
+	~uinputEvents() {
+	  ioctl(uinp_fd, UI_DEV_DESTROY);
+	  close(uinp_fd);
+	  qDebug("uinput Device Closed");
+	}
+
     static shared_ptr<uinputEvents> getInstance() {
       static shared_ptr<uinputEvents> s_instance{new uinputEvents};
       // Try to setup the device. If it fails exit.
@@ -30,16 +38,9 @@ class uinputEvents{
          exit(1);
       return s_instance;
     }
-    ~uinputEvents() {
-      ioctl(uinp_fd, UI_DEV_DESTROY);
-      close(uinp_fd);
-      qDebug("uinput Device Closed");
-    }
 
     void emitEvent(uint16_t type, uint16_t code, int val);
     void emitEvent(struct input_event ie, bool remove_timestamp=false);
     int setup_uinputDevice();
-    uinputEvents(uinputEvents const&) = delete;
-    void operator=(uinputEvents const&) = delete;
     void mouseLeftClick();
 };
