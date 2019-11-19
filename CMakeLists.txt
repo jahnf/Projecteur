@@ -62,11 +62,15 @@ target_link_libraries(projecteur
 if(HAS_Qt5_X11Extras)
   target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
   target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+else()
+  message(STATUS "Compiling without Qt5::X11Extras.")
 endif()
 
 if(HAS_Qt5_DBus)
   target_link_libraries(projecteur PRIVATE Qt5::DBus)
   target_compile_definitions(projecteur PRIVATE HAS_Qt5_DBus=1)
+else()
+  message(STATUS "Compiling without Qt5::DBus.")
 endif()
 
 target_compile_options(projecteur

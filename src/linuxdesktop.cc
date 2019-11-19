@@ -15,6 +15,7 @@
 #endif
 
 namespace {
+#if HAS_Qt5_DBus
   // -----------------------------------------------------------------------------------------------
   QPixmap grabScreenDBusGnome()
   {
@@ -49,6 +50,7 @@ namespace {
     }
     return pm;
   }
+#endif // HAS_Qt5_DBus
 
   // -----------------------------------------------------------------------------------------------
   QPixmap grabScreenVirtualDesktop(QScreen* screen)
@@ -113,6 +115,7 @@ QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
 
 QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
 {
+#if HAS_Qt5_DBus
   QPixmap pm;
   switch (type()) 
   {
@@ -126,4 +129,8 @@ QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
     qDebug() << "Warning: Currently zoom on Wayland is only supported via DBus on KDE and GNOME."; 
   }
   return pm.isNull() ? pm : pm.copy(screen->geometry());
+#else
+  qDebug() << "Warning: Compiled without Qt DBus. Currently zoom on Wayland is only supported via DBus on KDE and GNOME."; 
+  return QPixmap();
+#endif
 }
