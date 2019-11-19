@@ -168,14 +168,20 @@ applications like Dropbox or Skype)
 
 #### Wayland
 
-While not developed with Wayland in mind, some users reported _Projecteur_ works with
+While not developed with Wayland in mind, users reported _Projecteur_ works with
 Wayland. If you experience problems, you can try to set the `QT_QPA_PLATFORM` environment
-variable to `wayland`:
+variable to `wayland`, example:
 
 ```
 user@ubuntu1904:~/Projecteur/build$ QT_QPA_PLATFORM=wayland ./projecteur
 Using Wayland-EGL
 ```
+
+#### Wayland Zoom
+
+On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This with the help of
+their respective DBus interfaces for screen capturing, to be able to show a magnifier/zoom.
+On other environemnts the zoom feature is currently not supported.
 
 #### Device shows as not connected
 
