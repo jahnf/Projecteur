@@ -43,6 +43,7 @@ add_executable(projecteur
   src/main.cc
   src/aboutdlg.cc           src/aboutdlg.h
   src/colorselector.cc      src/colorselector.h
+  src/linuxdesktop.cc       src/linuxdesktop.h
   src/imageitem.cc          src/imageitem.h
   src/preferencesdlg.cc     src/preferencesdlg.h
   src/projecteurapp.cc      src/projecteurapp.h

@@ -3,6 +3,7 @@
 
 #include "aboutdlg.h"
 #include "imageitem.h"
+#include "linuxdesktop.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
@@ -25,6 +26,8 @@
 #include <QDebug>
 
 namespace {
+  const LinuxDesktop desktop;
+
   QString localServerName() {
     return QCoreApplication::applicationName() + "_local_socket";
   }
