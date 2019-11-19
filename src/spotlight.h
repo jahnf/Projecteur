@@ -1,16 +1,14 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
-#include "virtualdevice.h"
-
-#include<iostream>
-#include<memory>
-
 #include <QObject>
+
+#include <memory>
 #include <map>
 
 class QSocketNotifier;
 class QTimer;
+class VirtualDevice;
 
 /// Simple class to notify the application if the Logitech Spotlight and other supported devices
 /// are sending mouse move events. Used to turn the applications spot on or off.
@@ -67,10 +65,9 @@ private:
 
 private:
   std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
-  QTimer* m_activeTimer;
+  QTimer* m_activeTimer = nullptr;
   bool m_spotActive = false;
   bool m_clicked = false;
-  bool m_spotDeviceGrabbed = false;
-  QTimer* m_clickTimer;
+  QTimer* m_clickTimer = nullptr;
   std::unique_ptr<VirtualDevice> m_virtualDevice;
 };

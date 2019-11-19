@@ -1,6 +1,9 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
+#include "virtualdevice.h"
+
+#include <QDebug>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QSocketNotifier>
@@ -218,19 +221,20 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     return ConnectionResult::NotASpotlightDevice;
   }
 
+  bool deviceGrabbed = false;
   // The device is a valid spotlight mouse events device. Grab its inputs if virtual device exists.
-  if (m_virtualDevice->isDeviceCreated()) {
-    int res = ioctl(evfd, EVIOCGRAB, 1);
-    if (res!=0) {
+  if (m_virtualDevice->isDeviceCreated())
+  {
+    const int res = ioctl(evfd, EVIOCGRAB, 1);
+    if (res != 0)
+    {
       // Grab not successful
       ioctl(evfd, EVIOCGRAB, 0);
-      ::close(evfd);
-      m_spotDeviceGrabbed = false;
-      return ConnectionResult::CouldNotOpen;
-    } else
-      m_spotDeviceGrabbed = true;
+    }
+    else {
+      deviceGrabbed = true;
+    }
   }
-
 
   if(id.bustype == BUS_BLUETOOTH)
   {
@@ -263,19 +267,26 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
   QSocketNotifier* const notifier = m_eventNotifiers[devicePath].data();
 
-  connect(notifier, &QSocketNotifier::destroyed, [notifier, devicePath]() {
+  connect(notifier, &QSocketNotifier::destroyed, [deviceGrabbed, notifier, devicePath]()
+  {
+    if (deviceGrabbed) {
+      ioctl(static_cast<int>(notifier->socket()), EVIOCGRAB, 0);
+    }
     ::close(static_cast<int>(notifier->socket()));
   });
 
-  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd) {
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath, deviceGrabbed](int fd)
+  {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    if (sz == sizeof(ev)) {
+    if (sz == sizeof(ev))
+    {
       // only for valid events
-      switch(ev.type){
-
+      switch(ev.type)
+      {
         case EV_REL :
-          if (ev.code == REL_X || ev.code == REL_Y){
+          if (ev.code == REL_X || ev.code == REL_Y)
+          {
             if (!m_activeTimer->isActive()) {
               m_spotActive = true;
               emit spotActiveChanged(true);
@@ -288,7 +299,8 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
 
         case EV_KEY :
           // Only Process left click events if the spotlight device is grabbed.
-          if (m_spotDeviceGrabbed && ev.code == BTN_LEFT){
+          if (deviceGrabbed && ev.code == BTN_LEFT)
+          {
             if (ev.value == 0) {// BTN_LEFT released
               if (m_clickTimer->isActive()){
                 // Double Click Event
@@ -300,8 +312,10 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
                 m_clicked = true;
               }
             }
-          } else
+          }
+          else {
             m_virtualDevice->emitEvent(ev);
+          }
           break;
 
         default :
@@ -317,7 +331,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
-      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers[devicePath].reset(); });
+      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers.erase(devicePath); });
     }
   });
 
