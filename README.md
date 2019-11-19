@@ -179,9 +179,9 @@ Using Wayland-EGL
 
 #### Wayland Zoom
 
-On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This with the help of
-their respective DBus interfaces for screen capturing, to be able to show a magnifier/zoom.
-On other environemnts the zoom feature is currently not supported.
+On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This is done with 
+the help of their respective DBus interfaces for screen capturing. On other environemnts with
+Wayland, the zoom feature is currently not supported.
 
 #### Device shows as not connected
 
