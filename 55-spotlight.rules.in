@@ -1,14 +1,20 @@
-# Set up permissions for non root users to open the Logitech Spotlight Device and uinput
-# Enables the Projecteur application to access the device.
+# Set up permissions for non root users to open the Logitech Spotlight USB Receiver and other
+# supported devices. Enables the Projecteur application to access the device.
 
-# Copy this file to /lib/udev/rules.d/55-spotlight.rules
+# Copy the generated file `55-spotlight.rules` from the build directory
+# to /lib/udev/rules.d/55-spotlight.rules
 
-# Rule for USB Receiver
+# Rule for the Logitech Spotlight USB Receiver
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="0660", TAG+="uaccess"
 
-# Rule when connected via Bluetooth
+# Additional supported USB devices @EXTRA_USB_UDEV_RULES@
+
+# Rule fot the Logitech Spotlight when connected via Bluetooth
 # Updated rule, thanks to Torsten Maehne (https://github.com/maehne)
-SUBSYSTEMS=="input", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
+#SUBSYSTEMS=="input", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
+SUBSYSTEMS=="input", ENV{LIBINPUT_DEVICE_GROUP}="5/46d/b503*", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
+
+# Additional supported Bluetooth devices @EXTRA_BLUETOOTH_UDEV_RULES@
 
 # Rules for uninput: Essential for creating a virtual input device that 
 # Projecteur use for forwarding SpotLight events to system after grabbing the 
