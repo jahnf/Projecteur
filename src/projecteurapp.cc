@@ -266,18 +266,20 @@ void ProjecteurApplication::cursorExitedWindow()
 
 void ProjecteurApplication::setScreenForCursorPos()
 {
-  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+  int screenNumber = 0;
+  const auto screen_cursor = this->screenAt(QCursor::pos());
 
-  // Alternative to using QApplication->desktop() / just in case QDesktopWidget gets removed in the future from Qt.
-//  int screenNumber = 0;
-//  const auto pos = QCursor::pos();
-//  for (const auto& screen : screens()) {
-//    if (screen->geometry().contains(pos)) {
-//      m_settings->setScreen(screenNumber);
-//      break;
-//    }
-//    ++screenNumber;
-//  }
+  for (const auto& screen : screens()) {
+    if (screen_cursor == screen) {
+      m_settings->setScreen(screenNumber);
+      break;
+    }
+    ++screenNumber;
+  }
+#else
+  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
+#endif
 }
 
 void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
