@@ -7,6 +7,7 @@
 #include "qglobalshortcutx11.h"
 #include "settings.h"
 #include "spotlight.h"
+#include "virtualdevice.h"
 
 #include <QDesktopWidget>
 #include <QDialog>
@@ -236,6 +237,20 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   else
   {
     qDebug() << tr("Error starting local socket for inter-process communication.");
+  }
+
+  if (!m_spotlight->virtualDevice()->isDeviceCreated())
+  {
+    QString msg = tr("Could not create a virtual device. Some features will be disabled.\n\n");
+
+    if (m_spotlight->virtualDevice()->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputNotFound)
+      msg += tr("Please check if uinput kernel module is loaded.");
+
+    if ((m_spotlight->virtualDevice()->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputAccessDenied) ||
+        (m_spotlight->virtualDevice()->getDeviceStatus() == VirtualDevice::DeviceStatus::CouldNotCreate))
+      msg += tr("Please check whether the user has write permission to /dev/uinput.");
+
+    QMessageBox::warning(nullptr, tr("Virtual Device Creation Failed"), msg);
   }
 }
 

@@ -17,7 +17,7 @@ class VirtualDevice
 
     enum class DeviceStatus { UinputNotFound, UinputAccessDenied, CouldNotCreate, Connected };
     DeviceStatus getDeviceStatus() const;
-    bool isDeviceCreated() { return (m_deviceStatus == DeviceStatus::Connected); }
+    bool isDeviceCreated() const { return (m_deviceStatus == DeviceStatus::Connected); }
     void emitEvent(uint16_t type, uint16_t code, int val);
     void emitEvent(struct input_event ie, bool remove_timestamp = false);
     void mouseLeftClick();

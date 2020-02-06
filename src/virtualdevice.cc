@@ -7,6 +7,13 @@
 
 #include <QDebug>
 
+namespace  {
+  static constexpr char uinputDeviceLocation[] = "/dev/uinput";
+  static constexpr char uinputDeviceName[] = "Projecteur_input_device";
+
+  class VirtualDevice_ : public QObject {}; // for i18n and logging
+}
+
 VirtualDevice::VirtualDevice()
   : m_deviceStatus(setupVirtualDevice())
 {}
@@ -17,7 +24,7 @@ VirtualDevice::~VirtualDevice()
   {
     ioctl(m_uinpFd, UI_DEV_DESTROY);
     ::close(m_uinpFd);
-    qDebug("uinput Device Closed");
+    // qDebug().noquote() << VirtualDevice_::tr("uinput Device Closed");
   }
 }
 
@@ -36,19 +43,19 @@ VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
   // see https://www.kernel.org/doc/html/v4.13/input/uinput.html
 
   // Open the input device
-  if (access("/dev/uinput", F_OK) == -1) {
-    qDebug("File not found /dev/uinput");
+  if (access(uinputDeviceLocation, F_OK) == -1) {
+    qDebug().noquote() << VirtualDevice_::tr("File not found: %1").arg(uinputDeviceLocation);
     return DeviceStatus::UinputNotFound;
   }
 
-  m_uinpFd = ::open("/dev/uinput", O_WRONLY | O_NDELAY);
+  m_uinpFd = ::open(uinputDeviceLocation, O_WRONLY | O_NDELAY);
   if (m_uinpFd < 0) {
-    qDebug("Unable to open /dev/uinput");
+    qDebug().noquote() << VirtualDevice_::tr("Unable to open: %1").arg(uinputDeviceLocation);
     return DeviceStatus::UinputAccessDenied;
   }
 
   struct uinput_user_dev uinp {};
-  strncpy(uinp.name, "Projecteur_input_device", UINPUT_MAX_NAME_SIZE);
+  strncpy(uinp.name, uinputDeviceName, UINPUT_MAX_NAME_SIZE);
   uinp.id.bustype = BUS_USB;
 
   // Setup the uinput device
@@ -76,14 +83,15 @@ VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
   if ((bytesWritten != sizeof(uinp)) || (ioctl(m_uinpFd, UI_DEV_CREATE)))
   {
     ::close(m_uinpFd);
-    qDebug("Unable to create Virtual (UINPUT) device.");
+    qDebug().noquote() << VirtualDevice_::tr("Unable to create Virtual (UINPUT) device.");
     return DeviceStatus::CouldNotCreate;
   }
 
   // Log the device name
-  char sysfs_device_name[16];
+  char sysfs_device_name[16]{};
   ioctl(m_uinpFd, UI_GET_SYSNAME(sizeof(sysfs_device_name)), sysfs_device_name);
-  qDebug("uinput device: /sys/devices/virtual/input/%s", sysfs_device_name);
+  qDebug().noquote() << VirtualDevice_::tr("Created uinput device: %1")
+                        .arg(QString("/sys/devices/virtual/input/%1").arg(sysfs_device_name));
 
   return DeviceStatus::Connected;
 }

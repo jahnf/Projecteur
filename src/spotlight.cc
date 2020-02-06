@@ -10,7 +10,6 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QVarLengthArray>
-#include <QMessageBox>
 
 #include <functional>
 #include <fcntl.h>
@@ -99,20 +98,6 @@ Spotlight::Spotlight(QObject* parent)
   m_clickTimer->setSingleShot(true);
   m_clickTimer->setInterval(dblClickDuration);
 
-  if (!m_virtualDevice->isDeviceCreated()){
-      QString msg = tr("A virtual device was not created. "\
-                       "Some features like changing pointer modes might not work.\n\n");
-
-      if (m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputNotFound)
-        msg += tr("Please check if uinput kernel module is loaded.");
-
-      if ((m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputAccessDenied) ||\
-          (m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::CouldNotCreate))
-        msg += tr("Please check whether the user has write permission to /dev/uinput.");
-
-      QMessageBox::warning(nullptr, tr("Virtual Device Creation Failed"), msg);
-  }
-
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
@@ -147,6 +132,10 @@ bool Spotlight::anySpotlightDeviceConnected() const
   return false;
 }
 
+const VirtualDevice* Spotlight::virtualDevice() const {
+  return m_virtualDevice.get();
+}
+
 QStringList Spotlight::connectedDevices() const
 {
   QStringList devices;
@@ -167,7 +156,6 @@ int Spotlight::connectDevices()
     it.next();
     if (it.fileName().startsWith("event"))
     {
-
       const auto found = m_eventNotifiers.find(it.filePath());
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
