@@ -19,6 +19,9 @@
 #include <unistd.h>
 #include <vector>
 
+// Function declaration to check for extra devices, defintion in generated source
+bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
+
 namespace {
   struct Device {
     const quint16 vendorId;
@@ -27,18 +30,18 @@ namespace {
   };
 
   // List of supported devices
-  const std::vector<Device> supportedDevices {
+  const std::vector<Device> supportedDefaultDevices {
     {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
     {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
   };
 
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
   {
-    const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
+    const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
     [vendorId, productId](const Device& d) {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
-    return it != supportedDevices.cend();
+    return (it != supportedDefaultDevices.cend()) || isExtraDeviceSupported(vendorId, productId);
   }
 
   quint16 readUShortFromDeviceFile(const QString& filename)
