@@ -100,7 +100,8 @@ the Qt version that comes with the distribution's package management.
       > git clone https://github.com/jahnf/projecteur
       > cd projecteur
       > mkdir build && cd build
-      > QTDIR=/opt/Qt/5.9.6/gcc_64 cmake ..
+      > QTDIR=/opt/Qt/5.9.6/gcc_64 
+      > cmake ..
       > make
 
 ## Installation/Running
