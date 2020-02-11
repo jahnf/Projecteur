@@ -17,7 +17,7 @@ class Spotlight : public QObject
   Q_OBJECT
 
 public:
-  explicit Spotlight(QObject* parent);
+  explicit Spotlight(QObject* parent, bool enableUInput = true);
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }

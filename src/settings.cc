@@ -1,13 +1,15 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "settings.h"
 
+#include "logging.h"
+
 #include <functional>
 
 #include <QCoreApplication>
 #include <QQmlPropertyMap>
 #include <QSettings>
 
-#include <QDebug>
+LOGGING_CATEGORY(lcSettings, "settings")
 
 namespace {
   namespace settings {
@@ -365,6 +367,7 @@ void Settings::setDotColor(const QColor& color)
 
   m_dotColor = color;
   m_settings->setValue(::settings::dotColor, m_dotColor);
+  logDebug(lcSettings) << "dot.color =" << m_dotColor.name();
   emit dotColorChanged(m_dotColor);
 }
 
@@ -375,6 +378,7 @@ void Settings::setShadeColor(const QColor& color)
 
   m_shadeColor = color;
   m_settings->setValue(::settings::shadeColor, m_shadeColor);
+  logDebug(lcSettings) << "shade.color =" << m_shadeColor.name();
   emit shadeColorChanged(m_shadeColor);
 }
 
@@ -384,6 +388,7 @@ void Settings::setShadeOpacity(double opacity)
   {
     m_shadeOpacity = qMin(qMax(::settings::ranges::shadeOpacity.min, opacity), ::settings::ranges::shadeOpacity.max);
     m_settings->setValue(::settings::shadeOpacity, m_shadeOpacity);
+    logDebug(lcSettings) << "shade.opacity = " << m_shadeOpacity;
     emit shadeOpacityChanged(m_shadeOpacity);
   }
 }

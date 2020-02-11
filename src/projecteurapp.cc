@@ -3,6 +3,7 @@
 
 #include "aboutdlg.h"
 #include "imageitem.h"
+#include "logging.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
@@ -23,7 +24,9 @@
 #include <QTimer>
 #include <QWindow>
 
-#include <QDebug>
+LOGGING_CATEGORY(mainapp, "mainapp")
+LOGGING_CATEGORY(cmdclient, "cmdclient")
+LOGGING_CATEGORY(cmdserver, "cmdserver")
 
 namespace {
   QString localServerName() {
@@ -39,14 +42,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 {
   if (screens().size() < 1)
   {
-    QMessageBox::critical(nullptr, tr("No Screens"), tr("screens().size() returned a size < 1."));
+    QMessageBox::critical(nullptr, tr("No Screens detected"), tr("screens().size() returned a size < 1.\nExiting."));
     QTimer::singleShot(0, [this](){ this->exit(2); });
     return;
   }
 
   setQuitOnLastWindowClosed(false);
 
-  m_spotlight = new Spotlight(this);
+  m_spotlight = new Spotlight(this, options.enableUInput);
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
   m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
@@ -236,21 +239,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   }
   else
   {
-    qDebug() << tr("Error starting local socket for inter-process communication.");
-  }
-
-  if (!m_spotlight->virtualDevice()->isDeviceCreated())
-  {
-    QString msg = tr("Could not create a virtual device. Some features will be disabled.\n\n");
-
-    if (m_spotlight->virtualDevice()->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputNotFound)
-      msg += tr("Please check if uinput kernel module is loaded.");
-
-    if ((m_spotlight->virtualDevice()->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputAccessDenied) ||
-        (m_spotlight->virtualDevice()->getDeviceStatus() == VirtualDevice::DeviceStatus::CouldNotCreate))
-      msg += tr("Please check whether the user has write permission to /dev/uinput.");
-
-    QMessageBox::warning(nullptr, tr("Virtual Device Creation Failed"), msg);
+    logError(cmdserver) << tr("Error starting local socket for inter-process communication.");
   }
 }
 
@@ -373,7 +362,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCom
   connect(localSocket,
           static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
   [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
-    qDebug() << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
+    logError(cmdclient) << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });

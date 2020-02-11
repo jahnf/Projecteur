@@ -2,6 +2,7 @@
 #include "projecteurapp.h"
 #include "projecteur-GitVersion.h"
 
+#include "logging.h"
 #include "runguard.h"
 #include "settings.h"
 #include "spotlight.h"
@@ -17,6 +18,8 @@
 
 #define XSTRINGIFY(s) STRINGIFY(s)
 #define STRINGIFY(x) #x
+
+LOGGING_CATEGORY(appMain, "main")
 
 namespace {
   class Main : public QObject {};
@@ -55,9 +58,12 @@ int main(int argc, char *argv[])
     const QCommandLineOption cfgFileOption(QStringList{ "cfg" }, Main::tr("Set custom config file."), "file");
     const QCommandLineOption commandOption(QStringList{ "c", "command"}, Main::tr("Send command/property to a running instance."), "cmd");
     const QCommandLineOption deviceInfoOption(QStringList{ "d", "device-scan"}, Main::tr("Print device-scan results."));
+    const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
+    const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
-                       cfgFileOption, fullVersionOption, deviceInfoOption});
+                       cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
+                       disableUInputOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -75,6 +81,10 @@ int main(int argc, char *argv[])
       print() << "  -v, --version          " << versionOption.description();
       print() << "  --cfg FILE             " << cfgFileOption.description();
       print() << "  -d, --device-scan      " << deviceInfoOption.description();
+      print() << "  -l, --log-level LEVEL  " << logLvlOption.description();
+      if (parser.isSet(fullHelpOption)) {
+        print() << "  --disable-uinput       " << disableUInputOption.description();
+      }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
@@ -207,8 +217,22 @@ int main(int argc, char *argv[])
         return 44;
       }
     }
+
     if (parser.isSet(cfgFileOption)) {
       options.configFile = parser.value(cfgFileOption);
+    }
+
+    if (parser.isSet(disableUInputOption)) {
+      options.enableUInput = false;
+    }
+
+    if (parser.isSet(logLvlOption)) {
+      const auto lvl = logging::levelFromName(parser.value(logLvlOption));
+      if (lvl != logging::level::unknown) {
+        logging::setCurrentLevel(lvl);
+      } else {
+        error() << Main::tr("Cannot set log level, unknown level: '%1'").arg(parser.value(logLvlOption));
+      }
     }
   }
 
@@ -224,6 +248,8 @@ int main(int argc, char *argv[])
   else if (ipcCommands.size())
   {
     // No other application instance running - but command option was used.
+    logInfo(appMain) << Main::tr("Cannot send commands '%1' - no running application instance found.").arg(ipcCommands.join("; "));
+    logWarning(appMain) << Main::tr("Cannot send commands '%1' - no running application instance found.").arg(ipcCommands.join("; "));
     error() << Main::tr("Cannot send commands '%1' - no running application instance found.").arg(ipcCommands.join("; "));
     return 43;
   }

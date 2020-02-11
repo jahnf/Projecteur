@@ -44,6 +44,7 @@ add_executable(projecteur
   src/aboutdlg.cc           src/aboutdlg.h
   src/colorselector.cc      src/colorselector.h
   src/imageitem.cc          src/imageitem.h
+  src/logging.cc            src/logging.h
   src/preferencesdlg.cc     src/preferencesdlg.h
   src/projecteurapp.cc      src/projecteurapp.h
   src/runguard.cc           src/runguard.h

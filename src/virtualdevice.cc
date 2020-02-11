@@ -1,11 +1,13 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "virtualdevice.h"
 
+#include "logging.h"
+
 #include <fcntl.h>
 #include <linux/uinput.h>
 #include <unistd.h>
 
-#include <QDebug>
+LOGGING_CATEGORY(virtualdevice, "virtualdevice")
 
 namespace  {
   static constexpr char uinputDeviceLocation[] = "/dev/uinput";
@@ -24,7 +26,7 @@ VirtualDevice::~VirtualDevice()
   {
     ioctl(m_uinpFd, UI_DEV_DESTROY);
     ::close(m_uinpFd);
-    // qDebug().noquote() << VirtualDevice_::tr("uinput Device Closed");
+    logDebug(virtualdevice) << VirtualDevice_::tr("uinput Device Closed");
   }
 }
 
@@ -44,13 +46,15 @@ VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
 
   // Open the input device
   if (access(uinputDeviceLocation, F_OK) == -1) {
-    qDebug().noquote() << VirtualDevice_::tr("File not found: %1").arg(uinputDeviceLocation);
+    logWarn(virtualdevice) << VirtualDevice_::tr("File not found: %1").arg(uinputDeviceLocation);
+    logWarn(virtualdevice) << VirtualDevice_::tr("Please check if uinput kernel module is loaded");
     return DeviceStatus::UinputNotFound;
   }
 
   m_uinpFd = ::open(uinputDeviceLocation, O_WRONLY | O_NDELAY);
   if (m_uinpFd < 0) {
-    qDebug().noquote() << VirtualDevice_::tr("Unable to open: %1").arg(uinputDeviceLocation);
+    logWarn(virtualdevice) << VirtualDevice_::tr("Unable to open: %1").arg(uinputDeviceLocation);
+    logWarn(virtualdevice) << VirtualDevice_::tr("Please check if current user has write access");
     return DeviceStatus::UinputAccessDenied;
   }
 
@@ -83,15 +87,15 @@ VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
   if ((bytesWritten != sizeof(uinp)) || (ioctl(m_uinpFd, UI_DEV_CREATE)))
   {
     ::close(m_uinpFd);
-    qDebug().noquote() << VirtualDevice_::tr("Unable to create Virtual (UINPUT) device.");
+    logWarn(virtualdevice) << VirtualDevice_::tr("Unable to create Virtual (UINPUT) device.");
     return DeviceStatus::CouldNotCreate;
   }
 
   // Log the device name
   char sysfs_device_name[16]{};
   ioctl(m_uinpFd, UI_GET_SYSNAME(sizeof(sysfs_device_name)), sysfs_device_name);
-  qDebug().noquote() << VirtualDevice_::tr("Created uinput device: %1")
-                        .arg(QString("/sys/devices/virtual/input/%1").arg(sysfs_device_name));
+  logInfo(virtualdevice) << VirtualDevice_::tr("Created uinput device: %1")
+                            .arg(QString("/sys/devices/virtual/input/%1").arg(sysfs_device_name));
 
   return DeviceStatus::Connected;
 }
