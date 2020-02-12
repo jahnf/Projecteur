@@ -89,11 +89,7 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotligh
   mainHBox->addLayout(spotScreenVBoxRight);
 
   const auto testBtn = new QPushButton(tr("&Show test..."), this);
-//  connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
-  connect(testBtn, &QPushButton::clicked, this, [](){
-    logInfo(preferences) << tr("testme click");
-    logInfo(preferences, "sdfsdf");
-  });
+  connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
 
   const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
