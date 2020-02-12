@@ -1,8 +1,9 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "linuxdesktop.h"
 
+#include "logging.h"
+
 #include <QApplication>
-#include <QDebug>
 #include <QDesktopWidget>
 #include <QDir>
 #include <QFile>
@@ -13,6 +14,8 @@
 #include <QDBusInterface>
 #include <QDBusReply>
 #endif
+
+LOGGING_CATEGORY(desktop, "desktop")
 
 namespace {
 #if HAS_Qt5_DBus
@@ -31,7 +34,7 @@ namespace {
       QFile::remove(filepath);
       return pm;
     }
-    qDebug() << "Error: Screenshot via GNOME DBus interface failed.";
+    logError(desktop) << LinuxDesktop::tr("Screenshot via GNOME DBus interface failed.");
     return QPixmap();
   }
 
@@ -46,7 +49,7 @@ namespace {
     if (!pm.isNull()) {
       QFile::remove(reply.value());
     } else {
-      qDebug() << "Error: Screenshot via KDE DBus interface failed.";
+      logError(desktop) << LinuxDesktop::tr("Screenshot via KDE DBus interface failed.");
     }
     return pm;
   }
@@ -105,8 +108,14 @@ QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
   
   if (isWayland()) 
     return grabScreenWayland(screen);
-  
-  if (QApplication::desktop()->isVirtualDesktop()) 
+
+  #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+    const bool isVirtualDesktop = QApplication::primaryScreen()->virtualSiblings().size() > 1;
+  #else
+    const bool isVirtualDesktop = QApplication::desktop()->isVirtualDesktop();
+  #endif
+
+  if (isVirtualDesktop)
     return grabScreenVirtualDesktop(screen);
  
   // everything else.. usually X11
@@ -126,11 +135,12 @@ QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
     pm = grabScreenDBusKde(); 
     break;
   default:
-    qDebug() << "Warning: Currently zoom on Wayland is only supported via DBus on KDE and GNOME."; 
+    logWarning(desktop) << tr("Currently zoom on Wayland is only supported via DBus on KDE and GNOME.");
   }
   return pm.isNull() ? pm : pm.copy(screen->geometry());
 #else
-  qDebug() << "Warning: Compiled without Qt DBus. Currently zoom on Wayland is only supported via DBus on KDE and GNOME."; 
+  logWarning(desktop) << tr("Projecteur was compiled without Qt DBus. Currently zoom on Wayland is "
+                            "only supported via DBus on KDE and GNOME.");
   return QPixmap();
 #endif
 }

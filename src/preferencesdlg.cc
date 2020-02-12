@@ -8,7 +8,9 @@
 
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDoubleSpinBox>
+#include <QFileDialog>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -58,7 +60,7 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
 
   const auto closeBtn = new QPushButton(tr("&Close"), this);
   closeBtn->setToolTip(tr("Close the preferences dialog."));
-  connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
+  connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
   const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
   defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
   connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
@@ -518,9 +520,40 @@ QWidget* PreferencesDialog::createLogTabWidget()
     logging::setCurrentLevel(lvl);
   });
 
+  const auto saveLogBtn = new QPushButton(tr("&Save log..."), this);
+  saveLogBtn->setToolTip(tr("Save log to file."));
+  connect(saveLogBtn, &QPushButton::clicked, this, [this, te]()
+  {
+    static auto saveDir = QDir::homePath();
+    const auto defaultName = QString("projecteur_%1.log")
+                             .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm"));
+
+    const auto defaultFile = QDir(saveDir).filePath(defaultName);
+    QString logFilter(tr("Log files (*.log *.txt)"));
+    const auto logFile = QFileDialog::getSaveFileName(this, tr("Save log file"),
+                                                      defaultFile, logFilter, &logFilter);
+    if (logFile.isEmpty())  return;
+    saveDir = QFileInfo(logFile).path();
+
+    QFile f(logFile);
+    if (f.open(QIODevice::WriteOnly))
+    {
+      // TODO add application info (version, build type, qt version, environemnt) to output file
+      f.write(te->toPlainText().toLocal8Bit());
+      logInfo(preferences) << tr("Log saved to: ") << logFile;
+    }
+    else {
+      logError(preferences) << tr("Could not open '%1' for writing.").arg(logFile);
+    }
+  });
+
+  lvlHBox->addWidget(saveLogBtn);
+  lvlHBox->setStretch(0, 0);
+  lvlHBox->setStretch(1, 1);
+  lvlHBox->setStretch(2, 1);
+
   mainVBox->addLayout(lvlHBox);
   mainVBox->addWidget(te);
-  // TODO export button -> save app info + log to file...
   return widget;
 }
 
