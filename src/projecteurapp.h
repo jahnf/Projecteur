@@ -23,6 +23,7 @@ class ProjecteurApplication : public QApplication
 public:
   struct Options {
     QString configFile;
+    bool enableUInput = true; // enable virtual uinput device
   };
 
   explicit ProjecteurApplication(int &argc, char **argv, const Options& options);

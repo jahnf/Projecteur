@@ -2,6 +2,7 @@
 #include "preferencesdlg.h"
 
 #include "colorselector.h"
+#include "logging.h"
 #include "settings.h"
 #include "spotlight.h"
 
@@ -13,11 +14,13 @@
 #include <QIcon>
 #include <QLabel>
 #include <QGridLayout>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QQmlPropertyMap>
 #include <QScreen>
 #include <QSpinBox>
 #include <QStyle>
+#include <QTabWidget>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -26,6 +29,8 @@
 #endif
 
 #include <map>
+
+LOGGING_CATEGORY(preferences, "preferences")
 
 namespace {
   #define CURSOR_PATH ":/icons/cursors/"
@@ -47,7 +52,31 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
-  const auto mainHBox = new QHBoxLayout();
+  const auto tabWidget = new QTabWidget(this);
+  tabWidget->addTab(createSettingsTabWidget(settings, spotlight), tr("Settings"));
+  tabWidget->addTab(createLogTabWidget(), tr("Log"));
+
+  const auto closeBtn = new QPushButton(tr("&Close"), this);
+  closeBtn->setToolTip(tr("Close the preferences dialog."));
+  connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
+  const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
+  defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
+  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
+
+  const auto btnHBox = new QHBoxLayout;
+  btnHBox->addWidget(defaultsBtn);
+  btnHBox->addStretch(1);
+  btnHBox->addWidget(closeBtn);
+
+  const auto mainVBox = new QVBoxLayout(this);
+  mainVBox->addWidget(tabWidget);
+  mainVBox->addLayout(btnHBox);
+}
+
+QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotlight* spotlight)
+{
+  const auto widget = new QWidget(this);
+  const auto mainHBox = new QHBoxLayout;
   const auto spotScreenVBoxLeft = new QVBoxLayout();
   spotScreenVBoxLeft->addWidget(createShapeGroupBox(settings));
   spotScreenVBoxLeft->addWidget(createZoomGroupBox(settings));
@@ -59,30 +88,18 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
-  const auto closeBtn = new QPushButton(tr("&Close"), this);
-  closeBtn->setToolTip(tr("Close the preferences dialog."));
-  connect(closeBtn, &QPushButton::clicked, [this](){ this->close(); });
-  const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
-  defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
-  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
-
   const auto testBtn = new QPushButton(tr("&Show test..."), this);
   connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
 
-  const auto btnHBox = new QHBoxLayout;
-  btnHBox->addWidget(defaultsBtn);
-  btnHBox->addStretch(1);
-  btnHBox->addWidget(closeBtn);
-
-  const auto mainVBox = new QVBoxLayout(this);
+  const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
-  mainVBox->addWidget(createConnectedStateWidget(spotlight));
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
+  mainVBox->addWidget(createConnectedStateWidget(spotlight));
   mainVBox->addWidget(testBtn);
-  mainVBox->addSpacing(10);
-  mainVBox->addLayout(btnHBox);
+
+  return widget;
 }
 
 QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
@@ -462,6 +479,49 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   grid->addWidget(cursorCb, 0, 1);
   grid->setColumnStretch(1, 1);
   return cursorGroup;
+}
+
+QWidget* PreferencesDialog::createLogTabWidget()
+{
+  const auto widget = new QWidget(this);
+  const auto mainVBox = new QVBoxLayout(widget);
+
+  const auto te = new QPlainTextEdit(widget);
+  te->setReadOnly(true);
+  te->setWordWrapMode(QTextOption::NoWrap);
+  te->setMaximumBlockCount(1000);
+  te->setFont([te]()
+  {
+    auto font = te->font();
+    font.setPointSize(font.pointSize() - 1);
+    return font;
+  }());
+  logging::registerTextEdit(te);
+
+  const auto lvlHBox = new QHBoxLayout();
+  lvlHBox->addWidget(new QLabel(tr("Log Level"), widget));
+  // Log level combo box
+  const auto logLvlCombo = new QComboBox(widget);
+  logLvlCombo->addItem(tr("Debug"), static_cast<int>(logging::level::debug));
+  logLvlCombo->addItem(tr("Info"), static_cast<int>(logging::level::info));
+  logLvlCombo->addItem(tr("Warning"), static_cast<int>(logging::level::warning));
+  logLvlCombo->addItem(tr("Error"), static_cast<int>(logging::level::error));
+  lvlHBox->addWidget(logLvlCombo);
+
+  const int idx = logLvlCombo->findData(static_cast<int>(logging::currentLevel()));
+  logLvlCombo->setCurrentIndex((idx == -1) ? 0 : idx);
+
+  connect(logLvlCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [logLvlCombo, te](int index) {
+    const auto lvl = static_cast<logging::level>(logLvlCombo->itemData(index).toInt());
+    te->appendPlainText(tr("--- Setting new log level: %1").arg(logging::levelToString(lvl)));
+    logging::setCurrentLevel(lvl);
+  });
+
+  mainVBox->addLayout(lvlHBox);
+  mainVBox->addWidget(te);
+  // TODO export button -> save app info + log to file...
+  return widget;
 }
 
 void PreferencesDialog::setDialogActive(bool active)

@@ -1,6 +1,9 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
+#include "virtualdevice.h"
+#include "logging.h"
+
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QSocketNotifier>
@@ -16,6 +19,11 @@
 #include <unistd.h>
 #include <vector>
 
+LOGGING_CATEGORY(device, "device")
+
+// Function declaration to check for extra devices, defintion in generated source
+bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
+
 namespace {
   struct Device {
     const quint16 vendorId;
@@ -24,18 +32,18 @@ namespace {
   };
 
   // List of supported devices
-  const std::vector<Device> supportedDevices {
+  const std::vector<Device> supportedDefaultDevices {
     {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
     {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
   };
 
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
   {
-    const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
+    const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
     [vendorId, productId](const Device& d) {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
-    return it != supportedDevices.cend();
+    return (it != supportedDefaultDevices.cend()) || isExtraDeviceSupported(vendorId, productId);
   }
 
   quint16 readUShortFromDeviceFile(const QString& filename)
@@ -84,17 +92,35 @@ namespace {
   }
 }
 
-Spotlight::Spotlight(QObject* parent)
+Spotlight::Spotlight(QObject* parent, bool enableUInput)
   : QObject(parent)
   , m_activeTimer(new QTimer(this))
+  , m_clickTimer(new QTimer(this))
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
+  m_clickTimer->setSingleShot(true);
+  m_clickTimer->setInterval(dblClickDuration);
 
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
   });
+
+  if (enableUInput)
+  {
+    m_virtualDevice.reset(new VirtualDevice);
+    connect(m_clickTimer, &QTimer::timeout, [this](){
+      if (m_clicked)
+      {
+        //Send fake mouse click
+        m_virtualDevice->mouseLeftClick();
+        m_clicked = false;
+      }
+    });
+  } else {
+    logInfo(device) << tr("Virtual device initialization was skipped.");
+  }
 
   // Try to find an already attached device(s) and connect to it.
   connectDevices();
@@ -114,6 +140,10 @@ bool Spotlight::anySpotlightDeviceConnected() const
   }
 
   return false;
+}
+
+const VirtualDevice* Spotlight::virtualDevice() const {
+  return m_virtualDevice.get();
 }
 
 QStringList Spotlight::connectedDevices() const
@@ -136,7 +166,6 @@ int Spotlight::connectDevices()
     it.next();
     if (it.fileName().startsWith("event"))
     {
-
       const auto found = m_eventNotifiers.find(it.filePath());
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
@@ -190,13 +219,28 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     return ConnectionResult::NotASpotlightDevice;
   }
 
+  bool deviceGrabbed = false;
+  // The device is a valid spotlight mouse events device. Grab its inputs if virtual device exists.
+  if (m_virtualDevice && m_virtualDevice->isDeviceCreated())
+  {
+    const int res = ioctl(evfd, EVIOCGRAB, 1);
+    if (res != 0)
+    {
+      // Grab not successful
+      ioctl(evfd, EVIOCGRAB, 0);
+    }
+    else {
+      deviceGrabbed = true;
+    }
+  }
+
   if(id.bustype == BUS_BLUETOOTH)
   {
     // Known issue (at least on Ubuntu systems):
     // Bluetooth devices get detected fine with the current approach with inotify and /dev/input
     // but the corresponding /dev/input/event* device from the Bluetooth Spotlight HID device
     // is still available even if bluetooth is disabled -> The application still thinks that
-    // a spotlight device connected, therefore showing a 'false' connected state in the
+    // a spotlight device connected, therefore showing a wrong connected state in the
     // Preferences dialog. Possible future counter measure would be to monitor the
     // bluetooth connection of Uniq & Phys addresses via the Linux Bluetooth API
 
@@ -221,36 +265,79 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
   QSocketNotifier* const notifier = m_eventNotifiers[devicePath].data();
 
-  connect(notifier, &QSocketNotifier::destroyed, [notifier, devicePath]() {
+  connect(notifier, &QSocketNotifier::destroyed, [deviceGrabbed, notifier, devicePath]()
+  {
+    if (deviceGrabbed) {
+      ioctl(static_cast<int>(notifier->socket()), EVIOCGRAB, 0);
+    }
     ::close(static_cast<int>(notifier->socket()));
   });
 
-  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd)
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath, deviceGrabbed](int fd)
   {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    // only for relative x/y events
-    if (sz == sizeof(ev) && ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y))
+    if (sz == sizeof(ev))
     {
-      if (!m_activeTimer->isActive()) {
-        m_spotActive = true;
-        emit spotActiveChanged(true);
+      // only for valid events
+      switch(ev.type)
+      {
+        case EV_REL:
+          if (ev.code == REL_X || ev.code == REL_Y)
+          {
+            if (!m_activeTimer->isActive()) {
+              m_spotActive = true;
+              emit spotActiveChanged(true);
+            }
+            // Send the relative event as fake mouse movement
+            if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+            m_activeTimer->start();
+          }
+          break;
+
+        case EV_KEY:
+          // Only Process left click events if the spotlight device is grabbed.
+          if (deviceGrabbed && ev.code == BTN_LEFT)
+          {
+            if (ev.value == 0) {// BTN_LEFT released
+              if (m_clickTimer->isActive()){
+                // Double Click Event
+                emit spotModeChanged();
+                m_clicked = false;
+              } else {
+                // Start the Click timer and if it times out then go for single click event
+                m_clickTimer->start();
+                m_clicked = true;
+              }
+            }
+          }
+          else {
+            if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+          }
+          break;
+
+        default: {
+          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+        }
       }
-      m_activeTimer->start();
     }
     else if (sz == -1)
     {
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
+      // TODO log name of device if available (and vendor/product id)
+      logInfo(device) << tr("Disconnected supported device: /dev/input/%1").arg(devicePath);
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
-      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers[devicePath].reset(); });
+      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers.erase(devicePath); });
     }
   });
 
   emit connected(devicePath);
+  // TODO log name of device if available (and vendor/product id)
+  logInfo(device) << tr("Connected supported device: /dev/input/%1").arg(devicePath);
   if (!anyConnectedBefore) {
     emit anySpotlightDeviceConnectedChanged(true);
   }
@@ -267,7 +354,8 @@ bool Spotlight::setupDevEventInotify()
   {
     fd = inotify_init();
     if (fd == -1) {
-       return false; // TODO: error msg - without it we cannot detect attachting of new devices
+      logError(device) << tr("inotify_init() failed. Detection of new attached devices will not work.");
+      return false;
     }
   }
   fcntl(fd, F_SETFD, FD_CLOEXEC);

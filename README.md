@@ -146,6 +146,7 @@ Usage: projecteur [option]
   -v, --version          Print application version.
   --cfg FILE             Set custom config file.
   -d, --device-scan      Print device-scan results.
+  -l, --log-level LEVEL  Set log level (dbg,inf,wrn,err), default is 'inf'.
   -c COMMAND|PROPERTY    Send command/property to a running instance.
 
 <Commands>

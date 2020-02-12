@@ -2,10 +2,13 @@
 #pragma once
 
 #include <QObject>
+
+#include <memory>
 #include <map>
 
 class QSocketNotifier;
 class QTimer;
+class VirtualDevice;
 
 /// Simple class to notify the application if the Logitech Spotlight and other supported devices
 /// are sending mouse move events. Used to turn the applications spot on or off.
@@ -14,12 +17,14 @@ class Spotlight : public QObject
   Q_OBJECT
 
 public:
-  explicit Spotlight(QObject* parent);
+  explicit Spotlight(QObject* parent, bool enableUInput = true);
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
   bool anySpotlightDeviceConnected() const;
+  const VirtualDevice* virtualDevice() const;
   QStringList connectedDevices() const;
+  int dblClickDuration = 300;
 
 
   struct Device {
@@ -50,6 +55,7 @@ signals:
   void disconnected(const QString& devicePath); //!< signal for every device disconnected
   void anySpotlightDeviceConnectedChanged(bool connected);
   void spotActiveChanged(bool isActive);
+  void spotModeChanged();
 
 private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
@@ -60,6 +66,9 @@ private:
 
 private:
   std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
-  QTimer* m_activeTimer;
+  QTimer* m_activeTimer = nullptr;
   bool m_spotActive = false;
+  bool m_clicked = false;
+  QTimer* m_clickTimer = nullptr;
+  std::unique_ptr<VirtualDevice> m_virtualDevice;
 };

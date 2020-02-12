@@ -4,10 +4,12 @@
 #include "aboutdlg.h"
 #include "imageitem.h"
 #include "linuxdesktop.h"
+#include "logging.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
 #include "settings.h"
 #include "spotlight.h"
+#include "virtualdevice.h"
 
 #include <QDesktopWidget>
 #include <QDialog>
@@ -23,7 +25,9 @@
 #include <QTimer>
 #include <QWindow>
 
-#include <QDebug>
+LOGGING_CATEGORY(mainapp, "mainapp")
+LOGGING_CATEGORY(cmdclient, "cmdclient")
+LOGGING_CATEGORY(cmdserver, "cmdserver")
 
 namespace {
   QString localServerName() {
@@ -40,14 +44,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 {
   if (screens().size() < 1)
   {
-    QMessageBox::critical(nullptr, tr("No Screens"), tr("screens().size() returned a size < 1."));
+    QMessageBox::critical(nullptr, tr("No Screens detected"), tr("screens().size() returned a size < 1.\nExiting."));
     QTimer::singleShot(0, [this](){ this->exit(2); });
     return;
   }
 
   setQuitOnLastWindowClosed(false);
 
-  m_spotlight = new Spotlight(this);
+  m_spotlight = new Spotlight(this, options.enableUInput);
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
   m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
@@ -160,6 +164,13 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       window->hide();
     }
   });
+  connect(m_spotlight, &Spotlight::spotModeChanged, [this]() {
+    m_settings->changeSpotMode();
+  });
+
+  connect(m_settings, &Settings::dblClickDurationChanged, [this](int duration) {
+    m_spotlight->dblClickDuration = duration;
+  });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){
     if (!v && m_dialog->isVisible()) {
@@ -230,7 +241,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   }
   else
   {
-    qDebug() << tr("Error starting local socket for inter-process communication.");
+    logError(cmdserver) << tr("Error starting local socket for inter-process communication.");
   }
 }
 
@@ -246,18 +257,20 @@ void ProjecteurApplication::cursorExitedWindow()
 
 void ProjecteurApplication::setScreenForCursorPos()
 {
-  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+  int screenNumber = 0;
+  const auto screen_cursor = this->screenAt(QCursor::pos());
 
-  // Alternative to using QApplication->desktop() / just in case QDesktopWidget gets removed in the future from Qt.
-//  int screenNumber = 0;
-//  const auto pos = QCursor::pos();
-//  for (const auto& screen : screens()) {
-//    if (screen->geometry().contains(pos)) {
-//      m_settings->setScreen(screenNumber);
-//      break;
-//    }
-//    ++screenNumber;
-//  }
+  for (const auto& screen : screens()) {
+    if (screen_cursor == screen) {
+      m_settings->setScreen(screenNumber);
+      break;
+    }
+    ++screenNumber;
+  }
+#else
+  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
+#endif
 }
 
 void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
@@ -351,7 +364,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCom
   connect(localSocket,
           static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
   [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
-    qDebug() << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
+    logError(cmdclient) << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
   });

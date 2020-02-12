@@ -1,13 +1,15 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "settings.h"
 
+#include "logging.h"
+
 #include <functional>
 
 #include <QCoreApplication>
 #include <QQmlPropertyMap>
 #include <QSettings>
 
-#include <QDebug>
+LOGGING_CATEGORY(lcSettings, "settings")
 
 namespace {
   namespace settings {
@@ -28,6 +30,7 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
+    constexpr char dblClickDuration[] = "dblClickDuration";
 
     namespace defaultValue {
       constexpr bool showSpotShade = true;
@@ -46,6 +49,7 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
+      constexpr int dblClickDuration = 300;
     }
 
     namespace ranges {
@@ -213,6 +217,7 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
+  setDblClickDuration(settings::defaultValue::dblClickDuration);
   shapeSettingsSetDefaults();
 }
 
@@ -247,6 +252,12 @@ void Settings::shapeSettingsLoad()
         const QString key = settingDefinition.settingsKey();
         const QString settingsKey = QString("Shape.%1/%2").arg(shape.name()).arg(key);
         const QVariant loadedValue = m_settings->value(settingsKey, settingDefinition.defaultValue());
+
+        if (settingDefinition.defaultValue().type() == QVariant::Int // Currently only int shape settings supported
+            && settingDefinition.defaultValue() != loadedValue) {
+          logDebug(lcSettings) << QString("spot.shape.%1.%2 = ").arg(shape.name().toLower(), key) << loadedValue.toInt();
+        }
+
         if (propertyMap->property(key.toLocal8Bit()).isValid()) {
           propertyMap->setProperty(key.toLocal8Bit(), loadedValue);
         } else {
@@ -274,7 +285,7 @@ void Settings::shapeSettingsInitialize()
 
         if (it != s.cend())
         {
-          if (it->defaultValue().type() == QVariant::Int)
+          if (it->defaultValue().type() == QVariant::Int) // Currently only int shape settings supported
           {
             const auto setValue = value.toInt();
             const auto min = it->minValue().toInt();
@@ -283,6 +294,8 @@ void Settings::shapeSettingsInitialize()
             if (newValue != setValue) {
               pm->setProperty(key.toLocal8Bit(), newValue);
             }
+            logDebug(lcSettings) << QString("spot.shape.%1.%2 = ").arg(shape.name().toLower(), it->settingsKey())
+                                 << setValue;
             m_settings->setValue(QString("Shape.%1/%2").arg(shape.name()).arg(key), newValue);
           }
         }
@@ -295,6 +308,7 @@ void Settings::shapeSettingsInitialize()
 
 void Settings::load()
 {
+  logDebug(lcSettings) << tr("Loading values from config.");
   setShowSpotShade(m_settings->value(::settings::showSpotShade, settings::defaultValue::showSpotShade).toBool());
   setSpotSize(m_settings->value(::settings::spotSize, settings::defaultValue::spotSize).toInt());
   setShowCenterDot(m_settings->value(::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
@@ -311,6 +325,7 @@ void Settings::load()
   setBorderOpacity(m_settings->value(::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   setZoomEnabled(m_settings->value(::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
   setZoomFactor(m_settings->value(::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
+  setDblClickDuration(m_settings->value(::settings::dblClickDuration, settings::defaultValue::dblClickDuration).toInt());
   shapeSettingsLoad();
 }
 
@@ -321,6 +336,7 @@ void Settings::setShowSpotShade(bool show)
 
   m_showSpotShade = show;
   m_settings->setValue(::settings::showSpotShade, m_showSpotShade);
+  logDebug(lcSettings) << "shade =" << m_showSpotShade;
   emit showSpotShadeChanged(m_showSpotShade);
 }
 
@@ -331,6 +347,7 @@ void Settings::setSpotSize(int size)
 
   m_spotSize = qMin(qMax(::settings::ranges::spotSize.min, size), ::settings::ranges::spotSize.max);
   m_settings->setValue(::settings::spotSize, m_spotSize);
+  logDebug(lcSettings) << "spot.size =" << m_spotSize;
   emit spotSizeChanged(m_spotSize);
 }
 
@@ -341,6 +358,7 @@ void Settings::setShowCenterDot(bool show)
 
   m_showCenterDot = show;
   m_settings->setValue(::settings::showCenterDot, m_showCenterDot);
+  logDebug(lcSettings) << "dot =" << m_showCenterDot;
   emit showCenterDotChanged(m_showCenterDot);
 }
 
@@ -351,6 +369,7 @@ void Settings::setDotSize(int size)
 
   m_dotSize = qMin(qMax(::settings::ranges::dotSize.min, size), ::settings::ranges::dotSize.max);
   m_settings->setValue(::settings::dotSize, m_dotSize);
+  logDebug(lcSettings) << "dot.size =" << m_dotSize;
   emit dotSizeChanged(m_dotSize);
 }
 
@@ -361,6 +380,7 @@ void Settings::setDotColor(const QColor& color)
 
   m_dotColor = color;
   m_settings->setValue(::settings::dotColor, m_dotColor);
+  logDebug(lcSettings) << "dot.color =" << m_dotColor.name();
   emit dotColorChanged(m_dotColor);
 }
 
@@ -371,6 +391,7 @@ void Settings::setShadeColor(const QColor& color)
 
   m_shadeColor = color;
   m_settings->setValue(::settings::shadeColor, m_shadeColor);
+  logDebug(lcSettings) << "shade.color =" << m_shadeColor.name();
   emit shadeColorChanged(m_shadeColor);
 }
 
@@ -380,6 +401,7 @@ void Settings::setShadeOpacity(double opacity)
   {
     m_shadeOpacity = qMin(qMax(::settings::ranges::shadeOpacity.min, opacity), ::settings::ranges::shadeOpacity.max);
     m_settings->setValue(::settings::shadeOpacity, m_shadeOpacity);
+    logDebug(lcSettings) << "shade.opacity = " << m_shadeOpacity;
     emit shadeOpacityChanged(m_shadeOpacity);
   }
 }
@@ -401,6 +423,7 @@ void Settings::setCursor(Qt::CursorShape cursor)
 
   m_cursor = qMin(qMax(static_cast<Qt::CursorShape>(0), cursor), Qt::LastCursor);
   m_settings->setValue(::settings::cursor, static_cast<int>(m_cursor));
+  logDebug(lcSettings) << "cursor = " << m_cursor;
   emit cursorChanged(m_cursor);
 }
 
@@ -417,6 +440,7 @@ void Settings::setSpotShape(const QString& spotShapeQmlComponent)
   if (it != spotShapes().cend()) {
     m_spotShape = it->qmlComponent();
     m_settings->setValue(::settings::spotShape, m_spotShape);
+    logDebug(lcSettings) << "spot.shape = " << m_spotShape;
     emit spotShapeChanged(m_spotShape);
     setSpotRotationAllowed(it->allowRotation());
   }
@@ -428,6 +452,7 @@ void Settings::setSpotRotation(double rotation)
   {
     m_spotRotation = qMin(qMax(::settings::ranges::spotRotation.min, rotation), ::settings::ranges::spotRotation.max);
     m_settings->setValue(::settings::spotRotation, m_spotRotation);
+    logDebug(lcSettings) << "spot.rotation = " << m_spotRotation;
     emit spotRotationChanged(m_spotRotation);
   }
 }
@@ -479,6 +504,7 @@ void Settings::setShowBorder(bool show)
 
   m_showBorder = show;
   m_settings->setValue(::settings::showBorder, m_showBorder);
+  logDebug(lcSettings) << "border = " << m_showBorder;
   emit showBorderChanged(m_showBorder);
 }
 
@@ -489,6 +515,7 @@ void Settings::setBorderColor(const QColor& color)
 
   m_borderColor = color;
   m_settings->setValue(::settings::borderColor, m_borderColor);
+  logDebug(lcSettings) << "border.color = " << m_borderColor.name();
   emit borderColorChanged(m_borderColor);
 }
 
@@ -499,6 +526,7 @@ void Settings::setBorderSize(int size)
 
   m_borderSize = qMin(qMax(::settings::ranges::borderSize.min, size), ::settings::ranges::borderSize.max);
   m_settings->setValue(::settings::borderSize, m_borderSize);
+  logDebug(lcSettings) << "border.size = " << m_borderSize;
   emit borderSizeChanged(m_borderSize);
 }
 
@@ -508,6 +536,7 @@ void Settings::setBorderOpacity(double opacity)
   {
     m_borderOpacity = qMin(qMax(::settings::ranges::borderOpacity.min, opacity), ::settings::ranges::borderOpacity.max);
     m_settings->setValue(::settings::borderOpacity, m_borderOpacity);
+    logDebug(lcSettings) << "border.opacity = " << m_borderOpacity;
     emit borderOpacityChanged(m_borderOpacity);
   }
 }
@@ -519,6 +548,7 @@ void Settings::setZoomEnabled(bool enabled)
 
   m_zoomEnabled = enabled;
   m_settings->setValue(::settings::zoomEnabled, m_zoomEnabled);
+  logDebug(lcSettings) << "zoom = " << m_zoomEnabled;
   emit zoomEnabledChanged(m_zoomEnabled);
 }
 
@@ -528,8 +558,20 @@ void Settings::setZoomFactor(double factor)
   {
     m_zoomFactor = qMin(qMax(::settings::ranges::zoomFactor.min, factor), ::settings::ranges::zoomFactor.max);
     m_settings->setValue(::settings::zoomFactor, m_zoomFactor);
+    logDebug(lcSettings) << "zoom.factor = " << m_zoomFactor;
     emit zoomFactorChanged(m_zoomFactor);
   }
+}
+
+void Settings::setDblClickDuration(int duration)
+{
+  // duration in millisecond
+  if (m_dblClickDuration == duration)
+    return;
+
+  m_dblClickDuration = duration;
+  m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
+  emit dblClickDurationChanged(m_dblClickDuration);
 }
 
 QString Settings::StringProperty::typeToString(Type type)
@@ -542,4 +584,10 @@ QString Settings::StringProperty::typeToString(Type type)
   case Type::StringEnum: return "Value";
   }
   return QString();
+}
+
+void Settings::changeSpotMode()
+{
+  // Mode changing logic
+  setZoomEnabled(!zoomEnabled());
 }
