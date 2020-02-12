@@ -3,6 +3,7 @@
 
 #include "aboutdlg.h"
 #include "imageitem.h"
+#include "linuxdesktop.h"
 #include "logging.h"
 #include "preferencesdlg.h"
 #include "qglobalshortcutx11.h"
