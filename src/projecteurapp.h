@@ -6,6 +6,7 @@
 #include <map>
 
 class AboutDialog;
+class LinuxDesktop;
 class PreferencesDialog;
 class QLocalServer;
 class QLocalSocket;
@@ -46,6 +47,7 @@ private:
   QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;
+  LinuxDesktop* m_linuxDesktop = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
 };
 

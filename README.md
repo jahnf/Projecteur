@@ -15,9 +15,24 @@ done by additional software.
 
 So here it is: a Linux application for the Logitech Spotlight.
 
+## Table of Contents
+
+  * [Motivation](#motivation)
+  * [Features](#features)
+  * [Supported Environments](#supported-environments)
+  * [How it works](#how-it-works)
+  * [Download](#download)
+  * [Building](#building)
+  * [Installation/Running](#installationrunning)
+      * [Pre-requisites](#pre-requisites)
+      * [Application Menu](#application-menu)
+      * [Command Line Interface](#command-line-interface)
+      * [Troubleshooting](#troubleshooting)
+  * [License](#license)
+
 ## Features
 
-* Configurable desktop spotlight 
+* Configurable desktop spotlight
   * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_.
   * Zoom (magnifier) functionality.
 * Multiple screen support
@@ -59,7 +74,7 @@ For more details: Have a look at the source code ;)
 ## Download
 
 The latest binary packages for some Linux distributions are available for download on bintray.
-Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and 
+Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and
 _Arch_ Linux are automatically built.
 
 * Latest develop:
@@ -103,7 +118,7 @@ file in this repository: `55-spotlight.rules.in`
   If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
   to load the rules without a reboot.
 * After that the input devices from the Logitech USB Receiver (but also the Bluetooth device)
-  in /dev/input should be readable/writeable by you. 
+  in /dev/input should be readable/writeable by you.
   (See also about [device detection](#device-shows-as-not-connected))
 * When building against the Qt version that comes with your distribution's packages
   you might need to install some  additional QML module packages. For example this
@@ -164,26 +179,41 @@ See [Command Line Interface](#command-line-interface).
 
 On some distributions that have a **GNOME Desktop** by default there is **no system tray extensions**
 installed (_Fedora_ for example). You can install the "TopIcons Plus" GNOME extension to have
-a system tray that can show the Projecteur tray icon (and also from other 
+a system tray that can show the Projecteur tray icon (and also from other
 applications like Dropbox or Skype)
+
+#### Zoom is not updated while spotlight is shown
+
+That is due to the fact how the zoom currently works. A screenshot is taken shortly before the
+overlay window is shown, and then a magnified section is shown wherever the mouse/spotlight is.
+If the zoom would be updated while the overlay window is shown, the overlay window it self would
+show up in the magnified section. That is a general problem, that also other magnifier tools face,
+although they can get around the problem by showing the magnified content rectangle always in the
+same position on the screen.
 
 #### Wayland
 
-While not developed with Wayland in mind, some users reported _Projecteur_ works with
+While not developed with Wayland in mind, users reported _Projecteur_ works with
 Wayland. If you experience problems, you can try to set the `QT_QPA_PLATFORM` environment
-variable to `wayland`:
+variable to `wayland`, example:
 
 ```
 user@ubuntu1904:~/Projecteur/build$ QT_QPA_PLATFORM=wayland ./projecteur
 Using Wayland-EGL
 ```
 
+#### Wayland Zoom
+
+On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This is done with
+the help of their respective DBus interfaces for screen capturing. On other environemnts with
+Wayland, the zoom feature is currently not supported.
+
 #### Device shows as not connected
 
 If the device shows as not connected, there are some things you can do:
 
 * Check for devices with _Projecteur_'s command line option `-d` or `--device-scan` option.
-  This will show you a list of all supported and detected devices and also if 
+  This will show you a list of all supported and detected devices and also if
   they are readable/writable. If a detected device is not readable/writable it is an indicator,
   that there is something wrong with the installed _udev_ rules.
 * Manually on the shell: Check if the device is detected by the Linux system: Run

@@ -39,6 +39,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   , m_trayIcon(new QSystemTrayIcon())
   , m_trayMenu(new QMenu())
   , m_localServer(new QLocalServer(this))
+  , m_linuxDesktop(new LinuxDesktop(this))
 {
   if (screens().size() < 1)
   {
@@ -145,7 +146,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       if (window->screen())
       {
         if (m_settings->zoomEnabled()) {
-          desktopImageProvider->setPixmap(window->screen()->grabWindow(0));
+          desktopImageProvider->setPixmap(m_linuxDesktop->grabScreen(window->screen()));
         }
 
         const auto screenGeometry = window->screen()->geometry();
@@ -203,14 +204,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   QLocalServer::removeServer(localServerName());
   if (m_localServer->listen(localServerName()))
   {
-    connect(m_localServer, &QLocalServer::newConnection, [this]()
+    connect(m_localServer, &QLocalServer::newConnection, this, [this]()
     {
       while(QLocalSocket *clientConnection = m_localServer->nextPendingConnection())
       {
-        connect(clientConnection, &QLocalSocket::readyRead, [this, clientConnection]() {
+        connect(clientConnection, &QLocalSocket::readyRead, this, [this, clientConnection]() {
           this->readCommand(clientConnection);
         });
-        connect(clientConnection, &QLocalSocket::disconnected, [this, clientConnection]() {
+        connect(clientConnection, &QLocalSocket::disconnected, this, [this, clientConnection]() {
           const auto it = m_commandConnections.find(clientConnection);
           if (it != m_commandConnections.end())
           {

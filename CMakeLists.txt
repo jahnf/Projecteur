@@ -30,6 +30,8 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
 find_package(Qt5 QUIET COMPONENTS X11Extras)
 set(HAS_Qt5_X11Extras ${Qt5_FOUND})
+find_package(Qt5 QUIET COMPONENTS DBus)
+set(HAS_Qt5_DBus ${Qt5_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -43,6 +45,7 @@ add_executable(projecteur
   src/main.cc
   src/aboutdlg.cc           src/aboutdlg.h
   src/colorselector.cc      src/colorselector.h
+  src/linuxdesktop.cc       src/linuxdesktop.h
   src/imageitem.cc          src/imageitem.h
   src/logging.cc            src/logging.h
   src/preferencesdlg.cc     src/preferencesdlg.h
@@ -61,6 +64,15 @@ target_link_libraries(projecteur
 if(HAS_Qt5_X11Extras)
   target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
   target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+else()
+  message(STATUS "Compiling without Qt5::X11Extras.")
+endif()
+
+if(HAS_Qt5_DBus)
+  target_link_libraries(projecteur PRIVATE Qt5::DBus)
+  target_compile_definitions(projecteur PRIVATE HAS_Qt5_DBus=1)
+else()
+  message(STATUS "Compiling without Qt5::DBus.")
 endif()
 
 target_compile_options(projecteur
