@@ -490,6 +490,12 @@ QWidget* PreferencesDialog::createLogTabWidget()
   te->setReadOnly(true);
   te->setWordWrapMode(QTextOption::NoWrap);
   te->setMaximumBlockCount(1000);
+  te->setFont([te]()
+  {
+    auto font = te->font();
+    font.setPointSize(font.pointSize() - 1);
+    return font;
+  }());
   logging::registerTextEdit(te);
 
   const auto lvlHBox = new QHBoxLayout();
