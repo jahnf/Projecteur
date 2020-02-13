@@ -178,9 +178,11 @@ dialog, to test the spotlight, quit the application or set spotlight properties.
 See [Command Line Interface](#command-line-interface).
 
 On some distributions that have a **GNOME Desktop** by default there is **no system tray extensions**
-installed (_Fedora_ for example). You can install the "TopIcons Plus" GNOME extension to have
-a system tray that can show the Projecteur tray icon (and also from other
-applications like Dropbox or Skype)
+installed (_Fedora_ for example). You can install the
+[TopIcons Plus](https://extensions.gnome.org/extension/1031/topicons/) or the
+[KStatusNotifierItem/AppIndicator Support](https://extensions.gnome.org/extension/615/appindicator-support/)
+GNOME extension to have a system tray that can show the Projecteur tray icon
+(and also from other applications like Dropbox or Skype).
 
 #### Zoom is not updated while spotlight is shown
 
