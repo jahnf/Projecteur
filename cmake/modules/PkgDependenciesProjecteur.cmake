@@ -14,6 +14,15 @@ list(APPEND _PkgDeps_Projecteur_fedora
   "udev"
 )
 
+list(APPEND _PkgDeps_Projecteur_centos
+  "qt5-qtbase >= 5.7"
+  "qt5-qtdeclarative >= 5.7"
+  "qt5-qtgraphicaleffects >= 5.7"
+  "qt5-qtx11extras >= 5.7"
+  "passwd"
+  "udev"
+)
+
 list(APPEND _PkgDeps_Projecteur_debian
   "qml-module-qtgraphicaleffects (>= 5.7)"
   "libqt5widgets5 (>= 5.7)"
@@ -38,6 +47,8 @@ list(APPEND PkgDependencies_MAP_Projecteur
   "debian::_PkgDeps_Projecteur_debian"
   "ubuntu::_PkgDeps_Projecteur_debian"
   "fedora::_PkgDeps_Projecteur_fedora"
+  "centos::_PkgDeps_Projecteur_centos"
+  "rhel::_PkgDeps_Projecteur_centos"
   "opensuse::_PkgDeps_Projecteur_opensuse"
   "opensuse-leap::_PkgDeps_Projecteur_opensuse"
   "archlinux::_PkgDeps_Projecteur_archlinux"
