@@ -36,6 +36,7 @@ So here it is: a Linux application for the Logitech Spotlight.
   * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_.
   * Zoom (magnifier) functionality.
 * Multiple screen support
+* Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
 
 ### Screenshots
 
@@ -45,9 +46,8 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ### Planned features
 
-* Support other devices besides the Logitech Spotlight
 * Vibration (Timer) Support (Logitech Spotlight)
-* Support for device button configuration
+* Support for device button configuration/mapping
 
 ## Supported Environments
 
@@ -125,6 +125,13 @@ file in this repository: `55-spotlight.rules.in`
   is the case for Ubuntu, where you need to install the packages
   `qml-module-qtgraphicaleffrects`, `qml-module-qtquick-window2` and `qml-modules-qtquick2`
   to satisfy the application's runtime dependencies.
+
+#### Device Support
+
+Besides the Logitech Spotlight, similar devices can be used and are supported.
+Additional devices can be added to `devices.conf`. At CMake configuration time
+the project will be configured to support these devices and also create entries
+for them in the generated udev-rule file.
 
 ### Application Menu
 
@@ -229,6 +236,6 @@ If the device shows as not connected, there are some things you can do:
 
 ## License
 
-Copyright 2018-2019 Jahn Fuchs
+Copyright 2018-2020 Jahn Fuchs
 
 This project is distributed under the [MIT License](https://opensource.org/licenses/MIT), see [LICENSE.md](./LICENSE.md) for more information.
