@@ -126,13 +126,6 @@ file in this repository: `55-spotlight.rules.in`
   `qml-module-qtgraphicaleffrects`, `qml-module-qtquick-window2` and `qml-modules-qtquick2`
   to satisfy the application's runtime dependencies.
 
-#### Device Support
-
-Besides the Logitech Spotlight, similar devices can be used and are supported.
-Additional devices can be added to `devices.conf`. At CMake configuration time
-the project will be configured to support these devices and also create entries
-for them in the generated udev-rule file.
-
 ### Application Menu
 
 The application menu is accessable via the system tray icon. There you will find
@@ -154,6 +147,7 @@ Usage: projecteur [option]
   --cfg FILE             Set custom config file.
   -d, --device-scan      Print device-scan results.
   -l, --log-level LEVEL  Set log level (dbg,inf,wrn,err), default is 'inf'.
+  -D DEVICE              Additional accepted device; DEVICE=vendorId:productId
   -c COMMAND|PROPERTY    Send command/property to a running instance.
 
 <Commands>
@@ -163,6 +157,25 @@ Usage: projecteur [option]
 ```
 
 All the properties that can be set via the command line, are listed with the `--help-all` option.
+
+### Device Support
+
+#### Compile Time
+
+Besides the Logitech Spotlight, similar devices can be used and are supported.
+Additional devices can be added to `devices.conf`. At CMake configuration time
+the project will be configured to support these devices and also create entries
+for them in the generated udev-rule file.
+
+#### Runtime
+
+_Projecteur_ will also accept devices as supported when added via the `-D`
+command line option.
+
+Example: `projecteur -D 04b3:310c`
+
+This will enable devices for _Projecteur_, but it is up to the user to make sure
+the device is accessible (via udev rules).
 
 ### Troubleshooting
 
