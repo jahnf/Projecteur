@@ -60,10 +60,14 @@ int main(int argc, char *argv[])
     const QCommandLineOption deviceInfoOption(QStringList{ "d", "device-scan"}, Main::tr("Print device-scan results."));
     const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
     const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
+    const QCommandLineOption additionalDeviceOption(QStringList{ "D", "additional-device"},
+                               Main::tr("Additional accepted device; DEVICE = vendorId:productId\n"
+                                        "                         "
+                                        "e.g., -D 04b3:310c; e.g. -D 0x0c45:0x8101"), "device");
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
                        cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
-                       disableUInputOption});
+                       disableUInputOption, additionalDeviceOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -82,6 +86,7 @@ int main(int argc, char *argv[])
       print() << "  --cfg FILE             " << cfgFileOption.description();
       print() << "  -d, --device-scan      " << deviceInfoOption.description();
       print() << "  -l, --log-level LEVEL  " << logLvlOption.description();
+      print() << "  -D DEVICE              " << additionalDeviceOption.description();
       if (parser.isSet(fullHelpOption)) {
         print() << "  --disable-uinput       " << disableUInputOption.description();
       }
@@ -170,10 +175,24 @@ int main(int argc, char *argv[])
       }
       return 0;
     }
-    else if (parser.isSet(deviceInfoOption))
+
+    if (parser.isSet(additionalDeviceOption)) {
+      for (auto& deviceValue : parser.values(additionalDeviceOption)) {
+        const auto devPair = deviceValue.split(":");
+        const auto vendorId = devPair[0].toUShort(nullptr, 16);
+        const auto productId = devPair[1].toUShort(nullptr, 16);
+        if (vendorId == 0 || productId == 0) {
+          error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
+        } else {
+          options.additionalDevices.push_back({vendorId, productId, false});
+        }
+      }
+    }
+
+    if (parser.isSet(deviceInfoOption))
     {
-      const auto result = Spotlight::scanForDevices();
-      print() << QCoreApplication::applicationName().toStdString() << " "
+      const auto result = Spotlight::scanForDevices(options.additionalDevices);
+      print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << "; " << Main::tr("device scan") << std::endl;
 
       for (const auto& errmsg : result.errorMessages) {

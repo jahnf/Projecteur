@@ -57,6 +57,8 @@ add_executable(projecteur
   src/virtualdevice.h       src/virtualdevice.cc
   resources.qrc             qml/qml.qrc)
 
+target_include_directories(projecteur PRIVATE src)
+
 target_link_libraries(projecteur
   PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
 )
@@ -111,6 +113,7 @@ add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf)
+add_custom_target(templates SOURCES src/extra-devices.cc.in 55-spotlight.rules.in cmake/templates/Projecteur.desktop.in)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)

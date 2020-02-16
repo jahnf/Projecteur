@@ -25,14 +25,8 @@ LOGGING_CATEGORY(device, "device")
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
 
 namespace {
-  struct Device {
-    const quint16 vendorId;
-    const quint16 productId;
-    const bool isBluetooth;
-  };
-
   // List of supported devices
-  const std::vector<Device> supportedDefaultDevices {
+  const std::vector<Spotlight::SupportedDevice> supportedDefaultDevices {
     {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
     {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
   };
@@ -40,10 +34,19 @@ namespace {
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
   {
     const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
-    [vendorId, productId](const Device& d) {
+    [vendorId, productId](const Spotlight::SupportedDevice& d) {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
     return (it != supportedDefaultDevices.cend()) || isExtraDeviceSupported(vendorId, productId);
+  }
+
+  bool isAdditionallySupported(quint16 vendorId, quint16 productId, const QList<Spotlight::SupportedDevice>& devices)
+  {
+    const auto it = std::find_if(devices.cbegin(), devices.cend(),
+    [vendorId, productId](const Spotlight::SupportedDevice& d) {
+      return (vendorId == d.vendorId) && (productId == d.productId);
+    });
+    return (it != devices.cend());
   }
 
   quint16 readUShortFromDeviceFile(const QString& filename)
@@ -92,8 +95,9 @@ namespace {
   }
 }
 
-Spotlight::Spotlight(QObject* parent, bool enableUInput)
+Spotlight::Spotlight(QObject* parent, Options options)
   : QObject(parent)
+  , m_options(std::move(options))
   , m_activeTimer(new QTimer(this))
   , m_clickTimer(new QTimer(this))
 {
@@ -107,7 +111,7 @@ Spotlight::Spotlight(QObject* parent, bool enableUInput)
     emit spotActiveChanged(false);
   });
 
-  if (enableUInput)
+  if (m_options.enableUInput)
   {
     m_virtualDevice.reset(new VirtualDevice);
     connect(m_clickTimer, &QTimer::timeout, [this](){
@@ -118,7 +122,8 @@ Spotlight::Spotlight(QObject* parent, bool enableUInput)
         m_clicked = false;
       }
     });
-  } else {
+  }
+  else {
     logInfo(device) << tr("Virtual device initialization was skipped.");
   }
 
@@ -184,15 +189,21 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
 {
   const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
   if (evfd < 0) {
+    logDebug(device) << tr("Could not open: ") << devicePath;
     return ConnectionResult::CouldNotOpen;
   }
 
   struct input_id id{};
   ioctl(evfd, EVIOCGID, &id);
 
-  if (!isDeviceSupported(id.vendor, id.product))
+  if (!isDeviceSupported(id.vendor, id.product)
+      && !isAdditionallySupported(id.vendor, id.product, m_options.additionalDevices))
   {
     ::close(evfd);
+    logDebug(device) << tr("Device not supported: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
@@ -201,13 +212,24 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   if (len < 0)
   {
     ::close(evfd);
+    logDebug(device) << tr("Cannot get device properties: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
   // Checking if the device supports relative events,
   // e.g. the second HID device acts just as keyboard and has no relative events
   const bool hasRelEv = !!(bitmask & (1 << EV_REL));
-  if (!hasRelEv) { return ConnectionResult::NotASpotlightDevice; }
+  if (!hasRelEv)
+  {
+    logDebug(device) << tr("Device does not support relative events: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
+    return ConnectionResult::NotASpotlightDevice;
+  }
 
   unsigned long relEvents = 0;
   len = ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
@@ -215,7 +237,12 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
   const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
 
-  if (!hasRelXEvents || !hasRelYEvents) {
+  if (!hasRelXEvents || !hasRelYEvents)
+  {
+    logDebug(device) << tr("Device does not support relative events: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
@@ -410,7 +437,7 @@ void Spotlight::tryConnect(const QString& devicePath, int msec, int retries)
   });
 }
 
-Spotlight::ScanResult Spotlight::scanForDevices()
+Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& additionalDevices)
 {
   constexpr char hidDevicePath[] = "/sys/bus/hid/devices";
 
@@ -445,7 +472,8 @@ Spotlight::ScanResult Spotlight::scanForDevices()
 
       // Skip unsupported and devices where the vendor or product id could not be read
       if (device.vendorId == 0 || device.productId == 0) continue;
-      if (!isDeviceSupported(device.vendorId, device.productId)) continue;
+      if (!isDeviceSupported(device.vendorId, device.productId)
+          && !(isAdditionallySupported(device.vendorId, device.productId, additionalDevices))) continue;
 
       // Check if device supports relative events
       const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));

@@ -1,5 +1,6 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
+#include "spotlight.h"
 
 #include <QApplication>
 
@@ -13,7 +14,6 @@ class QLocalSocket;
 class QMenu;
 class QSystemTrayIcon;
 class Settings;
-class Spotlight;
 class Settings;
 
 class ProjecteurApplication : public QApplication
@@ -24,6 +24,7 @@ public:
   struct Options {
     QString configFile;
     bool enableUInput = true; // enable virtual uinput device
+    QList<Spotlight::SupportedDevice> additionalDevices;
   };
 
   explicit ProjecteurApplication(int &argc, char **argv, const Options& options);

@@ -17,7 +17,18 @@ class Spotlight : public QObject
   Q_OBJECT
 
 public:
-  explicit Spotlight(QObject* parent, bool enableUInput = true);
+  struct SupportedDevice {
+    const quint16 vendorId;
+    const quint16 productId;
+    const bool isBluetooth = false;
+  };
+
+  struct Options {
+    bool enableUInput = true; // enable virtual uinput device
+    QList<Spotlight::SupportedDevice> additionalDevices;
+  };
+
+  explicit Spotlight(QObject* parent, Options options);
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
@@ -25,7 +36,6 @@ public:
   const VirtualDevice* virtualDevice() const;
   QStringList connectedDevices() const;
   int dblClickDuration = 300;
-
 
   struct Device {
     enum class BusType { Unknown, Usb, Bluetooth };
@@ -47,7 +57,7 @@ public:
   };
 
   /// scan for supported devices and check if they are accessible
-  static ScanResult scanForDevices();
+  static ScanResult scanForDevices(const QList<SupportedDevice>& additionalDevices = {});
 
 signals:
   void error(const QString& errMsg);
@@ -65,6 +75,7 @@ private:
   void tryConnect(const QString& devicePath, int msec, int retries);
 
 private:
+  const Options m_options;
   std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
   QTimer* m_activeTimer = nullptr;
   bool m_spotActive = false;
