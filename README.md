@@ -3,7 +3,7 @@
 develop: [![Build Status develop](https://travis-ci.org/jahnf/Projecteur.svg?branch=develop)](https://travis-ci.org/jahnf/Projecteur)
 master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branch=master)](https://travis-ci.org/jahnf/Projecteur)
 
-Linux/X11 application for the Logitech Spotlight device. \
+Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
 
 ## Motivation
@@ -27,6 +27,7 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Pre-requisites](#pre-requisites)
       * [Application Menu](#application-menu)
       * [Command Line Interface](#command-line-interface)
+      * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
   * [License](#license)
 
