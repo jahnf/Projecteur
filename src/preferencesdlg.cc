@@ -333,7 +333,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   const auto spotGrid = new QGridLayout(spotGroup);
 
   // Shade color setting
-  const auto shadeColor = new ColorSelector(settings->shadeColor(), this);
+  const auto shadeColor = new ColorSelector(tr("Select Shade Color"), settings->shadeColor(), this);
   connect(shadeColor, &ColorSelector::colorChanged, settings, &Settings::setShadeColor);
   connect(settings, &Settings::shadeColorChanged, shadeColor, &ColorSelector::setColor);
   spotGrid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
@@ -382,7 +382,7 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   dotGrid->addWidget(new QLabel(tr("Dot Size"), this), 0, 0);
   dotGrid->addLayout(dotsizeHBox, 0, 1);
 
-  const auto dotColor = new ColorSelector(settings->dotColor(), this);
+  const auto dotColor = new ColorSelector(tr("Select Dot Color"), settings->dotColor(), this);
   connect(dotColor, &ColorSelector::colorChanged, settings, &Settings::setDotColor);
   connect(settings, &Settings::dotColorChanged, dotColor, &ColorSelector::setColor);
   dotGrid->addWidget(new QLabel(tr("Dot Color"), this), 1, 0);
@@ -418,7 +418,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   borderGrid->addWidget(new QLabel(tr("Border Size"), this), 0, 0);
   borderGrid->addLayout(bordersizeHBox, 0, 1);
 
-  const auto borderColor = new ColorSelector(settings->borderColor(), this);
+  const auto borderColor = new ColorSelector(tr("Select Border Color"), settings->borderColor(), this);
   connect(borderColor, &ColorSelector::colorChanged, settings, &Settings::setBorderColor);
   connect(settings, &Settings::borderColorChanged, borderColor, &ColorSelector::setColor);
   borderGrid->addWidget(new QLabel(tr("Border Color"), this), 1, 0);
