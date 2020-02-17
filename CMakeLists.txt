@@ -112,8 +112,9 @@ add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directo
 add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf)
-add_custom_target(templates SOURCES src/extra-devices.cc.in 55-spotlight.rules.in cmake/templates/Projecteur.desktop.in)
+add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf
+                                      src/extra-devices.cc.in 55-projecteur.rules.in
+                                      cmake/templates/Projecteur.desktop.in)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
@@ -179,8 +180,8 @@ endforeach()
 configure_file("src/extra-devices.cc.in" "src/extra-devices.cc" @ONLY)
 set_property(TARGET projecteur APPEND PROPERTY SOURCES "${CMAKE_CURRENT_BINARY_DIR}/src/extra-devices.cc")
 
-configure_file("55-spotlight.rules.in" "55-spotlight.rules" @ONLY)
-install(FILES "${OUTDIR}/55-spotlight.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
+configure_file("55-projecteur.rules.in" "55-projecteur.rules" @ONLY)
+install(FILES "${OUTDIR}/55-projecteur.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
 
 install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
 install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)

@@ -1,8 +1,8 @@
 # Set up permissions for non root users to open the Logitech Spotlight USB Receiver and other
 # supported devices. Enables the Projecteur application to access the device.
 
-# Copy the generated file `55-spotlight.rules` from the build directory
-# to /lib/udev/rules.d/55-spotlight.rules
+# Copy the generated file `55-projecteur.rules` from the build directory
+# to /lib/udev/rules.d/55-projecteur.rules
 
 # Rule for the Logitech Spotlight USB Receiver
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="0660", TAG+="uaccess"
@@ -11,7 +11,6 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="0660
 
 # Rule fot the Logitech Spotlight when connected via Bluetooth
 # Updated rule, thanks to Torsten Maehne (https://github.com/maehne)
-#SUBSYSTEMS=="input", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
 SUBSYSTEMS=="input", ENV{LIBINPUT_DEVICE_GROUP}="5/46d/b503*", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
 
 # Additional supported Bluetooth devices @EXTRA_BLUETOOTH_UDEV_RULES@
