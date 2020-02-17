@@ -111,9 +111,10 @@ the Qt version that comes with the distribution's package management.
 
 The input devices detected from the Spotlight device must be readable to the
 user running the application. To make this easier there is a udev rule template
-file in this repository: `55-spotlight.rules.in`
+file in this repository: `55-projecteur.rules.in`
 
-* Copy that file to `/lib/udev/rules.d/55-spotlight.rules`
+* During the CMake run, the file `55-projecteur.rules` will be created from this template
+  in your **build directory**. Copy that generated file to `/lib/udev/rules.d/55-projecteur.rules`
 * Most recent systems (using systemd) will automatically pick up the rule.
   If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
   to load the rules without a reboot.
