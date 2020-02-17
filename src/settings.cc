@@ -308,7 +308,7 @@ void Settings::shapeSettingsInitialize()
 
 void Settings::load()
 {
-  logDebug(lcSettings) << tr("Loading values from config.");
+  logDebug(lcSettings) << tr("Loading values from config:") << m_settings->fileName();
   setShowSpotShade(m_settings->value(::settings::showSpotShade, settings::defaultValue::showSpotShade).toBool());
   setSpotSize(m_settings->value(::settings::spotSize, settings::defaultValue::spotSize).toInt());
   setShowCenterDot(m_settings->value(::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());

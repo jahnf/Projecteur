@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "logging.h"
 
+#include <QDateTime>
 #include <QList>
 #include <QMetaMethod>
 #include <QPlainTextEdit>
@@ -110,7 +111,8 @@ namespace {
     // const char *file = context.file ? context.file : "";
     // const char *function = context.function ? context.function : "";
     const char *category = context.category ? context.category : "";
-    const auto logMsg = QString("[%1][%2] %3").arg(typeToShortString(type), category, msgQString);
+    const auto logMsg = QString("[%1][%2][%3] %4").arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs),
+                                                       typeToShortString(type), category, msgQString);
 
     if (type == QtDebugMsg || type == QtInfoMsg)
       std::cout << qUtf8Printable(logMsg) << std::endl;

@@ -107,7 +107,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         m_trayIcon->contextMenu()->popup(m_trayIcon->geometry().center());
       } else {
         // It's tricky to get the same behavior on all desktop environments. While on GNOME3
-        // it behaves as one (or most) would expect it behaves differently on other Desktop
+        // it behaves as one (or most) would expect, it behaves differently on other Desktop
         // environments.
         // QSystemTrayIcon is a wrapper around the StatusNotfierItem on modern (Linux) Desktops
         // see: https://www.freedesktop.org/wiki/Specifications/StatusNotifierItem/
@@ -285,6 +285,7 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
 
     if (commandSize > 256)
     {
+      logWarning(cmdserver) << tr("Received invalid command size (%1)").arg(commandSize);
       clientConnection->disconnectFromServer();
       return ;
     }
@@ -300,16 +301,19 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
 
   if (cmdKey == "quit")
   {
+    logDebug(cmdserver) << tr("Received quit command.");
     this->quit();
   }
   else if (cmdKey == "spot")
   {
     const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
+    logDebug(cmdserver) << tr("Received command spot = %1").arg(active);
     emit m_spotlight->spotActiveChanged(active);
   }
   else if (cmdKey == "settings" || cmdKey == "preferences")
   {
     const bool show = !(cmdValue == "hide" || cmdValue == "0");
+    logDebug(cmdserver) << tr("Received command settings = %1").arg(show);
     showPreferences(show);
   }
   else if (cmdValue.size())
@@ -320,10 +324,12 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
       return (pair.first == cmdKey);
     });
     if (it != m_settings->stringProperties().cend()) {
+      logDebug(cmdserver) << tr("Received command '%1'='%2'").arg(cmdKey, cmdValue);
       it->second.setFunction(cmdValue);
     }
     else {
       // string property not found...
+      logWarning(cmdserver) << tr("Received unknown command key (%1)").arg(cmdKey);
     }
   }
   // reset command size, for next command

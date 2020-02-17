@@ -67,7 +67,7 @@ signals:
 
 private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
-  ConnectionResult connectSpotlightDevice(const QString& devicePath);
+  ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
   bool setupDevEventInotify();
   int connectDevices();
   void tryConnect(const QString& devicePath, int msec, int retries);
