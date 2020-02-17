@@ -10,8 +10,11 @@
 LOGGING_CATEGORY(virtualdevice, "virtualdevice")
 
 namespace  {
-  static constexpr char uinputDeviceLocation[] = "/dev/uinput";
-  static constexpr char uinputDeviceName[] = "Projecteur_input_device";
+  constexpr char uinputDeviceLocation[] = "/dev/uinput";
+  constexpr char uinputDeviceName[] = "Projecteur_input_device";
+  constexpr uint16_t virtualVendorId = 0xfeed;
+  constexpr uint16_t virtualProductId = 0xc0de;
+  constexpr uint16_t virtualVersionId = 1;
 
   class VirtualDevice_ : public QObject {}; // for i18n and logging
 }
@@ -61,8 +64,12 @@ VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
   struct uinput_user_dev uinp {};
   strncpy(uinp.name, uinputDeviceName, UINPUT_MAX_NAME_SIZE);
   uinp.id.bustype = BUS_USB;
+  uinp.id.vendor = virtualVendorId;
+  uinp.id.product = virtualProductId;
+  uinp.id.version = virtualVersionId;
 
   // Setup the uinput device
+  // TODO Are the following Key and Event bits sufficient? Do we need more? (see all in Linux's input-event-codes.h)
   ioctl(m_uinpFd, UI_SET_EVBIT, EV_KEY);
   ioctl(m_uinpFd, UI_SET_EVBIT, EV_REL);
   ioctl(m_uinpFd, UI_SET_RELBIT, REL_X);
@@ -74,8 +81,6 @@ VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
 
   ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_MOUSE);
   ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_TOUCH);
-
-  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_MOUSE);
   ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_LEFT);
   ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_MIDDLE);
   ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_RIGHT);
@@ -125,7 +130,7 @@ void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp)
 
   const auto bytesWritten = write(m_uinpFd, &ie, sizeof(ie));
   if (bytesWritten != sizeof(ie)) {
-    // TODO: error handling
+    logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
   }
 }
 

@@ -6,7 +6,6 @@
 #include "linuxdesktop.h"
 #include "logging.h"
 #include "preferencesdlg.h"
-#include "qglobalshortcutx11.h"
 #include "settings.h"
 #include "spotlight.h"
 #include "virtualdevice.h"
@@ -122,12 +121,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
-
-  // Example code for global shortcuts...
-  //  const auto shortcut = new QGlobalShortcutX11(QKeySequence("Ctrl+F3"), this);
-  //  connect(shortcut, &QGlobalShortcutX11::activated, [window](){
-  //    qDebug() << "GlobalShortCut Ctrl+F3" << window;
-  //  });
 
   // Handling of spotlight window when input from spotlight device is detected
   connect(m_spotlight, &Spotlight::spotActiveChanged,
