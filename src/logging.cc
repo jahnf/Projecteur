@@ -111,7 +111,14 @@ namespace {
     // const char *file = context.file ? context.file : "";
     // const char *function = context.function ? context.function : "";
     const char *category = context.category ? context.category : "";
-    const auto logMsg = QString("[%1][%2][%3] %4").arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs),
+
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))
+      constexpr auto dateFormat = Qt::ISODateWithMs;
+    #else
+      constexpr auto dateFormat = Qt::ISODate;
+    #endif
+
+    const auto logMsg = QString("[%1][%2][%3] %4").arg(QDateTime::currentDateTime().toString(dateFormat),
                                                        typeToShortString(type), category, msgQString);
 
     if (type == QtDebugMsg || type == QtInfoMsg)
