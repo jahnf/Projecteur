@@ -1,6 +1,8 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "preferencesdlg.h"
 
+#include "projecteur-GitVersion.h"
+
 #include "colorselector.h"
 #include "logging.h"
 #include "settings.h"
@@ -33,6 +35,7 @@
 #include <map>
 
 LOGGING_CATEGORY(preferences, "preferences")
+LOGGING_CATEGORY(x11display, "x11display")
 
 namespace {
   #define CURSOR_PATH ":/icons/cursors/"
@@ -161,8 +164,18 @@ QWidget* PreferencesDialog::createCompositorWarningWidget()
   timer->setSingleShot(false);
 
   auto checkForCompositorAndUpdate = [widget](){
-    // Warning visible if no compositor is running.
-    widget->setVisible(!QX11Info::isCompositingManagerRunning());
+    static bool compositorWasRunning = true;
+    const bool compositorIsRunning = QX11Info::isCompositingManagerRunning();
+    if (compositorWasRunning != compositorIsRunning)
+    {
+      if (compositorIsRunning) {
+        logInfo(x11display) << tr("Detected running compositing compositing manager.");
+      } else {
+        logWarning(x11display) << tr("No running compositing manager detected.");
+      }
+    }
+    widget->setVisible(!compositorIsRunning); // Warning widget visible if no compositor is running.
+    compositorWasRunning = compositorIsRunning;
   };
 
   checkForCompositorAndUpdate();
@@ -500,6 +513,14 @@ QWidget* PreferencesDialog::createLogTabWidget()
   }());
   logging::registerTextEdit(te);
 
+  // Count discarded logs
+  connect(te, &QPlainTextEdit::blockCountChanged, this,
+  [maxBlockCount=te->maximumBlockCount(), this](int newBlockCount) {
+    if (newBlockCount > maxBlockCount) {
+      m_discardedLogCount += (newBlockCount-maxBlockCount);
+    }
+  });
+
   const auto lvlHBox = new QHBoxLayout();
   lvlHBox->addWidget(new QLabel(tr("Log Level"), widget));
   // Log level combo box
@@ -538,7 +559,17 @@ QWidget* PreferencesDialog::createLogTabWidget()
     QFile f(logFile);
     if (f.open(QIODevice::WriteOnly))
     {
-      // TODO add application info (version, build type, qt version, environemnt) to output file
+      f.write(QString("%1 %2\n").arg(QCoreApplication::applicationName())
+              .arg(projecteur::version_string()).toLocal8Bit());
+      f.write(QString(" - git-branch: %1, git-hash: %2\n").arg(projecteur::version_branch())
+              .arg(projecteur::version_shorthash()).toLocal8Bit());
+      f.write(QString(" - qt-version: (build: %1, runtime: %2)\n").arg(QT_VERSION_STR)
+              .arg(qVersion()).toLocal8Bit());
+      f.write(QString("\n------------------------------------------------------------\n").toLocal8Bit());
+      if (m_discardedLogCount > 0) {
+        f.write(tr("Discarded %1 previous log entries.").arg(m_discardedLogCount).toLocal8Bit());
+        f.write(QString("\n------------------------------------------------------------\n").toLocal8Bit());
+      }
       f.write(te->toPlainText().toLocal8Bit());
       logInfo(preferences) << tr("Log saved to: ") << logFile;
     }

@@ -18,9 +18,9 @@ class Spotlight : public QObject
 
 public:
   struct SupportedDevice {
-    const quint16 vendorId;
-    const quint16 productId;
-    const bool isBluetooth = false;
+    quint16 vendorId;
+    quint16 productId;
+    bool isBluetooth = false;
   };
 
   struct Options {
