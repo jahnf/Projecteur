@@ -47,8 +47,8 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ### Planned features
 
-* Vibration (Timer) Support (Logitech Spotlight)
 * Support for device button configuration/mapping
+* Vibration (Timer) Support (Logitech Spotlight)
 
 ## Supported Environments
 
@@ -72,10 +72,18 @@ we will 'turn on' the desktop spot.
 
 For more details: Have a look at the source code ;)
 
+### Notes about v0.7
+
+This version implemented a virtual device by default (You can still disable it with
+the `--disable-uinput` command line option). _Projecteur_ will now **grab** all device
+events and forward it to the virtual 'uniput' device. While this does currently not
+change any behavior or feature from `v0.6`, this prepares _Projecteur_ for the planned
+button mapping feature.
+
 ## Download
 
 The latest binary packages for some Linux distributions are available for download on bintray.
-Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and
+Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_, _CentOS_ and
 _Arch_ Linux are automatically built.
 
 * Latest develop:
