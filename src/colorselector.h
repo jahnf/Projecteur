@@ -10,7 +10,7 @@ class ColorSelector : public QPushButton
 
 public:
   explicit ColorSelector(QWidget* parent = nullptr);
-  explicit ColorSelector(const QColor& color, QWidget* parent = nullptr);
+  explicit ColorSelector(const QString& selectionDialogTitle, const QColor& color, QWidget* parent = nullptr);
 
   void setColor(const QColor& color);
   QColor color() const { return m_color; }

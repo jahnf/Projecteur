@@ -1,3 +1,5 @@
+# Make sure uinput module is loaded
+modprobe uinput
 # Reload udev rules.
 udevadm control --reload-rules
 udevadm trigger

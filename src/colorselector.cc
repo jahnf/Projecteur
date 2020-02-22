@@ -4,18 +4,18 @@
 #include <QColorDialog>
 
 ColorSelector::ColorSelector(QWidget* parent)
-  : ColorSelector(Qt::black, parent)
+  : ColorSelector(tr("Select Color"), Qt::black, parent)
 {
 }
 
-ColorSelector::ColorSelector(const QColor& color, QWidget* parent)
+ColorSelector::ColorSelector(const QString& selectionDialogTitle, const QColor& color, QWidget* parent)
   : QPushButton(parent)
   , m_color(color)
 {
   setMinimumWidth(30);
   updateButton();
-  connect(this, &QPushButton::clicked, [this](){
-    const QColor c = QColorDialog::getColor(m_color, this, tr("Select Dot Color"));
+  connect(this, &QPushButton::clicked, [this, selectionDialogTitle](){
+    const QColor c = QColorDialog::getColor(m_color, this, selectionDialogTitle);
     if (c.isValid())
       setColor(c);
   });
