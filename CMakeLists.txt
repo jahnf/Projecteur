@@ -92,9 +92,9 @@ target_compile_definitions(projecteur PRIVATE
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES 
   VERSION_MAJOR 0
-  VERSION_MINOR 7
+  VERSION_MINOR 8
   VERSION_PATCH 0
-  VERSION_TYPE release
+  VERSION_TYPE develop
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
