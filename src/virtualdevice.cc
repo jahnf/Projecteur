@@ -1,101 +1,123 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "virtualdevice.h"
 
+#include "logging.h"
+
 #include <fcntl.h>
+#include <linux/uinput.h>
 #include <unistd.h>
 
-#include <QDebug>
+LOGGING_CATEGORY(virtualdevice, "virtualdevice")
 
-class VirtualDevice;
+namespace  {
+  constexpr char uinputDeviceLocation[] = "/dev/uinput";
+  constexpr char uinputDeviceName[] = "Projecteur_input_device";
+  constexpr uint16_t virtualVendorId = 0xfeed;
+  constexpr uint16_t virtualProductId = 0xc0de;
+  constexpr uint16_t virtualVersionId = 1;
 
-VirtualDevice::VirtualDevice() {
-  deviceStatus = setupVirtualDevice();
+  class VirtualDevice_ : public QObject {}; // for i18n and logging
 }
 
-VirtualDevice::~VirtualDevice() {
-  if (isDeviceCreated()) {
-    ioctl(uinp_fd, UI_DEV_DESTROY);
-    close(uinp_fd);
-    qDebug("uinput Device Closed");
+VirtualDevice::VirtualDevice()
+  : m_deviceStatus(setupVirtualDevice())
+{}
+
+VirtualDevice::~VirtualDevice()
+{
+  if (isDeviceCreated())
+  {
+    ioctl(m_uinpFd, UI_DEV_DESTROY);
+    ::close(m_uinpFd);
+    logDebug(virtualdevice) << VirtualDevice_::tr("uinput Device Closed");
   }
 }
 
-VirtualDevice::DeviceStatus VirtualDevice::getDeviceStatus(){
-  return deviceStatus;
+VirtualDevice::DeviceStatus VirtualDevice::getDeviceStatus() const {
+  return m_deviceStatus;
 }
 
 // Setup uinput device that can send mouse and keyboard events. Logs the result too.
-VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice() {
+VirtualDevice::DeviceStatus VirtualDevice::setupVirtualDevice()
+{
   if (isDeviceCreated())
     return DeviceStatus::Connected;
 
+  // Currently this upinput code uses the 'old' version,
+  // We can check the version and we can switch to the new interface if version is >=5
+  // see https://www.kernel.org/doc/html/v4.13/input/uinput.html
+
   // Open the input device
-  if (access("/dev/uinput", F_OK) == -1) {
-    qDebug("File not found /dev/uinput");
+  if (access(uinputDeviceLocation, F_OK) == -1) {
+    logWarn(virtualdevice) << VirtualDevice_::tr("File not found: %1").arg(uinputDeviceLocation);
+    logWarn(virtualdevice) << VirtualDevice_::tr("Please check if uinput kernel module is loaded");
     return DeviceStatus::UinputNotFound;
   }
-  uinp_fd = open("/dev/uinput", O_WRONLY | O_NDELAY);
-  if (uinp_fd < 0) {
-    qDebug("Unable to open /dev/uinput");
+
+  m_uinpFd = ::open(uinputDeviceLocation, O_WRONLY | O_NDELAY);
+  if (m_uinpFd < 0) {
+    logWarn(virtualdevice) << VirtualDevice_::tr("Unable to open: %1").arg(uinputDeviceLocation);
+    logWarn(virtualdevice) << VirtualDevice_::tr("Please check if current user has write access");
     return DeviceStatus::UinputAccessDenied;
   }
 
-  memset(&uinp,0,sizeof(uinp));
-  // Intialize the UINPUT device to NULL
-  strncpy(uinp.name, "Projecteur_input_device", UINPUT_MAX_NAME_SIZE);
+  struct uinput_user_dev uinp {};
+  strncpy(uinp.name, uinputDeviceName, UINPUT_MAX_NAME_SIZE);
   uinp.id.bustype = BUS_USB;
+  uinp.id.vendor = virtualVendorId;
+  uinp.id.product = virtualProductId;
+  uinp.id.version = virtualVersionId;
 
   // Setup the uinput device
-  ioctl(uinp_fd, UI_SET_EVBIT, EV_KEY);
-  ioctl(uinp_fd, UI_SET_EVBIT, EV_REL);
-  ioctl(uinp_fd, UI_SET_RELBIT, REL_X);
-  ioctl(uinp_fd, UI_SET_RELBIT, REL_Y);
+  // TODO Are the following Key and Event bits sufficient? Do we need more? (see all in Linux's input-event-codes.h)
+  ioctl(m_uinpFd, UI_SET_EVBIT, EV_KEY);
+  ioctl(m_uinpFd, UI_SET_EVBIT, EV_REL);
+  ioctl(m_uinpFd, UI_SET_RELBIT, REL_X);
+  ioctl(m_uinpFd, UI_SET_RELBIT, REL_Y);
 
-  for (int i=0; i < 256; i++) {
-    ioctl(uinp_fd, UI_SET_KEYBIT, i); }
+  for (int i = 0; i < 256; ++i) {
+    ioctl(m_uinpFd, UI_SET_KEYBIT, i);
+  }
 
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_MOUSE);
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_TOUCH);
-
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_MOUSE);
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_LEFT);
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_MIDDLE);
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_RIGHT);
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_FORWARD);
-  ioctl(uinp_fd, UI_SET_KEYBIT, BTN_BACK);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_MOUSE);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_TOUCH);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_LEFT);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_MIDDLE);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_RIGHT);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_FORWARD);
+  ioctl(m_uinpFd, UI_SET_KEYBIT, BTN_BACK);
 
   // Create input device into input sub-system
-  write(uinp_fd, &uinp, sizeof(uinp));
-  if (ioctl(uinp_fd, UI_DEV_CREATE)) {
-    close(uinp_fd);
-    qDebug("Unable to create Virtual (UINPUT) device.");
+  const auto bytesWritten = write(m_uinpFd, &uinp, sizeof(uinp));
+  if ((bytesWritten != sizeof(uinp)) || (ioctl(m_uinpFd, UI_DEV_CREATE)))
+  {
+    ::close(m_uinpFd);
+    logWarn(virtualdevice) << VirtualDevice_::tr("Unable to create Virtual (UINPUT) device.");
     return DeviceStatus::CouldNotCreate;
   }
 
   // Log the device name
-  char sysfs_device_name[16];
-  ioctl(uinp_fd, UI_GET_SYSNAME(sizeof(sysfs_device_name)), sysfs_device_name);
-  qDebug("uinput device: /sys/devices/virtual/input/%s", sysfs_device_name);
+  char sysfs_device_name[16]{};
+  ioctl(m_uinpFd, UI_GET_SYSNAME(sizeof(sysfs_device_name)), sysfs_device_name);
+  logInfo(virtualdevice) << VirtualDevice_::tr("Created uinput device: %1")
+                            .arg(QString("/sys/devices/virtual/input/%1").arg(sysfs_device_name));
 
   return DeviceStatus::Connected;
 }
 
 // Public methods to emit event from the device
-void VirtualDevice::emitEvent(u_int16_t type, u_int16_t code, int val) {
+void VirtualDevice::emitEvent(uint16_t type, uint16_t code, int val)
+{
   // If no virtual device is present then do not emit the event.
   if (!isDeviceCreated())
     return;
 
-  struct input_event ie;
-
-  ie.type = type;
-  ie.code = code;
-  ie.value = val;
-
-  emitEvent(ie, true);
+  input_event ie {{}, type, code, val};
+  emitEvent(std::move(ie), true);
 }
 
-void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp) {
+void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp)
+{
   // If no virtual device is present then do not emit the event.
   if (!isDeviceCreated())
     return;
@@ -106,11 +128,15 @@ void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp) {
     ie.time.tv_usec = 0;
   }
 
-  write(uinp_fd, &ie, sizeof(ie));
+  const auto bytesWritten = write(m_uinpFd, &ie, sizeof(ie));
+  if (bytesWritten != sizeof(ie)) {
+    logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
+  }
 }
 
 // Simulate mouse clicks
-void VirtualDevice::mouseLeftClick(){
+void VirtualDevice::mouseLeftClick()
+{
   emitEvent(EV_KEY, BTN_LEFT, 1);
   emitEvent(EV_SYN, SYN_REPORT, 0);
   emitEvent(EV_KEY, BTN_LEFT, 0);

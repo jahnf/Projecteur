@@ -10,6 +10,8 @@ list(APPEND _LinuxPackaging_MAP_dist_pkgtype
   "opensuse::RPM"
   "opensuse-leap::RPM"
   "fedora::RPM"
+  "centos::RPM"
+  "rhel::RPM"
   "arch::PKGBUILD"
   "archlinux::PKGBUILD"
 )

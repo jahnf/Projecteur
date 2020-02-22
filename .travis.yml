@@ -25,6 +25,9 @@ matrix:
   - os: linux
     dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:fedora-31
+  - os: linux
+    dist: bionic
+    env: DOCKER_IMG=jahnf/projecteur:centos-8
 script:
 - git fetch --tags
 - "[ -f $(git rev-parse --git-dir)/shallow ] && git fetch --unshallow || echo No need to unshallow..."
@@ -33,7 +36,7 @@ script:
 - docker exec -it build /bin/bash -c "mkdir -p /build/dist-pkg && cd /build && cmake /source"
 - docker exec -it build /bin/bash -c "cd /build && cmake --build ."
 - docker exec -it build /bin/bash -c "cd /build && cmake --build . --target dist-package"
-- docker exec -it build /bin/bash -c "cd /build && ./projecteur --version"
+- docker exec -it build /bin/bash -c "cd /build && ./projecteur -f"
 - "[ \"${BUILD_SOURCE_PKG}\" = 1 ] && docker exec -it build /bin/bash -c \"cd /build && cmake --build . --target source-archive\" || true"
 - docker cp build:/build/dist-pkg .
 - docker cp build:/build/travis-ci-bintray-deploy.json .

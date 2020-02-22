@@ -1,13 +1,15 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
+#include "virtualdevice.h"
+#include "logging.h"
+
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QSocketNotifier>
 #include <QTextStream>
 #include <QTimer>
 #include <QVarLengthArray>
-#include <QMessageBox>
 
 #include <functional>
 #include <fcntl.h>
@@ -17,26 +19,34 @@
 #include <unistd.h>
 #include <vector>
 
-namespace {
-  struct Device {
-    const quint16 vendorId;
-    const quint16 productId;
-    const bool isBluetooth;
-  };
+LOGGING_CATEGORY(device, "device")
 
+// Function declaration to check for extra devices, defintion in generated source
+bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
+
+namespace {
   // List of supported devices
-  const std::vector<Device> supportedDevices {
+  const std::vector<Spotlight::SupportedDevice> supportedDefaultDevices {
     {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
     {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
   };
 
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
   {
-    const auto it = std::find_if(supportedDevices.cbegin(), supportedDevices.cend(),
-    [vendorId, productId](const Device& d) {
+    const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
+    [vendorId, productId](const Spotlight::SupportedDevice& d) {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
-    return it != supportedDevices.cend();
+    return (it != supportedDefaultDevices.cend()) || isExtraDeviceSupported(vendorId, productId);
+  }
+
+  bool isAdditionallySupported(quint16 vendorId, quint16 productId, const QList<Spotlight::SupportedDevice>& devices)
+  {
+    const auto it = std::find_if(devices.cbegin(), devices.cend(),
+    [vendorId, productId](const Spotlight::SupportedDevice& d) {
+      return (vendorId == d.vendorId) && (productId == d.productId);
+    });
+    return (it != devices.cend());
   }
 
   quint16 readUShortFromDeviceFile(const QString& filename)
@@ -85,44 +95,25 @@ namespace {
   }
 }
 
-Spotlight::Spotlight(QObject* parent)
+Spotlight::Spotlight(QObject* parent, Options options)
   : QObject(parent)
+  , m_options(std::move(options))
   , m_activeTimer(new QTimer(this))
-  , m_clickTimer(new QTimer(this))
-  , m_virtualDevice(new VirtualDevice)
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
-  m_clickTimer->setSingleShot(true);
-  m_clickTimer->setInterval(dblClickDuration);
-
-  if (!m_virtualDevice->isDeviceCreated()){
-      QString msg = tr("A virtual device was not created. "\
-                       "Some features like changing pointer modes might not work.\n\n");
-
-      if (m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputNotFound)
-        msg += tr("Please check if uinput kernel module is loaded.");
-
-      if ((m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::UinputAccessDenied) ||\
-          (m_virtualDevice->getDeviceStatus() == VirtualDevice::DeviceStatus::CouldNotCreate))
-        msg += tr("Please check whether the user has write permission to /dev/uinput.");
-
-      QMessageBox::warning(nullptr, tr("Virtual Device Creation Failed"), msg);
-  }
 
   connect(m_activeTimer, &QTimer::timeout, [this](){
     m_spotActive = false;
     emit spotActiveChanged(false);
   });
 
-  connect(m_clickTimer, &QTimer::timeout, [this](){
-    if (m_clicked)
-    {
-      //Send fake mouse click
-      m_virtualDevice->mouseLeftClick();
-      m_clicked = false;
-    }
-  });
+  if (m_options.enableUInput) {
+    m_virtualDevice.reset(new VirtualDevice);
+  }
+  else {
+    logInfo(device) << tr("Virtual device initialization was skipped.");
+  }
 
   // Try to find an already attached device(s) and connect to it.
   connectDevices();
@@ -142,6 +133,10 @@ bool Spotlight::anySpotlightDeviceConnected() const
   }
 
   return false;
+}
+
+const VirtualDevice* Spotlight::virtualDevice() const {
+  return m_virtualDevice.get();
 }
 
 QStringList Spotlight::connectedDevices() const
@@ -164,7 +159,6 @@ int Spotlight::connectDevices()
     it.next();
     if (it.fileName().startsWith("event"))
     {
-
       const auto found = m_eventNotifiers.find(it.filePath());
       if (found != m_eventNotifiers.end() && found->second && found->second->isEnabled()) {
         continue;
@@ -179,19 +173,25 @@ int Spotlight::connectDevices()
 }
 
 /// Connect to devicePath if readable and if it is a spotlight device
-Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& devicePath)
+Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& devicePath, bool verbose)
 {
   const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
   if (evfd < 0) {
+    if (verbose) logDebug(device) << tr("Opening device failed:") << devicePath;
     return ConnectionResult::CouldNotOpen;
   }
 
   struct input_id id{};
   ioctl(evfd, EVIOCGID, &id);
 
-  if (!isDeviceSupported(id.vendor, id.product))
+  if (!isDeviceSupported(id.vendor, id.product)
+      && !isAdditionallySupported(id.vendor, id.product, m_options.additionalDevices))
   {
     ::close(evfd);
+    logDebug(device) << tr("Device not supported: %1 (%2:%3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
@@ -200,13 +200,24 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   if (len < 0)
   {
     ::close(evfd);
+    logDebug(device) << tr("Cannot get device properties: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
   // Checking if the device supports relative events,
   // e.g. the second HID device acts just as keyboard and has no relative events
   const bool hasRelEv = !!(bitmask & (1 << EV_REL));
-  if (!hasRelEv) { return ConnectionResult::NotASpotlightDevice; }
+  if (!hasRelEv)
+  {
+    logDebug(device) << tr("Device does not support relative events: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
+    return ConnectionResult::NotASpotlightDevice;
+  }
 
   unsigned long relEvents = 0;
   len = ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
@@ -214,23 +225,28 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
   const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
 
-  if (!hasRelXEvents || !hasRelYEvents) {
+  if (!hasRelXEvents || !hasRelYEvents)
+  {
+    logDebug(device) << tr("Device does not support relative events: %1 (%2, %3)")
+                        .arg(devicePath)
+                        .arg(id.vendor, 4, 16, QChar('0'))
+                        .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
-  // The device is a valid spotlight mouse events device. Grab its inputs if virtual device exists.
-  if (m_virtualDevice->isDeviceCreated()) {
-    int res = ioctl(evfd, EVIOCGRAB, 1);
-    if (res!=0) {
-      // Grab not successful
-      ioctl(evfd, EVIOCGRAB, 0);
-      ::close(evfd);
-      m_spotDeviceGrabbed = false;
-      return ConnectionResult::CouldNotOpen;
-    } else
-      m_spotDeviceGrabbed = true;
-  }
+  const bool deviceGrabbed = [this, evfd](){
+    // The device is a valid spotlight mouse events device. Grab its inputs if virtual device exists.
+    if (m_virtualDevice && m_virtualDevice->isDeviceCreated())
+    {
+      const int res = ioctl(evfd, EVIOCGRAB, 1);
+      if (res == 0) { return true; }
 
+      // Grab not successful
+      logError(device) << tr("Error grabbing device (return value: %1)").arg(res);
+      ioctl(evfd, EVIOCGRAB, 0);
+    }
+    return false;
+  }();
 
   if(id.bustype == BUS_BLUETOOTH)
   {
@@ -238,7 +254,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     // Bluetooth devices get detected fine with the current approach with inotify and /dev/input
     // but the corresponding /dev/input/event* device from the Bluetooth Spotlight HID device
     // is still available even if bluetooth is disabled -> The application still thinks that
-    // a spotlight device connected, therefore showing a 'false' connected state in the
+    // a spotlight device connected, therefore showing a wrong connected state in the
     // Preferences dialog. Possible future counter measure would be to monitor the
     // bluetooth connection of Uniq & Phys addresses via the Linux Bluetooth API
 
@@ -263,49 +279,47 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   m_eventNotifiers[devicePath].reset(new QSocketNotifier(evfd, QSocketNotifier::Read));
   QSocketNotifier* const notifier = m_eventNotifiers[devicePath].data();
 
-  connect(notifier, &QSocketNotifier::destroyed, [notifier, devicePath]() {
+  connect(notifier, &QSocketNotifier::destroyed, [deviceGrabbed, notifier, devicePath]()
+  {
+    if (deviceGrabbed) {
+      ioctl(static_cast<int>(notifier->socket()), EVIOCGRAB, 0);
+    }
     ::close(static_cast<int>(notifier->socket()));
   });
 
-  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath](int fd) {
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath, deviceGrabbed, id](int fd)
+  {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    if (sz == sizeof(ev)) {
+    if (sz == sizeof(ev))
+    {
       // only for valid events
-      switch(ev.type){
-
-        case EV_REL :
-          if (ev.code == REL_X || ev.code == REL_Y){
+      switch(ev.type)
+      {
+        case EV_REL:
+          if (ev.code == REL_X || ev.code == REL_Y)
+          {
             if (!m_activeTimer->isActive()) {
               m_spotActive = true;
               emit spotActiveChanged(true);
             }
             // Send the relative event as fake mouse movement
-            m_virtualDevice->emitEvent(ev);
+            if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
             m_activeTimer->start();
           }
           break;
 
-        case EV_KEY :
-          // Only Process left click events if the spotlight device is grabbed.
-          if (m_spotDeviceGrabbed && ev.code == BTN_LEFT){
-            if (ev.value == 0) {// BTN_LEFT released
-              if (m_clickTimer->isActive()){
-                // Double Click Event
-                emit spotModeChanged();
-                m_clicked = false;
-              } else {
-                // Start the Click timer and if it times out then go for single click event
-                m_clickTimer->start();
-                m_clicked = true;
-              }
-            }
-          } else
-            m_virtualDevice->emitEvent(ev);
+        case EV_KEY:
+          if (deviceGrabbed)
+          {
+            // For now: pass event through to uinput (planned in v0.8: custom button/action mapping)
+            if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+          }
           break;
 
-        default :
-          m_virtualDevice->emitEvent(ev);
+        default: {
+          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+        }
       }
     }
     else if (sz == -1)
@@ -313,16 +327,20 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
-      qDebug("Disconnected Spotlight device: /dev/input/%s", qPrintable(devicePath));
+      // TODO log name of device (Logitech Spotlight, Avatto H100...)
+      logInfo(device) << tr("Disconnected supported device: %1 (%2:%3)").arg(devicePath)
+                         .arg(id.vendor, 4, 16, QChar('0')).arg(id.product, 4, 16, QChar('0'));
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
-      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers[devicePath].reset(); });
+      QTimer::singleShot(0, [this, devicePath](){ m_eventNotifiers.erase(devicePath); });
     }
   });
 
   emit connected(devicePath);
-  qDebug("Connected Spotlight device: /dev/input/%s", qPrintable(devicePath));
+  // TODO log name of device (Logitech Spotlight, Avatto H100...)
+  logInfo(device) << tr("Connected supported device: %1 (%2:%3)").arg(devicePath)
+                     .arg(id.vendor, 4, 16, QChar('0')).arg(id.product, 4, 16, QChar('0'));
   if (!anyConnectedBefore) {
     emit anySpotlightDeviceConnectedChanged(true);
   }
@@ -339,7 +357,8 @@ bool Spotlight::setupDevEventInotify()
   {
     fd = inotify_init();
     if (fd == -1) {
-       return false; // TODO: error msg - without it we cannot detect attachting of new devices
+      logError(device) << tr("inotify_init() failed. Detection of new attached devices will not work.");
+      return false;
     }
   }
   fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -367,7 +386,8 @@ bool Spotlight::setupDevEventInotify()
       if ((event->mask & (IN_CREATE)) && QString(event->name).startsWith("event"))
       {
         const auto devicePath = QString("/dev/input/").append(event->name);
-        tryConnect(devicePath, 100, 4);
+        logDebug(device) << tr("Detected new input device:") << devicePath;
+        tryConnect(devicePath, 200, 4);
       }
       at += sizeof(inotify_event) + event->len;
     }
@@ -387,14 +407,14 @@ void Spotlight::tryConnect(const QString& devicePath, int msec, int retries)
 {
   --retries;
   QTimer::singleShot(msec, [this, devicePath, retries, msec]() {
-    if (connectSpotlightDevice(devicePath) == ConnectionResult::CouldNotOpen) {
+    if (connectSpotlightDevice(devicePath, true) == ConnectionResult::CouldNotOpen) {
       if (retries == 0) return;
       tryConnect(devicePath, msec+100, retries);
     }
   });
 }
 
-Spotlight::ScanResult Spotlight::scanForDevices()
+Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& additionalDevices)
 {
   constexpr char hidDevicePath[] = "/sys/bus/hid/devices";
 
@@ -429,7 +449,8 @@ Spotlight::ScanResult Spotlight::scanForDevices()
 
       // Skip unsupported and devices where the vendor or product id could not be read
       if (device.vendorId == 0 || device.productId == 0) continue;
-      if (!isDeviceSupported(device.vendorId, device.productId)) continue;
+      if (!isDeviceSupported(device.vendorId, device.productId)
+          && !(isAdditionallySupported(device.vendorId, device.productId, additionalDevices))) continue;
 
       // Check if device supports relative events
       const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));

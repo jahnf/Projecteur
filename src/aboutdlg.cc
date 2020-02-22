@@ -56,6 +56,7 @@ namespace {
       Contributor("Torsten Maehne", "maehne"),
       Contributor("TBK", "TBK"),
       Contributor("Louie Lu", "mlouielu"),
+      Contributor("fmuelle4711", "fmuelle4711"),
     };
 
     std::random_device rd;
@@ -109,7 +110,7 @@ QWidget* AboutDialog::createVersionInfoWidget()
                               .arg(projecteur::version_branch(), projecteur::version_shorthash());
   versionLabel->setToolTip(vInfo);
 
-  if (QString(projecteur::version_flag()).size() || 
+  if (QString(projecteur::version_flag()).size() ||
        (QString(projecteur::version_branch()) != "master"
         && QString(projecteur::version_branch()) != "not-within-git-repo"))
   {
@@ -130,7 +131,7 @@ QWidget* AboutDialog::createVersionInfoWidget()
   }
   vbox->addWidget(new QLabel(qtVerText, this));
   vbox->addSpacing(15);
-  vbox->addWidget(new QLabel("Copyright 2018-2019 Jahn Fuchs", this));
+  vbox->addWidget(new QLabel("Copyright 2018-2020 Jahn Fuchs", this));
   auto licenseText = new QLabel(tr("This project is distributed under the <br>"
                                    "<a href=\"https://github.com/jahnf/Projecteur/blob/develop/LICENSE.md\">"
                                    "MIT License</a>"), this);

@@ -3,7 +3,7 @@
 develop: [![Build Status develop](https://travis-ci.org/jahnf/Projecteur.svg?branch=develop)](https://travis-ci.org/jahnf/Projecteur)
 master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branch=master)](https://travis-ci.org/jahnf/Projecteur)
 
-Linux/X11 application for the Logitech Spotlight device. \
+Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
 
 ## Motivation
@@ -15,12 +15,29 @@ done by additional software.
 
 So here it is: a Linux application for the Logitech Spotlight.
 
+## Table of Contents
+
+  * [Motivation](#motivation)
+  * [Features](#features)
+  * [Supported Environments](#supported-environments)
+  * [How it works](#how-it-works)
+  * [Download](#download)
+  * [Building](#building)
+  * [Installation/Running](#installationrunning)
+      * [Pre-requisites](#pre-requisites)
+      * [Application Menu](#application-menu)
+      * [Command Line Interface](#command-line-interface)
+      * [Device Support](#device-support)
+      * [Troubleshooting](#troubleshooting)
+  * [License](#license)
+
 ## Features
 
-* Configurable desktop spotlight 
+* Configurable desktop spotlight
   * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_.
   * Zoom (magnifier) functionality.
 * Multiple screen support
+* Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
 
 ### Screenshots
 
@@ -30,9 +47,8 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ### Planned features
 
-* Support other devices besides the Logitech Spotlight
 * Vibration (Timer) Support (Logitech Spotlight)
-* Support for device button configuration
+* Support for device button configuration/mapping
 
 ## Supported Environments
 
@@ -59,7 +75,7 @@ For more details: Have a look at the source code ;)
 ## Download
 
 The latest binary packages for some Linux distributions are available for download on bintray.
-Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and 
+Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_ and
 _Arch_ Linux are automatically built.
 
 * Latest develop:
@@ -96,14 +112,15 @@ the Qt version that comes with the distribution's package management.
 
 The input devices detected from the Spotlight device must be readable to the
 user running the application. To make this easier there is a udev rule template
-file in this repository: `55-spotlight.rules.in`
+file in this repository: `55-projecteur.rules.in`
 
-* Copy that file to `/lib/udev/rules.d/55-spotlight.rules`
+* During the CMake run, the file `55-projecteur.rules` will be created from this template
+  in your **build directory**. Copy that generated file to `/lib/udev/rules.d/55-projecteur.rules`
 * Most recent systems (using systemd) will automatically pick up the rule.
   If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
   to load the rules without a reboot.
 * After that the input devices from the Logitech USB Receiver (but also the Bluetooth device)
-  in /dev/input should be readable/writeable by you. 
+  in /dev/input should be readable/writeable by you.
   (See also about [device detection](#device-shows-as-not-connected))
 * When building against the Qt version that comes with your distribution's packages
   you might need to install some  additional QML module packages. For example this
@@ -131,6 +148,8 @@ Usage: projecteur [option]
   -v, --version          Print application version.
   --cfg FILE             Set custom config file.
   -d, --device-scan      Print device-scan results.
+  -l, --log-level LEVEL  Set log level (dbg,inf,wrn,err), default is 'inf'.
+  -D DEVICE              Additional accepted device; DEVICE=vendorId:productId
   -c COMMAND|PROPERTY    Send command/property to a running instance.
 
 <Commands>
@@ -140,6 +159,25 @@ Usage: projecteur [option]
 ```
 
 All the properties that can be set via the command line, are listed with the `--help-all` option.
+
+### Device Support
+
+#### Compile Time
+
+Besides the Logitech Spotlight, similar devices can be used and are supported.
+Additional devices can be added to `devices.conf`. At CMake configuration time
+the project will be configured to support these devices and also create entries
+for them in the generated udev-rule file.
+
+#### Runtime
+
+_Projecteur_ will also accept devices as supported when added via the `-D`
+command line option.
+
+Example: `projecteur -D 04b3:310c`
+
+This will enable devices for _Projecteur_, but it is up to the user to make sure
+the device is accessible (via udev rules).
 
 ### Troubleshooting
 
@@ -162,27 +200,44 @@ dialog, to test the spotlight, quit the application or set spotlight properties.
 See [Command Line Interface](#command-line-interface).
 
 On some distributions that have a **GNOME Desktop** by default there is **no system tray extensions**
-installed (_Fedora_ for example). You can install the "TopIcons Plus" GNOME extension to have
-a system tray that can show the Projecteur tray icon (and also from other 
-applications like Dropbox or Skype)
+installed (_Fedora_ for example). You can install the
+[TopIcons Plus](https://extensions.gnome.org/extension/1031/topicons/) or the
+[KStatusNotifierItem/AppIndicator Support](https://extensions.gnome.org/extension/615/appindicator-support/)
+GNOME extension to have a system tray that can show the Projecteur tray icon
+(and also from other applications like Dropbox or Skype).
+
+#### Zoom is not updated while spotlight is shown
+
+That is due to the fact how the zoom currently works. A screenshot is taken shortly before the
+overlay window is shown, and then a magnified section is shown wherever the mouse/spotlight is.
+If the zoom would be updated while the overlay window is shown, the overlay window it self would
+show up in the magnified section. That is a general problem, that also other magnifier tools face,
+although they can get around the problem by showing the magnified content rectangle always in the
+same position on the screen.
 
 #### Wayland
 
-While not developed with Wayland in mind, some users reported _Projecteur_ works with
+While not developed with Wayland in mind, users reported _Projecteur_ works with
 Wayland. If you experience problems, you can try to set the `QT_QPA_PLATFORM` environment
-variable to `wayland`:
+variable to `wayland`, example:
 
 ```
 user@ubuntu1904:~/Projecteur/build$ QT_QPA_PLATFORM=wayland ./projecteur
 Using Wayland-EGL
 ```
 
+#### Wayland Zoom
+
+On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This is done with
+the help of their respective DBus interfaces for screen capturing. On other environemnts with
+Wayland, the zoom feature is currently not supported.
+
 #### Device shows as not connected
 
 If the device shows as not connected, there are some things you can do:
 
 * Check for devices with _Projecteur_'s command line option `-d` or `--device-scan` option.
-  This will show you a list of all supported and detected devices and also if 
+  This will show you a list of all supported and detected devices and also if
   they are readable/writable. If a detected device is not readable/writable it is an indicator,
   that there is something wrong with the installed _udev_ rules.
 * Manually on the shell: Check if the device is detected by the Linux system: Run
@@ -196,6 +251,6 @@ If the device shows as not connected, there are some things you can do:
 
 ## License
 
-Copyright 2018-2019 Jahn Fuchs
+Copyright 2018-2020 Jahn Fuchs
 
 This project is distributed under the [MIT License](https://opensource.org/licenses/MIT), see [LICENSE.md](./LICENSE.md) for more information.

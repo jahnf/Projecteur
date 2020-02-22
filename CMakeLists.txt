@@ -30,6 +30,8 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
 find_package(Qt5 QUIET COMPONENTS X11Extras)
 set(HAS_Qt5_X11Extras ${Qt5_FOUND})
+find_package(Qt5 QUIET COMPONENTS DBus)
+set(HAS_Qt5_DBus ${Qt5_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -43,7 +45,9 @@ add_executable(projecteur
   src/main.cc
   src/aboutdlg.cc           src/aboutdlg.h
   src/colorselector.cc      src/colorselector.h
+  src/linuxdesktop.cc       src/linuxdesktop.h
   src/imageitem.cc          src/imageitem.h
+  src/logging.cc            src/logging.h
   src/preferencesdlg.cc     src/preferencesdlg.h
   src/projecteurapp.cc      src/projecteurapp.h
   src/runguard.cc           src/runguard.h
@@ -53,6 +57,8 @@ add_executable(projecteur
   src/virtualdevice.h       src/virtualdevice.cc
   resources.qrc             qml/qml.qrc)
 
+target_include_directories(projecteur PRIVATE src)
+
 target_link_libraries(projecteur
   PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
 )
@@ -60,6 +66,15 @@ target_link_libraries(projecteur
 if(HAS_Qt5_X11Extras)
   target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
   target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+else()
+  message(STATUS "Compiling without Qt5::X11Extras.")
+endif()
+
+if(HAS_Qt5_DBus)
+  target_link_libraries(projecteur PRIVATE Qt5::DBus)
+  target_compile_definitions(projecteur PRIVATE HAS_Qt5_DBus=1)
+else()
+  message(STATUS "Compiling without Qt5::DBus.")
 endif()
 
 target_compile_options(projecteur
@@ -79,7 +94,7 @@ set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
   VERSION_MINOR 7
   VERSION_PATCH 0
-  VERSION_TYPE release
+  VERSION_TYPE develop
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -97,7 +112,9 @@ add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directo
 add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md)
+add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf
+                                      src/extra-devices.cc.in 55-projecteur.rules.in
+                                      cmake/templates/Projecteur.desktop.in)
 
 # Install
 install(TARGETS projecteur DESTINATION bin)
@@ -128,8 +145,43 @@ mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 set(OUTDIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(TMPLDIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake/templates")
 
-configure_file("55-spotlight.rules.in" "55-spotlight.rules" @ONLY)
-install(FILES "${OUTDIR}/55-spotlight.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
+# Read devices.conf file
+set(idRegex "0x([0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])")
+set(lineRegex "^[ \t]*${idRegex}[ \t]*,[ \t]*${idRegex}[ \t]*,[ \t]*(usb|bt)[ \t]*,[ \t]*(.*)[ \t]*")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/devices.conf" CONFLINES REGEX "${lineRegex}")
+foreach(line ${CONFLINES})
+  #message(STATUS "## ${line}")
+  if(line MATCHES "${lineRegex}")
+    # message(STATUS "vendorId: ${CMAKE_MATCH_1}, productId: ${CMAKE_MATCH_2}, ${CMAKE_MATCH_3}, '${CMAKE_MATCH_4}'")
+    set(vendorId "${CMAKE_MATCH_1}")
+    set(productId "${CMAKE_MATCH_2}")
+
+    if("${CMAKE_MATCH_3}" STREQUAL "usb")
+      string(APPEND EXTRA_USB_UDEV_RULES "\n## Extra-Device: ${CMAKE_MATCH_4}")
+      string(APPEND EXTRA_USB_UDEV_RULES "\nSUBSYSTEMS==\"usb\", ATTRS{idVendor}==\"${vendorId}\"")
+      string(APPEND EXTRA_USB_UDEV_RULES ", ATTRS{idProduct}==\"${productId}\", MODE=\"0660\", TAG+=\"uaccess\"")
+      string(APPEND SUPPORTED_EXTRA_DEVICES "\n    {0x${vendorId}, 0x${productId}, false}, // ${CMAKE_MATCH_4}")
+    elseif("${CMAKE_MATCH_3}" STREQUAL "bt")
+      string(APPEND SUPPORTED_EXTRA_DEVICES "\n    {0x${vendorId}, 0x${productId}, true}, // ${CMAKE_MATCH_4}")
+      if("${vendorId}" MATCHES "0*([0-9a-fA-F]+)")
+        set(vendorId "${CMAKE_MATCH_1}")
+      endif()
+      if("${productId}" MATCHES "0*([0-9a-fA-F]+)")
+        set(productId "${CMAKE_MATCH_1}")
+      endif()
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "\n## Extra-Device: ${CMAKE_MATCH_4}")
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "\nSUBSYSTEMS==\"input\", ")
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "ENV{LIBINPUT_DEVICE_GROUP}=\"5/${vendorId}/${productId}*\", ")
+      string(APPEND EXTRA_BLUETOOTH_UDEV_RULES "MODE=\"0660\", TAG+=\"uaccess\"")
+    endif()
+  endif()
+endforeach()
+
+configure_file("src/extra-devices.cc.in" "src/extra-devices.cc" @ONLY)
+set_property(TARGET projecteur APPEND PROPERTY SOURCES "${CMAKE_CURRENT_BINARY_DIR}/src/extra-devices.cc")
+
+configure_file("55-projecteur.rules.in" "55-projecteur.rules" @ONLY)
+install(FILES "${OUTDIR}/55-projecteur.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
 
 install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
 install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
