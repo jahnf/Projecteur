@@ -178,13 +178,14 @@ int main(int argc, char *argv[])
 
     if (parser.isSet(additionalDeviceOption)) {
       for (auto& deviceValue : parser.values(additionalDeviceOption)) {
-        const auto devPair = deviceValue.split(":");
-        const auto vendorId = devPair[0].toUShort(nullptr, 16);
-        const auto productId = devPair[1].toUShort(nullptr, 16);
+        const auto devAttribs = deviceValue.split(":");
+        const auto vendorId = devAttribs[0].toUShort(nullptr, 16);
+        const auto productId = devAttribs[1].toUShort(nullptr, 16);
         if (vendorId == 0 || productId == 0) {
           error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
         } else {
-          options.additionalDevices.push_back({vendorId, productId, false});
+          const QString name = (devAttribs.size() >= 3) ? devAttribs[2] : "";
+          options.additionalDevices.push_back({vendorId, productId, false, name});
         }
       }
     }
@@ -213,6 +214,9 @@ int main(int argc, char *argv[])
       {
         print() << "\n"
                 << " +++ " << "name:     '" << device.name << "'";
+        if (!device.userName.isEmpty()) {
+          print() << "     " << "userName: '" << device.userName << "'";
+        }
         print() << "     " << "vendorId:  " << QString("%1").arg(device.vendorId, 4, 16, QChar('0'));
         print() << "     " << "productId: " << QString("%1").arg(device.productId, 4, 16, QChar('0'));
         print() << "     " << "phys:      " << device.phys;

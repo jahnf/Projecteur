@@ -21,6 +21,7 @@ public:
     quint16 vendorId;
     quint16 productId;
     bool isBluetooth = false;
+    QString name = {};
   };
 
   struct Options {
@@ -39,6 +40,7 @@ public:
   struct Device {
     enum class BusType { Unknown, Usb, Bluetooth };
     QString name;
+    QString userName;
     quint16 vendorId = 0;
     quint16 productId = 0;
     BusType busType = BusType::Unknown;

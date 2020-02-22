@@ -22,3 +22,13 @@ bool isExtraDeviceSupported(quint16 vendorId, quint16 productId)
   });
   return it != supportedExtraDevices.cend();
 };
+
+QString getExtraDeviceName(quint16 vendorId, quint16 productId)
+{
+  const auto it = std::find_if(supportedExtraDevices.cbegin(), supportedExtraDevices.cend(),
+  [vendorId, productId](const Spotlight::SupportedDevice& d) {
+    return (vendorId == d.vendorId) && (productId == d.productId);
+  });
+  if (it != supportedExtraDevices.cend()) return it->name;
+  return QString();
+};
