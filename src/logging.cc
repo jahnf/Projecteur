@@ -154,7 +154,7 @@ namespace logging {
       case level::warning: return "warning";
       case level::error: return "error";
       case level::custom: return "default/custom";
-      case level::unknown: return "unknwon";
+      case level::unknown: return "unknown";
     }
     return "";
   }

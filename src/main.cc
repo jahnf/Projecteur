@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
       const auto busTypeToString = [](DeviceScan::Device::BusType type) -> QString {
         if (type == DeviceScan::Device::BusType::Usb) return "USB";
         if (type == DeviceScan::Device::BusType::Bluetooth) return "Bluetooth";
-        return "unknwon";
+        return "unknown";
       };
 
       for (const auto& device : result.devices)
