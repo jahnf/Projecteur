@@ -92,7 +92,7 @@ target_compile_definitions(projecteur PRIVATE
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES 
   VERSION_MAJOR 0
-  VERSION_MINOR 7
+  VERSION_MINOR 8
   VERSION_PATCH 0
   VERSION_TYPE develop
 )
@@ -160,9 +160,9 @@ foreach(line ${CONFLINES})
       string(APPEND EXTRA_USB_UDEV_RULES "\n## Extra-Device: ${CMAKE_MATCH_4}")
       string(APPEND EXTRA_USB_UDEV_RULES "\nSUBSYSTEMS==\"usb\", ATTRS{idVendor}==\"${vendorId}\"")
       string(APPEND EXTRA_USB_UDEV_RULES ", ATTRS{idProduct}==\"${productId}\", MODE=\"0660\", TAG+=\"uaccess\"")
-      string(APPEND SUPPORTED_EXTRA_DEVICES "\n    {0x${vendorId}, 0x${productId}, false}, // ${CMAKE_MATCH_4}")
+      string(APPEND SUPPORTED_EXTRA_DEVICES "\n    {0x${vendorId}, 0x${productId}, false, \"${CMAKE_MATCH_4}\"}, // ${CMAKE_MATCH_4}")
     elseif("${CMAKE_MATCH_3}" STREQUAL "bt")
-      string(APPEND SUPPORTED_EXTRA_DEVICES "\n    {0x${vendorId}, 0x${productId}, true}, // ${CMAKE_MATCH_4}")
+      string(APPEND SUPPORTED_EXTRA_DEVICES "\n    {0x${vendorId}, 0x${productId}, true, \"${CMAKE_MATCH_4}\"}, // ${CMAKE_MATCH_4}")
       if("${vendorId}" MATCHES "0*([0-9a-fA-F]+)")
         set(vendorId "${CMAKE_MATCH_1}")
       endif()

@@ -23,12 +23,13 @@ LOGGING_CATEGORY(device, "device")
 
 // Function declaration to check for extra devices, defintion in generated source
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
+QString getExtraDeviceName(quint16 vendorId, quint16 productId);
 
 namespace {
   // List of supported devices
   const std::vector<Spotlight::SupportedDevice> supportedDefaultDevices {
-    {0x46d, 0xc53e, false},  // Logitech Spotlight (USB)
-    {0x46d, 0xb503, true},   // Logitech Spotlight (Bluetooth)
+    {0x46d, 0xc53e, false, "Logitech Spotlight"},  // Logitech Spotlight (USB)
+    {0x46d, 0xb503, true, "Logitech Spotlight"},   // Logitech Spotlight (Bluetooth)
   };
 
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
@@ -47,6 +48,27 @@ namespace {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
     return (it != devices.cend());
+  }
+
+  // Return the defined device name for vendor/productId if defined in
+  // any of the supported device lists (default, extra, additional)
+  QString getUserDeviceName(quint16 vendorId, quint16 productId, const QList<Spotlight::SupportedDevice>& additionalDevices)
+  {
+    const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
+    [vendorId, productId](const Spotlight::SupportedDevice& d) {
+      return (vendorId == d.vendorId) && (productId == d.productId);
+    });
+    if (it != supportedDefaultDevices.cend() && it->name.size()) return it->name;
+
+    auto extraName = getExtraDeviceName(vendorId, productId);
+    if (!extraName.isEmpty()) return extraName;
+
+    const auto ait = std::find_if(additionalDevices.cbegin(), additionalDevices.cend(),
+    [vendorId, productId](const Spotlight::SupportedDevice& d) {
+      return (vendorId == d.vendorId) && (productId == d.productId);
+    });
+    if (ait != additionalDevices.cend() && ait->name.size()) return ait->name;
+    return QString();
   }
 
   quint16 readUShortFromDeviceFile(const QString& filename)
@@ -200,19 +222,39 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   if (len < 0)
   {
     ::close(evfd);
-    logDebug(device) << tr("Cannot get device properties: %1 (%2, %3)")
+    logDebug(device) << tr("Cannot get device properties: %1 (%2:%3)")
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
     return ConnectionResult::NotASpotlightDevice;
   }
 
+  // Get device name; Prefer user set name, otherwise query device info
+  const QString deviceName = [this, evfd, &id, &devicePath]()
+  {
+    const auto userName = getUserDeviceName(id.vendor, id.product, m_options.additionalDevices);
+    if (!userName.isEmpty()) return userName;
+
+    char deviceName[128] = {};
+    if (ioctl(evfd, EVIOCGNAME(sizeof(deviceName)), deviceName) < 0)
+    {
+      logDebug(device) << tr("Could not query device name: %1 (%2:%3)")
+                          .arg(devicePath)
+                          .arg(id.vendor, 4, 16, QChar('0'))
+                          .arg(id.product, 4, 16, QChar('0'));
+    }
+    else {
+      return QString(deviceName);
+    }
+    return QString();
+  }();
+
   // Checking if the device supports relative events,
   // e.g. the second HID device acts just as keyboard and has no relative events
   const bool hasRelEv = !!(bitmask & (1 << EV_REL));
   if (!hasRelEv)
   {
-    logDebug(device) << tr("Device does not support relative events: %1 (%2, %3)")
+    logDebug(device) << tr("Device does not support relative events: %1 (%2:%3)")
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
@@ -225,9 +267,15 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
   const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
 
+  // TODO in v0.8: We also need to accept devices without relative events.
+  // e.g. the Logitech Spotlight (USB) registers itself as two event devices
+  // one with mouse events (and therefore relative events) and one keyboard
+  // --> we need to rethink device handling: A spotlight device to _Projecteur_
+  //     can consist of on or more devices on the system level
+
   if (!hasRelXEvents || !hasRelYEvents)
   {
-    logDebug(device) << tr("Device does not support relative events: %1 (%2, %3)")
+    logDebug(device) << tr("Device does not support relative events: %1 (%2:%3)")
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
@@ -287,7 +335,7 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
     ::close(static_cast<int>(notifier->socket()));
   });
 
-  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath, deviceGrabbed, id](int fd)
+  connect(notifier, &QSocketNotifier::activated, [this, notifier, devicePath, deviceName, deviceGrabbed, id](int fd)
   {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
@@ -327,9 +375,9 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
       // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
       emit disconnected(devicePath);
-      // TODO log name of device (Logitech Spotlight, Avatto H100...)
-      logInfo(device) << tr("Disconnected supported device: %1 (%2:%3)").arg(devicePath)
-                         .arg(id.vendor, 4, 16, QChar('0')).arg(id.product, 4, 16, QChar('0'));
+      logInfo(device) << tr("Disconnected supported device: %1 (%2:%3) (%4)").arg(devicePath)
+                         .arg(id.vendor, 4, 16, QChar('0')).arg(id.product, 4, 16, QChar('0'))
+                         .arg(deviceName);
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
@@ -338,9 +386,9 @@ Spotlight::ConnectionResult Spotlight::connectSpotlightDevice(const QString& dev
   });
 
   emit connected(devicePath);
-  // TODO log name of device (Logitech Spotlight, Avatto H100...)
-  logInfo(device) << tr("Connected supported device: %1 (%2:%3)").arg(devicePath)
-                     .arg(id.vendor, 4, 16, QChar('0')).arg(id.product, 4, 16, QChar('0'));
+  logInfo(device) << tr("Connected supported device: %1 (%2:%3) (%4)").arg(devicePath)
+                     .arg(id.vendor, 4, 16, QChar('0')).arg(id.product, 4, 16, QChar('0'))
+                     .arg(deviceName);
   if (!anyConnectedBefore) {
     emit anySpotlightDeviceConnectedChanged(true);
   }
@@ -452,6 +500,12 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
       if (!isDeviceSupported(device.vendorId, device.productId)
           && !(isAdditionallySupported(device.vendorId, device.productId, additionalDevices))) continue;
 
+      // TODO in v0.8: We also need to accept devices without relative events.
+      // e.g. the Logitech Spotlight (USB) registers itself as two event devices
+      // one with mouse events (and therefore relative events) and one keyboard
+      // --> we need to rethink device handling: A spotlight device to _Projecteur_
+      //     can consist of on or more devices on the system level
+
       // Check if device supports relative events
       const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));
       const bool hasRelativeEvents = !!(supportedEvents & (1 << EV_REL));
@@ -464,7 +518,6 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
       const bool hasRelYEvents = !!(supportedRelEv & (1 << REL_Y));
       // .. if not skip this device
       if (!hasRelXEvents || !hasRelYEvents) continue;
-
 
       QDirIterator dirIt(inputIt.filePath(), QDir::System | QDir::Dirs | QDir::Executable | QDir::NoDotAndDotDot);
       while (dirIt.hasNext())
@@ -488,6 +541,8 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
         case BUS_BLUETOOTH: device.busType = Device::BusType::Bluetooth; break;
         default: break;
       }
+
+      device.userName = getUserDeviceName(device.vendorId, device.productId, additionalDevices);
 
       const QFileInfo fi(device.inputDeviceFile);
       device.inputDeviceReadable = fi.isReadable();
