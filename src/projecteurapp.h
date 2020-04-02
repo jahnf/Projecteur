@@ -5,6 +5,7 @@
 #include <QApplication>
 
 #include <map>
+#include <memory>
 
 class AboutDialog;
 class LinuxDesktop;
@@ -41,10 +42,10 @@ private:
   void setScreenForCursorPos();
 
 private:
-  QScopedPointer<QSystemTrayIcon> m_trayIcon;
-  QScopedPointer<QMenu> m_trayMenu;
-  QScopedPointer<PreferencesDialog> m_dialog;
-  QScopedPointer<AboutDialog> m_aboutDialog;
+  std::unique_ptr<QSystemTrayIcon> m_trayIcon;
+  std::unique_ptr<QMenu> m_trayMenu;
+  std::unique_ptr<PreferencesDialog> m_dialog;
+  std::unique_ptr<AboutDialog> m_aboutDialog;
   QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;

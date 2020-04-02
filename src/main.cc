@@ -217,13 +217,35 @@ int main(int argc, char *argv[])
         if (!device.userName.isEmpty()) {
           print() << "     " << "userName: '" << device.userName << "'";
         }
-        print() << "     " << "vendorId:  " << QString("%1").arg(device.vendorId, 4, 16, QChar('0'));
-        print() << "     " << "productId: " << QString("%1").arg(device.productId, 4, 16, QChar('0'));
-        print() << "     " << "phys:      " << device.phys;
+
+        const QStringList subDeviceList = [&device](){
+          QStringList subDeviceList;
+          for (const auto& d: device.subDevices) {
+            if( d.inputDeviceFile.size()) subDeviceList.push_back(d.inputDeviceFile);
+            else if( d.hidrawDeviceFile.size()) subDeviceList.push_back(d.hidrawDeviceFile);
+          }
+          return subDeviceList;
+        }();
+
+        const bool allReadable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
+        [](const auto& subDevice){
+          return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceReadable)
+              && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceReadable);
+        });
+
+        const bool allWriteable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
+        [](const auto& subDevice){
+          return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceWritable)
+              && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceWritable);
+        });
+
+        print() << "     " << "vendorId:  " << QString("%1").arg(device.id.vendorId, 4, 16, QChar('0'));
+        print() << "     " << "productId: " << QString("%1").arg(device.id.productId, 4, 16, QChar('0'));
+        print() << "     " << "phys:      " << device.id.phys;
         print() << "     " << "busType:   " << busTypeToString(device.busType);
-        print() << "     " << "device:    " << device.inputDeviceFile;
-        print() << "     " << "readable:  " << (device.inputDeviceReadable ? "true" : "false");
-        print() << "     " << "writable:  " << (device.inputDeviceWritable ? "true" : "false");
+        print() << "     " << "devices:   " << subDeviceList.join(", ");
+        print() << "     " << "readable:  " << (allReadable ? "true" : "false");
+        print() << "     " << "writable:  " << (allWriteable ? "true" : "false");
       }
       return 0;
     }
