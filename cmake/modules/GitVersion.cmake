@@ -353,7 +353,9 @@ function(add_version_info_custom_prefix target prefix directory)
   else()
     get_version_info(${prefix} "${directory}")
     if("${${prefix}_VERSION_FULLHASH}" STREQUAL "unknown"
-       OR "${${prefix}_VERSION_SHORTHASH}" STREQUAL "unknown")
+       OR "${${prefix}_VERSION_SHORTHASH}" STREQUAL "unknown"
+       OR "${${prefix}_VERSION_FULLHASH}" STREQUAL ""
+       OR "${${prefix}_VERSION_SHORTHASH}" STREQUAL "")
        include(ArchiveExportInfo OPTIONAL RESULT_VARIABLE GIT_EXPORT_INFO_FILE_PRESENT)
        if(GIT_EXPORT_INFO_FILE_PRESENT AND HAS_GIT_EXPORT_INFO)
          message(STATUS "Using ArchiveExportInfo as fallback for version info.")
