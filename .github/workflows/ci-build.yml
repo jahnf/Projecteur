@@ -16,6 +16,7 @@ jobs:
         - ubuntu-19.10
         - opensuse-15.0
         - opensuse-15.1
+        - centos-8
         os: 
         - ubuntu-latest
 
@@ -41,13 +42,15 @@ jobs:
     - name: Run projecteur executable, print version
       run: docker exec build /bin/bash -c "cd /build && ./projecteur --version"
     - name: Get created artifacts from docker container
-      run: docker cp build:/build/dist-pkg .
+      run: |
+       docker cp build:/build/dist-pkg .
+       docker cp build:/build/version-string .
     
     - name: Move source package
       if:  startsWith(matrix.docker_tag, 'archlinux')
       run: mkdir -p source-pkg && mv dist-pkg/*source.tar.gz ./source-pkg || true
     
-    - name: Upload source-pkg
+    - name: Upload source-pkg to github
       if:  startsWith(matrix.docker_tag, 'archlinux')
       uses: actions/upload-artifact@v1
       with:
@@ -58,9 +61,27 @@ jobs:
         dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
         echo "::set-env name=dist_pkg_artifact::${dist_pkg_artifact}"
 
-    - name: Upload artifacts
+    - run: |
+        projecteur_version=`cat version-string`
+        echo "::set-env name=projecteur_version::${projecteur_version}"
+
+    - name: Upload artifacts to github
       uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.docker_tag }}-package
         path: ${{ env.dist_pkg_artifact }}
+        
+    - name: Upload package to Bintray
+      uses: bpicode/github-action-upload-bintray@master
+      with:
+        file: ${{ env.dist_pkg_artifact }}
+        api_user: jahnf
+        api_key: ${{ secrets.BINTRAY_API_KEY }}
+        repository_user: jahnf
+        repository: Projecteur
+        package: projecteur-develop
+        version: ${{ env.projecteur_version }}
+        upload_path: test/github/actions/${{ env.projecteur_version }}
+        publish: 1
+        calculate_metadata: true # Schedule metadata calcuation after upload
 
