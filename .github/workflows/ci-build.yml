@@ -85,8 +85,7 @@ jobs:
         path: ${{ env.dist_pkg_artifact }}
   
     - name: Upload source-pkg to Bintray
-      if:  startsWith(matrix.docker_tag, 'archlinux')
-      #&& (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+      if:  startsWith(matrix.docker_tag, 'archlinux') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.src_pkg_artifact }}
@@ -94,8 +93,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: projecteur-develop
-#        package: projecteur-${{ env.branch_name }}
+        package: projecteur-${{ env.branch_name }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
         calculate_metadata: false
