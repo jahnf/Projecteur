@@ -85,7 +85,8 @@ jobs:
         path: ${{ env.dist_pkg_artifact }}
   
     - name: Upload source-pkg to Bintray
-#      if:  startsWith(matrix.docker_tag, 'archlinux') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+      if:  startsWith(matrix.docker_tag, 'archlinux')
+      #&& (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.src_pkg_artifact }}
