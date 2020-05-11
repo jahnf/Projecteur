@@ -181,7 +181,7 @@ Spotlight::Spotlight(QObject* parent, Options options)
   });
 
   if (m_options.enableUInput) {
-    m_virtualDevice.reset(new VirtualDevice);
+    m_virtualDevice = VirtualDevice::create();
   }
   else {
     logInfo(device) << tr("Virtual device initialization was skipped.");
@@ -214,10 +214,6 @@ bool Spotlight::anySpotlightDeviceConnected() const
     }
   }
   return false;
-}
-
-const VirtualDevice* Spotlight::virtualDevice() const {
-  return m_virtualDevice.get();
 }
 
 std::set<Spotlight::DeviceId> Spotlight::connectedDevices() const
@@ -314,11 +310,10 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
   }
 
   unsigned long bitmask = 0;
-  int len = ioctl(evfd, EVIOCGBIT(0, sizeof(bitmask)), &bitmask);
-  if (len < 0)
+  if (ioctl(evfd, EVIOCGBIT(0, sizeof(bitmask)), &bitmask) < 0)
   {
     ::close(evfd);
-    logDebug(device) << tr("Cannot get device properties: %1 (%2:%3)")
+    logWarn(device) << tr("Cannot get device properties: %1 (%2:%3)")
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
@@ -328,7 +323,7 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
   connection.info.grabbed = [this, evfd, &devicePath]()
   {
     // Grab device inputs if a virtual device exists.
-    if (m_virtualDevice && m_virtualDevice->isDeviceCreated())
+    if (m_virtualDevice)
     {
       const int res = ioctl(evfd, EVIOCGRAB, 1);
       if (res == 0) { return true; }
@@ -339,6 +334,13 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
     }
     return false;
   }();
+
+//  const bool hasRepEv = !!(bitmask & (1 << EV_REP));
+//  const bool hasRelEv = !!(bitmask & (1 << EV_REL));
+//  unsigned long relEvents = 0;
+//  int len = ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
+//  const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
+//  const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
 
   // Create socket notifier
   connection.notifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);
@@ -370,10 +372,29 @@ void Spotlight::addInputEventHandler(DeviceConnection& connection, const Device&
     const auto sz = ::read(fd, &ev, sizeof(ev));
     if (sz == sizeof(ev))
     {
-      // only for valid events
+      // EV_MSC, MSC_SCAN is emitted for devices on a button press, before the EV_KEY event.
+      // The value identifies the actual button on the device.
+      //  - physical device buttons can be identified with this.
+
+      logDebug(device) << tr("Device Event: %1 (%2:%3) | type=%4, code=%5 value=%6")
+                          .arg(info.devicePath).arg(id.vendorId, 4, 16, QChar('0'))
+                          .arg(id.productId, 4, 16, QChar('0'))
+                          .arg(ev.type, 2, 16, QChar('0'))
+                          .arg(ev.code, 4, 16, QChar('0'))
+                          .arg(ev.value, 8, 16, QChar('0'));
+
+      // time is the timestamp, it returns the time at which the event happened.
+      // type is for example EV_REL for relative moment, EV_KEY for a keypress or release.
+      //   More types are defined in include/linux/input-event-codes.h.
+      // code is event code, for example REL_X or KEY_BACKSPACE,
+      //   again a complete list is in include/linux/input-event-codes.h.
+      // value is the value the event carries. Either a relative change for EV_REL,
+      //   absolute new value for EV_ABS (joysticks ...),
+      //   or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
+
       switch(ev.type)
       {
-        case EV_REL:
+        case EV_REL: // On relative (mouse move) events, activate spotlight
           if (ev.code == REL_X || ev.code == REL_Y)
           {
             if (!m_activeTimer->isActive()) {
@@ -395,6 +416,7 @@ void Spotlight::addInputEventHandler(DeviceConnection& connection, const Device&
           break;
 
         default: {
+          // TODO We don't need to forward EV_SYN events on mapped
           if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
         }
       }

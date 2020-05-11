@@ -36,7 +36,6 @@ public:
 
   bool spotActive() const { return m_spotActive; }
   bool anySpotlightDeviceConnected() const;
-  const VirtualDevice* virtualDevice() const;
 
   struct SubDevice {
     QString inputDeviceFile;
