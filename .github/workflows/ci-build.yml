@@ -54,13 +54,18 @@ jobs:
     - name: Move source package
       if:  startsWith(matrix.docker_tag, 'archlinux')
       run: mkdir -p source-pkg && mv dist-pkg/*source.tar.gz ./source-pkg || true
-    
+
+    - name: Get source package filename for artifact uploads
+      run: |
+        src_pkg_artifact=`ls -1 source-pkg/* | head -n 1`
+        echo "::set-env name=src_pkg_artifact::${src_pkg_artifact}"
+
     - name: Upload source-pkg to github
       if:  startsWith(matrix.docker_tag, 'archlinux')
       uses: actions/upload-artifact@v1
       with:
         name: source-package
-        path: source-pkg
+        path: ${{ env.src_pkg_artifact }}
 
     - name: Get binary package filename for artifact uploads
       run: |
@@ -78,9 +83,25 @@ jobs:
       with:
         name: ${{ matrix.docker_tag }}-package
         path: ${{ env.dist_pkg_artifact }}
-        
-    - name: Upload package to Bintray
-#       if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+  
+    - name: Upload source-pkg to Bintray
+#      if:  startsWith(matrix.docker_tag, 'archlinux') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+      uses: bpicode/github-action-upload-bintray@master
+      with:
+        file: ${{ env.src_pkg_artifact }}
+        api_user: jahnf
+        api_key: ${{ secrets.BINTRAY_API_KEY }}
+        repository_user: jahnf
+        repository: Projecteur
+        package: projecteur-develop
+#        package: projecteur-${{ env.branch_name }}
+        version: ${{ env.projecteur_version }}
+        upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
+        calculate_metadata: false
+        publish: 1
+  
+    - name: Upload binary package to Bintray
+      if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.dist_pkg_artifact }}
@@ -88,9 +109,9 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: projecteur-develop
+        package: projecteur-${{ env.branch_name }}
         version: ${{ env.projecteur_version }}
-        upload_path: packges/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
+        upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
         calculate_metadata: false
         publish: 1
   
