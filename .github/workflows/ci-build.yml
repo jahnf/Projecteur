@@ -82,5 +82,6 @@ jobs:
         package: projecteur-develop
         version: ${{ env.projecteur_version }}
         upload_path: test/github/actions/${{ env.projecteur_version }}
+        calculate_metadata: false
         publish: 1
   
