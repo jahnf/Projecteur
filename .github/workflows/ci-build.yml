@@ -53,8 +53,10 @@ jobs:
       with:
         name: source-package
         path: source-pkg
-      
+  
     - name: Upload artifacts
+      run: export DATAFILE=sdfasdfsadffasd |
+        echo $DATAFILE
       uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.docker_tag }}-package
