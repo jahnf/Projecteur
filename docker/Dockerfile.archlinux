@@ -21,6 +21,9 @@ RUN pacman --noconfirm -Sy && pacman --noconfirm -S \
   qt5-x11extras \
   qt5-graphicaleffects
 
+RUN pacman --noconfirm -Sy && pacman --noconfirm -S \
+  libusb
+
 # makepkg cannot run as root
 RUN useradd builduser
 RUN mkdir /build && chown builduser /build

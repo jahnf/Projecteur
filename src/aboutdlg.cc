@@ -55,6 +55,8 @@ namespace {
       Contributor("Tiziano Müller", "dev-zero"),
       Contributor("Torsten Maehne", "maehne"),
       Contributor("TBK", "TBK"),
+      Contributor("Louie Lu", "mlouielu"),
+      Contributor("fmuelle4711", "fmuelle4711"),
     };
 
     std::random_device rd;
@@ -84,7 +86,7 @@ AboutDialog::AboutDialog(QWidget* parent)
   hbox->addWidget(tabWidget, 1);
 
   tabWidget->addTab(createVersionInfoWidget(), tr("Version"));
-  tabWidget->addTab(createContributorInfoWidget(), tr("Contributors"));
+  tabWidget->addTab(createContributorInfoWidget(tabWidget), tr("Contributors"));
 
   const auto bbox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
   connect(bbox, &QDialogButtonBox::clicked, this, &QDialog::accept);
@@ -100,37 +102,49 @@ QWidget* AboutDialog::createVersionInfoWidget()
   const auto versionInfoWidget = new QWidget(this);
   const auto vbox = new QVBoxLayout(versionInfoWidget);
   const auto versionLabel = new QLabel(QString("<b>%1</b><br>%2")
-                                 .arg(QCoreApplication::applicationName())
-                                 .arg(tr("Version %1", "%1=application version number")
+                                 .arg(QCoreApplication::applicationName(),
+                                      tr("Version %1", "%1=application version number")
                                       .arg(projecteur::version_string())), this);
   vbox->addWidget(versionLabel);
   const auto vInfo = QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2")
-                              .arg(projecteur::version_branch())
-                              .arg(projecteur::version_shorthash());
+                              .arg(projecteur::version_branch(), projecteur::version_shorthash());
   versionLabel->setToolTip(vInfo);
 
-  if (QString(projecteur::version_flag()).size() || 
+  if (QString(projecteur::version_flag()).size() ||
        (QString(projecteur::version_branch()) != "master"
         && QString(projecteur::version_branch()) != "not-within-git-repo"))
   {
-    vbox->addSpacing(10);
+    vbox->addSpacing(4);
     vbox->addWidget(new QLabel(vInfo, this));
   }
 
-  vbox->addSpacing(10);
+  vbox->addSpacing(4);
   const auto weblinkLabel = new QLabel(QString("<a href=\"https://github.com/jahnf/Projecteur\">"
                                                "https://github.com/jahnf/Projecteur</a>"), this);
   weblinkLabel->setOpenExternalLinks(true);
   vbox->addWidget(weblinkLabel);
+  vbox->addSpacing(8);
 
-  vbox->addSpacing(20);
-  vbox->addWidget(new QLabel(tr("Qt Version: %1", "%1=qt version number").arg(QT_VERSION_STR), this));
+  auto qtVerText = tr("Qt Version: %1", "%1=qt version number").arg(QT_VERSION_STR);
+  if (QString(QT_VERSION_STR) != qVersion()) {
+    qtVerText += QString(" (runtime: %1)").arg(qVersion());
+  }
+  vbox->addWidget(new QLabel(qtVerText, this));
+  vbox->addSpacing(15);
+  vbox->addWidget(new QLabel("Copyright 2018-2020 Jahn Fuchs", this));
+  auto licenseText = new QLabel(tr("This project is distributed under the <br>"
+                                   "<a href=\"https://github.com/jahnf/Projecteur/blob/develop/LICENSE.md\">"
+                                   "MIT License</a>"), this);
+  licenseText->setWordWrap(true);
+  licenseText->setTextFormat(Qt::TextFormat::RichText);
+  licenseText->setOpenExternalLinks(true);
+  vbox->addWidget(licenseText);
 
   vbox->addStretch(1);
   return versionInfoWidget;
 }
 
-QWidget* AboutDialog::createContributorInfoWidget()
+QWidget* AboutDialog::createContributorInfoWidget(QTabWidget* tabWidget)
 {
   const auto contributorWidget = new QWidget(this);
   const auto vbox = new QVBoxLayout(contributorWidget);
@@ -149,12 +163,14 @@ QWidget* AboutDialog::createContributorInfoWidget()
     return font;
   }());
 
-
-  connect(this, &QDialog::finished, [textBrowser](){
-    textBrowser->setHtml(getContributorsHtml());
+  // randomize contributors list on every contributors tab selection
+  connect(tabWidget, &QTabWidget::currentChanged, this,
+  [contributorWidget, tabWidget, textBrowser](int){
+    if (contributorWidget == tabWidget->currentWidget()) {
+      textBrowser->setHtml(getContributorsHtml());
+    }
   });
 
-  textBrowser->setHtml(getContributorsHtml());
   vbox->addWidget(textBrowser);
   return contributorWidget;
 }

@@ -32,11 +32,12 @@ class Settings : public QObject
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
+  Q_PROPERTY(int dblClickDuration READ dblClickDuration WRITE setDblClickDuration NOTIFY dblClickDurationChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
   explicit Settings(const QString& configFile, QObject* parent = nullptr);
-  virtual ~Settings() override;
+  ~Settings() override;
 
   void setDefaults();
 
@@ -75,6 +76,8 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
+  int dblClickDuration() const { return m_dblClickDuration; }
+  void setDblClickDuration(int duration);
 
   template <typename T> struct SettingRange {
     const T min;
@@ -139,9 +142,9 @@ public:
     enum Type { Integer, Double, Bool, StringEnum, Color };
     static QString typeToString(Type type);
 
-    const Type type;
-    const QVariantList range;
-    const std::function<void(const QString&)> setFunction;
+    Type type;
+    QVariantList range;
+    std::function<void(const QString&)> setFunction;
   };
 
   const QList<QPair<QString, StringProperty>>& stringProperties() const;
@@ -165,6 +168,7 @@ signals:
   void borderOpacityChanged(double opacity);
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
+  void dblClickDurationChanged(int duration);
 
 private:
   QSettings* m_settings = nullptr;
@@ -179,7 +183,7 @@ private:
   QColor m_dotColor;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
-  int m_screen = 0;
+  int m_screen = -1; // inital invalid value, see #26
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;
@@ -190,6 +194,7 @@ private:
   double m_borderOpacity = 0.8;
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
+  int m_dblClickDuration = 300;
 
   QList<QPair<QString, StringProperty>> m_stringPropertyMap;
 

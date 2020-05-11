@@ -10,6 +10,8 @@ list(APPEND _LinuxPackaging_MAP_dist_pkgtype
   "opensuse::RPM"
   "opensuse-leap::RPM"
   "fedora::RPM"
+  "centos::RPM"
+  "rhel::RPM"
   "arch::PKGBUILD"
   "archlinux::PKGBUILD"
 )
@@ -245,6 +247,7 @@ function(_makepkg_packaging)
   set(PKGBUILD_OUTPUT_FILE "${PKG_NAME}-${PKG_PKGBUILD_VER}-${PKG_PKGBUILD_PKGREL}-${PKG_PKGBUILD_ARCH}.pkg.tar.xz")
   set(PKGBUILD_OUTPUT_PATH "${PKG_SOURCE_ARCHIVE_DIR}/${PKGBUILD_OUTPUT_FILE}")
   set(PKGBUILD_FINAL_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist-pkg")
+  set(PKGBUILD_FINAL_FILE "${PKG_NAME}-${PKG_PKGBUILD_VER}-${PKG_PKGBUILD_PKGREL}_${LINUX_DIST_NAME}-${PKG_PKGBUILD_ARCH}.pkg.tar.xz")
 
   add_custom_target(dist-package
     COMMAND ${MAKEPKG_EXECUTABLE} -f --log --skipinteg
@@ -257,7 +260,7 @@ function(_makepkg_packaging)
   )
 
   add_custom_command(TARGET dist-package POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different "${PKGBUILD_OUTPUT_PATH}" "${PKGBUILD_FINAL_OUTPUT_DIR}/${PKGBUILD_OUTPUT_FILE}"
+    COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different "${PKGBUILD_OUTPUT_PATH}" "${PKGBUILD_FINAL_OUTPUT_DIR}/${PKGBUILD_FINAL_FILE}"
   )
 
   add_dependencies(dist-package source-archive)

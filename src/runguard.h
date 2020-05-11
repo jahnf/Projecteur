@@ -7,7 +7,7 @@
 class RunGuard
 {
 public:
-  RunGuard( const QString& m_key );
+  explicit RunGuard(const QString& key);
   ~RunGuard();
 
   bool isAnotherRunning();
@@ -22,5 +22,5 @@ private:
   QSharedMemory m_sharedMem;
   QSystemSemaphore m_memLock;
 
-  Q_DISABLE_COPY( RunGuard )
+  Q_DISABLE_COPY(RunGuard)
 };
