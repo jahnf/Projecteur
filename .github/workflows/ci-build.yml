@@ -55,10 +55,10 @@ jobs:
         path: source-pkg
   
     - name: test
-      run: export MYVAR=alskdjflskjdf |
-        echo MYVAR=${MYVAR}
+      run: |
+        echo "::set-env name=action_state::yellow"
     - name: test2
-      run: echo --- MYVAR=${MYVAR}
+      run: echo --- MYVAR=${action_state}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
