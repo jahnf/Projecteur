@@ -55,8 +55,8 @@ jobs:
         path: source-pkg
       
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.docker_tag }}-package
-        path: dist-pkg
+        path: dist-pkg/*
 
