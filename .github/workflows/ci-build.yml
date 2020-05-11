@@ -83,5 +83,4 @@ jobs:
         version: ${{ env.projecteur_version }}
         upload_path: test/github/actions/${{ env.projecteur_version }}
         publish: 1
-        calculate_metadata: true # Schedule metadata calcuation after upload
-
+  
