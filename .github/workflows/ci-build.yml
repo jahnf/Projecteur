@@ -56,9 +56,10 @@ jobs:
   
     - name: test
       run: |
-        echo "::set-env name=action_state::yellow"
+        ABC=DEF
+        echo "::set-env name=action_state::${ABC}"
     - name: test2
-      run: echo --- MYVAR=${action_state}
+      run: echo MYVAR=${action_state}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
