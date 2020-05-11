@@ -45,7 +45,12 @@ jobs:
       run: |
        docker cp build:/build/dist-pkg .
        docker cp build:/build/version-string .
-    
+
+    - run: |
+        projecteur_version=`cat version-string`
+        echo "::set-env name=projecteur_version::${projecteur_version}"
+        echo ${{ github.ref }}
+
     - name: Move source package
       if:  startsWith(matrix.docker_tag, 'archlinux')
       run: mkdir -p source-pkg && mv dist-pkg/*source.tar.gz ./source-pkg || true
@@ -61,10 +66,6 @@ jobs:
         dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
         echo "::set-env name=dist_pkg_artifact::${dist_pkg_artifact}"
 
-    - run: |
-        projecteur_version=`cat version-string`
-        echo "::set-env name=projecteur_version::${projecteur_version}"
-
     - name: Upload artifacts to github
       uses: actions/upload-artifact@v2
       with:
@@ -72,6 +73,7 @@ jobs:
         path: ${{ env.dist_pkg_artifact }}
         
     - name: Upload package to Bintray
+      if: github.ref == 'refs/heads/develop'
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.dist_pkg_artifact }}
