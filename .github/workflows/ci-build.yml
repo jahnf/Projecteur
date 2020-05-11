@@ -54,9 +54,13 @@ jobs:
         name: source-package
         path: source-pkg
   
+    - name: test
+      run: export MYVAR=alskdjflskjdf |
+        echo MYVAR=${MYVAR}
+    - name: test2
+      run: echo --- MYVAR=${MYVAR}
+
     - name: Upload artifacts
-      run: export DATAFILE=sdfasdfsadffasd |
-        echo $DATAFILE
       uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.docker_tag }}-package
