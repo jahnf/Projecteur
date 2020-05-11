@@ -133,7 +133,7 @@ file in this repository: `55-projecteur.rules.in`
 * When building against the Qt version that comes with your distribution's packages
   you might need to install some  additional QML module packages. For example this
   is the case for Ubuntu, where you need to install the packages
-  `qml-module-qtgraphicaleffrects`, `qml-module-qtquick-window2` and `qml-modules-qtquick2`
+  `qml-module-qtgraphicaleffects`, `qml-module-qtquick-window2` and `qml-modules-qtquick2`
   to satisfy the application's runtime dependencies.
 
 ### Application Menu
