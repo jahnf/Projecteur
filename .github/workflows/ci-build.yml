@@ -53,17 +53,14 @@ jobs:
       with:
         name: source-package
         path: source-pkg
-  
-    - name: test
-      run: |
-        ABC=DEF
-        echo "::set-env name=action_state::${ABC}"
-    - name: test2
-      run: echo MYVAR=${action_state}
+    
+    - run: |
+        dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
+        echo "::set-env name=dist_pkg_artifact::${dist_pkg_artifact}"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.docker_tag }}-package
-        path: dist-pkg/*
+        path: ${{ env.dist_pkg_artifact }}
 
