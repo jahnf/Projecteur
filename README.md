@@ -1,7 +1,7 @@
 # Projecteur
 
-develop: [![Build Status develop](https://travis-ci.org/jahnf/Projecteur.svg?branch=develop)](https://travis-ci.org/jahnf/Projecteur)
-master: [![Build Status master](https://travis-ci.org/jahnf/Projecteur.svg?branch=master)](https://travis-ci.org/jahnf/Projecteur)
+develop: ![Build Status develop](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop)
+master: ![Build Status master](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master)
 
 Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
