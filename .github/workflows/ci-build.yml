@@ -15,8 +15,9 @@ jobs:
       matrix:
         docker_tag: 
         - archlinux
-        - fedora-31
         - fedora-30
+        - fedora-31
+        - fedora-32
         - debian-stretch
         - debian-buster
         - ubuntu-18.04
