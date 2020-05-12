@@ -51,7 +51,7 @@ std::unique_ptr<VirtualDevice> VirtualDevice::create(const char* name,
   }
 
   struct uinput_user_dev uinp {};
-  strncpy(uinp.name, name, UINPUT_MAX_NAME_SIZE);
+  snprintf(uinp.name, sizeof(uinp.name), "%s", name);
   uinp.id.bustype = BUS_USB;
   uinp.id.vendor = virtualVendorId;
   uinp.id.product = virtualProductId;
