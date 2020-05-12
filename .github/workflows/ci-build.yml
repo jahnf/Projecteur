@@ -1,6 +1,13 @@
 name: ci-build
 
-on: [push]
+on: 
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - master
+      - develop
 
 jobs:
   build:
@@ -13,7 +20,7 @@ jobs:
         - debian-stretch
         - debian-buster
         - ubuntu-18.04
-#        - ubuntu-19.10
+        - ubuntu-20.04
         - opensuse-15.0
         - opensuse-15.1
         - centos-8
