@@ -36,7 +36,9 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Login to github docker registry
-      run: docker login docker.pkg.github.com -u jahnf -p ${{ secrets.GITHUB_TOKEN }}
+      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin
+      env:
+        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: docker create build container
