@@ -42,7 +42,7 @@ jobs:
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: |
         docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
-        docker logout
+        docker logout docker.pkg.github.com
     - name: docker create build container
       run: docker run --name build --env TRAVIS_BRANCH=${GITHUB_REF/refs\/heads\//} -d -v `pwd`:/source:ro -t ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: cmake configuration
