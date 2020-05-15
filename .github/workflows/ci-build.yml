@@ -52,11 +52,13 @@ jobs:
     - name: create linux package
       run: docker exec build /bin/bash -c "cd /build && cmake --build . --target dist-package"
     - name: Run projecteur executable, print version
-      run: docker exec build /bin/bash -c "cd /build && ./projecteur --version"
+      run: |
+        docker exec build /bin/bash -c "cd /build && ./projecteur --version"
+        docker exec build /bin/bash -c "cd /build && ./projecteur -f"
     - name: Get created artifacts from docker container
       run: |
-       docker cp build:/build/dist-pkg .
-       docker cp build:/build/version-string .
+        docker cp build:/build/dist-pkg .
+        docker cp build:/build/version-string .
     
     - name: Set version environment variable
       run: |
