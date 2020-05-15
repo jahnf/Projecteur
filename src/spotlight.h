@@ -8,9 +8,19 @@
 #include <map>
 #include <set>
 
+#include "enum-helper.h"
+
 class QSocketNotifier;
 class QTimer;
 class VirtualDevice;
+
+enum class DeviceFlag : uint32_t {
+  NoFlags = 0,
+  SynEvents      = 1 << 0,
+  RepEvents      = 1 << 1,
+  RelativeEvents = 1 << 2,
+};
+ENUM(DeviceFlag, DeviceFlags)
 
 /// Class to notify the application if the Logitech Spotlight and other supported devices
 /// are connected and sending mouse move events. Used to turn the applications spot on or off.
@@ -109,6 +119,7 @@ private:
 
   enum class ConnectionType : uint8_t { Event, Hidraw };
   enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
+
   struct ConnectionInfo {
     ConnectionInfo() = default;
     ConnectionInfo(const QString& path, ConnectionType type, ConnectionMode mode)
@@ -119,6 +130,7 @@ private:
     ConnectionType type;
     ConnectionMode mode;
     bool grabbed = false;
+    DeviceFlags deviceFlags = DeviceFlags::NoFlags;
     QString devicePath;
   };
 

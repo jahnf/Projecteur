@@ -371,12 +371,18 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
     return false;
   }();
 
-//  const bool hasRepEv = !!(bitmask & (1 << EV_REP));
-//  const bool hasRelEv = !!(bitmask & (1 << EV_REL));
-//  unsigned long relEvents = 0;
-//  int len = ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
-//  const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
-//  const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
+  if (!!(bitmask & (1 << EV_SYN))) connection.info.deviceFlags |= DeviceFlag::SynEvents;
+  if (!!(bitmask & (1 << EV_REP))) connection.info.deviceFlags |= DeviceFlag::RepEvents;
+  if (!!(bitmask & (1 << EV_REL)))
+  {
+    unsigned long relEvents = 0;
+    ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
+    const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
+    const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
+    if (hasRelXEvents && hasRelYEvents) {
+      connection.info.deviceFlags |= DeviceFlag::RelativeEvents;
+    }
+  }
 
   // Create socket notifier
   connection.notifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);

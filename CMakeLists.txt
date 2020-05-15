@@ -42,7 +42,7 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
 endif()
 
 add_executable(projecteur
-  src/main.cc
+  src/main.cc               src/enum-helper.h
   src/aboutdlg.cc           src/aboutdlg.h
   src/colorselector.cc      src/colorselector.h
   src/deviceswidget.cc      src/deviceswidget.h
