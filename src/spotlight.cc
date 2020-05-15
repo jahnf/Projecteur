@@ -25,12 +25,14 @@ bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
 QString getExtraDeviceName(quint16 vendorId, quint16 productId);
 
 namespace {
+  // -----------------------------------------------------------------------------------------------
   // List of supported devices
   const std::vector<Spotlight::SupportedDevice> supportedDefaultDevices {
     {0x46d, 0xc53e, false, "Logitech Spotlight (USB)"},
     {0x46d, 0xb503, true, "Logitech Spotlight (Bluetooth)"},
   };
 
+  // -----------------------------------------------------------------------------------------------
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
   {
     const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
@@ -40,6 +42,7 @@ namespace {
     return (it != supportedDefaultDevices.cend()) || isExtraDeviceSupported(vendorId, productId);
   }
 
+  // -----------------------------------------------------------------------------------------------
   bool isAdditionallySupported(quint16 vendorId, quint16 productId, const QList<Spotlight::SupportedDevice>& devices)
   {
     const auto it = std::find_if(devices.cbegin(), devices.cend(),
@@ -49,6 +52,7 @@ namespace {
     return (it != devices.cend());
   }
 
+  // -----------------------------------------------------------------------------------------------
   // Return the defined device name for vendor/productId if defined in
   // any of the supported device lists (default, extra, additional)
   QString getUserDeviceName(quint16 vendorId, quint16 productId, const QList<Spotlight::SupportedDevice>& additionalDevices)
@@ -70,6 +74,7 @@ namespace {
     return QString();
   }
 
+  // -----------------------------------------------------------------------------------------------
   quint16 readUShortFromDeviceFile(const QString& filename)
   {
     QFile f(filename);
@@ -79,6 +84,7 @@ namespace {
     return 0;
   }
 
+  // -----------------------------------------------------------------------------------------------
   quint64 readULongLongFromDeviceFile(const QString& filename)
   {
     QFile f(filename);
@@ -88,6 +94,7 @@ namespace {
     return 0;
   }
 
+  // -----------------------------------------------------------------------------------------------
   QString readStringFromDeviceFile(const QString& filename)
   {
     QFile f(filename);
@@ -97,6 +104,7 @@ namespace {
     return QString();
   }
 
+  // -----------------------------------------------------------------------------------------------
   QString readPropertyFromDeviceFile(const QString& filename, const QString& property)
   {
     QFile f(filename);
@@ -115,6 +123,7 @@ namespace {
     return QString();
   }
 
+  // -----------------------------------------------------------------------------------------------
   Spotlight::Device deviceFromUEventFile(const QString& filename)
   {
     QFile f(filename);
@@ -164,8 +173,9 @@ namespace {
     }
     return spotlightDevice;
   }
-}
+} // --- end anonymous namespace
 
+// -------------------------------------------------------------------------------------------------
 Spotlight::Spotlight(QObject* parent, Options options)
   : QObject(parent)
   , m_options(std::move(options))
@@ -188,7 +198,9 @@ Spotlight::Spotlight(QObject* parent, Options options)
   }
 
   m_connectionTimer->setSingleShot(true);
-  m_connectionTimer->setInterval(600);
+  // From detecting a change from inotify, the device needs some time to be ready for open
+  // TODO: This interval seems to work, but it is arbitrary - there should be a better way.
+  m_connectionTimer->setInterval(800);
 
   connect(m_connectionTimer, &QTimer::timeout, this, [this]() {
     logDebug(device) << tr("New connection check triggered");
@@ -200,10 +212,10 @@ Spotlight::Spotlight(QObject* parent, Options options)
   setupDevEventInotify();
 }
 
-Spotlight::~Spotlight()
-{
-}
+// -------------------------------------------------------------------------------------------------
+Spotlight::~Spotlight() = default;
 
+// -------------------------------------------------------------------------------------------------
 bool Spotlight::anySpotlightDeviceConnected() const
 {
   for (const auto& dc : m_deviceConnections)
@@ -216,6 +228,22 @@ bool Spotlight::anySpotlightDeviceConnected() const
   return false;
 }
 
+// -------------------------------------------------------------------------------------------------
+uint32_t Spotlight::connectedDeviceCount() const
+{
+  uint32_t count = 0;
+  for (const auto& dc : m_deviceConnections)
+  {
+    for (const auto& c : dc.second.map) {
+      if (c.second.notifier && c.second.notifier->isEnabled()) {
+        ++count; break;
+      }
+    }
+  }
+  return count;
+}
+
+// -------------------------------------------------------------------------------------------------
 std::set<Spotlight::DeviceId> Spotlight::connectedDevices() const
 {
   std::set<DeviceId> devices;
@@ -225,6 +253,7 @@ std::set<Spotlight::DeviceId> Spotlight::connectedDevices() const
   return devices;
 }
 
+// -------------------------------------------------------------------------------------------------
 int Spotlight::connectDevices()
 {
   const auto scanResult = scanForDevices(m_options.additionalDevices);
@@ -239,7 +268,11 @@ int Spotlight::connectDevices()
     if (inputPaths.empty()) continue; // TODO debug msg
 
     auto& connectionDetails = m_deviceConnections[dev.id];
-    connectionDetails.deviceName = dev.userName.size() ? dev.userName : dev.name;
+    if (connectionDetails.deviceId != dev.id) {
+      connectionDetails.deviceName = dev.userName.size() ? dev.userName : dev.name;
+      connectionDetails.deviceId = dev.id;
+    }
+
     for (const auto& inputPath : inputPaths)
     {
       auto find_it = connectionDetails.map.find(inputPath);
@@ -253,7 +286,8 @@ int Spotlight::connectDevices()
         auto connection = openEventDevice(inputPath, dev);
         if (connection.notifier && connection.notifier->isEnabled())
         {
-          addInputEventHandler(connection, dev);
+          const bool anyConnectedBefore = anySpotlightDeviceConnected();
+          addInputEventHandler(connectionDetails, connection);
           connectionDetails.map[inputPath] = std::move(connection);
           if (connectionDetails.map.size() == 1)
           {
@@ -269,6 +303,7 @@ int Spotlight::connectDevices()
                               .arg(dev.id.productId, 4, 16, QChar('0'))
                               .arg(inputPath);
           emit subDeviceConnected(dev.id, connectionDetails.deviceName, inputPath);
+          if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
         }
         else {
           connectionDetails.map.erase(inputPath);
@@ -282,6 +317,7 @@ int Spotlight::connectDevices()
   return m_deviceConnections.size();
 }
 
+// -------------------------------------------------------------------------------------------------
 Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath, const Device& dev)
 {
   const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
@@ -356,100 +392,141 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
   return connection;
 }
 
-void Spotlight::addInputEventHandler(DeviceConnection& connection, const Device& dev)
+// -------------------------------------------------------------------------------------------------
+void Spotlight::removeDeviceConnection(const QString &devicePath)
+{
+  for (auto dc_it = m_deviceConnections.begin(); dc_it != m_deviceConnections.end(); )
+  {
+    auto& connMap = dc_it->second.map;
+    auto find_it = connMap.find(devicePath);
+
+    if (find_it != connMap.end())
+    {
+      logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
+                          .arg(dc_it->second.deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
+                          .arg(dc_it->first.productId, 4, 16, QChar('0')).arg(devicePath);
+      emit subDeviceDisconnected(dc_it->first, dc_it->second.deviceName, devicePath);
+      connMap.erase(find_it);
+    }
+
+    if (connMap.empty())
+    {
+      logInfo(device) << tr("Disconnected device: %1 (%2:%3)")
+                         .arg(dc_it->second.deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
+                         .arg(dc_it->first.productId, 4, 16, QChar('0'));
+      emit deviceDisconnected(dc_it->first, dc_it->second.deviceName);
+      dc_it = m_deviceConnections.erase(dc_it);
+    }
+    else {
+      ++dc_it;
+    }
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+void Spotlight::addInputEventHandler(ConnectionDetails& connDetails, DeviceConnection& connection)
 {
   if (connection.info.type != ConnectionType::Event
       || !connection.notifier || !connection.notifier->isEnabled()) {
     return;
   }
-  const auto devName = dev.userName.size() ? dev.userName : dev.name;
 
   QSocketNotifier* const notifier = connection.notifier.get();
   connect(notifier, &QSocketNotifier::activated,
-  [this, notifier, info = connection.info, id=dev.id, devName](int fd)
+  [this, notifier, info = connection.info, id=connDetails.deviceId](int fd)
   {
     struct input_event ev;
     const auto sz = ::read(fd, &ev, sizeof(ev));
-    if (sz == sizeof(ev))
+
+    if (sz == -1) // Error, e.g. if the usb device was unplugged...
     {
-      // EV_MSC, MSC_SCAN is emitted for devices on a button press, before the EV_KEY event.
-      // The value identifies the actual button on the device.
-      //  - physical device buttons can be identified with this.
-
-      logDebug(device) << tr("Device Event: %1 (%2:%3) | type=%4, code=%5 value=%6")
-                          .arg(info.devicePath).arg(id.vendorId, 4, 16, QChar('0'))
-                          .arg(id.productId, 4, 16, QChar('0'))
-                          .arg(ev.type, 2, 16, QChar('0'))
-                          .arg(ev.code, 4, 16, QChar('0'))
-                          .arg(ev.value, 8, 16, QChar('0'));
-
-      // time is the timestamp, it returns the time at which the event happened.
-      // type is for example EV_REL for relative moment, EV_KEY for a keypress or release.
-      //   More types are defined in include/linux/input-event-codes.h.
-      // code is event code, for example REL_X or KEY_BACKSPACE,
-      //   again a complete list is in include/linux/input-event-codes.h.
-      // value is the value the event carries. Either a relative change for EV_REL,
-      //   absolute new value for EV_ABS (joysticks ...),
-      //   or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
-
-      switch(ev.type)
-      {
-        case EV_REL: // On relative (mouse move) events, activate spotlight
-          if (ev.code == REL_X || ev.code == REL_Y)
-          {
-            if (!m_activeTimer->isActive()) {
-              m_spotActive = true;
-              emit spotActiveChanged(true);
-            }
-            // Send the relative event as fake mouse movement
-            if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
-            m_activeTimer->start();
-          }
-          break;
-
-        case EV_KEY:
-          if (info.grabbed)
-          {
-            // For now: pass event through to uinput (planned in v0.8: custom button/action mapping)
-            if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
-          }
-          break;
-
-        default: {
-          // TODO We don't need to forward EV_SYN events on mapped
-          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
-        }
-      }
-    }
-    else if (sz == -1)
-    {
-      // Error, e.g. if the usb device was unplugged...
       notifier->setEnabled(false);
 
       if (!anySpotlightDeviceConnected()) {
         emit anySpotlightDeviceConnectedChanged(false);
       }
 
-      QTimer::singleShot(0, this, [this, devicePath=info.devicePath, id, devName](){
-        for (auto& dc : m_deviceConnections) {
-          dc.second.map.erase(devicePath);
-          if (dc.second.map.empty()) {
-            logInfo(device) << tr("Disconnected device: %1 (%2:%3)")
-                               .arg(devName).arg(id.vendorId, 4, 16, QChar('0'))
-                               .arg(id.productId, 4, 16, QChar('0'));
-            emit deviceDisconnected(dc.first, devName);
-          }
-        }
+      QTimer::singleShot(0, this, [this, devicePath=info.devicePath](){
+        removeDeviceConnection(devicePath);
       });
 
-      logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
-                          .arg(devName).arg(id.vendorId, 4, 16, QChar('0'))
-                          .arg(id.productId, 4, 16, QChar('0')).arg(info.devicePath);
-      emit subDeviceDisconnected(id, devName, info.devicePath);
+      return;
+    }
+    else if (sz != sizeof(ev))
+    {
+      return;
+    }
+
+    // -- Handle move events
+    if (ev.type == EV_REL)
+    {
+      if (ev.code == REL_X || ev.code == REL_Y) // relative (mouse) move events
+      {
+        if (!m_activeTimer->isActive()) {
+          m_spotActive = true;
+          emit spotActiveChanged(true);
+        }
+        // Send the relative event as fake mouse movement
+        if (m_virtualDevice) m_virtualDevice->emitEvent(ev); // TODO also send enclosing SYN event?
+        m_activeTimer->start();
+      }
+      return;
+    }
+
+
+
+    // EV_MSC, MSC_SCAN is emitted for devices on a button press, before the EV_KEY event.
+    // The value identifies the actual button on the device.
+    //  - physical device buttons can be identified with this.
+
+    logDebug(device) << tr("Device Event: %1 (%2:%3) | type=%4, code=%5 value=%6")
+                        .arg(info.devicePath).arg(id.vendorId, 4, 16, QChar('0'))
+                        .arg(id.productId, 4, 16, QChar('0'))
+                        .arg(ev.type, 2, 16, QChar('0'))
+                        .arg(ev.code, 4, 16, QChar('0'))
+                        .arg(ev.value, 8, 16, QChar('0'));
+
+    // time is the timestamp, it returns the time at which the event happened.
+    // type is for example EV_REL for relative moment, EV_KEY for a keypress or release.
+    //   More types are defined in include/linux/input-event-codes.h.
+    // code is event code, for example REL_X or KEY_BACKSPACE,
+    //   again a complete list is in include/linux/input-event-codes.h.
+    // value is the value the event carries. Either a relative change for EV_REL,
+    //   absolute new value for EV_ABS (joysticks ...),
+    //   or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
+
+    switch(ev.type)
+    {
+      case EV_REL: // On relative (mouse move) events, activate spotlight
+        if (ev.code == REL_X || ev.code == REL_Y)
+        {
+          if (!m_activeTimer->isActive()) {
+            m_spotActive = true;
+            emit spotActiveChanged(true);
+          }
+          // Send the relative event as fake mouse movement
+          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+          m_activeTimer->start();
+        }
+        break;
+
+      case EV_KEY:
+        if (info.grabbed)
+        {
+          // For now: pass event through to uinput (planned in v0.8: custom button/action mapping)
+          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+        }
+        break;
+
+      default: {
+        // TODO We don't need to forward EV_SYN events on mapped
+        if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
+      }
     }
   });
 }
 
+// -------------------------------------------------------------------------------------------------
 bool Spotlight::setupDevEventInotify()
 {
   int fd = -1;
@@ -503,6 +580,7 @@ bool Spotlight::setupDevEventInotify()
   return true;
 }
 
+// -------------------------------------------------------------------------------------------------
 Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& additionalDevices)
 {
   constexpr char hidDevicePath[] = "/sys/bus/hid/devices";

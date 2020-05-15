@@ -17,8 +17,8 @@ private:
   int m_uinpFd = -1;
 
 public:
-  // Return a VirtualDevice unique_ptr or an empty unique_ptr if the creation fails.
-  static std::unique_ptr<VirtualDevice> create(const char* name = "Projecteur_input_device",
+  // Return a VirtualDevice shared_ptr or an empty shared_ptr if the creation fails.
+  static std::shared_ptr<VirtualDevice> create(const char* name = "Projecteur_input_device",
                                                uint16_t virtualVendorId = 0xfeed,
                                                uint16_t virtualProductId = 0xc0de,
                                                uint16_t virtualVersionId = 1,

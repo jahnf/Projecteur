@@ -55,7 +55,11 @@ public:
                   // - not tested, don't have two devices of any type currently.
 
     inline bool operator==(const DeviceId& rhs) const {
-      return vendorId == rhs.vendorId && productId == rhs.productId && phys == rhs.phys;
+      return std::tie(vendorId, productId, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.phys);
+    }
+
+    inline bool operator!=(const DeviceId& rhs) const {
+      return std::tie(vendorId, productId, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.phys);
     }
 
     inline bool operator<(const DeviceId& rhs) const {
@@ -79,6 +83,7 @@ public:
     QStringList errorMessages;
   };
 
+  uint32_t connectedDeviceCount() const;
   std::set<DeviceId> connectedDevices() const;
 
   /// scan for supported devices and check if they are accessible
@@ -120,25 +125,26 @@ private:
     std::unique_ptr<QSocketNotifier> notifier;
   };
 
-  DeviceConnection openEventDevice(const QString& devicePath, const Device& dev);
-  void addInputEventHandler(DeviceConnection& connection, const Device& dev);
-
-  bool setupDevEventInotify();
-  int connectDevices();
-
-private:
-  const Options m_options;
   using DevicePath = QString;
   using ConnectionMap = std::map<DevicePath, DeviceConnection>;
   struct ConnectionDetails {
+    DeviceId deviceId;
     QString deviceName;
     ConnectionMap map;
   };
 
+  DeviceConnection openEventDevice(const QString& devicePath, const Device& dev);
+  void addInputEventHandler(ConnectionDetails&, DeviceConnection& connection);
+
+  bool setupDevEventInotify();
+  int connectDevices();
+  void removeDeviceConnection(const QString& devicePath);
+
+  const Options m_options;
   std::map<DeviceId, ConnectionDetails> m_deviceConnections;
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;
   bool m_spotActive = false;
-  std::unique_ptr<VirtualDevice> m_virtualDevice;
+  std::shared_ptr<VirtualDevice> m_virtualDevice;
 };

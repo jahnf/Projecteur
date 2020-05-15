@@ -30,7 +30,7 @@ VirtualDevice::~VirtualDevice()
 }
 
 // Setup uinput device that can send mouse and keyboard events.
-std::unique_ptr<VirtualDevice> VirtualDevice::create(const char* name,
+std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
                                                      uint16_t virtualVendorId,
                                                      uint16_t virtualProductId,
                                                      uint16_t virtualVersionId,
@@ -91,7 +91,7 @@ std::unique_ptr<VirtualDevice> VirtualDevice::create(const char* name,
   logInfo(virtualdevice) << VirtualDevice_::tr("Created uinput device: %1")
                             .arg(QString("/sys/devices/virtual/input/%1").arg(sysfs_device_name));
 
-  return std::make_unique<VirtualDevice>(Token{}, fd);
+  return std::make_shared<VirtualDevice>(Token{}, fd);
 }
 
 

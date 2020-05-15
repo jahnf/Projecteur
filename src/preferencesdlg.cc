@@ -1,9 +1,10 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "preferencesdlg.h"
 
-#include "projecteur-GitVersion.h"
+#include "projecteur-GitVersion.h"  // auto generated version information
 
 #include "colorselector.h"
+#include "deviceswidget.h"
 #include "logging.h"
 #include "settings.h"
 #include "spotlight.h"
@@ -14,19 +15,16 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
-#include <QGridLayout>
+#include <QLayout>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QQmlPropertyMap>
-#include <QScreen>
 #include <QSpinBox>
 #include <QStyle>
 #include <QTabWidget>
 #include <QTimer>
-#include <QVBoxLayout>
 
 #if HAS_Qt5_X11Extras
 #include <QX11Info>
@@ -58,11 +56,13 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
   const auto tabWidget = new QTabWidget(this);
-  tabWidget->addTab(createSettingsTabWidget(settings, spotlight), tr("Settings"));
+  tabWidget->addTab(createSettingsTabWidget(settings, spotlight), tr("Spotlight"));
+  tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
   const auto closeBtn = new QPushButton(tr("&Close"), this);
   closeBtn->setToolTip(tr("Close the preferences dialog."));
+  closeBtn->setDefault(true);
   connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
   const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
   defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
