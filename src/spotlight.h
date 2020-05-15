@@ -83,8 +83,13 @@ public:
     QStringList errorMessages;
   };
 
+  struct ConnectedDeviceInfo {
+    DeviceId id;
+    QString name;
+  };
+
   uint32_t connectedDeviceCount() const;
-  std::set<DeviceId> connectedDevices() const;
+  QList<ConnectedDeviceInfo> connectedDevices() const;
 
   /// scan for supported devices and check if they are accessible
   static ScanResult scanForDevices(const QList<SupportedDevice>& additionalDevices = {});
@@ -148,3 +153,5 @@ private:
   bool m_spotActive = false;
   std::shared_ptr<VirtualDevice> m_virtualDevice;
 };
+
+Q_DECLARE_METATYPE(Spotlight::DeviceId);

@@ -244,11 +244,11 @@ uint32_t Spotlight::connectedDeviceCount() const
 }
 
 // -------------------------------------------------------------------------------------------------
-std::set<Spotlight::DeviceId> Spotlight::connectedDevices() const
+QList<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 {
-  std::set<DeviceId> devices;
+  QList<ConnectedDeviceInfo> devices;
   for (const auto& dc : m_deviceConnections) {
-    devices.insert(dc.first);
+    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second.deviceName});
   }
   return devices;
 }

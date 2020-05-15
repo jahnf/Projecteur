@@ -16,6 +16,6 @@ signals:
 
 private:
   QWidget* createDisconnectedStateWidget(QWidget* parent);
-  QWidget* createDevicesWidget(QWidget* parent);
+  QWidget* createDevicesWidget(Spotlight* spotlight, QWidget* parent);
 };
 
