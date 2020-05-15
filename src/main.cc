@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
     const QCommandLineOption deviceInfoOption(QStringList{ "d", "device-scan"}, Main::tr("Print device-scan results."));
     const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
     const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
+    const QCommandLineOption showDlgOnStartOption(QStringList{ "show-dialog" }, Main::tr("Show preferences dialog on start."));
     const QCommandLineOption additionalDeviceOption(QStringList{ "D", "additional-device"},
                                Main::tr("Additional accepted device; DEVICE = vendorId:productId\n"
                                         "                         "
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
                        cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
-                       disableUInputOption, additionalDeviceOption});
+                       disableUInputOption, showDlgOnStartOption, additionalDeviceOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -89,6 +90,7 @@ int main(int argc, char *argv[])
       print() << "  -D DEVICE              " << additionalDeviceOption.description();
       if (parser.isSet(fullHelpOption)) {
         print() << "  --disable-uinput       " << disableUInputOption.description();
+        print() << "  --show-dialog          " << disableUInputOption.description();
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
@@ -269,6 +271,10 @@ int main(int argc, char *argv[])
 
     if (parser.isSet(disableUInputOption)) {
       options.enableUInput = false;
+    }
+
+    if (parser.isSet(showDlgOnStartOption)) {
+      options.showPreferencesOnStart = true;
     }
 
     if (parser.isSet(logLvlOption)) {

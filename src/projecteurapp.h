@@ -25,6 +25,7 @@ public:
   struct Options {
     QString configFile;
     bool enableUInput = true; // enable virtual uinput device
+    bool showPreferencesOnStart = false;
     QList<Spotlight::SupportedDevice> additionalDevices;
   };
 

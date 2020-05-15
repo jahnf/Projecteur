@@ -59,6 +59,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     emit m_spotlight->spotActiveChanged(true);
   });
 
+  if (options.showPreferencesOnStart) {
+    QTimer::singleShot(0, this, [this](){ showPreferences(true); });
+  }
+
   const auto desktopImageProvider = new PixmapProvider(this);
   const auto engine = new QQmlApplicationEngine(this);
   engine->rootContext()->setContextProperty("Settings", m_settings);
