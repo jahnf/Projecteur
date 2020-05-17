@@ -149,6 +149,9 @@ public:
 
   const QList<QPair<QString, StringProperty>>& stringProperties() const;
 
+  void savePreset(const QString& preset);
+  void loadPreset(const QString& preset);
+
 signals:
   void showSpotShadeChanged(bool show);
   void spotSizeChanged(int size);
@@ -199,12 +202,14 @@ private:
   QList<QPair<QString, StringProperty>> m_stringPropertyMap;
 
 private:
-  void load();
+  void init();
+  void load(const QString& preset = QString());
   QObject* shapeSettingsRootObject();
   void shapeSettingsPopulateRoot();
   void shapeSettingsInitialize();
   void shapeSettingsSetDefaults();
-  void shapeSettingsLoad();
+  void shapeSettingsLoad(const QString& preset = QString());
+  void shapeSettingsSavePreset(const QString& preset);
   void setSpotRotationAllowed(bool allowed);
   void initializeStringProperties();
 };

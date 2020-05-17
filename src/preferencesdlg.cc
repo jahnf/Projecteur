@@ -35,6 +35,7 @@
 LOGGING_CATEGORY(preferences, "preferences")
 LOGGING_CATEGORY(x11display, "x11display")
 
+// -------------------------------------------------------------------------------------------------
 namespace {
   #define CURSOR_PATH ":/icons/cursors/"
   static const std::map<const QString, const QPair<const QString, const Qt::CursorShape>> cursorMap {
@@ -49,6 +50,7 @@ namespace {
   };
 }
 
+// -------------------------------------------------------------------------------------------------
 PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent)
   : QDialog(parent)
 {
@@ -56,7 +58,7 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
   const auto tabWidget = new QTabWidget(this);
-  tabWidget->addTab(createSettingsTabWidget(settings, spotlight), tr("Spotlight"));
+  tabWidget->addTab(createSettingsTabWidget(settings), tr("Spotlight"));
   tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
@@ -78,7 +80,8 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   mainVBox->addLayout(btnHBox);
 }
 
-QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotlight* spotlight)
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
 {
   const auto widget = new QWidget(this);
   const auto mainHBox = new QHBoxLayout;
@@ -101,40 +104,12 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotligh
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
-  mainVBox->addWidget(createConnectedStateWidget(spotlight));
   mainVBox->addWidget(testBtn);
 
   return widget;
 }
 
-QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
-{
-  static const auto deviceText = tr("Device connected: %1", "%1=True or False");
-  const auto group = new QGroupBox(this);
-  const auto hbox = new QHBoxLayout(group);
-  const auto lbl = new QLabel(deviceText.arg(
-                                spotlight->anySpotlightDeviceConnected() ? tr("True")
-                                                                         : tr("False")), this);
-  lbl->setToolTip(tr("Connection status of the spotlight device."));
-
-  auto icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
-  const auto iconLbl = new QLabel(this);
-  iconLbl->setPixmap(icon.pixmap(16,16));
-
-  hbox->addWidget(iconLbl);
-  hbox->addWidget(lbl);
-  hbox->setStretch(1,2);
-
-  auto updateStatus = [this, lbl, iconLbl](bool connected) {
-    lbl->setText(deviceText.arg(connected ? tr("True") : tr("False")));
-    iconLbl->setPixmap(style()->standardIcon(connected ? QStyle::SP_DialogOkButton
-                                                       : QStyle::SP_MessageBoxWarning).pixmap(16,16));
-  };
-  updateStatus(spotlight->anySpotlightDeviceConnected());
-  connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, std::move(updateStatus));
-  return group;
-}
-
+// -------------------------------------------------------------------------------------------------
 #if HAS_Qt5_X11Extras
 QWidget* PreferencesDialog::createCompositorWarningWidget()
 {
@@ -192,6 +167,7 @@ QWidget* PreferencesDialog::createCompositorWarningWidget()
 }
 #endif
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
 {
   const auto shapeGroup = new QGroupBox(tr("Shape Settings"), this);
@@ -322,6 +298,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   return shapeGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
 {
   const auto spotGroup = new QGroupBox(tr("Show Spotlight Shade"), this);
@@ -359,6 +336,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   return spotGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
 {
   const auto dotGroup = new QGroupBox(tr("Show Center Dot"), this);
@@ -395,6 +373,7 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   return dotGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
 {
   const auto borderGroup = new QGroupBox(tr("Show Border"), this);
@@ -444,6 +423,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   return borderGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
 {
   const auto zoomGroup = new QGroupBox(tr("Enable Zoom"), this);
@@ -470,6 +450,7 @@ QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
   return zoomGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
 {
   const auto cursorGroup = new QGroupBox(tr("Cursor Settings"), this);
@@ -496,6 +477,7 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   return cursorGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QWidget* PreferencesDialog::createLogTabWidget()
 {
   const auto widget = new QWidget(this);
@@ -588,6 +570,7 @@ QWidget* PreferencesDialog::createLogTabWidget()
   return widget;
 }
 
+// -------------------------------------------------------------------------------------------------
 void PreferencesDialog::setDialogActive(bool active)
 {
   if (active == m_active)
@@ -597,6 +580,7 @@ void PreferencesDialog::setDialogActive(bool active)
   emit dialogActiveChanged(active);
 }
 
+// -------------------------------------------------------------------------------------------------
 bool PreferencesDialog::event(QEvent* e)
 {
   if (e->type() == QEvent::WindowActivate) {
