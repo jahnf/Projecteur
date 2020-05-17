@@ -95,8 +95,8 @@ void ColorSelector::setColor(const QColor& color)
 void ColorSelector::updateButton()
 {
   QPalette p(palette());
-  p.setColor(QPalette::Normal, QPalette::Button, m_color);
-  p.setColor(QPalette::Normal, QPalette::ButtonText, m_color);
+  p.setColor(QPalette::Button, m_color);
+  p.setColor(QPalette::ButtonText, m_color);
   setPalette(p);
   setToolTip(m_color.name());
 }
