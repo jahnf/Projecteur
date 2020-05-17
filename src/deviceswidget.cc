@@ -51,7 +51,10 @@ QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight, QWidget* paren
   const auto deviceCombo = new QComboBox(dw);
 
   for (const auto& dev : spotlight->connectedDevices()) {
-    deviceCombo->addItem(descriptionString(dev.name, dev.id), QVariant::fromValue(dev.id));
+    const auto data = QVariant::fromValue(dev.id);
+    if (deviceCombo->findData(data) < 0) {
+      deviceCombo->addItem(descriptionString(dev.name, dev.id), data);
+    }
   }
 
   devHLayout->addWidget(new QLabel(tr("Devices"), dw));

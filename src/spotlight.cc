@@ -173,7 +173,25 @@ namespace {
     }
     return spotlightDevice;
   }
+
+  // -----------------------------------------------------------------------------------------------
+  struct InputBuffer {
+    std::array<input_event, 12> data;
+    uint8_t pos = 0;
+  };
+
 } // --- end anonymous namespace
+
+// -------------------------------------------------------------------------------------------------
+struct Spotlight::DeviceConnection
+{
+  DeviceConnection() = default;
+  DeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode)
+    : info(path, type, mode) {}
+  ConnectionInfo info;
+  InputBuffer inputBuffer;
+  std::unique_ptr<QSocketNotifier> notifier;
+};
 
 // -------------------------------------------------------------------------------------------------
 Spotlight::Spotlight(QObject* parent, Options options)
@@ -207,6 +225,8 @@ Spotlight::Spotlight(QObject* parent, Options options)
     connectDevices();
   });
 
+  QMetaType::registerComparators<Spotlight::DeviceId>();
+
   // Try to find already attached device(s) and connect to it.
   connectDevices();
   setupDevEventInotify();
@@ -221,7 +241,7 @@ bool Spotlight::anySpotlightDeviceConnected() const
   for (const auto& dc : m_deviceConnections)
   {
     for (const auto& c : dc.second.map) {
-      if (c.second.notifier && c.second.notifier->isEnabled())
+      if (c.second && c.second->notifier && c.second->notifier->isEnabled())
         return true;
     }
   }
@@ -235,7 +255,7 @@ uint32_t Spotlight::connectedDeviceCount() const
   for (const auto& dc : m_deviceConnections)
   {
     for (const auto& c : dc.second.map) {
-      if (c.second.notifier && c.second.notifier->isEnabled()) {
+      if (c.second && c.second->notifier && c.second->notifier->isEnabled()) {
         ++count; break;
       }
     }
@@ -278,16 +298,19 @@ int Spotlight::connectDevices()
       auto find_it = connectionDetails.map.find(inputPath);
 
       // Check if a connection for the path exists...
-      if (find_it != connectionDetails.map.end() && find_it->second.notifier
-          && find_it->second.notifier->isEnabled()) {
+      if (find_it != connectionDetails.map.end()
+          && find_it->second
+          && find_it->second->notifier
+          && find_it->second->notifier->isEnabled()) {
         continue;
       }
       else {
         auto connection = openEventDevice(inputPath, dev);
-        if (connection.notifier && connection.notifier->isEnabled())
+        const bool anyConnectedBefore = anySpotlightDeviceConnected();
+        if (connection && connection->notifier
+            && connection->notifier->isEnabled()
+            && addInputEventHandler(connection))
         {
-          const bool anyConnectedBefore = anySpotlightDeviceConnected();
-          addInputEventHandler(connectionDetails, connection);
           connectionDetails.map[inputPath] = std::move(connection);
           if (connectionDetails.map.size() == 1)
           {
@@ -318,21 +341,17 @@ int Spotlight::connectDevices()
 }
 
 // -------------------------------------------------------------------------------------------------
-Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath, const Device& dev)
+std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QString& devicePath, const Device& dev)
 {
   const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
-  DeviceConnection connection(devicePath, ConnectionType::Event, ConnectionMode::ReadOnly);
 
   if (evfd < 0) {
     logDebug(device) << tr("Opening input event device failed:") << devicePath;
-    return connection;
+    return std::shared_ptr<DeviceConnection>();
   }
 
   struct input_id id{};
   ioctl(evfd, EVIOCGID, &id); // get device id's
-
-  connection.info.vendorId = id.vendor;
-  connection.info.productId = id.product;
 
   // Check against given device id
   if ( id.vendor != dev.id.vendorId || id.product != dev.id.productId)
@@ -342,7 +361,7 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
-    return connection;
+    return std::shared_ptr<DeviceConnection>();
   }
 
   unsigned long bitmask = 0;
@@ -353,10 +372,14 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
-    return connection;
+    return std::shared_ptr<DeviceConnection>();
   }
 
-  connection.info.grabbed = [this, evfd, &devicePath]()
+  auto connection = std::make_shared<DeviceConnection>(devicePath, ConnectionType::Event, ConnectionMode::ReadOnly);
+  connection->info.vendorId = id.vendor;
+  connection->info.productId = id.product;
+
+  connection->info.grabbed = [this, evfd, &devicePath]()
   {
     // Grab device inputs if a virtual device exists.
     if (m_virtualDevice)
@@ -371,8 +394,8 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
     return false;
   }();
 
-  if (!!(bitmask & (1 << EV_SYN))) connection.info.deviceFlags |= DeviceFlag::SynEvents;
-  if (!!(bitmask & (1 << EV_REP))) connection.info.deviceFlags |= DeviceFlag::RepEvents;
+  if (!!(bitmask & (1 << EV_SYN))) connection->info.deviceFlags |= DeviceFlag::SynEvents;
+  if (!!(bitmask & (1 << EV_REP))) connection->info.deviceFlags |= DeviceFlag::RepEvents;
   if (!!(bitmask & (1 << EV_REL)))
   {
     unsigned long relEvents = 0;
@@ -380,15 +403,20 @@ Spotlight::DeviceConnection Spotlight::openEventDevice(const QString& devicePath
     const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
     const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
     if (hasRelXEvents && hasRelYEvents) {
-      connection.info.deviceFlags |= DeviceFlag::RelativeEvents;
+      connection->info.deviceFlags |= DeviceFlag::RelativeEvents;
     }
   }
 
+  fcntl(evfd, F_SETFL, fcntl(evfd, F_GETFL, 0) | O_NONBLOCK);
+  if ((fcntl(evfd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
+    connection->info.deviceFlags |= DeviceFlag::NonBlocking;
+  }
+
   // Create socket notifier
-  connection.notifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);
-  QSocketNotifier* const notifier = connection.notifier.get();
+  connection->notifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);
+  QSocketNotifier* const notifier = connection->notifier.get();
   // Auto clean up and close descriptor on destruction of notifier
-  connect(notifier, &QSocketNotifier::destroyed, [grabbed = connection.info.grabbed, notifier]() {
+  connect(notifier, &QSocketNotifier::destroyed, [grabbed = connection->info.grabbed, notifier]() {
     if (grabbed) {
       ioctl(static_cast<int>(notifier->socket()), EVIOCGRAB, 0);
     }
@@ -408,6 +436,7 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 
     if (find_it != connMap.end())
     {
+      find_it->second->notifier.reset();
       logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
                           .arg(dc_it->second.deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
                           .arg(dc_it->first.productId, 4, 16, QChar('0')).arg(devicePath);
@@ -430,106 +459,65 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 }
 
 // -------------------------------------------------------------------------------------------------
-void Spotlight::addInputEventHandler(ConnectionDetails& connDetails, DeviceConnection& connection)
+void Spotlight::onDeviceDataAvailable(int fd, DeviceConnection& connection)
 {
-  if (connection.info.type != ConnectionType::Event
-      || !connection.notifier || !connection.notifier->isEnabled()) {
-    return;
-  }
-
-  QSocketNotifier* const notifier = connection.notifier.get();
-  connect(notifier, &QSocketNotifier::activated,
-  [this, notifier, info = connection.info, id=connDetails.deviceId](int fd)
+  const bool isNonBlocking = !!(connection.info.deviceFlags & DeviceFlag::NonBlocking);
+  while (true)
   {
-    struct input_event ev;
-    const auto sz = ::read(fd, &ev, sizeof(ev));
-
-    if (sz == -1) // Error, e.g. if the usb device was unplugged...
+    auto& buf = connection.inputBuffer;
+    auto &ev = buf.data[buf.pos];
+    if (::read(fd, &ev, sizeof(ev)) != sizeof(ev))
     {
-      notifier->setEnabled(false);
-
-      if (!anySpotlightDeviceConnected()) {
-        emit anySpotlightDeviceConnectedChanged(false);
+      if (errno != EAGAIN)
+      {
+        connection.notifier->setEnabled(false);
+        if (!anySpotlightDeviceConnected()) {
+          emit anySpotlightDeviceConnectedChanged(false);
+        }
+        QTimer::singleShot(0, this, [this, devicePath=connection.info.devicePath](){
+          removeDeviceConnection(devicePath);
+        });
       }
-
-      QTimer::singleShot(0, this, [this, devicePath=info.devicePath](){
-        removeDeviceConnection(devicePath);
-      });
-
-      return;
+      break;
     }
-    else if (sz != sizeof(ev))
-    {
-      return;
-    }
+    ++buf.pos;
 
-    // -- Handle move events
-    if (ev.type == EV_REL)
-    {
-      if (ev.code == REL_X || ev.code == REL_Y) // relative (mouse) move events
+    // on SYN event or input_event buffer full ...
+    if (ev.type == EV_SYN || buf.pos >= buf.data.size()) {
+      // Check for relative event -- Spotlight activation
+      const auto &first_ev = buf.data[0];
+      if (first_ev.type == EV_REL && (first_ev.code == REL_X || first_ev.code == REL_Y))
       {
         if (!m_activeTimer->isActive()) {
           m_spotActive = true;
           emit spotActiveChanged(true);
         }
-        // Send the relative event as fake mouse movement
-        if (m_virtualDevice) m_virtualDevice->emitEvent(ev); // TODO also send enclosing SYN event?
         m_activeTimer->start();
       }
-      return;
+
+      if (m_virtualDevice) m_virtualDevice->emitEvent(buf.data.data(), connection.inputBuffer.pos);
+      buf.pos = 0;
     }
 
+    if (!isNonBlocking) break;
+  } // end while loop
+}
 
+// -------------------------------------------------------------------------------------------------
+bool Spotlight::addInputEventHandler(std::shared_ptr<DeviceConnection> connection)
+{
+  if (!connection || connection->info.type != ConnectionType::Event
+      || !connection->notifier || !connection->notifier->isEnabled()) {
+    return false;
+  }
 
-    // EV_MSC, MSC_SCAN is emitted for devices on a button press, before the EV_KEY event.
-    // The value identifies the actual button on the device.
-    //  - physical device buttons can be identified with this.
-
-    logDebug(device) << tr("Device Event: %1 (%2:%3) | type=%4, code=%5 value=%6")
-                        .arg(info.devicePath).arg(id.vendorId, 4, 16, QChar('0'))
-                        .arg(id.productId, 4, 16, QChar('0'))
-                        .arg(ev.type, 2, 16, QChar('0'))
-                        .arg(ev.code, 4, 16, QChar('0'))
-                        .arg(ev.value, 8, 16, QChar('0'));
-
-    // time is the timestamp, it returns the time at which the event happened.
-    // type is for example EV_REL for relative moment, EV_KEY for a keypress or release.
-    //   More types are defined in include/linux/input-event-codes.h.
-    // code is event code, for example REL_X or KEY_BACKSPACE,
-    //   again a complete list is in include/linux/input-event-codes.h.
-    // value is the value the event carries. Either a relative change for EV_REL,
-    //   absolute new value for EV_ABS (joysticks ...),
-    //   or 0 for EV_KEY for release, 1 for keypress and 2 for autorepeat.
-
-    switch(ev.type)
-    {
-      case EV_REL: // On relative (mouse move) events, activate spotlight
-        if (ev.code == REL_X || ev.code == REL_Y)
-        {
-          if (!m_activeTimer->isActive()) {
-            m_spotActive = true;
-            emit spotActiveChanged(true);
-          }
-          // Send the relative event as fake mouse movement
-          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
-          m_activeTimer->start();
-        }
-        break;
-
-      case EV_KEY:
-        if (info.grabbed)
-        {
-          // For now: pass event through to uinput (planned in v0.8: custom button/action mapping)
-          if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
-        }
-        break;
-
-      default: {
-        // TODO We don't need to forward EV_SYN events on mapped
-        if (m_virtualDevice) m_virtualDevice->emitEvent(ev);
-      }
-    }
+  QSocketNotifier* const notifier = connection->notifier.get();
+  connect(notifier, &QSocketNotifier::activated, this,
+  [this, connection=std::move(connection)](int fd) {
+    onDeviceDataAvailable(fd, *connection.get());
   });
+
+  return true;
 }
 
 // -------------------------------------------------------------------------------------------------

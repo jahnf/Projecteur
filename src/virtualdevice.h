@@ -28,6 +28,6 @@ public:
   ~VirtualDevice();
 
   void emitEvent(uint16_t type, uint16_t code, int val);
-  void emitEvent(struct input_event ie, bool remove_timestamp = false);
-  void mouseLeftClick();
+  void emitEvent(struct input_event ie);
+  void emitEvent(struct input_event[], size_t num);
 };

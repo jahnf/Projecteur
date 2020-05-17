@@ -59,6 +59,7 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
 
   // Setup the uinput device
   // TODO Are the following Key and Event bits sufficient? Do we need more? (see all in Linux's input-event-codes.h)
+  ioctl(fd, UI_SET_EVBIT, EV_SYN);
   ioctl(fd, UI_SET_EVBIT, EV_KEY);
   ioctl(fd, UI_SET_EVBIT, EV_REL);
   ioctl(fd, UI_SET_RELBIT, REL_X);
@@ -98,29 +99,25 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
 // Public methods to emit event from the device
 void VirtualDevice::emitEvent(uint16_t type, uint16_t code, int val)
 {
+  // TODO fill in timestamp
   input_event ie {{}, type, code, val};
-  emitEvent(std::move(ie), true);
+  emitEvent(std::move(ie));
 }
 
-void VirtualDevice::emitEvent(struct input_event ie, bool remove_timestamp)
+void VirtualDevice::emitEvent(struct input_event ie)
 {
-  if (remove_timestamp) {
-    // timestamp values below are ignored
-    ie.time.tv_sec = 0;
-    ie.time.tv_usec = 0;
-  }
-
   const auto bytesWritten = write(m_uinpFd, &ie, sizeof(ie));
   if (bytesWritten != sizeof(ie)) {
     logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
   }
 }
 
-// Simulate mouse clicks
-void VirtualDevice::mouseLeftClick()
+void VirtualDevice::emitEvent(struct input_event input_events[], size_t num)
 {
-  emitEvent(EV_KEY, BTN_LEFT, 1);
-  emitEvent(EV_SYN, SYN_REPORT, 0);
-  emitEvent(EV_KEY, BTN_LEFT, 0);
-  emitEvent(EV_SYN, SYN_REPORT, 0);
+  if (const ssize_t sz = sizeof(input_event) * num) {
+    const auto bytesWritten = write(m_uinpFd, input_events, sz);
+    if (bytesWritten != sz) {
+      logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
+    }
+  }
 }

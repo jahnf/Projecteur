@@ -16,9 +16,10 @@ class VirtualDevice;
 
 enum class DeviceFlag : uint32_t {
   NoFlags = 0,
-  SynEvents      = 1 << 0,
-  RepEvents      = 1 << 1,
-  RelativeEvents = 1 << 2,
+  NonBlocking    = 1 << 0,
+  SynEvents      = 1 << 1,
+  RepEvents      = 1 << 2,
+  RelativeEvents = 1 << 3,
 };
 ENUM(DeviceFlag, DeviceFlags)
 
@@ -134,28 +135,23 @@ private:
     QString devicePath;
   };
 
-  struct DeviceConnection
-  {
-    DeviceConnection() = default;
-    DeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode) : info(path, type, mode) {}
-    ConnectionInfo info;
-    std::unique_ptr<QSocketNotifier> notifier;
-  };
-
+  struct DeviceConnection;
   using DevicePath = QString;
-  using ConnectionMap = std::map<DevicePath, DeviceConnection>;
+  using ConnectionMap = std::map<DevicePath, std::shared_ptr<DeviceConnection>>;
+
   struct ConnectionDetails {
     DeviceId deviceId;
     QString deviceName;
     ConnectionMap map;
   };
 
-  DeviceConnection openEventDevice(const QString& devicePath, const Device& dev);
-  void addInputEventHandler(ConnectionDetails&, DeviceConnection& connection);
+  std::shared_ptr<DeviceConnection> openEventDevice(const QString& devicePath, const Device& dev);
+  bool addInputEventHandler(std::shared_ptr<DeviceConnection> connection);
 
   bool setupDevEventInotify();
   int connectDevices();
   void removeDeviceConnection(const QString& devicePath);
+  void onDeviceDataAvailable(int fd, DeviceConnection& connection);
 
   const Options m_options;
   std::map<DeviceId, ConnectionDetails> m_deviceConnections;

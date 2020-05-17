@@ -17,7 +17,8 @@
     using T = std::underlying_type_t<ENUMCLASS>; \
     return static_cast<ENUMCLASS>(~static_cast<T>(lhs)); } \
   inline ENUMCLASS& operator |= (ENUMCLASS& lhs, ENUMCLASS rhs) {lhs = lhs | rhs; return lhs; } \
-  inline ENUMCLASS& operator &= (ENUMCLASS& lhs, ENUMCLASS rhs) {lhs = lhs & rhs; return lhs; }
+  inline ENUMCLASS& operator &= (ENUMCLASS& lhs, ENUMCLASS rhs) {lhs = lhs & rhs; return lhs; } \
+  inline bool operator!(ENUMCLASS e) { return e == static_cast<ENUMCLASS>(0); }
 
 // enum flags macro (cannot be used inside class declaration)
 #define ENUM2(ENUMCLASS, PLURALNAME) \

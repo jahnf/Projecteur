@@ -163,6 +163,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){
+    logDebug(mainapp) << tr("Spotlight window visible = ") << v;
     if (!v && m_dialog->isVisible()) {
       m_dialog->raise();
       m_dialog->activateWindow();
