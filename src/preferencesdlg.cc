@@ -139,12 +139,6 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
   cb->addItems(settings->presets());
   cb->setInsertPolicy(QComboBox::NoInsert);
 
-//  connect(cb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
-//  [cb, settings](int index){
-//    if (!cb->lineEdit())
-//      settings->loadPreset(cb->itemText(index));
-//  });
-
   hbox->addWidget(new QLabel(tr("Presets"), widget));
   hbox->addWidget(cb);
   const auto loadBtn = new QPushButton(widget);
@@ -164,15 +158,29 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
   connect(newBtn, &QPushButton::clicked, this, [cb, settings]()
   {
     cb->setEditable(true);
-    cb->insertItem(0, tr("New Preset"));
+    cb->insertItem(0, QString("Preset_%1_").arg(QDateTime::currentMSecsSinceEpoch()));
     cb->setCurrentIndex(0);
     const auto le = cb->lineEdit();
     le->setMaxLength(35);
+    le->setCompleter(nullptr);
     connect(le, &QLineEdit::editingFinished, [cb, settings](){
-      cb->setItemText(cb->currentIndex(), cb->currentText());
+      auto text = cb->currentText().trimmed();
+      if (cb->findText(text) >= 0) { // Item with same name alrady exists
+        text.append(" (%1)");
+        for (int i = 2; i < 1000; ++i) {
+          if (cb->findText(text.arg(i)) < 0) {
+            text = text.arg(i);
+            break;
+          }
+        }
+      }
+      cb->setItemText(0, text);
+      cb->setItemData(0, QVariant());
       cb->setEditable(false);
-      settings->savePreset(cb->currentText());
+      cb->setCurrentIndex(0);
+      settings->savePreset(text);
     });
+    cb->lineEdit()->setText(tr("New Preset"));
     cb->lineEdit()->setFocus();
     cb->lineEdit()->selectAll();
   });

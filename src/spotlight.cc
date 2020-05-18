@@ -28,10 +28,10 @@ QString getExtraDeviceName(quint16 vendorId, quint16 productId);
 namespace {
   // -----------------------------------------------------------------------------------------------
   // List of supported devices
-  const std::vector<Spotlight::SupportedDevice> supportedDefaultDevices {
+  const std::array<Spotlight::SupportedDevice, 2> supportedDefaultDevices {{
     {0x46d, 0xc53e, false, "Logitech Spotlight (USB)"},
     {0x46d, 0xb503, true, "Logitech Spotlight (Bluetooth)"},
-  };
+  }};
 
   // -----------------------------------------------------------------------------------------------
   bool isDeviceSupported(quint16 vendorId, quint16 productId)
