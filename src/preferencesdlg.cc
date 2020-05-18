@@ -18,6 +18,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLayout>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QQmlPropertyMap>
@@ -57,27 +58,40 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
+  const auto settingsWidget = createSettingsTabWidget(settings);
+  settingsWidget->setDisabled(settings->overlayDisabled());
+
   const auto tabWidget = new QTabWidget(this);
-  tabWidget->addTab(createSettingsTabWidget(settings), tr("Spotlight"));
+  tabWidget->addTab(settingsWidget, tr("Spotlight"));
   tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
   const auto closeBtn = new QPushButton(tr("&Close"), this);
   closeBtn->setToolTip(tr("Close the preferences dialog."));
-  closeBtn->setDefault(true);
+//  closeBtn->setDefault(true);
   connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
   const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
   defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
   connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
 
+//  const auto removeBtn = new QPushButton(tr("remove"), this);
+//  connect(removeBtn, &QPushButton::clicked, [settings](){
+//    settings->removePreset("HelloSettings");
+//  });
+
   const auto btnHBox = new QHBoxLayout;
   btnHBox->addWidget(defaultsBtn);
   btnHBox->addStretch(1);
+//  btnHBox->addWidget(removeBtn);
   btnHBox->addWidget(closeBtn);
 
   const auto mainVBox = new QVBoxLayout(this);
   mainVBox->addWidget(tabWidget);
   mainVBox->addLayout(btnHBox);
+
+  connect(settings, &Settings::overlayDisabledChanged, this, [settingsWidget](bool disabled){
+    settingsWidget->setDisabled(disabled);
+  });
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -96,15 +110,85 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
-  const auto testBtn = new QPushButton(tr("&Show test..."), this);
+  const auto testBtn = new QPushButton(tr("&Show test..."), widget);
   connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
+
+  const auto invisibleBtn = new QPushButton(this);
+  invisibleBtn->setVisible(false);
+  invisibleBtn->setDefault(true);
 
   const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
+  mainVBox->addWidget(createPresetSelector(settings));
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
   mainVBox->addWidget(testBtn);
+
+  return widget;
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
+{
+  const auto widget = new QFrame(this);
+  widget->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
+  const auto hbox = new QHBoxLayout(widget);
+
+  const auto cb = new QComboBox(widget);
+  cb->addItems(settings->presets());
+  cb->setInsertPolicy(QComboBox::NoInsert);
+
+//  connect(cb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+//  [cb, settings](int index){
+//    if (!cb->lineEdit())
+//      settings->loadPreset(cb->itemText(index));
+//  });
+
+  hbox->addWidget(new QLabel(tr("Presets"), widget));
+  hbox->addWidget(cb);
+  const auto loadBtn = new QPushButton(widget);
+  loadBtn->setToolTip(tr("Load currently selected preset."));
+  auto icon = style()->standardIcon(QStyle::SP_DialogApplyButton);
+  loadBtn->setIcon(icon);
+  hbox->addWidget(loadBtn);
+  const auto deleteBtn = new QPushButton(widget);
+  auto icon2 = style()->standardIcon(QStyle::SP_DialogDiscardButton);
+  deleteBtn->setIcon(icon2);
+  hbox->addWidget(deleteBtn);
+  const auto newBtn = new QPushButton(tr("Create New"), widget);
+  newBtn->setToolTip(tr("Create new preset from current spotlight settings."));
+  hbox->addWidget(newBtn);
+  hbox->setStretch(1, 1);
+
+  connect(newBtn, &QPushButton::clicked, this, [cb, settings]()
+  {
+    cb->setEditable(true);
+    cb->insertItem(0, tr("New Preset"));
+    cb->setCurrentIndex(0);
+    const auto le = cb->lineEdit();
+    le->setMaxLength(35);
+    connect(le, &QLineEdit::editingFinished, [cb, settings](){
+      cb->setItemText(cb->currentIndex(), cb->currentText());
+      cb->setEditable(false);
+      settings->savePreset(cb->currentText());
+    });
+    cb->lineEdit()->setFocus();
+    cb->lineEdit()->selectAll();
+  });
+
+  connect(loadBtn, &QPushButton::clicked, this, [cb, settings]()
+  {
+    if (cb->currentIndex() < 0) return;
+    settings->loadPreset(cb->itemText(cb->currentIndex()));
+  });
+
+  connect(deleteBtn, &QPushButton::clicked, this, [cb, settings]()
+  {
+    if (cb->currentIndex() < 0) return;
+    settings->removePreset(cb->currentText());
+    cb->removeItem(cb->currentIndex());
+  });
 
   return widget;
 }

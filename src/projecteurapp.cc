@@ -53,6 +53,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices});
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
+  m_settings->setOverlayDisabled(options.disableOverlay);
   m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
@@ -130,7 +131,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   connect(m_spotlight, &Spotlight::spotActiveChanged,
   [window, desktopImageProvider, this](bool active)
   {
-    if (active)
+    if (active && !m_settings->overlayDisabled())
     {
       setScreenForCursorPos();
 

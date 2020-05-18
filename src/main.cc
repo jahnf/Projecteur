@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
     const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
     const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
     const QCommandLineOption showDlgOnStartOption(QStringList{ "show-dialog" }, Main::tr("Show preferences dialog on start."));
+    const QCommandLineOption disableOverlayOption(QStringList{ "disable-overlay" }, Main::tr("Disable spotlight overlay completely."));
     const QCommandLineOption additionalDeviceOption(QStringList{ "D", "additional-device"},
                                Main::tr("Additional accepted device; DEVICE = vendorId:productId\n"
                                         "                         "
@@ -68,7 +69,8 @@ int main(int argc, char *argv[])
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
                        cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
-                       disableUInputOption, showDlgOnStartOption, additionalDeviceOption});
+                       disableUInputOption, showDlgOnStartOption, disableOverlayOption,
+                       additionalDeviceOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -275,6 +277,10 @@ int main(int argc, char *argv[])
 
     if (parser.isSet(showDlgOnStartOption)) {
       options.showPreferencesOnStart = true;
+    }
+
+    if (parser.isSet(disableOverlayOption)) {
+      options.disableOverlay = true;
     }
 
     if (parser.isSet(logLvlOption)) {

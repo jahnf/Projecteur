@@ -356,6 +356,24 @@ void Settings::loadPreset(const QString& preset)
 }
 
 // -------------------------------------------------------------------------------------------------
+void Settings::removePreset(const QString& preset)
+{
+  m_settings->remove(presetSection(preset, false));
+}
+
+// -------------------------------------------------------------------------------------------------
+QStringList Settings::presets() const
+{
+  QStringList presetNames;
+  for (const auto& group: m_settings->childGroups()) {
+    if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
+      presetNames.push_back(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
+    }
+  }
+  return presetNames;
+}
+
+// -------------------------------------------------------------------------------------------------
 void Settings::load(const QString& preset)
 {
   logDebug(lcSettings) << tr("Loading values from config:") << m_settings->fileName()
@@ -673,6 +691,14 @@ void Settings::setDblClickDuration(int duration)
   m_dblClickDuration = duration;
   m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
   emit dblClickDurationChanged(m_dblClickDuration);
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setOverlayDisabled(bool disabled)
+{
+  if (m_overlayDisabled == disabled) return;
+  m_overlayDisabled = disabled;
+  emit overlayDisabledChanged(m_overlayDisabled);
 }
 
 // -------------------------------------------------------------------------------------------------

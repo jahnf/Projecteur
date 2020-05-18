@@ -36,6 +36,7 @@ private:
   QGroupBox* createBorderGroupBox(Settings* settings);
   QGroupBox* createCursorGroupBox(Settings* settings);
   QGroupBox* createZoomGroupBox(Settings* settings);
+  QWidget* createPresetSelector(Settings* settings);
 #if HAS_Qt5_X11Extras
   QWidget* createCompositorWarningWidget();
 #endif
