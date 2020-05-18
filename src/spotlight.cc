@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
+#include "deviceinput.h"
 #include "virtualdevice.h"
 #include "logging.h"
 
@@ -175,12 +176,33 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
+  template<int Size, typename T = input_event>
   struct InputBuffer {
-    std::array<input_event, 12> data;
-    uint8_t pos = 0;
+    auto pos() const { return pos_; }
+    void reset() { pos_ = 0; }
+    auto data() { return data_.data(); }
+    auto size() const { return data_.size(); }
+    T& current() { return data_.at(pos_); }
+    InputBuffer& operator++() { ++pos_; return *this; }
+    T& operator[](size_t pos) { return data_[pos]; }
+    T& first() { return data_[0]; }
+  private:
+    std::array<T, Size> data_;
+    size_t pos_ = 0;
   };
 
 } // --- end anonymous namespace
+
+// -------------------------------------------------------------------------------------------------
+struct Spotlight::ConnectionDetails {
+  ConnectionDetails(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev)
+    : deviceId(id), deviceName(name), im(std::make_shared<InputMapper>(std::move(vdev))){}
+
+  DeviceId deviceId;
+  QString deviceName;
+  std::shared_ptr<InputMapper> im;
+  ConnectionMap map;
+};
 
 // -------------------------------------------------------------------------------------------------
 struct Spotlight::DeviceConnection
@@ -189,7 +211,8 @@ struct Spotlight::DeviceConnection
   DeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode)
     : info(path, type, mode) {}
   ConnectionInfo info;
-  InputBuffer inputBuffer;
+  InputBuffer<12> inputBuffer;
+  std::shared_ptr<InputMapper> im; // each device connection for a device shares the same input mapper
   std::unique_ptr<QSocketNotifier> notifier;
 };
 
@@ -240,7 +263,7 @@ bool Spotlight::anySpotlightDeviceConnected() const
 {
   for (const auto& dc : m_deviceConnections)
   {
-    for (const auto& c : dc.second.map) {
+    for (const auto& c : dc.second->map) {
       if (c.second && c.second->notifier && c.second->notifier->isEnabled())
         return true;
     }
@@ -254,7 +277,7 @@ uint32_t Spotlight::connectedDeviceCount() const
   uint32_t count = 0;
   for (const auto& dc : m_deviceConnections)
   {
-    for (const auto& c : dc.second.map) {
+    for (const auto& c : dc.second->map) {
       if (c.second && c.second->notifier && c.second->notifier->isEnabled()) {
         ++count; break;
       }
@@ -268,7 +291,7 @@ QList<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 {
   QList<ConnectedDeviceInfo> devices;
   for (const auto& dc : m_deviceConnections) {
-    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second.deviceName});
+    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second->deviceName});
   }
   return devices;
 }
@@ -288,17 +311,18 @@ int Spotlight::connectDevices()
     if (inputPaths.empty()) continue; // TODO debug msg
 
     auto& connectionDetails = m_deviceConnections[dev.id];
-    if (connectionDetails.deviceId != dev.id) {
-      connectionDetails.deviceName = dev.userName.size() ? dev.userName : dev.name;
-      connectionDetails.deviceId = dev.id;
+    if (!connectionDetails) {
+      connectionDetails = std::make_unique<ConnectionDetails>(dev.id,
+                                                              dev.userName.size() ? dev.userName : dev.name,
+                                                              m_virtualDevice);
     }
 
     for (const auto& inputPath : inputPaths)
     {
-      auto find_it = connectionDetails.map.find(inputPath);
+      auto find_it = connectionDetails->map.find(inputPath);
 
       // Check if a connection for the path exists...
-      if (find_it != connectionDetails.map.end()
+      if (find_it != connectionDetails->map.end()
           && find_it->second
           && find_it->second->notifier
           && find_it->second->notifier->isEnabled()) {
@@ -311,29 +335,30 @@ int Spotlight::connectDevices()
             && connection->notifier->isEnabled()
             && addInputEventHandler(connection))
         {
-          connectionDetails.map[inputPath] = std::move(connection);
-          if (connectionDetails.map.size() == 1)
+          connection->im = connectionDetails->im;
+          connectionDetails->map[inputPath] = std::move(connection);
+          if (connectionDetails->map.size() == 1)
           {
             logInfo(device) << tr("Connected device: %1 (%2:%3)")
-                               .arg(connectionDetails.deviceName)
+                               .arg(connectionDetails->deviceName)
                                .arg(dev.id.vendorId, 4, 16, QChar('0'))
                                .arg(dev.id.productId, 4, 16, QChar('0'));
-            emit deviceConnected(dev.id, connectionDetails.deviceName);
+            emit deviceConnected(dev.id, connectionDetails->deviceName);
           }
           logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
-                              .arg(connectionDetails.deviceName)
+                              .arg(connectionDetails->deviceName)
                               .arg(dev.id.vendorId, 4, 16, QChar('0'))
                               .arg(dev.id.productId, 4, 16, QChar('0'))
                               .arg(inputPath);
-          emit subDeviceConnected(dev.id, connectionDetails.deviceName, inputPath);
+          emit subDeviceConnected(dev.id, connectionDetails->deviceName, inputPath);
           if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
         }
         else {
-          connectionDetails.map.erase(inputPath);
+          connectionDetails->map.erase(inputPath);
         }
       }
     }
-    if (connectionDetails.map.empty()) {
+    if (connectionDetails->map.empty()) {
       m_deviceConnections.erase(dev.id);
     }
   }
@@ -431,25 +456,31 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 {
   for (auto dc_it = m_deviceConnections.begin(); dc_it != m_deviceConnections.end(); )
   {
-    auto& connMap = dc_it->second.map;
+    if (!dc_it->second) {
+      dc_it = m_deviceConnections.erase(dc_it);
+      continue;
+    }
+
+    auto& connInfo = dc_it->second;
+    auto& connMap = connInfo->map;
     auto find_it = connMap.find(devicePath);
 
     if (find_it != connMap.end())
     {
       find_it->second->notifier.reset();
       logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
-                          .arg(dc_it->second.deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
+                          .arg(connInfo->deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
                           .arg(dc_it->first.productId, 4, 16, QChar('0')).arg(devicePath);
-      emit subDeviceDisconnected(dc_it->first, dc_it->second.deviceName, devicePath);
+      emit subDeviceDisconnected(dc_it->first, connInfo->deviceName, devicePath);
       connMap.erase(find_it);
     }
 
     if (connMap.empty())
     {
       logInfo(device) << tr("Disconnected device: %1 (%2:%3)")
-                         .arg(dc_it->second.deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
+                         .arg(connInfo->deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
                          .arg(dc_it->first.productId, 4, 16, QChar('0'));
-      emit deviceDisconnected(dc_it->first, dc_it->second.deviceName);
+      emit deviceDisconnected(dc_it->first, connInfo->deviceName);
       dc_it = m_deviceConnections.erase(dc_it);
     }
     else {
@@ -465,7 +496,7 @@ void Spotlight::onDeviceDataAvailable(int fd, DeviceConnection& connection)
   while (true)
   {
     auto& buf = connection.inputBuffer;
-    auto &ev = buf.data[buf.pos];
+    auto& ev = buf.current();
     if (::read(fd, &ev, sizeof(ev)) != sizeof(ev))
     {
       if (errno != EAGAIN)
@@ -480,23 +511,37 @@ void Spotlight::onDeviceDataAvailable(int fd, DeviceConnection& connection)
       }
       break;
     }
-    ++buf.pos;
+    ++buf;
 
-    // on SYN event or input_event buffer full ...
-    if (ev.type == EV_SYN || buf.pos >= buf.data.size()) {
-      // Check for relative event -- Spotlight activation
-      const auto &first_ev = buf.data[0];
-      if (first_ev.type == EV_REL && (first_ev.code == REL_X || first_ev.code == REL_Y))
-      {
-        if (!m_activeTimer->isActive()) {
-          m_spotActive = true;
-          emit spotActiveChanged(true);
+    if (ev.type == EV_SYN)
+    {
+      // Check for relative events -> set Spotlight active
+      const auto &first_ev = buf[0];
+      const bool isMouseMoveEvent = first_ev.type == EV_REL
+                                    && (first_ev.code == REL_X || first_ev.code == REL_Y);
+      if (isMouseMoveEvent) {
+        if (!connection.im->recordingMode()) // skip activation of spot in recording mode
+        {
+          if (!m_activeTimer->isActive()) {
+            m_spotActive = true;
+            emit spotActiveChanged(true);
+          }
+          m_activeTimer->start();
         }
-        m_activeTimer->start();
+        // Skip input mapping for mouse move events completely
+        if (m_virtualDevice) m_virtualDevice->emitEvents(buf.data(), buf.pos());
       }
-
-      if (m_virtualDevice) m_virtualDevice->emitEvent(buf.data.data(), connection.inputBuffer.pos);
-      buf.pos = 0;
+      else
+      { // Forward events to input mapper for the device
+        connection.im->addEvents(buf.data(), buf.pos());
+      }
+      buf.reset();
+    }
+    else if(buf.pos() >= buf.size())
+    { // No idea if this will ever happen, but log it to make sure we get notified.
+      logWarning(device) << tr("Discarded %1 input events without EV_SYN.").arg(buf.size());
+      connection.im->resetState();
+      buf.reset();
     }
 
     if (!isNonBlocking) break;

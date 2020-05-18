@@ -62,20 +62,16 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
   ioctl(fd, UI_SET_EVBIT, EV_SYN);
   ioctl(fd, UI_SET_EVBIT, EV_KEY);
   ioctl(fd, UI_SET_EVBIT, EV_REL);
-  ioctl(fd, UI_SET_RELBIT, REL_X);
-  ioctl(fd, UI_SET_RELBIT, REL_Y);
 
-  for (int i = 0; i < 256; ++i) {
-    ioctl(fd, UI_SET_KEYBIT, i);
+  // Set all rel event code bits on virtual device
+  for (int i = 0; i < REL_CNT; ++i) {
+    ioctl(fd, UI_SET_RELBIT, i);
   }
 
-  ioctl(fd, UI_SET_KEYBIT, BTN_MOUSE);
-  ioctl(fd, UI_SET_KEYBIT, BTN_TOUCH);
-  ioctl(fd, UI_SET_KEYBIT, BTN_LEFT);
-  ioctl(fd, UI_SET_KEYBIT, BTN_MIDDLE);
-  ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT);
-  ioctl(fd, UI_SET_KEYBIT, BTN_FORWARD);
-  ioctl(fd, UI_SET_KEYBIT, BTN_BACK);
+  // Set all key code bits on virtual device
+  for (int i = 1; i < KEY_CNT; ++i) {
+    ioctl(fd, UI_SET_KEYBIT, i);
+  }
 
   // Create input device into input sub-system
   const auto bytesWritten = write(fd, &uinp, sizeof(uinp));
@@ -112,7 +108,7 @@ void VirtualDevice::emitEvent(struct input_event ie)
   }
 }
 
-void VirtualDevice::emitEvent(struct input_event input_events[], size_t num)
+void VirtualDevice::emitEvents(struct input_event input_events[], size_t num)
 {
   if (const ssize_t sz = sizeof(input_event) * num) {
     const auto bytesWritten = write(m_uinpFd, input_events, sz);
@@ -121,3 +117,14 @@ void VirtualDevice::emitEvent(struct input_event input_events[], size_t num)
     }
   }
 }
+
+void VirtualDevice::emitEvents(const std::vector<struct input_event>& events)
+{
+  if (const ssize_t sz = sizeof(input_event) * events.size()) {
+    const auto bytesWritten = write(m_uinpFd, events.data(), sz);
+    if (bytesWritten != sz) {
+      logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
+    }
+  }
+}
+

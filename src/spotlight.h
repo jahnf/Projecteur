@@ -10,6 +10,7 @@
 
 #include "enum-helper.h"
 
+class InputMapper;
 class QSocketNotifier;
 class QTimer;
 class VirtualDevice;
@@ -136,14 +137,9 @@ private:
   };
 
   struct DeviceConnection;
+  struct ConnectionDetails;
   using DevicePath = QString;
   using ConnectionMap = std::map<DevicePath, std::shared_ptr<DeviceConnection>>;
-
-  struct ConnectionDetails {
-    DeviceId deviceId;
-    QString deviceName;
-    ConnectionMap map;
-  };
 
   std::shared_ptr<DeviceConnection> openEventDevice(const QString& devicePath, const Device& dev);
   bool addInputEventHandler(std::shared_ptr<DeviceConnection> connection);
@@ -154,7 +150,7 @@ private:
   void onDeviceDataAvailable(int fd, DeviceConnection& connection);
 
   const Options m_options;
-  std::map<DeviceId, ConnectionDetails> m_deviceConnections;
+  std::map<DeviceId, std::unique_ptr<ConnectionDetails>> m_deviceConnections;
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;

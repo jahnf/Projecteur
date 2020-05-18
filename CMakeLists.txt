@@ -45,6 +45,7 @@ add_executable(projecteur
   src/main.cc               src/enum-helper.h
   src/aboutdlg.cc           src/aboutdlg.h
   src/colorselector.cc      src/colorselector.h
+  src/deviceinput.cpp       src/deviceinput.h
   src/deviceswidget.cc      src/deviceswidget.h
   src/linuxdesktop.cc       src/linuxdesktop.h
   src/imageitem.cc          src/imageitem.h
