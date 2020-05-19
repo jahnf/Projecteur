@@ -131,7 +131,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
-  // Handling of spotlight window when input from spotlight device is detected
+  // Handling of spotlight window when mouse move events from spotlight device are detected
   connect(m_spotlight, &Spotlight::spotActiveChanged,
   [window, desktopImageProvider, this](bool active)
   {
@@ -139,12 +139,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     {
       setScreenForCursorPos();
 
-      window->setFlags(window->flags() | Qt::SplashScreen);
-      window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
       window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
-      window->hide();
       window->setFlags(window->flags() & ~Qt::SplashScreen);
       window->setFlags(window->flags() | Qt::ToolTip);
+      window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
 
       if (window->screen())
       {
@@ -156,14 +154,19 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         if (window->geometry() != screenGeometry) {
           window->setGeometry(screenGeometry);
         }
+        window->setPosition(screenGeometry.topLeft());
       }
-      window->showFullScreen();
+      window->show();
+      m_overlayVisible = true;
+      emit overlayVisibleChanged(true);
       window->raise();
     }
     else
     {
-      window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
-      window->hide();
+      m_overlayVisible = false;
+      emit overlayVisibleChanged(false);
+      window->setFlags(window->flags() | Qt::WindowTransparentForInput);
+      window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
     }
   });
 
@@ -184,8 +187,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     const auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
 
-    window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
-    window->hide();
     window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
     window->setGeometry(screen->geometry());

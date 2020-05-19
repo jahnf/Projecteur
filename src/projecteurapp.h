@@ -20,6 +20,7 @@ class Settings;
 class ProjecteurApplication : public QApplication
 {
   Q_OBJECT
+  Q_PROPERTY(bool overlayVisible READ overlayVisible NOTIFY overlayVisibleChanged)
 
 public:
   struct Options {
@@ -32,6 +33,11 @@ public:
 
   explicit ProjecteurApplication(int &argc, char **argv, const Options& options);
   virtual ~ProjecteurApplication() override;
+
+  bool overlayVisible() const { return m_overlayVisible; }
+
+signals:
+  void overlayVisibleChanged(bool visible);
 
 public slots:
   void cursorExitedWindow();
@@ -53,6 +59,7 @@ private:
   Settings* m_settings = nullptr;
   LinuxDesktop* m_linuxDesktop = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
+  bool m_overlayVisible = false;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication

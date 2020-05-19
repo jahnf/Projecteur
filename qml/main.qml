@@ -22,6 +22,9 @@ Window {
         height: rotation === 0 ? mainWindow.height : width
         rotation: Settings.spotRotationAllowed ? Settings.spotRotation : 0
 
+        opacity: ProjecteurApp.overlayVisible ? 1.0 : 0.0
+        Behavior on opacity { PropertyAnimation { easing.type: Easing.OutQuad } }
+
         Item {
             id: desktopItem
             anchors.centerIn: centerRect
