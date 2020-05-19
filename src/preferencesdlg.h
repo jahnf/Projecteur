@@ -2,12 +2,30 @@
 #pragma once
 
 #include <QDialog>
+#include <QToolButton>
 
 class QComboBox;
 class QGroupBox;
 class Settings;
 class Spotlight;
 
+// -------------------------------------------------------------------------------------------------
+class IconButton : public QToolButton
+{
+  Q_OBJECT
+public:
+  // Symbols in projecteur-icons.ttf - Icons from https://iconmonstr.com/
+  enum Icon { // plus_5 and similar relate directly to iconmonstr name (e.g. plus-5 or control-panel-9)
+    Add = 0xe930, plus_5 = Add,
+    Trash = 0xe931, trash_can_1 = Trash,
+    ControlPanel = 0xe932, control_panel_9 = ControlPanel,
+    Share = 0xe933, share_8 = Share,
+  };
+
+  IconButton(Icon symbol, QWidget* parent = nullptr);
+};
+
+// -------------------------------------------------------------------------------------------------
 class PreferencesDialog : public QDialog
 {
   Q_OBJECT

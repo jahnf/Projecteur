@@ -49,6 +49,28 @@ namespace {
     { CURSOR_PATH "cursor-uparrow.png", {"Up Arrow Cursor", Qt::UpArrowCursor}},
     { CURSOR_PATH "cursor-whatsthis.png", {"What't This Cursor", Qt::WhatsThisCursor}},
   };
+
+  bool isLight(const QColor& c) {
+    return (c.redF() * 0.299 + c.greenF() * 0.587 + c.blueF() * 0.114 ) > 0.6;
+  }
+
+  bool isDark(const QColor& c) { return !isLight(c); }
+}
+
+// -------------------------------------------------------------------------------------------------
+IconButton::IconButton(Icon symbol, QWidget* parent)
+  : QToolButton(parent)
+{
+  QFont iconFont("projecteur-icons");
+  iconFont.setPointSizeF(font().pointSizeF());
+
+  setFont(iconFont);
+  setText(QChar(symbol));
+
+  auto p = palette();
+  p.setColor(QPalette::ButtonText, isDark(p.color(QPalette::ButtonText)) ? QColor(Qt::darkGray).darker()
+                                                                         : QColor(Qt::lightGray).lighter());
+  setPalette(p);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -68,21 +90,14 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
 
   const auto closeBtn = new QPushButton(tr("&Close"), this);
   closeBtn->setToolTip(tr("Close the preferences dialog."));
-//  closeBtn->setDefault(true);
   connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
   const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
   defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
   connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
 
-//  const auto removeBtn = new QPushButton(tr("remove"), this);
-//  connect(removeBtn, &QPushButton::clicked, [settings](){
-//    settings->removePreset("HelloSettings");
-//  });
-
   const auto btnHBox = new QHBoxLayout;
   btnHBox->addWidget(defaultsBtn);
   btnHBox->addStretch(1);
-//  btnHBox->addWidget(removeBtn);
   btnHBox->addWidget(closeBtn);
 
   const auto mainVBox = new QVBoxLayout(this);
@@ -141,18 +156,16 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 
   hbox->addWidget(new QLabel(tr("Presets"), widget));
   hbox->addWidget(cb);
-  const auto loadBtn = new QPushButton(widget);
+  const auto loadBtn = new IconButton(IconButton::Share, widget);
   loadBtn->setToolTip(tr("Load currently selected preset."));
-  auto icon = style()->standardIcon(QStyle::SP_DialogApplyButton);
-  loadBtn->setIcon(icon);
   hbox->addWidget(loadBtn);
-  const auto deleteBtn = new QPushButton(widget);
-  auto icon2 = style()->standardIcon(QStyle::SP_DialogDiscardButton);
-  deleteBtn->setIcon(icon2);
+  const auto deleteBtn = new IconButton(IconButton::Trash, widget);
+  deleteBtn->setToolTip(tr("Delete currently selected preset."));
   hbox->addWidget(deleteBtn);
-  const auto newBtn = new QPushButton(tr("Create New"), widget);
+  const auto newBtn = new IconButton(IconButton::Add, widget);
   newBtn->setToolTip(tr("Create new preset from current spotlight settings."));
   hbox->addWidget(newBtn);
+
   hbox->setStretch(1, 1);
 
   connect(newBtn, &QPushButton::clicked, this, [cb, settings]()
