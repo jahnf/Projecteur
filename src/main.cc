@@ -8,7 +8,6 @@
 #include "spotlight.h"
 
 #include <QCommandLineParser>
-#include <QFontDatabase>
 
 #ifndef NDEBUG
 #include <QQmlDebuggingEnabler>
@@ -314,6 +313,5 @@ int main(int argc, char *argv[])
 
   //QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   ProjecteurApplication app(argc, argv, options);
-  QFontDatabase::addApplicationFont(":/icons/projecteur-icons.ttf");
   return app.exec();
 }

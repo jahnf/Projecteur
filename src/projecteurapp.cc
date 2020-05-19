@@ -12,6 +12,7 @@
 
 #include <QDesktopWidget>
 #include <QDialog>
+#include <QFontDatabase>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMenu>
@@ -49,6 +50,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   }
 
   setQuitOnLastWindowClosed(false);
+  QFontDatabase::addApplicationFont(":/icons/projecteur-icons.ttf");
 
   m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices});
   m_settings = options.configFile.isEmpty() ? new Settings(this)
