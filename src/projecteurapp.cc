@@ -81,8 +81,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   const auto actionAbout = m_trayMenu->addAction(tr("&About"));
   connect(actionAbout, &QAction::triggered, [this]()
   {
-    if (!m_aboutDialog)
-      m_aboutDialog.reset(new AboutDialog);
+    if (!m_aboutDialog) {
+      m_aboutDialog = std::make_unique<AboutDialog>();
+      connect(m_aboutDialog.get(), &QDialog::finished, [this](int){
+        m_aboutDialog.reset(); // No need to keep about dialog in memory, not that important
+      });
+    }
 
     if (m_aboutDialog->isVisible()) {
       m_aboutDialog->show();
