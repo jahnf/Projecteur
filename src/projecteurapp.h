@@ -27,6 +27,7 @@ public:
     QString configFile;
     bool enableUInput = true; // enable virtual uinput device
     bool showPreferencesOnStart = false;
+    bool dialogMinimizeOnly = false;
     bool disableOverlay = false;
     QList<Spotlight::SupportedDevice> additionalDevices;
   };

@@ -9,43 +9,48 @@ class QGroupBox;
 class Settings;
 class Spotlight;
 
+#include "projecteur-icons-def.h"
+
 // -------------------------------------------------------------------------------------------------
 class IconButton : public QToolButton
 {
   Q_OBJECT
-public:
-  // Symbols in projecteur-icons.ttf - Icons from https://iconmonstr.com/
-  enum Icon { // plus_5 and similar relate directly to iconmonstr name (e.g. plus-5 or control-panel-9)
-    Add = 0xe930, plus_5 = Add,
-    Trash = 0xe931, trash_can_1 = Trash,
-    ControlPanel = 0xe932, control_panel_9 = ControlPanel,
-    Share = 0xe933, share_8 = Share,
-  };
 
-  IconButton(Icon symbol, QWidget* parent = nullptr);
+public:
+  IconButton(Font::Icon symbol, QWidget* parent = nullptr);
 };
 
 // -------------------------------------------------------------------------------------------------
 class PreferencesDialog : public QDialog
 {
   Q_OBJECT
-  Q_PROPERTY(bool dialogActive READ dialogActive NOTIFY dialogActiveChanged)
 
 public:
-  explicit PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
+  enum class Mode : uint8_t{
+    ClosableDialog,
+    MinimizeOnlyDialog
+  };
+
+  explicit PreferencesDialog(Settings* settings, Spotlight* spotlight,
+                             Mode = Mode::ClosableDialog, QWidget* parent = nullptr);
   virtual ~PreferencesDialog() override = default;
 
   bool dialogActive() const { return m_active; }
+  Mode mode() const { return m_dialogMode; }
+  void setMode(Mode dialogMode);
 
 signals:
   void dialogActiveChanged(bool active);
   void testButtonClicked();
+  void exitApplicationRequested();
 
 protected:
   virtual bool event(QEvent* event) override;
+  virtual void closeEvent(QCloseEvent* e) override;
 
 private:
   void setDialogActive(bool active);
+  void setDialogMode(Mode dialogMode);
 
   QWidget* createSettingsTabWidget(Settings* settings);
   QGroupBox* createShapeGroupBox(Settings* settings);
@@ -61,7 +66,9 @@ private:
   QWidget* createLogTabWidget();
 
 private:
+  QPushButton* m_closeMinimizeBtn = nullptr;
+  QPushButton* m_exitBtn = nullptr;
   bool m_active = false;
-  QComboBox* m_screenCb = nullptr;
+  Mode m_dialogMode = Mode::ClosableDialog;
   quint32 m_discardedLogCount = 0;
 };

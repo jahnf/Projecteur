@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
     const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
     const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
     const QCommandLineOption showDlgOnStartOption(QStringList{ "show-dialog" }, Main::tr("Show preferences dialog on start."));
+    const QCommandLineOption dialogMinOnlyOption(QStringList{ "m", "minimize-only" }, Main::tr("Only allow minimizing the dialog."));
     const QCommandLineOption disableOverlayOption(QStringList{ "disable-overlay" }, Main::tr("Disable spotlight overlay completely."));
     const QCommandLineOption additionalDeviceOption(QStringList{ "D", "additional-device"},
                                Main::tr("Additional accepted device; DEVICE = vendorId:productId\n"
@@ -69,8 +70,8 @@ int main(int argc, char *argv[])
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
                        cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
-                       disableUInputOption, showDlgOnStartOption, disableOverlayOption,
-                       additionalDeviceOption});
+                       disableUInputOption, showDlgOnStartOption, dialogMinOnlyOption,
+                       disableOverlayOption, additionalDeviceOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -92,7 +93,8 @@ int main(int argc, char *argv[])
       print() << "  -D DEVICE              " << additionalDeviceOption.description();
       if (parser.isSet(fullHelpOption)) {
         print() << "  --disable-uinput       " << disableUInputOption.description();
-        print() << "  --show-dialog          " << disableUInputOption.description();
+        print() << "  --show-dialog          " << showDlgOnStartOption.description();
+        print() << "  -m, --minimize-only    " << dialogMinOnlyOption.description();
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
@@ -271,17 +273,10 @@ int main(int argc, char *argv[])
       options.configFile = parser.value(cfgFileOption);
     }
 
-    if (parser.isSet(disableUInputOption)) {
-      options.enableUInput = false;
-    }
-
-    if (parser.isSet(showDlgOnStartOption)) {
-      options.showPreferencesOnStart = true;
-    }
-
-    if (parser.isSet(disableOverlayOption)) {
-      options.disableOverlay = true;
-    }
+    options.enableUInput = !parser.isSet(disableUInputOption);
+    options.showPreferencesOnStart = parser.isSet(showDlgOnStartOption);
+    options.dialogMinimizeOnly = parser.isSet(dialogMinOnlyOption);
+    options.disableOverlay = parser.isSet(disableOverlayOption);
 
     if (parser.isSet(logLvlOption)) {
       const auto lvl = logging::levelFromName(parser.value(logLvlOption));

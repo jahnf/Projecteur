@@ -56,7 +56,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
   m_settings->setOverlayDisabled(options.disableOverlay);
-  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
+  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight,
+                                       options.dialogMinimizeOnly
+                                       ? PreferencesDialog::Mode::MinimizeOnlyDialog
+                                       : PreferencesDialog::Mode::ClosableDialog));
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
     emit m_spotlight->spotActiveChanged(true);
@@ -64,6 +67,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   if (options.showPreferencesOnStart) {
     QTimer::singleShot(0, this, [this](){ showPreferences(true); });
+  }
+  else if (options.dialogMinimizeOnly) {
+    QTimer::singleShot(0, this, [this](){ m_dialog->show(); m_dialog->showMinimized(); });
   }
 
   const auto desktopImageProvider = new PixmapProvider(this);
@@ -128,6 +134,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         this->showPreferences(true);
       }
     }
+  });
+
+  connect(&*m_dialog, &PreferencesDialog::exitApplicationRequested, [actionQuit]() {
+    logDebug(mainapp) << tr("Exit request from preferences dialog.");
+    actionQuit->trigger();
   });
 
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);

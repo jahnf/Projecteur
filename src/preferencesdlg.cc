@@ -58,7 +58,7 @@ namespace {
 }
 
 // -------------------------------------------------------------------------------------------------
-IconButton::IconButton(Icon symbol, QWidget* parent)
+IconButton::IconButton(Font::Icon symbol, QWidget* parent)
   : QToolButton(parent)
 {
   QFont iconFont("projecteur-icons");
@@ -74,11 +74,24 @@ IconButton::IconButton(Icon symbol, QWidget* parent)
 }
 
 // -------------------------------------------------------------------------------------------------
-PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent)
+PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
+                                     Mode dialogMode, QWidget* parent)
   : QDialog(parent)
+  , m_closeMinimizeBtn(new QPushButton(this))
+  , m_exitBtn(new QPushButton(tr("&Quit %1").arg(QCoreApplication::applicationName()),this))
 {
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
+
+  setDialogMode(dialogMode);
+  connect(m_closeMinimizeBtn, &QPushButton::clicked, this, [this](){
+    if (m_dialogMode == Mode::ClosableDialog) { this->close(); }
+    else { this->showMinimized(); }
+  });
+
+  connect(m_exitBtn, &QPushButton::clicked, this, [this](){
+    emit exitApplicationRequested();
+  });
 
   const auto settingsWidget = createSettingsTabWidget(settings);
   settingsWidget->setDisabled(settings->overlayDisabled());
@@ -88,17 +101,10 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, Q
   tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
-  const auto closeBtn = new QPushButton(tr("&Close"), this);
-  closeBtn->setToolTip(tr("Close the preferences dialog."));
-  connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
-  const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
-  defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
-  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
-
   const auto btnHBox = new QHBoxLayout;
-  btnHBox->addWidget(defaultsBtn);
+  btnHBox->addWidget(m_exitBtn);
   btnHBox->addStretch(1);
-  btnHBox->addWidget(closeBtn);
+  btnHBox->addWidget(m_closeMinimizeBtn);
 
   const auto mainVBox = new QVBoxLayout(this);
   mainVBox->addWidget(tabWidget);
@@ -128,6 +134,15 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
   const auto testBtn = new QPushButton(tr("&Show test..."), widget);
   connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
 
+  const auto resetBtn = new IconButton(Font::Icon::gear_12, widget);
+  resetBtn->setToolTip(tr("Reset all settings to their default value."));
+  resetBtn->setSizePolicy(resetBtn->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
+  connect(resetBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
+
+  const auto hbox = new QHBoxLayout;
+  hbox->addWidget(resetBtn);
+  hbox->addWidget(testBtn);
+
   const auto invisibleBtn = new QPushButton(this);
   invisibleBtn->setVisible(false);
   invisibleBtn->setDefault(true);
@@ -138,7 +153,7 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
-  mainVBox->addWidget(testBtn);
+  mainVBox->addLayout(hbox);
 
   return widget;
 }
@@ -149,24 +164,26 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
   const auto widget = new QFrame(this);
   widget->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
   const auto hbox = new QHBoxLayout(widget);
+  hbox->addWidget(new QLabel(tr("Presets"), widget));
 
   const auto cb = new QComboBox(widget);
   cb->addItems(settings->presets());
   cb->setInsertPolicy(QComboBox::NoInsert);
 
-  hbox->addWidget(new QLabel(tr("Presets"), widget));
-  hbox->addWidget(cb);
-  const auto loadBtn = new IconButton(IconButton::Share, widget);
+  const auto loadBtn = new IconButton(Font::Icon::share_8, widget);
   loadBtn->setToolTip(tr("Load currently selected preset."));
-  hbox->addWidget(loadBtn);
-  const auto deleteBtn = new IconButton(IconButton::Trash, widget);
+  const auto deleteBtn = new IconButton(Font::Icon::trash_can_1, widget);
   deleteBtn->setToolTip(tr("Delete currently selected preset."));
-  hbox->addWidget(deleteBtn);
-  const auto newBtn = new IconButton(IconButton::Add, widget);
+  const auto newBtn = new IconButton(Font::Icon::plus_5, widget);
   newBtn->setToolTip(tr("Create new preset from current spotlight settings."));
-  hbox->addWidget(newBtn);
 
-  hbox->setStretch(1, 1);
+  const std::vector<QWidget*> widgets{cb, loadBtn, deleteBtn, newBtn};
+  for (const auto w : widgets) {
+    w->setSizePolicy(w->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
+    hbox->addWidget(w);
+  }
+
+  hbox->setStretch(1, 1); // stretch combobox
 
   connect(newBtn, &QPushButton::clicked, this, [cb, settings]()
   {
@@ -676,6 +693,38 @@ QWidget* PreferencesDialog::createLogTabWidget()
 }
 
 // -------------------------------------------------------------------------------------------------
+void PreferencesDialog::setMode(Mode dialogMode)
+{
+  if (m_dialogMode == dialogMode)
+    return;
+
+  setDialogMode(dialogMode);
+}
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::setDialogMode(Mode dialogMode)
+{
+  m_dialogMode = dialogMode;
+
+  if (dialogMode == Mode::ClosableDialog)
+  {
+    qDebug() << Q_FUNC_INFO;
+    setWindowFlags(Qt::Dialog);
+    m_closeMinimizeBtn->setText(tr("&Close"));
+    m_closeMinimizeBtn->setToolTip(tr("Close the preferences dialog."));
+  }
+  else if (dialogMode == Mode::MinimizeOnlyDialog)
+  {
+    setWindowFlags(Qt::Window);
+    setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
+    setWindowFlags(windowFlags() & ~Qt::WindowCloseButtonHint);
+
+    m_closeMinimizeBtn->setText(tr("&Minimize"));
+    m_closeMinimizeBtn->setToolTip(tr("Minimize the preferences dialog."));
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 void PreferencesDialog::setDialogActive(bool active)
 {
   if (active == m_active)
@@ -696,3 +745,12 @@ bool PreferencesDialog::event(QEvent* e)
   }
   return QDialog::event(e);
 }
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::closeEvent(QCloseEvent*)
+{
+  if (m_dialogMode == Mode::MinimizeOnlyDialog) {
+    emit exitApplicationRequested();
+  }
+}
+
