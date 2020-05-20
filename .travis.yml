@@ -14,7 +14,7 @@ matrix:
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:ubuntu-18.04
   - os: linux
-    dist: xenial
+    dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:ubuntu-20.04
   - os: linux
     dist: xenial

@@ -36,9 +36,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Login to github docker registry
-      run: docker login docker.pkg.github.com -u jahnf -p ${{ secrets.GITHUB_TOKEN }}
+      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin
+      env:
+        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Pull ${{ matrix.docker_tag }} docker image
-      run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
+      run: |
+        docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
+        docker logout docker.pkg.github.com
     - name: docker create build container
       run: docker run --name build --env TRAVIS_BRANCH=${GITHUB_REF/refs\/heads\//} -d -v `pwd`:/source:ro -t ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: cmake configuration
@@ -48,11 +52,13 @@ jobs:
     - name: create linux package
       run: docker exec build /bin/bash -c "cd /build && cmake --build . --target dist-package"
     - name: Run projecteur executable, print version
-      run: docker exec build /bin/bash -c "cd /build && ./projecteur --version"
+      run: |
+        docker exec build /bin/bash -c "cd /build && ./projecteur --version"
+        docker exec build /bin/bash -c "cd /build && ./projecteur -f"
     - name: Get created artifacts from docker container
       run: |
-       docker cp build:/build/dist-pkg .
-       docker cp build:/build/version-string .
+        docker cp build:/build/dist-pkg .
+        docker cp build:/build/version-string .
     
     - name: Set version environment variable
       run: |
