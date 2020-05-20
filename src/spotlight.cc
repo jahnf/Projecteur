@@ -672,8 +672,6 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
       return *find_it;
     }();
 
-    SubDevice subDevice;
-
     // Iterate over 'input' sub-dircectory, check for input-hid device nodes
     const QFileInfo inputSubdir(QDir(hidIt.filePath()).filePath("input"));
     if (inputSubdir.exists() || inputSubdir.isExecutable())
@@ -690,6 +688,7 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
           break;
         }
 
+        SubDevice subDevice;
         QDirIterator dirIt(inputIt.filePath(), QDir::System | QDir::Dirs | QDir::Executable | QDir::NoDotAndDotDot);
         while (dirIt.hasNext())
         {
@@ -718,7 +717,8 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
         const QFileInfo fi(subDevice.inputDeviceFile);
         subDevice.inputDeviceReadable = fi.isReadable();
         subDevice.inputDeviceWritable = fi.isWritable();
-        break;
+
+        rootDevice.subDevices.push_back(subDevice);
       }
     }
 
@@ -731,20 +731,17 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
       {
         hidrawIt.next();
         if (!hidrawIt.fileName().startsWith("hidraw")) continue;
+        SubDevice subDevice;
         subDevice.hidrawDeviceFile = readPropertyFromDeviceFile(QDir(hidrawIt.filePath()).filePath("uevent"), "DEVNAME");
         if (!subDevice.hidrawDeviceFile.isEmpty()) {
           subDevice.hidrawDeviceFile = QDir("/dev").filePath(subDevice.hidrawDeviceFile);
           const QFileInfo fi(subDevice.hidrawDeviceFile);
           subDevice.hidrawDeviceReadable = fi.isReadable();
           subDevice.hidrawDeviceWritable = fi.isWritable();
-          break;
+
+          rootDevice.subDevices.push_back(subDevice);
         }
       }
-    }
-
-    if (subDevice.inputDeviceFile.size() || subDevice.hidrawDeviceFile.size())
-    {
-      rootDevice.subDevices.push_back(subDevice);
     }
   }
 
