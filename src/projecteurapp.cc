@@ -196,7 +196,16 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       // Workaround for 'xcb' on Wayland session (default on Ubuntu)
       // .. the window in that case is not transparent for inputs and cannot be clicked through.
       // --> hide the window, although animations will not be visible
-      if (xcbOnWayland) window->hide();
+      if (xcbOnWayland)
+      {
+        window->hide();
+        if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
+            && m_dialog->isMinimized()) { // keep Window minimized...
+          //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
+          m_dialog->showNormal();
+          m_dialog->setWindowState(Qt::WindowMinimized);
+        }
+      }
     }
   });
 
