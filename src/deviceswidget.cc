@@ -9,6 +9,7 @@
 #include <QLayout>
 #include <QStackedLayout>
 #include <QStyle>
+#include <QTabWidget>
 #include <QTimer>
 
 DECLARE_LOGGING_CATEGORY(preferences)
@@ -19,16 +20,19 @@ namespace {
     return QString("%1 (%2:%3) [%4]").arg(name).arg(id.vendorId, 4, 16, QChar('0'))
                                      .arg(id.productId, 4, 16, QChar('0')).arg(id.phys);
   }
+
+  const auto invalidDeviceId =  Spotlight::DeviceId(); // vendorId = 0, productId = 0
 }
 
 // ------------------------------------------------------------------------------------------------
 DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidget* parent)
   : QWidget(parent)
+  , m_devicesCombo(createDeviceComboBox(spotlight))
 {
   const auto stackLayout = new QStackedLayout(this);
-  const auto disconnectedWidget = createDisconnectedStateWidget(this);
+  const auto disconnectedWidget = createDisconnectedStateWidget();
   stackLayout->addWidget(disconnectedWidget);
-  const auto deviceWidget = createDevicesWidget(spotlight, this);
+  const auto deviceWidget = createDevicesWidget(spotlight);
   stackLayout->addWidget(deviceWidget);
 
   const bool anyDeviceConnected = spotlight->anySpotlightDeviceConnected();
@@ -41,52 +45,108 @@ DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidg
 }
 
 // ------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight, QWidget* parent)
+const Spotlight::DeviceId& DevicesWidget::currentDevice() const
 {
-  const auto dw = new QWidget(parent);
+  return invalidDeviceId;
+}
+
+// ------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createDevicesWidget(Spotlight* /*spotlight*/)
+{
+  const auto dw = new QWidget(this);
   const auto vLayout = new QVBoxLayout(dw);
   const auto devHLayout = new QHBoxLayout();
   vLayout->addLayout(devHLayout);
 
-  const auto deviceCombo = new QComboBox(dw);
-
-  for (const auto& dev : spotlight->connectedDevices()) {
-    const auto data = QVariant::fromValue(dev.id);
-    if (deviceCombo->findData(data) < 0) {
-      deviceCombo->addItem(descriptionString(dev.name, dev.id), data);
-    }
-  }
-
-  devHLayout->addWidget(new QLabel(tr("Devices"), dw));
-  devHLayout->addWidget(deviceCombo);
+  devHLayout->addWidget(new QLabel(tr("Device"), dw));
+  devHLayout->addWidget(m_devicesCombo);
   devHLayout->setStretch(1, 1);
 
-  connect(spotlight, &Spotlight::deviceDisconnected, this,
-  [deviceCombo](const Spotlight::DeviceId& id, const QString& /*name*/)
-  {
-    const auto idx = deviceCombo->findData(QVariant::fromValue(id));
-    if (idx >= 0) {
-      deviceCombo->removeItem(idx);
-    }
-  });
+  vLayout->addSpacing(10);
 
-  connect(spotlight, &Spotlight::deviceConnected, this,
-  [deviceCombo](const Spotlight::DeviceId& id, const QString& name)
-  {
-    const auto data = QVariant::fromValue(id);
-    if (deviceCombo->findData(data) < 0) {
-      deviceCombo->addItem(descriptionString(name, id), data);
-    }
-  });
+  const auto tabWidget = new QTabWidget(dw);
+  vLayout->addWidget(tabWidget);
 
-  vLayout->addWidget(new QLabel("<Placeholder for Button Mapping>", dw));
+  tabWidget->addTab(createInputMapperWidget(), tr("Input Mapping"));
+  tabWidget->addTab(createDeviceInfoWidget(), tr("Device Info"));
+
   return dw;
 }
 
 // ------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createDisconnectedStateWidget(QWidget* parent)
+QWidget* DevicesWidget::createDeviceInfoWidget()
 {
-  const auto stateWidget = new QWidget(parent);
+  const auto diWidget = new QWidget(this);
+  const auto layout = new QHBoxLayout(diWidget);
+  layout->addStretch(1);
+  layout->addWidget(new QLabel(tr("Not yet implemented"), this));
+  layout->addStretch(1);
+  diWidget->setDisabled(true);
+  return diWidget;
+}
+
+// ------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createInputMapperWidget()
+{
+  const auto imWidget = new QWidget(this);
+  const auto layout = new QHBoxLayout(imWidget);
+  layout->addStretch(1);
+  layout->addWidget(new QLabel(tr("Not yet implemented"), this));
+  layout->addStretch(1);
+  imWidget->setDisabled(true);
+  return imWidget;
+}
+
+// ------------------------------------------------------------------------------------------------
+QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
+{
+  const auto devicesCombo = new QComboBox(this);
+  devicesCombo->setToolTip(tr("List of connected devices."));
+
+  for (const auto& dev : spotlight->connectedDevices()) {
+    const auto data = QVariant::fromValue(dev.id);
+    if (devicesCombo->findData(data) < 0) {
+      devicesCombo->addItem(descriptionString(dev.name, dev.id), data);
+    }
+  }
+
+  connect(spotlight, &Spotlight::deviceDisconnected, this,
+  [devicesCombo](const Spotlight::DeviceId& id, const QString& /*name*/)
+  {
+    const auto idx = devicesCombo->findData(QVariant::fromValue(id));
+    if (idx >= 0) {
+      devicesCombo->removeItem(idx);
+    }
+  });
+
+  connect(spotlight, &Spotlight::deviceConnected, this,
+  [devicesCombo](const Spotlight::DeviceId& id, const QString& name)
+  {
+    const auto data = QVariant::fromValue(id);
+    if (devicesCombo->findData(data) < 0) {
+      devicesCombo->addItem(descriptionString(name, id), data);
+    }
+  });
+
+  connect(devicesCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+  [this, devicesCombo](int index)
+  {
+    if (index < 0) {
+      emit currentDeviceChanged(invalidDeviceId);
+      return ;
+    }
+
+    const auto devId = qvariant_cast<Spotlight::DeviceId>(devicesCombo->itemData(index));
+    emit currentDeviceChanged(devId);
+  });
+
+  return devicesCombo;
+}
+
+// ------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createDisconnectedStateWidget()
+{
+  const auto stateWidget = new QWidget(this);
   const auto hbox = new QHBoxLayout(stateWidget);
   const auto label = new QLabel(tr("No devices connected."), stateWidget);
   label->setToolTip(label->text());
