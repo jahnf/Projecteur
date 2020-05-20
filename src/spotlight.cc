@@ -330,7 +330,6 @@ int Spotlight::connectDevices()
       }
       else {
         auto connection = openEventDevice(inputPath, dev);
-        const bool anyConnectedBefore = anySpotlightDeviceConnected();
         if (connection && connection->notifier
             && connection->notifier->isEnabled()
             && addInputEventHandler(connection))
@@ -339,11 +338,16 @@ int Spotlight::connectDevices()
           connectionDetails->map[inputPath] = std::move(connection);
           if (connectionDetails->map.size() == 1)
           {
-            logInfo(device) << tr("Connected device: %1 (%2:%3)")
-                               .arg(connectionDetails->deviceName)
-                               .arg(dev.id.vendorId, 4, 16, QChar('0'))
-                               .arg(dev.id.productId, 4, 16, QChar('0'));
-            emit deviceConnected(dev.id, connectionDetails->deviceName);
+            const bool anyConnectedBefore = anySpotlightDeviceConnected();
+            QTimer::singleShot(0, this,
+            [this, id = dev.id, devName = connectionDetails->deviceName, anyConnectedBefore](){
+              logInfo(device) << tr("Connected device: %1 (%2:%3)")
+                                 .arg(devName)
+                                 .arg(id.vendorId, 4, 16, QChar('0'))
+                                 .arg(id.productId, 4, 16, QChar('0'));
+              emit deviceConnected(id, devName);
+              if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
+            });
           }
           logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
                               .arg(connectionDetails->deviceName)
@@ -351,7 +355,6 @@ int Spotlight::connectDevices()
                               .arg(dev.id.productId, 4, 16, QChar('0'))
                               .arg(inputPath);
           emit subDeviceConnected(dev.id, connectionDetails->deviceName, inputPath);
-          if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
         }
         else {
           connectionDetails->map.erase(inputPath);
@@ -401,8 +404,6 @@ std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QS
   }
 
   auto connection = std::make_shared<DeviceConnection>(devicePath, ConnectionType::Event, ConnectionMode::ReadOnly);
-  connection->info.vendorId = id.vendor;
-  connection->info.productId = id.product;
 
   connection->info.grabbed = [this, evfd, &devicePath]()
   {

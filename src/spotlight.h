@@ -127,8 +127,6 @@ private:
     ConnectionInfo(const QString& path, ConnectionType type, ConnectionMode mode)
       : type(type), mode(mode), devicePath(path) {}
 
-    uint16_t vendorId = 0;
-    uint16_t productId = 0;
     ConnectionType type;
     ConnectionMode mode;
     bool grabbed = false;
