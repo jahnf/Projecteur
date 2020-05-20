@@ -722,6 +722,14 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
       }
     }
 
+    // For Logitech spotlight we are only interested in the sub device that has only one hidraw
+    // device.. so when we have an event device .. we skip hidraw detection for this sub-device.
+    const bool hasInputEventDevices
+        = std::any_of(rootDevice.subDevices.cbegin(), rootDevice.subDevices.cend(),
+          [](const SubDevice& sd) { return sd.inputDeviceFile.size() > 0; });
+
+    if (hasInputEventDevices) continue;
+
     // Iterate over 'hidraw' sub-dircectory, check for hidraw device node
     const QFileInfo hidrawSubdir(QDir(hidIt.filePath()).filePath("hidraw"));
     if (hidrawSubdir.exists() || hidrawSubdir.isExecutable())
