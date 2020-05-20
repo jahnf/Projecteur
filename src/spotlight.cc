@@ -317,6 +317,7 @@ int Spotlight::connectDevices()
                                                               m_virtualDevice);
     }
 
+    const bool anyConnectedBefore = anySpotlightDeviceConnected();
     for (const auto& inputPath : inputPaths)
     {
       auto find_it = connectionDetails->map.find(inputPath);
@@ -338,7 +339,6 @@ int Spotlight::connectDevices()
           connectionDetails->map[inputPath] = std::move(connection);
           if (connectionDetails->map.size() == 1)
           {
-            const bool anyConnectedBefore = anySpotlightDeviceConnected();
             QTimer::singleShot(0, this,
             [this, id = dev.id, devName = connectionDetails->deviceName, anyConnectedBefore](){
               logInfo(device) << tr("Connected device: %1 (%2:%3)")
