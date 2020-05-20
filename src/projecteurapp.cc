@@ -65,6 +65,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     emit m_spotlight->spotActiveChanged(true);
   });
 
+  const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
+                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome"
+                                                                                  : tr("Unknown");
+
+  logDebug(mainapp) << tr("Qt platform plugin: %1;").arg(QGuiApplication::platformName())
+                    << tr("Desktop Environment: %1;").arg(desktopEnv)
+                    << tr("Wayland: %1").arg(m_linuxDesktop->isWayland() ? "true" : "false");
+
   if (options.showPreferencesOnStart) {
     QTimer::singleShot(0, this, [this](){ showPreferences(true); });
   }
@@ -144,9 +152,14 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
+  const bool xcbOnWayland = QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland();
+  if (xcbOnWayland) {
+    logWarning(mainapp) << tr("Qt 'xcb' platform and Wayland session detected.");
+  }
+
   // Handling of spotlight window when mouse move events from spotlight device are detected
   connect(m_spotlight, &Spotlight::spotActiveChanged,
-  [window, desktopImageProvider, this](bool active)
+  [window, desktopImageProvider, xcbOnWayland, this](bool active)
   {
     if (active && !m_settings->overlayDisabled())
     {
@@ -180,6 +193,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       emit overlayVisibleChanged(false);
       window->setFlags(window->flags() | Qt::WindowTransparentForInput);
       window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
+      // Workaround for 'xcb' on Wayland session (default on Ubuntu)
+      // .. the window in that case is not transparent for inputs and cannot be clicked through.
+      // --> hide the window, although animations will not be visible
+      if (xcbOnWayland) window->hide();
     }
   });
 

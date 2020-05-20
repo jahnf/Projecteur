@@ -708,7 +708,6 @@ void PreferencesDialog::setDialogMode(Mode dialogMode)
 
   if (dialogMode == Mode::ClosableDialog)
   {
-    qDebug() << Q_FUNC_INFO;
     setWindowFlags(Qt::Dialog);
     m_closeMinimizeBtn->setText(tr("&Close"));
     m_closeMinimizeBtn->setToolTip(tr("Close the preferences dialog."));
