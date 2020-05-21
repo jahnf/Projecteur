@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
     const QCommandLineOption deviceInfoOption(QStringList{ "d", "device-scan"}, Main::tr("Print device-scan results."));
     const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
     const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
+    const QCommandLineOption showDlgOnStartOption(QStringList{ "show-dialog" }, Main::tr("Show preferences dialog on start."));
+    const QCommandLineOption dialogMinOnlyOption(QStringList{ "m", "minimize-only" }, Main::tr("Only allow minimizing the dialog."));
+    const QCommandLineOption disableOverlayOption(QStringList{ "disable-overlay" }, Main::tr("Disable spotlight overlay completely."));
     const QCommandLineOption additionalDeviceOption(QStringList{ "D", "additional-device"},
                                Main::tr("Additional accepted device; DEVICE = vendorId:productId\n"
                                         "                         "
@@ -67,7 +70,8 @@ int main(int argc, char *argv[])
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
                        cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
-                       disableUInputOption, additionalDeviceOption});
+                       disableUInputOption, showDlgOnStartOption, dialogMinOnlyOption,
+                       disableOverlayOption, additionalDeviceOption});
 
     QStringList args;
     for(int i = 0; i < argc; ++i) {
@@ -89,6 +93,8 @@ int main(int argc, char *argv[])
       print() << "  -D DEVICE              " << additionalDeviceOption.description();
       if (parser.isSet(fullHelpOption)) {
         print() << "  --disable-uinput       " << disableUInputOption.description();
+        print() << "  --show-dialog          " << showDlgOnStartOption.description();
+        print() << "  -m, --minimize-only    " << dialogMinOnlyOption.description();
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
@@ -217,13 +223,35 @@ int main(int argc, char *argv[])
         if (!device.userName.isEmpty()) {
           print() << "     " << "userName: '" << device.userName << "'";
         }
-        print() << "     " << "vendorId:  " << QString("%1").arg(device.vendorId, 4, 16, QChar('0'));
-        print() << "     " << "productId: " << QString("%1").arg(device.productId, 4, 16, QChar('0'));
-        print() << "     " << "phys:      " << device.phys;
+
+        const QStringList subDeviceList = [&device](){
+          QStringList subDeviceList;
+          for (const auto& d: device.subDevices) {
+            if( d.inputDeviceFile.size()) subDeviceList.push_back(d.inputDeviceFile);
+            else if( d.hidrawDeviceFile.size()) subDeviceList.push_back(d.hidrawDeviceFile);
+          }
+          return subDeviceList;
+        }();
+
+        const bool allReadable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
+        [](const auto& subDevice){
+          return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceReadable)
+              && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceReadable);
+        });
+
+        const bool allWriteable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
+        [](const auto& subDevice){
+          return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceWritable)
+              && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceWritable);
+        });
+
+        print() << "     " << "vendorId:  " << QString("%1").arg(device.id.vendorId, 4, 16, QChar('0'));
+        print() << "     " << "productId: " << QString("%1").arg(device.id.productId, 4, 16, QChar('0'));
+        print() << "     " << "phys:      " << device.id.phys;
         print() << "     " << "busType:   " << busTypeToString(device.busType);
-        print() << "     " << "device:    " << device.inputDeviceFile;
-        print() << "     " << "readable:  " << (device.inputDeviceReadable ? "true" : "false");
-        print() << "     " << "writable:  " << (device.inputDeviceWritable ? "true" : "false");
+        print() << "     " << "devices:   " << subDeviceList.join(", ");
+        print() << "     " << "readable:  " << (allReadable ? "true" : "false");
+        print() << "     " << "writable:  " << (allWriteable ? "true" : "false");
       }
       return 0;
     }
@@ -245,9 +273,10 @@ int main(int argc, char *argv[])
       options.configFile = parser.value(cfgFileOption);
     }
 
-    if (parser.isSet(disableUInputOption)) {
-      options.enableUInput = false;
-    }
+    options.enableUInput = !parser.isSet(disableUInputOption);
+    options.showPreferencesOnStart = parser.isSet(showDlgOnStartOption);
+    options.dialogMinimizeOnly = parser.isSet(dialogMinOnlyOption);
+    options.disableOverlay = parser.isSet(disableOverlayOption);
 
     if (parser.isSet(logLvlOption)) {
       const auto lvl = logging::levelFromName(parser.value(logLvlOption));

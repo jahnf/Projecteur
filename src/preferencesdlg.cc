@@ -1,9 +1,10 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "preferencesdlg.h"
 
-#include "projecteur-GitVersion.h"
+#include "projecteur-GitVersion.h"  // auto generated version information
 
 #include "colorselector.h"
+#include "deviceswidget.h"
 #include "logging.h"
 #include "settings.h"
 #include "spotlight.h"
@@ -14,19 +15,17 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
-#include <QGridLayout>
+#include <QLayout>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QQmlPropertyMap>
-#include <QScreen>
 #include <QSpinBox>
 #include <QStyle>
 #include <QTabWidget>
 #include <QTimer>
-#include <QVBoxLayout>
 
 #if HAS_Qt5_X11Extras
 #include <QX11Info>
@@ -37,6 +36,7 @@
 LOGGING_CATEGORY(preferences, "preferences")
 LOGGING_CATEGORY(x11display, "x11display")
 
+// -------------------------------------------------------------------------------------------------
 namespace {
   #define CURSOR_PATH ":/icons/cursors/"
   static const std::map<const QString, const QPair<const QString, const Qt::CursorShape>> cursorMap {
@@ -49,36 +49,74 @@ namespace {
     { CURSOR_PATH "cursor-uparrow.png", {"Up Arrow Cursor", Qt::UpArrowCursor}},
     { CURSOR_PATH "cursor-whatsthis.png", {"What't This Cursor", Qt::WhatsThisCursor}},
   };
+
+  bool isLight(const QColor& c) {
+    return (c.redF() * 0.299 + c.greenF() * 0.587 + c.blueF() * 0.114 ) > 0.6;
+  }
+
+  bool isDark(const QColor& c) { return !isLight(c); }
 }
 
-PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent)
+// -------------------------------------------------------------------------------------------------
+IconButton::IconButton(Font::Icon symbol, QWidget* parent)
+  : QToolButton(parent)
+{
+  QFont iconFont("projecteur-icons");
+  iconFont.setPointSizeF(font().pointSizeF());
+
+  setFont(iconFont);
+  setText(QChar(symbol));
+
+  auto p = palette();
+  p.setColor(QPalette::ButtonText, isDark(p.color(QPalette::ButtonText)) ? QColor(Qt::darkGray).darker()
+                                                                         : QColor(Qt::lightGray).lighter());
+  setPalette(p);
+}
+
+// -------------------------------------------------------------------------------------------------
+PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
+                                     Mode dialogMode, QWidget* parent)
   : QDialog(parent)
+  , m_closeMinimizeBtn(new QPushButton(this))
+  , m_exitBtn(new QPushButton(tr("&Quit %1").arg(QCoreApplication::applicationName()),this))
 {
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
+  setDialogMode(dialogMode);
+  connect(m_closeMinimizeBtn, &QPushButton::clicked, this, [this](){
+    if (m_dialogMode == Mode::ClosableDialog) { this->close(); }
+    else { this->showMinimized(); }
+  });
+
+  connect(m_exitBtn, &QPushButton::clicked, this, [this](){
+    emit exitApplicationRequested();
+  });
+
+  const auto settingsWidget = createSettingsTabWidget(settings);
+  settingsWidget->setDisabled(settings->overlayDisabled());
+
   const auto tabWidget = new QTabWidget(this);
-  tabWidget->addTab(createSettingsTabWidget(settings, spotlight), tr("Settings"));
+  tabWidget->addTab(settingsWidget, tr("Spotlight"));
+  tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
-  const auto closeBtn = new QPushButton(tr("&Close"), this);
-  closeBtn->setToolTip(tr("Close the preferences dialog."));
-  connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
-  const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
-  defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
-  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
-
   const auto btnHBox = new QHBoxLayout;
-  btnHBox->addWidget(defaultsBtn);
+  btnHBox->addWidget(m_exitBtn);
   btnHBox->addStretch(1);
-  btnHBox->addWidget(closeBtn);
+  btnHBox->addWidget(m_closeMinimizeBtn);
 
   const auto mainVBox = new QVBoxLayout(this);
   mainVBox->addWidget(tabWidget);
   mainVBox->addLayout(btnHBox);
+
+  connect(settings, &Settings::overlayDisabledChanged, this, [settingsWidget](bool disabled){
+    settingsWidget->setDisabled(disabled);
+  });
 }
 
-QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotlight* spotlight)
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
 {
   const auto widget = new QWidget(this);
   const auto mainHBox = new QHBoxLayout;
@@ -93,48 +131,107 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotligh
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
-  const auto testBtn = new QPushButton(tr("&Show test..."), this);
+  const auto testBtn = new QPushButton(tr("&Show test..."), widget);
   connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
+
+  const auto resetBtn = new IconButton(Font::Icon::gear_12, widget);
+  resetBtn->setToolTip(tr("Reset all settings to their default value."));
+  resetBtn->setSizePolicy(resetBtn->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
+  connect(resetBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
+
+  const auto hbox = new QHBoxLayout;
+  hbox->addWidget(resetBtn);
+  hbox->addWidget(testBtn);
+
+  const auto invisibleBtn = new QPushButton(this);
+  invisibleBtn->setVisible(false);
+  invisibleBtn->setDefault(true);
 
   const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
+  mainVBox->addWidget(createPresetSelector(settings));
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
-  mainVBox->addWidget(createConnectedStateWidget(spotlight));
-  mainVBox->addWidget(testBtn);
+  mainVBox->addLayout(hbox);
 
   return widget;
 }
 
-QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 {
-  static const auto deviceText = tr("Device connected: %1", "%1=True or False");
-  const auto group = new QGroupBox(this);
-  const auto hbox = new QHBoxLayout(group);
-  const auto lbl = new QLabel(deviceText.arg(
-                                spotlight->anySpotlightDeviceConnected() ? tr("True")
-                                                                         : tr("False")), this);
-  lbl->setToolTip(tr("Connection status of the spotlight device."));
+  const auto widget = new QFrame(this);
+  widget->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
+  const auto hbox = new QHBoxLayout(widget);
+  hbox->addWidget(new QLabel(tr("Presets"), widget));
 
-  auto icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
-  const auto iconLbl = new QLabel(this);
-  iconLbl->setPixmap(icon.pixmap(16,16));
+  const auto cb = new QComboBox(widget);
+  cb->addItems(settings->presets());
+  cb->setInsertPolicy(QComboBox::NoInsert);
 
-  hbox->addWidget(iconLbl);
-  hbox->addWidget(lbl);
-  hbox->setStretch(1,2);
+  const auto loadBtn = new IconButton(Font::Icon::share_8, widget);
+  loadBtn->setToolTip(tr("Load currently selected preset."));
+  const auto deleteBtn = new IconButton(Font::Icon::trash_can_1, widget);
+  deleteBtn->setToolTip(tr("Delete currently selected preset."));
+  const auto newBtn = new IconButton(Font::Icon::plus_5, widget);
+  newBtn->setToolTip(tr("Create new preset from current spotlight settings."));
 
-  auto updateStatus = [this, lbl, iconLbl](bool connected) {
-    lbl->setText(deviceText.arg(connected ? tr("True") : tr("False")));
-    iconLbl->setPixmap(style()->standardIcon(connected ? QStyle::SP_DialogOkButton
-                                                       : QStyle::SP_MessageBoxWarning).pixmap(16,16));
-  };
-  updateStatus(spotlight->anySpotlightDeviceConnected());
-  connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, std::move(updateStatus));
-  return group;
+  const std::vector<QWidget*> widgets{cb, loadBtn, deleteBtn, newBtn};
+  for (const auto w : widgets) {
+    w->setSizePolicy(w->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
+    hbox->addWidget(w);
+  }
+
+  hbox->setStretch(1, 1); // stretch combobox
+
+  connect(newBtn, &QPushButton::clicked, this, [cb, settings]()
+  {
+    cb->setEditable(true);
+    cb->insertItem(0, QString("Preset_%1_").arg(QDateTime::currentMSecsSinceEpoch()));
+    cb->setCurrentIndex(0);
+    const auto le = cb->lineEdit();
+    le->setMaxLength(35);
+    le->setCompleter(nullptr);
+    connect(le, &QLineEdit::editingFinished, [cb, settings](){
+      auto text = cb->currentText().trimmed();
+      if (cb->findText(text) >= 0) { // Item with same name alrady exists
+        text.append(" (%1)");
+        for (int i = 2; i < 1000; ++i) {
+          if (cb->findText(text.arg(i)) < 0) {
+            text = text.arg(i);
+            break;
+          }
+        }
+      }
+      cb->setItemText(0, text);
+      cb->setItemData(0, QVariant());
+      cb->setEditable(false);
+      cb->setCurrentIndex(0);
+      settings->savePreset(text);
+    });
+    cb->lineEdit()->setText(tr("New Preset"));
+    cb->lineEdit()->setFocus();
+    cb->lineEdit()->selectAll();
+  });
+
+  connect(loadBtn, &QPushButton::clicked, this, [cb, settings]()
+  {
+    if (cb->currentIndex() < 0) return;
+    settings->loadPreset(cb->itemText(cb->currentIndex()));
+  });
+
+  connect(deleteBtn, &QPushButton::clicked, this, [cb, settings]()
+  {
+    if (cb->currentIndex() < 0) return;
+    settings->removePreset(cb->currentText());
+    cb->removeItem(cb->currentIndex());
+  });
+
+  return widget;
 }
 
+// -------------------------------------------------------------------------------------------------
 #if HAS_Qt5_X11Extras
 QWidget* PreferencesDialog::createCompositorWarningWidget()
 {
@@ -192,6 +289,7 @@ QWidget* PreferencesDialog::createCompositorWarningWidget()
 }
 #endif
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
 {
   const auto shapeGroup = new QGroupBox(tr("Shape Settings"), this);
@@ -322,6 +420,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   return shapeGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
 {
   const auto spotGroup = new QGroupBox(tr("Show Spotlight Shade"), this);
@@ -359,6 +458,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   return spotGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
 {
   const auto dotGroup = new QGroupBox(tr("Show Center Dot"), this);
@@ -395,6 +495,7 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   return dotGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
 {
   const auto borderGroup = new QGroupBox(tr("Show Border"), this);
@@ -444,6 +545,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   return borderGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
 {
   const auto zoomGroup = new QGroupBox(tr("Enable Zoom"), this);
@@ -470,6 +572,7 @@ QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
   return zoomGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
 {
   const auto cursorGroup = new QGroupBox(tr("Cursor Settings"), this);
@@ -496,6 +599,7 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   return cursorGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QWidget* PreferencesDialog::createLogTabWidget()
 {
   const auto widget = new QWidget(this);
@@ -588,6 +692,38 @@ QWidget* PreferencesDialog::createLogTabWidget()
   return widget;
 }
 
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::setMode(Mode dialogMode)
+{
+  if (m_dialogMode == dialogMode)
+    return;
+
+  setDialogMode(dialogMode);
+}
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::setDialogMode(Mode dialogMode)
+{
+  m_dialogMode = dialogMode;
+
+  if (dialogMode == Mode::ClosableDialog)
+  {
+    setWindowFlags(Qt::Dialog);
+    m_closeMinimizeBtn->setText(tr("&Close"));
+    m_closeMinimizeBtn->setToolTip(tr("Close the preferences dialog."));
+  }
+  else if (dialogMode == Mode::MinimizeOnlyDialog)
+  {
+    setWindowFlags(Qt::Window);
+    setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
+    setWindowFlags(windowFlags() & ~Qt::WindowCloseButtonHint);
+
+    m_closeMinimizeBtn->setText(tr("&Minimize"));
+    m_closeMinimizeBtn->setToolTip(tr("Minimize the preferences dialog."));
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 void PreferencesDialog::setDialogActive(bool active)
 {
   if (active == m_active)
@@ -597,6 +733,7 @@ void PreferencesDialog::setDialogActive(bool active)
   emit dialogActiveChanged(active);
 }
 
+// -------------------------------------------------------------------------------------------------
 bool PreferencesDialog::event(QEvent* e)
 {
   if (e->type() == QEvent::WindowActivate) {
@@ -607,3 +744,12 @@ bool PreferencesDialog::event(QEvent* e)
   }
   return QDialog::event(e);
 }
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::closeEvent(QCloseEvent*)
+{
+  if (m_dialogMode == Mode::MinimizeOnlyDialog) {
+    emit exitApplicationRequested();
+  }
+}
+

@@ -32,7 +32,6 @@ class Settings : public QObject
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
-  Q_PROPERTY(int dblClickDuration READ dblClickDuration WRITE setDblClickDuration NOTIFY dblClickDurationChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -78,6 +77,8 @@ public:
   void setZoomFactor(double factor);
   int dblClickDuration() const { return m_dblClickDuration; }
   void setDblClickDuration(int duration);
+  bool overlayDisabled() const { return m_overlayDisabled; }
+  void setOverlayDisabled(bool disabled);
 
   template <typename T> struct SettingRange {
     const T min;
@@ -149,6 +150,11 @@ public:
 
   const QList<QPair<QString, StringProperty>>& stringProperties() const;
 
+  void savePreset(const QString& preset);
+  void loadPreset(const QString& preset);
+  void removePreset(const QString& preset);
+  QStringList presets() const;
+
 signals:
   void showSpotShadeChanged(bool show);
   void spotSizeChanged(int size);
@@ -169,6 +175,7 @@ signals:
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
   void dblClickDurationChanged(int duration);
+  void overlayDisabledChanged(bool disabled);
 
 private:
   QSettings* m_settings = nullptr;
@@ -176,9 +183,7 @@ private:
   QMap<QString, QQmlPropertyMap*> m_shapeSettings;
   QQmlPropertyMap* m_shapeSettingsRoot;
 
-  bool m_showSpotShade = true;
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
-  bool m_showCenterDot = false;
   int m_dotSize = 5; ///< Center Dot Size (3-100 pixels)
   QColor m_dotColor;
   QColor m_shadeColor;
@@ -187,24 +192,29 @@ private:
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;
-  bool m_spotRotationAllowed = false;
-  bool m_showBorder=false;
   QColor m_borderColor;
   int m_borderSize = 3;
   double m_borderOpacity = 0.8;
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
   int m_dblClickDuration = 300;
+  bool m_showSpotShade = true;
+  bool m_showCenterDot = false;
+  bool m_spotRotationAllowed = false;
+  bool m_showBorder=false;
+  bool m_overlayDisabled = false;
 
   QList<QPair<QString, StringProperty>> m_stringPropertyMap;
 
 private:
-  void load();
+  void init();
+  void load(const QString& preset = QString());
   QObject* shapeSettingsRootObject();
   void shapeSettingsPopulateRoot();
   void shapeSettingsInitialize();
   void shapeSettingsSetDefaults();
-  void shapeSettingsLoad();
+  void shapeSettingsLoad(const QString& preset = QString());
+  void shapeSettingsSavePreset(const QString& preset);
   void setSpotRotationAllowed(bool allowed);
   void initializeStringProperties();
 };

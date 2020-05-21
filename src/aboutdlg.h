@@ -12,7 +12,13 @@ class AboutDialog : public QDialog
 public:
   explicit AboutDialog(QWidget* parent = nullptr);
 
+protected:
+  void showEvent(QShowEvent*) override;
+
 private:
+  QTabWidget* m_tabWidget = nullptr;
+
   QWidget* createVersionInfoWidget();
-  QWidget* createContributorInfoWidget(QTabWidget* tabWidget);
+  QWidget* createContributorInfoWidget();
+  QWidget* createThirdPartyLicensesWidget();
 };

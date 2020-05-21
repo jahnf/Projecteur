@@ -12,6 +12,7 @@
 
 #include <QDesktopWidget>
 #include <QDialog>
+#include <QFontDatabase>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMenu>
@@ -49,15 +50,35 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   }
 
   setQuitOnLastWindowClosed(false);
+  QFontDatabase::addApplicationFont(":/icons/projecteur-icons.ttf");
 
   m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices});
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
-  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight));
+  m_settings->setOverlayDisabled(options.disableOverlay);
+  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight,
+                                       options.dialogMinimizeOnly
+                                       ? PreferencesDialog::Mode::MinimizeOnlyDialog
+                                       : PreferencesDialog::Mode::ClosableDialog));
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, [this](){
     emit m_spotlight->spotActiveChanged(true);
   });
+
+  const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
+                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome"
+                                                                                  : tr("Unknown");
+
+  logDebug(mainapp) << tr("Qt platform plugin: %1;").arg(QGuiApplication::platformName())
+                    << tr("Desktop Environment: %1;").arg(desktopEnv)
+                    << tr("Wayland: %1").arg(m_linuxDesktop->isWayland() ? "true" : "false");
+
+  if (options.showPreferencesOnStart) {
+    QTimer::singleShot(0, this, [this](){ showPreferences(true); });
+  }
+  else if (options.dialogMinimizeOnly) {
+    QTimer::singleShot(0, this, [this](){ m_dialog->show(); m_dialog->showMinimized(); });
+  }
 
   const auto desktopImageProvider = new PixmapProvider(this);
   const auto engine = new QQmlApplicationEngine(this);
@@ -76,8 +97,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   const auto actionAbout = m_trayMenu->addAction(tr("&About"));
   connect(actionAbout, &QAction::triggered, [this]()
   {
-    if (!m_aboutDialog)
-      m_aboutDialog.reset(new AboutDialog);
+    if (!m_aboutDialog) {
+      m_aboutDialog = std::make_unique<AboutDialog>();
+      connect(m_aboutDialog.get(), &QDialog::finished, [this](int){
+        m_aboutDialog.reset(); // No need to keep about dialog in memory, not that important
+      });
+    }
 
     if (m_aboutDialog->isVisible()) {
       m_aboutDialog->show();
@@ -119,23 +144,31 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     }
   });
 
+  connect(&*m_dialog, &PreferencesDialog::exitApplicationRequested, [actionQuit]() {
+    logDebug(mainapp) << tr("Exit request from preferences dialog.");
+    actionQuit->trigger();
+  });
+
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
 
-  // Handling of spotlight window when input from spotlight device is detected
+  const bool xcbOnWayland = QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland();
+  if (xcbOnWayland) {
+    logWarning(mainapp) << tr("Qt 'xcb' platform and Wayland session detected.");
+  }
+
+  // Handling of spotlight window when mouse move events from spotlight device are detected
   connect(m_spotlight, &Spotlight::spotActiveChanged,
-  [window, desktopImageProvider, this](bool active)
+  [window, desktopImageProvider, xcbOnWayland, this](bool active)
   {
-    if (active)
+    if (active && !m_settings->overlayDisabled())
     {
       setScreenForCursorPos();
 
-      window->setFlags(window->flags() | Qt::SplashScreen);
-      window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
       window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
-      window->hide();
       window->setFlags(window->flags() & ~Qt::SplashScreen);
       window->setFlags(window->flags() | Qt::ToolTip);
+      window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
 
       if (window->screen())
       {
@@ -147,18 +180,37 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         if (window->geometry() != screenGeometry) {
           window->setGeometry(screenGeometry);
         }
+        window->setPosition(screenGeometry.topLeft());
       }
-      window->showFullScreen();
+      window->show();
+      m_overlayVisible = true;
+      emit overlayVisibleChanged(true);
       window->raise();
     }
     else
     {
-      window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
-      window->hide();
+      m_overlayVisible = false;
+      emit overlayVisibleChanged(false);
+      window->setFlags(window->flags() | Qt::WindowTransparentForInput);
+      window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
+      // Workaround for 'xcb' on Wayland session (default on Ubuntu)
+      // .. the window in that case is not transparent for inputs and cannot be clicked through.
+      // --> hide the window, although animations will not be visible
+      if (xcbOnWayland)
+      {
+        window->hide();
+        if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
+            && m_dialog->isMinimized()) { // keep Window minimized...
+          //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
+          m_dialog->showNormal();
+          m_dialog->setWindowState(Qt::WindowMinimized);
+        }
+      }
     }
   });
 
   connect(window, &QWindow::visibleChanged, [this](bool v){
+    logDebug(mainapp) << tr("Spotlight window visible = ") << v;
     if (!v && m_dialog->isVisible()) {
       m_dialog->raise();
       m_dialog->activateWindow();
@@ -174,8 +226,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     const auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
 
-    window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
-    window->hide();
     window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
     window->setGeometry(screen->geometry());

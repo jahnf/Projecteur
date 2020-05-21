@@ -9,15 +9,15 @@
 #include <vector>
 
 #include <QCoreApplication>
-#include <QIcon>
 #include <QLabel>
+#include <QLayout>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QTextBrowser>
-#include <QVBoxLayout>
 #include <QDialogButtonBox>
 
 namespace {
+  // -------------------------------------------------------------------------------------------------
   struct Contributor
   {
     Contributor(const QString& name = "", const QString& github_name ="", const QString& email ="", const QString& url ="")
@@ -46,6 +46,7 @@ namespace {
     QString url;
   };
 
+  // -------------------------------------------------------------------------------------------------
   QString getContributorsHtml()
   {
     static std::vector<Contributor> contributors =
@@ -59,8 +60,8 @@ namespace {
       Contributor("fmuelle4711", "fmuelle4711"),
     };
 
-    std::random_device rd;
-    std::mt19937 g(rd());
+    static std::random_device rd;
+    static std::mt19937 g(rd());
     std::shuffle(contributors.begin(), contributors.end(), g);
 
     QStringList contributorsHtml;
@@ -69,10 +70,12 @@ namespace {
     }
     return contributorsHtml.join("<br>");
   }
-}
+} // end anonymous namespace
 
+// -------------------------------------------------------------------------------------------------
 AboutDialog::AboutDialog(QWidget* parent)
   : QDialog(parent)
+  , m_tabWidget(new QTabWidget(this))
 {
   setWindowTitle(tr("About %1", "%1=application name").arg(QCoreApplication::applicationName()));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
@@ -82,11 +85,11 @@ AboutDialog::AboutDialog(QWidget* parent)
   iconLabel->setPixmap(QIcon(":/icons/projecteur-tray.svg").pixmap(QSize(128,128)));
   hbox->addWidget(iconLabel);
 
-  const auto tabWidget = new QTabWidget(this);
-  hbox->addWidget(tabWidget, 1);
+  hbox->addWidget(m_tabWidget, 1);
 
-  tabWidget->addTab(createVersionInfoWidget(), tr("Version"));
-  tabWidget->addTab(createContributorInfoWidget(tabWidget), tr("Contributors"));
+  m_tabWidget->addTab(createVersionInfoWidget(), tr("Version"));
+  m_tabWidget->addTab(createContributorInfoWidget(), tr("Contributors"));
+  m_tabWidget->addTab(createThirdPartyLicensesWidget(), tr("Licenses"));
 
   const auto bbox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
   connect(bbox, &QDialogButtonBox::clicked, this, &QDialog::accept);
@@ -97,6 +100,14 @@ AboutDialog::AboutDialog(QWidget* parent)
   mainVbox->addWidget(bbox);
 }
 
+// -------------------------------------------------------------------------------------------------
+void AboutDialog::showEvent(QShowEvent* e)
+{
+  QDialog::showEvent(e);
+  m_tabWidget->setCurrentIndex(0);
+}
+
+// -------------------------------------------------------------------------------------------------
 QWidget* AboutDialog::createVersionInfoWidget()
 {
   const auto versionInfoWidget = new QWidget(this);
@@ -144,7 +155,8 @@ QWidget* AboutDialog::createVersionInfoWidget()
   return versionInfoWidget;
 }
 
-QWidget* AboutDialog::createContributorInfoWidget(QTabWidget* tabWidget)
+// -------------------------------------------------------------------------------------------------
+QWidget* AboutDialog::createContributorInfoWidget()
 {
   const auto contributorWidget = new QWidget(this);
   const auto vbox = new QVBoxLayout(contributorWidget);
@@ -159,14 +171,14 @@ QWidget* AboutDialog::createContributorInfoWidget(QTabWidget* tabWidget)
   textBrowser->setFont([textBrowser]()
   {
     auto font = textBrowser->font();
-    font.setPointSize(font.pointSize() - 2);
+    font.setPointSizeF(font.pointSizeF() - 2.0);
     return font;
   }());
 
   // randomize contributors list on every contributors tab selection
-  connect(tabWidget, &QTabWidget::currentChanged, this,
-  [contributorWidget, tabWidget, textBrowser](int){
-    if (contributorWidget == tabWidget->currentWidget()) {
+  connect(m_tabWidget, &QTabWidget::currentChanged, this,
+  [contributorWidget, textBrowser, this](int){
+    if (contributorWidget == m_tabWidget->currentWidget()) {
       textBrowser->setHtml(getContributorsHtml());
     }
   });
@@ -174,3 +186,62 @@ QWidget* AboutDialog::createContributorInfoWidget(QTabWidget* tabWidget)
   vbox->addWidget(textBrowser);
   return contributorWidget;
 }
+
+// -------------------------------------------------------------------------------------------------
+QWidget* AboutDialog::createThirdPartyLicensesWidget()
+{
+  const auto tpLicenceWidget = new QWidget(this);
+  const auto layout = new QVBoxLayout(tpLicenceWidget);
+
+  struct ThirdPartyProject {
+    const QString projectName;
+    const QString projectUrl;
+    const QString copyrightNotice;
+    const QString licenseName;
+    const QString licenseUrl;
+  };
+
+  static const std::vector<ThirdPartyProject> thirdPartyProjects = {
+    ThirdPartyProject{ "Qt Toolkit", "https://www.qt.io", "Copyright (C) The Qt Company Ltd.", "GPL/LGPLv3", "" },
+  };
+
+  const auto textBrowser = new QTextBrowser(tpLicenceWidget);
+  layout->addWidget(textBrowser);
+
+  textBrowser->setOpenLinks(true);
+  textBrowser->setOpenExternalLinks(true);
+  textBrowser->setWordWrapMode(QTextOption::NoWrap);
+  textBrowser->setFont([textBrowser]()
+  {
+    auto font = textBrowser->font();
+    font.setPointSizeF(font.pointSizeF() - 2.5);
+    return font;
+  }());
+
+  QString html = "<style> li { margin-left: 10px; } ul { -qt-list-indent: 0 } </style>";
+
+  html += "<ul>";
+  for (const auto& tpl : thirdPartyProjects)
+  {
+    html += "<li>";
+    if (tpl.projectUrl.size())
+      html += QString("<b><a href=\"%1\">%2</a></b>").arg(tpl.projectUrl).arg(tpl.projectName);
+    else
+      html += QString("<b>%1</b>").arg(tpl.projectName);
+
+    if (tpl.copyrightNotice.size())
+      html += "<br/><tt>" + tpl.copyrightNotice + "</tt>";
+
+    if (tpl.licenseUrl.size())
+      html += QString("<br/><a href=\"%1\">%2</a>").arg(tpl.licenseUrl).arg(tpl.licenseName);
+    else
+      html += QString("<br/><i>License</i>: %1").arg(tpl.licenseName);
+
+    html += "</li>";
+  }
+  html += "</ul>";
+
+  textBrowser->setHtml(html);
+  return tpLicenceWidget;
+}
+

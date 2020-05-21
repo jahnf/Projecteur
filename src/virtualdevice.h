@@ -7,24 +7,29 @@
 # pragma once
 
 #include <cstdint>
+#include <memory>
+#include <vector>
 
 // Device that can act as virtual keyboard and mouse
 class VirtualDevice
 {
-  public:
-    VirtualDevice();
-    ~VirtualDevice();
+private:
+  struct Token;
+  int m_uinpFd = -1;
 
-    enum class DeviceStatus { UinputNotFound, UinputAccessDenied, CouldNotCreate, Connected };
-    DeviceStatus getDeviceStatus() const;
-    bool isDeviceCreated() const { return (m_deviceStatus == DeviceStatus::Connected); }
-    void emitEvent(uint16_t type, uint16_t code, int val);
-    void emitEvent(struct input_event ie, bool remove_timestamp = false);
-    void mouseLeftClick();
+public:
+  // Return a VirtualDevice shared_ptr or an empty shared_ptr if the creation fails.
+  static std::shared_ptr<VirtualDevice> create(const char* name = "Projecteur_input_device",
+                                               uint16_t virtualVendorId = 0xfeed,
+                                               uint16_t virtualProductId = 0xc0de,
+                                               uint16_t virtualVersionId = 1,
+                                               const char* location = "/dev/uinput");
 
-  private:
-    int m_uinpFd = -1;
-    DeviceStatus m_deviceStatus;
+  explicit VirtualDevice(Token, int fd);
+  ~VirtualDevice();
 
-    DeviceStatus setupVirtualDevice();
+  void emitEvent(uint16_t type, uint16_t code, int val);
+  void emitEvent(struct input_event ie);
+  void emitEvents(struct input_event[], size_t num);
+  void emitEvents(const std::vector<struct input_event>& events);
 };
