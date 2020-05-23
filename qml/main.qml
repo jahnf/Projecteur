@@ -151,6 +151,7 @@ Window {
             radius: width*0.5
             color: Settings.dotColor
             visible: Settings.showCenterDot
+            opacity: Settings.dotOpacity
             enabled: false
         }
 

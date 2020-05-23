@@ -18,6 +18,7 @@ namespace {
     constexpr char showCenterDot[] = "showCenterDot";
     constexpr char dotSize[] = "dotSize";
     constexpr char dotColor[] = "dotColor";
+    constexpr char dotOpacity[] = "dotOpacity";
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
     constexpr char screen[] = "screen";
@@ -38,6 +39,7 @@ namespace {
       constexpr bool showCenterDot = false;
       constexpr int dotSize = 5;
       constexpr auto dotColor = Qt::red;
+      constexpr double dotOpacity = 0.8;
       constexpr char shadeColor[] = "#222222";
       constexpr double shadeOpacity = 0.3;
       constexpr Qt::CursorShape cursor = Qt::BlankCursor;
@@ -55,6 +57,7 @@ namespace {
     namespace ranges {
       constexpr Settings::SettingRange<int> spotSize{ 5, 100 };
       constexpr Settings::SettingRange<int> dotSize{ 3, 100 };
+      constexpr Settings::SettingRange<double> dotOpacity{ 0.0, 1.0 };
       constexpr Settings::SettingRange<double> shadeOpacity{ 0.0, 1.0 };
       constexpr Settings::SettingRange<double> spotRotation{ 0.0, 360.0 };
       constexpr Settings::SettingRange<int> borderSize{ 0, 100 };
@@ -168,6 +171,9 @@ void Settings::initializeStringProperties()
                     [this](const QString& value){ setDotSize(value.toInt()); } } } );
   map.push_back( {"dot.color", StringProperty{ StringProperty::Color, {},
                     [this](const QString& value){ setDotColor(QColor(value)); } } } );
+  map.push_back( {"dot.opacity", StringProperty{ StringProperty::Double,
+                    {::settings::ranges::dotOpacity.min, ::settings::ranges::dotOpacity.max},
+                    [this](const QString& value){ setDotOpacity(value.toDouble()); } } } );
   // --- border
   map.push_back( {"border", StringProperty{ StringProperty::Bool, {false, true},
                     [this](const QString& value){ setShowBorder(toBool(value)); } } } );
@@ -196,6 +202,7 @@ const QList<QPair<QString, Settings::StringProperty>>& Settings::stringPropertie
 // -------------------------------------------------------------------------------------------------
 const Settings::SettingRange<int>& Settings::spotSizeRange() { return ::settings::ranges::spotSize; }
 const Settings::SettingRange<int>& Settings::dotSizeRange() { return ::settings::ranges::dotSize; }
+const Settings::SettingRange<double>& Settings::dotOpacityRange() { return settings::ranges::dotOpacity; }
 const Settings::SettingRange<double>& Settings::shadeOpacityRange() { return ::settings::ranges::shadeOpacity; }
 const Settings::SettingRange<double>& Settings::spotRotationRange() { return ::settings::ranges::spotRotation; }
 const Settings::SettingRange<int>& Settings::borderSizeRange() { return settings::ranges::borderSize; }
@@ -225,6 +232,7 @@ void Settings::setDefaults()
   setShowCenterDot(settings::defaultValue::showCenterDot);
   setDotSize(settings::defaultValue::dotSize);
   setDotColor(QColor(settings::defaultValue::dotColor));
+  setDotOpacity(settings::defaultValue::dotOpacity);
   setShadeColor(QColor(settings::defaultValue::shadeColor));
   setShadeOpacity(settings::defaultValue::shadeOpacity);
   setCursor(settings::defaultValue::cursor);
@@ -385,6 +393,7 @@ void Settings::load(const QString& preset)
   setShowCenterDot(m_settings->value(s+::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
   setDotSize(m_settings->value(s+::settings::dotSize, settings::defaultValue::dotSize).toInt());
   setDotColor(m_settings->value(s+::settings::dotColor, QColor(settings::defaultValue::dotColor)).value<QColor>());
+  setDotOpacity(m_settings->value(s+::settings::dotOpacity, settings::defaultValue::dotOpacity).toDouble());
   setShadeColor(m_settings->value(s+::settings::shadeColor, QColor(settings::defaultValue::shadeColor)).value<QColor>());
   setShadeOpacity(m_settings->value(s+::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
   setCursor(static_cast<Qt::CursorShape>(m_settings->value(s+::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
@@ -410,6 +419,7 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::showCenterDot, m_showCenterDot);
   m_settings->setValue(section+::settings::dotSize, m_dotSize);
   m_settings->setValue(section+::settings::dotColor, m_dotColor);
+  m_settings->setValue(section+::settings::dotOpacity, m_dotOpacity);
   m_settings->setValue(section+::settings::shadeColor, m_shadeColor);
   m_settings->setValue(section+::settings::shadeOpacity, m_shadeOpacity);
   m_settings->setValue(section+::settings::cursor, static_cast<int>(m_cursor));
@@ -483,6 +493,18 @@ void Settings::setDotColor(const QColor& color)
   m_settings->setValue(::settings::dotColor, m_dotColor);
   logDebug(lcSettings) << "dot.color =" << m_dotColor.name();
   emit dotColorChanged(m_dotColor);
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setDotOpacity(double opacity)
+{
+  if (opacity > m_dotOpacity || opacity < m_dotOpacity)
+  {
+    m_dotOpacity = qMin(qMax(::settings::ranges::dotOpacity.min, opacity), ::settings::ranges::dotOpacity.max);
+    m_settings->setValue(::settings::dotOpacity, m_dotOpacity);
+    logDebug(lcSettings) << "dot.opacity = " << m_dotOpacity;
+    emit dotOpacityChanged(m_dotOpacity);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
