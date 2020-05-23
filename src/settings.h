@@ -18,6 +18,7 @@ class Settings : public QObject
   Q_PROPERTY(bool showCenterDot READ showCenterDot WRITE setShowCenterDot NOTIFY showCenterDotChanged)
   Q_PROPERTY(int dotSize READ dotSize WRITE setDotSize NOTIFY dotSizeChanged)
   Q_PROPERTY(QColor dotColor READ dotColor WRITE setDotColor NOTIFY dotColorChanged)
+  Q_PROPERTY(double dotOpacity READ dotOpacity WRITE setDotOpacity NOTIFY dotOpacityChanged)
   Q_PROPERTY(QColor shadeColor READ shadeColor WRITE setShadeColor NOTIFY shadeColorChanged)
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
   Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
@@ -50,6 +51,8 @@ public:
   void setDotSize(int size);
   QColor dotColor() const { return m_dotColor; }
   void setDotColor(const QColor& color);
+  double dotOpacity() const { return m_dotOpacity; }
+  void setDotOpacity(double opacity);
   QColor shadeColor() const { return m_shadeColor; }
   void setShadeColor(const QColor& color);
   double shadeOpacity() const { return m_shadeOpacity; }
@@ -87,6 +90,7 @@ public:
 
   static const SettingRange<int>& spotSizeRange();
   static const SettingRange<int>& dotSizeRange();
+  static const SettingRange<double>& dotOpacityRange();
   static const SettingRange<double>& shadeOpacityRange();
   static const SettingRange<double>& spotRotationRange();
   static const SettingRange<int>& borderSizeRange();
@@ -161,6 +165,7 @@ signals:
   void dotSizeChanged(int size);
   void showCenterDotChanged(bool show);
   void dotColorChanged(const QColor& color);
+  void dotOpacityChanged(double opacity);
   void shadeColorChanged(const QColor& color);
   void shadeOpacityChanged(double opcacity);
   void screenChanged(int screen);
@@ -186,6 +191,7 @@ private:
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
   int m_dotSize = 5; ///< Center Dot Size (3-100 pixels)
   QColor m_dotColor;
+  double m_dotOpacity = 0.8;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
   int m_screen = -1; // inital invalid value, see #26

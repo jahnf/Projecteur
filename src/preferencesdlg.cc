@@ -488,6 +488,20 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   dotGrid->addWidget(new QLabel(tr("Dot Color"), this), 1, 0);
   dotGrid->addWidget(dotColor, 1, 1);
 
+
+  // Spotlight dot opacity setting
+  const auto dotOpacitySb = new QDoubleSpinBox(this);
+  dotOpacitySb->setMaximum(settings->dotOpacityRange().max);
+  dotOpacitySb->setMinimum(settings->dotOpacityRange().min);
+  dotOpacitySb->setDecimals(2);
+  dotOpacitySb->setSingleStep(0.1);
+  dotOpacitySb->setValue(settings->dotOpacity());
+  connect(dotOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+          settings, &Settings::setDotOpacity);
+  connect(settings, &Settings::borderOpacityChanged, dotOpacitySb, &QDoubleSpinBox::setValue);
+  dotGrid->addWidget(new QLabel(tr("Dot Opacity"), this), 2, 0);
+  dotGrid->addWidget(dotOpacitySb, 2, 1);
+
   dotGrid->addWidget(new QWidget(this), 100, 0);
   dotGrid->setRowStretch(100, 100);
 
