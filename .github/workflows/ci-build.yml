@@ -30,19 +30,13 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-      DOCKER_IMG: docker.pkg.github.com/jahnf/projecteur/projecteur
+      DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
 
     steps:
     - uses: actions/checkout@v1
-    - name: Login to github docker registry
-      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin
-      env:
-        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Pull ${{ matrix.docker_tag }} docker image
-      run: |
-        docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
-        docker logout docker.pkg.github.com
+      run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: docker create build container
       run: docker run --name build --env TRAVIS_BRANCH=${GITHUB_REF/refs\/heads\//} -d -v `pwd`:/source:ro -t ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: cmake configuration
