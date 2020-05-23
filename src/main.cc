@@ -226,23 +226,20 @@ int main(int argc, char *argv[])
 
         const QStringList subDeviceList = [&device](){
           QStringList subDeviceList;
-          for (const auto& d: device.subDevices) {
-            if( d.inputDeviceFile.size()) subDeviceList.push_back(d.inputDeviceFile);
-            else if( d.hidrawDeviceFile.size()) subDeviceList.push_back(d.hidrawDeviceFile);
+          for (const auto& sd: device.subDevices) {
+            if( sd.deviceFile.size()) subDeviceList.push_back(sd.deviceFile);
           }
           return subDeviceList;
         }();
 
         const bool allReadable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
         [](const auto& subDevice){
-          return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceReadable)
-              && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceReadable);
+          return subDevice.deviceReadable;
         });
 
         const bool allWriteable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
         [](const auto& subDevice){
-          return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceWritable)
-              && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceWritable);
+          return subDevice.deviceWritable;
         });
 
         print() << "     " << "vendorId:  " << QString("%1").arg(device.id.vendorId, 4, 16, QChar('0'));

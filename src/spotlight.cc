@@ -191,6 +191,23 @@ namespace {
     size_t pos_ = 0;
   };
 
+  // -----------------------------------------------------------------------------------------------
+  enum class ConnectionType : uint8_t { Event, Hidraw };
+  enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
+
+  // -----------------------------------------------------------------------------------------------
+  struct ConnectionInfo {
+    ConnectionInfo() = default;
+    ConnectionInfo(const QString& path, ConnectionType type, ConnectionMode mode)
+      : type(type), mode(mode), devicePath(path) {}
+
+    ConnectionType type;
+    ConnectionMode mode;
+    bool grabbed = false;
+    DeviceFlags deviceFlags = DeviceFlags::NoFlags;
+    QString devicePath;
+  };
+
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -306,7 +323,8 @@ int Spotlight::connectDevices()
     QStringList inputPaths;
     std::for_each(dev.subDevices.cbegin(), dev.subDevices.cend(),
     [&inputPaths](const SubDevice& subDevice){
-      if (subDevice.inputDeviceReadable) inputPaths.append(subDevice.inputDeviceFile);
+      if (subDevice.type == SubDevice::Type::Event
+          && subDevice.deviceReadable) inputPaths.append(subDevice.deviceFile);
     });
     if (inputPaths.empty()) continue; // TODO debug msg
 
@@ -330,7 +348,7 @@ int Spotlight::connectDevices()
         continue;
       }
       else {
-        auto connection = openEventDevice(inputPath, dev);
+        auto connection = openEventDevice(inputPath, dev.id);
         if (connection && connection->notifier
             && connection->notifier->isEnabled()
             && addInputEventHandler(connection))
@@ -369,7 +387,8 @@ int Spotlight::connectDevices()
 }
 
 // -------------------------------------------------------------------------------------------------
-std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QString& devicePath, const Device& dev)
+std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QString& devicePath,
+                                                                        const DeviceId& devId)
 {
   const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
 
@@ -379,10 +398,10 @@ std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QS
   }
 
   struct input_id id{};
-  ioctl(evfd, EVIOCGID, &id); // get device id's
+  ioctl(evfd, EVIOCGID, &id); // get the event sub-device id
 
   // Check against given device id
-  if ( id.vendor != dev.id.vendorId || id.product != dev.id.productId)
+  if ( id.vendor != devId.vendorId || id.product != devId.productId)
   {
     ::close(evfd);
     logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
@@ -694,14 +713,15 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
         {
           dirIt.next();
           if (!dirIt.fileName().startsWith("event")) continue;
-          subDevice.inputDeviceFile = readPropertyFromDeviceFile(QDir(dirIt.filePath()).filePath("uevent"), "DEVNAME");
-          if (!subDevice.inputDeviceFile.isEmpty()) {
-            subDevice.inputDeviceFile = QDir("/dev").filePath(subDevice.inputDeviceFile);
+          subDevice.type = SubDevice::Type::Event;
+          subDevice.deviceFile = readPropertyFromDeviceFile(QDir(dirIt.filePath()).filePath("uevent"), "DEVNAME");
+          if (!subDevice.deviceFile.isEmpty()) {
+            subDevice.deviceFile = QDir("/dev").filePath(subDevice.deviceFile);
             break;
           }
         }
 
-        if (subDevice.inputDeviceFile.isEmpty()) continue;
+        if (subDevice.deviceFile.isEmpty()) continue;
         subDevice.phys = readStringFromDeviceFile(QDir(inputIt.filePath()).filePath("phys"));
 
         // Check if device supports relative events
@@ -714,19 +734,19 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
 
         subDevice.hasRelativeEvents = hasRelativeEvents && hasRelXEvents && hasRelYEvents;
 
-        const QFileInfo fi(subDevice.inputDeviceFile);
-        subDevice.inputDeviceReadable = fi.isReadable();
-        subDevice.inputDeviceWritable = fi.isWritable();
+        const QFileInfo fi(subDevice.deviceFile);
+        subDevice.deviceReadable = fi.isReadable();
+        subDevice.deviceWritable = fi.isWritable();
 
         rootDevice.subDevices.push_back(subDevice);
       }
     }
 
-    // For Logitech spotlight we are only interested in the sub device that has only one hidraw
-    // device.. so when we have an event device .. we skip hidraw detection for this sub-device.
+    // For the Logitech Spotlight we are only interested in the hidraw sub device that has no event
+    // device, if there is already an event device we skip hidraw detection for this sub-device.
     const bool hasInputEventDevices
         = std::any_of(rootDevice.subDevices.cbegin(), rootDevice.subDevices.cend(),
-          [](const SubDevice& sd) { return sd.inputDeviceFile.size() > 0; });
+          [](const SubDevice& sd) { return sd.type == SubDevice::Type::Event; });
 
     if (hasInputEventDevices) continue;
 
@@ -740,12 +760,14 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
         hidrawIt.next();
         if (!hidrawIt.fileName().startsWith("hidraw")) continue;
         SubDevice subDevice;
-        subDevice.hidrawDeviceFile = readPropertyFromDeviceFile(QDir(hidrawIt.filePath()).filePath("uevent"), "DEVNAME");
-        if (!subDevice.hidrawDeviceFile.isEmpty()) {
-          subDevice.hidrawDeviceFile = QDir("/dev").filePath(subDevice.hidrawDeviceFile);
-          const QFileInfo fi(subDevice.hidrawDeviceFile);
-          subDevice.hidrawDeviceReadable = fi.isReadable();
-          subDevice.hidrawDeviceWritable = fi.isWritable();
+        subDevice.deviceFile = readPropertyFromDeviceFile(QDir(hidrawIt.filePath()).filePath("uevent"), "DEVNAME");
+        if (!subDevice.deviceFile.isEmpty()) {
+          subDevice.type = SubDevice::Type::Hidraw;
+          subDevice.deviceFile = QDir("/dev").filePath(subDevice.deviceFile);
+          if (subDevice.deviceFile.isEmpty()) continue;
+          const QFileInfo fi(subDevice.deviceFile);
+          subDevice.deviceReadable = fi.isReadable();
+          subDevice.deviceWritable = fi.isWritable();
 
           rootDevice.subDevices.push_back(subDevice);
         }
@@ -757,14 +779,12 @@ Spotlight::ScanResult Spotlight::scanForDevices(const QList<SupportedDevice>& ad
   {
     const bool allReadable = std::all_of(dev.subDevices.cbegin(), dev.subDevices.cend(),
     [](const SubDevice& subDevice){
-      return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceReadable)
-          && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceReadable);
+      return subDevice.deviceReadable;
     });
 
     const bool allWriteable = std::all_of(dev.subDevices.cbegin(), dev.subDevices.cend(),
     [](const SubDevice& subDevice){
-      return (subDevice.hidrawDeviceFile.isEmpty() || subDevice.hidrawDeviceWritable)
-          && (subDevice.inputDeviceFile.isEmpty() || subDevice.inputDeviceWritable);
+      return subDevice.deviceWritable;
     });
 
     result.numDevicesReadable += allReadable;

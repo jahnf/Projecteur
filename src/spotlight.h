@@ -49,17 +49,6 @@ public:
   bool spotActive() const { return m_spotActive; }
   bool anySpotlightDeviceConnected() const;
 
-  struct SubDevice {
-    QString inputDeviceFile;
-    QString hidrawDeviceFile;
-    QString phys;
-    bool hasRelativeEvents = false;
-    bool inputDeviceReadable = false;
-    bool inputDeviceWritable = false;
-    bool hidrawDeviceReadable = false;
-    bool hidrawDeviceWritable = false;
-  };
-
   struct DeviceId {
     uint16_t vendorId = 0;
     uint16_t productId = 0;
@@ -79,7 +68,17 @@ public:
     }
   };
 
-  struct Device {
+  struct SubDevice { // Structure for device scan results
+    enum class Type : uint8_t { Unknown, Event, Hidraw };
+    QString deviceFile;
+    QString phys;
+    Type type = Type::Unknown;
+    bool hasRelativeEvents = false;
+    bool deviceReadable = false;
+    bool deviceWritable = false;
+  };
+
+  struct Device { // Structure for device scan results
     enum class BusType : uint16_t { Unknown, Usb, Bluetooth };
     QString name;
     QString userName;
@@ -119,27 +118,12 @@ private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
-  enum class ConnectionType : uint8_t { Event, Hidraw };
-  enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
-
-  struct ConnectionInfo {
-    ConnectionInfo() = default;
-    ConnectionInfo(const QString& path, ConnectionType type, ConnectionMode mode)
-      : type(type), mode(mode), devicePath(path) {}
-
-    ConnectionType type;
-    ConnectionMode mode;
-    bool grabbed = false;
-    DeviceFlags deviceFlags = DeviceFlags::NoFlags;
-    QString devicePath;
-  };
-
   struct DeviceConnection;
   struct ConnectionDetails;
   using DevicePath = QString;
   using ConnectionMap = std::map<DevicePath, std::shared_ptr<DeviceConnection>>;
 
-  std::shared_ptr<DeviceConnection> openEventDevice(const QString& devicePath, const Device& dev);
+  std::shared_ptr<DeviceConnection> openEventDevice(const QString& devicePath, const DeviceId& devId);
   bool addInputEventHandler(std::shared_ptr<DeviceConnection> connection);
 
   bool setupDevEventInotify();
