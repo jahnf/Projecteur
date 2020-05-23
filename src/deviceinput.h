@@ -70,6 +70,8 @@ public:
   bool recordingMode() const;
   void setRecordingMode(bool recording);
 
+  std::shared_ptr<VirtualDevice> virtualDevice() const;
+
 signals:
   void recordingModeChanged(bool recording);
 

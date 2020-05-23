@@ -195,6 +195,12 @@ InputMapper::~InputMapper()
 }
 
 // -------------------------------------------------------------------------------------------------
+std::shared_ptr<VirtualDevice> InputMapper::virtualDevice() const
+{
+  return impl->m_vdev;
+}
+
+// -------------------------------------------------------------------------------------------------
 bool InputMapper::recordingMode() const
 {
   return impl->m_recordingMode;

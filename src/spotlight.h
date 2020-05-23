@@ -9,7 +9,6 @@
 #include "enum-helper.h"
 #include "devicescan.h"
 
-class InputMapper;
 class QTimer;
 class VirtualDevice;
 
@@ -51,16 +50,12 @@ private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
-  struct SubDeviceConnection;
-  struct DeviceConnection;
-
-  std::shared_ptr<SubDeviceConnection> openEventDevice(const QString& devicePath, const DeviceId& devId);
-  bool addInputEventHandler(std::shared_ptr<SubDeviceConnection> connection);
+  bool addInputEventHandler(std::shared_ptr<SubEventConnection> connection);
 
   bool setupDevEventInotify();
   int connectDevices();
   void removeDeviceConnection(const QString& devicePath);
-  void onDeviceDataAvailable(int fd, SubDeviceConnection& connection);
+  void onEventDataAvailable(int fd, SubEventConnection& connection);
 
   const Options m_options;
   std::map<DeviceId, std::unique_ptr<DeviceConnection>> m_deviceConnections;

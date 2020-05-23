@@ -15,9 +15,6 @@ namespace {
   class DeviceScan_ : public QObject {}; // for i18n and logging
 
   // -----------------------------------------------------------------------------------------------
-  static auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
-
-  // -----------------------------------------------------------------------------------------------
   // List of supported devices
   const std::array<SupportedDevice, 2> supportedDefaultDevices {{
     {0x46d, 0xc53e, false, "Logitech Spotlight (USB)"},
