@@ -3,8 +3,8 @@
 
 #include <QObject>
 
-#include <memory>
 #include <map>
+#include <memory>
 
 #include "enum-helper.h"
 #include "devicescan.h"
@@ -13,17 +13,8 @@ class InputMapper;
 class QTimer;
 class VirtualDevice;
 
-enum class DeviceFlag : uint32_t {
-  NoFlags = 0,
-  NonBlocking    = 1 << 0,
-  SynEvents      = 1 << 1,
-  RepEvents      = 1 << 2,
-  RelativeEvents = 1 << 3,
-};
-ENUM(DeviceFlag, DeviceFlags)
-
-/// Class to notify the application if the Logitech Spotlight and other supported devices
-/// are connected and sending mouse move events. Used to turn the applications spot on or off.
+/// Class handling spotlight device connections and indicating if a device is sending
+/// sending mouse move events.
 class Spotlight : public QObject
 {
   Q_OBJECT
@@ -38,18 +29,17 @@ public:
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
-  bool anySpotlightDeviceConnected() const;
 
   struct ConnectedDeviceInfo {
     DeviceId id;
     QString name;
   };
 
+  bool anySpotlightDeviceConnected() const;
   uint32_t connectedDeviceCount() const;
   QList<ConnectedDeviceInfo> connectedDevices() const;
 
 signals:
-  void error(const QString& errMsg);
   void deviceConnected(const DeviceId& id, const QString& name);
   void deviceDisconnected(const DeviceId& id, const QString& name);
   void subDeviceConnected(const DeviceId& id, const QString& name, const QString& path);
@@ -63,8 +53,6 @@ private:
 
   struct DeviceConnection;
   struct ConnectionDetails;
-  using DevicePath = QString;
-  using ConnectionMap = std::map<DevicePath, std::shared_ptr<DeviceConnection>>;
 
   std::shared_ptr<DeviceConnection> openEventDevice(const QString& devicePath, const DeviceId& devId);
   bool addInputEventHandler(std::shared_ptr<DeviceConnection> connection);

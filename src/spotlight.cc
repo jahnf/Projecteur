@@ -18,6 +18,16 @@
 
 LOGGING_CATEGORY(device, "device")
 
+// -------------------------------------------------------------------------------------------------
+enum class DeviceFlag : uint32_t {
+  NoFlags = 0,
+  NonBlocking    = 1 << 0,
+  SynEvents      = 1 << 1,
+  RepEvents      = 1 << 2,
+  RelativeEvents = 1 << 3,
+};
+ENUM(DeviceFlag, DeviceFlags)
+
 namespace {
   // -----------------------------------------------------------------------------------------------
   template<int Size, typename T = input_event>
@@ -51,13 +61,15 @@ namespace {
     DeviceFlags deviceFlags = DeviceFlags::NoFlags;
     QString devicePath;
   };
-
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 struct Spotlight::ConnectionDetails {
   ConnectionDetails(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev)
     : deviceId(id), deviceName(name), im(std::make_shared<InputMapper>(std::move(vdev))){}
+
+  using DevicePath = QString;
+  using ConnectionMap = std::map<DevicePath, std::shared_ptr<DeviceConnection>>;
 
   DeviceId deviceId;
   QString deviceName;
