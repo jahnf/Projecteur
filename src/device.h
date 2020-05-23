@@ -43,10 +43,9 @@ enum class ConnectionType : uint8_t { Event, Hidraw };
 enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 
 // -------------------------------------------------------------------------------------------------
-class DeviceConnection
-//    : public QObject
+class DeviceConnection : public QObject
 {
-//  Q_OBJECT
+  Q_OBJECT
 
 public:
   DeviceConnection(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev);
@@ -54,10 +53,24 @@ public:
   using DevicePath = QString;
   using ConnectionMap = std::map<DevicePath, std::shared_ptr<SubDeviceConnection>>;
 
-  DeviceId deviceId;
-  QString deviceName;
-  std::shared_ptr<InputMapper> im;
-  ConnectionMap map;
+  const auto& deviceName() const { return m_deviceName; }
+  const auto& deviceId() const { return m_deviceId; }
+  const auto& inputMapper() const { return m_inputMapper; }
+
+  auto subDeviceCount() const { return m_subDeviceConnections.size(); }
+  bool hasSubDevice(const QString& path) const;
+  void addSubDevice(std::shared_ptr<SubDeviceConnection>);
+  bool removeSubDevice(const QString& path);
+
+signals:
+  void subDeviceConnected(const DeviceId& id, const QString& path);
+  void subDeviceDisconnected(const DeviceId& id, const QString& path);
+
+protected:
+  DeviceId m_deviceId;
+  QString m_deviceName;
+  std::shared_ptr<InputMapper> m_inputMapper;
+  ConnectionMap m_subDeviceConnections;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -132,12 +145,11 @@ protected:
 namespace DeviceScan {
   struct SubDevice;
 }
-// -------------------------------------------------------------------------------------------------
 
+// -------------------------------------------------------------------------------------------------
 class SubEventConnection : public SubDeviceConnection
 {
   Q_OBJECT
-private:
   class Token{};
 
 public:
@@ -152,3 +164,5 @@ protected:
   InputBuffer<12> m_inputEventBuffer;
 };
 
+// -------------------------------------------------------------------------------------------------
+// TODO SubHidrawConnection

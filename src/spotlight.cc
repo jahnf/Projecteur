@@ -64,12 +64,8 @@ Spotlight::~Spotlight() = default;
 // -------------------------------------------------------------------------------------------------
 bool Spotlight::anySpotlightDeviceConnected() const
 {
-  for (const auto& dc : m_deviceConnections)
-  {
-    for (const auto& c : dc.second->map) {
-      if (c.second && c.second->isConnected())
-        return true;
-    }
+  for (const auto& dc : m_deviceConnections) {
+    if (dc.second->subDeviceCount()) return true;
   }
   return false;
 }
@@ -78,15 +74,17 @@ bool Spotlight::anySpotlightDeviceConnected() const
 uint32_t Spotlight::connectedDeviceCount() const
 {
   uint32_t count = 0;
-  for (const auto& dc : m_deviceConnections)
-  {
-    for (const auto& c : dc.second->map) {
-      if (c.second && c.second->isConnected()) {
-        ++count; break;
-      }
-    }
+  for (const auto& dc : m_deviceConnections) {
+    if (dc.second->subDeviceCount()) ++count;
   }
   return count;
+}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<DeviceConnection> Spotlight::deviceConnection(const DeviceId& deviceId)
+{
+  const auto find_it = m_deviceConnections.find(deviceId);
+  return (find_it != m_deviceConnections.end()) ? find_it->second : std::shared_ptr<DeviceConnection>();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -94,7 +92,7 @@ QList<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 {
   QList<ConnectedDeviceInfo> devices;
   for (const auto& dc : m_deviceConnections) {
-    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second->deviceName});
+    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second->deviceName()});
   }
   return devices;
 }
@@ -105,11 +103,9 @@ int Spotlight::connectDevices()
   const auto scanResult = DeviceScan::getDevices(m_options.additionalDevices);
   for (const auto& dev : scanResult.devices)
   {
-    auto& deviceConnection = m_deviceConnections[dev.id];
-    if (!deviceConnection) {
-      deviceConnection = std::make_unique<DeviceConnection>(dev.id,
-                                                            dev.userName.size() ? dev.userName : dev.name,
-                                                            m_virtualDevice);
+    auto& dc = m_deviceConnections[dev.id];
+    if (!dc) {
+      dc = std::make_shared<DeviceConnection>(dev.id, dev.getName(), m_virtualDevice);
     }
 
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
@@ -117,46 +113,34 @@ int Spotlight::connectDevices()
     {
       if (scanSubDevice.type != DeviceScan::SubDevice::Type::Event) continue;
       if (!scanSubDevice.deviceReadable) continue;
+      if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
 
-      auto find_it = deviceConnection->map.find(scanSubDevice.deviceFile);
+      auto subDeviceConnection = SubEventConnection::create(scanSubDevice, *dc);
+      if (!addInputEventHandler(subDeviceConnection)) continue;
 
-      // Check if a connection for the path exists...
-      if (find_it != deviceConnection->map.end()
-          && find_it->second
-          && find_it->second->isConnected()) {
-        continue;
+      dc->addSubDevice(std::move(subDeviceConnection));
+      if (dc->subDeviceCount() == 1)
+      {
+        QTimer::singleShot(0, this,
+        [this, id = dev.id, devName = dc->deviceName(), anyConnectedBefore](){
+          logInfo(device) << tr("Connected device: %1 (%2:%3)")
+                             .arg(devName)
+                             .arg(id.vendorId, 4, 16, QChar('0'))
+                             .arg(id.productId, 4, 16, QChar('0'));
+          emit deviceConnected(id, devName);
+          if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
+        });
       }
-      else {
-        auto subDeviceConnection = SubEventConnection::create(scanSubDevice, *deviceConnection);
-        if (subDeviceConnection && subDeviceConnection->isConnected()
-            && addInputEventHandler(subDeviceConnection))
-        {
-          deviceConnection->map[scanSubDevice.deviceFile] = std::move(subDeviceConnection);
-          if (deviceConnection->map.size() == 1)
-          {
-            QTimer::singleShot(0, this,
-            [this, id = dev.id, devName = deviceConnection->deviceName, anyConnectedBefore](){
-              logInfo(device) << tr("Connected device: %1 (%2:%3)")
-                                 .arg(devName)
-                                 .arg(id.vendorId, 4, 16, QChar('0'))
-                                 .arg(id.productId, 4, 16, QChar('0'));
-              emit deviceConnected(id, devName);
-              if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
-            });
-          }
-          logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
-                              .arg(deviceConnection->deviceName)
-                              .arg(dev.id.vendorId, 4, 16, QChar('0'))
-                              .arg(dev.id.productId, 4, 16, QChar('0'))
-                              .arg(scanSubDevice.deviceFile);
-          emit subDeviceConnected(dev.id, deviceConnection->deviceName, scanSubDevice.deviceFile);
-        }
-        else {
-          deviceConnection->map.erase(scanSubDevice.deviceFile);
-        }
-      }
+
+      logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
+                          .arg(dc->deviceName())
+                          .arg(dev.id.vendorId, 4, 16, QChar('0'))
+                          .arg(dev.id.productId, 4, 16, QChar('0'))
+                          .arg(scanSubDevice.deviceFile);
+      emit subDeviceConnected(dev.id, dc->deviceName(), scanSubDevice.deviceFile);
     }
-    if (deviceConnection->map.empty()) {
+
+    if (dc->subDeviceCount() == 0) {
       m_deviceConnections.erase(dev.id);
     }
   }
@@ -173,26 +157,18 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
       continue;
     }
 
-    auto& connInfo = dc_it->second;
-    auto& connMap = connInfo->map;
-    auto find_it = connMap.find(devicePath);
+    auto& dc = dc_it->second;
+    if (dc->removeSubDevice(devicePath)) {
 
-    if (find_it != connMap.end())
-    {
-      find_it->second->disconnect();
-      logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
-                          .arg(connInfo->deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
-                          .arg(dc_it->first.productId, 4, 16, QChar('0')).arg(devicePath);
-      emit subDeviceDisconnected(dc_it->first, connInfo->deviceName, devicePath);
-      connMap.erase(find_it);
+      emit subDeviceDisconnected(dc_it->first, dc->deviceName(), devicePath);
     }
 
-    if (connMap.empty())
+    if (dc->subDeviceCount() == 0)
     {
       logInfo(device) << tr("Disconnected device: %1 (%2:%3)")
-                         .arg(connInfo->deviceName).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
+                         .arg(dc->deviceName()).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
                          .arg(dc_it->first.productId, 4, 16, QChar('0'));
-      emit deviceDisconnected(dc_it->first, connInfo->deviceName);
+      emit deviceDisconnected(dc_it->first, dc->deviceName());
       dc_it = m_deviceConnections.erase(dc_it);
     }
     else {

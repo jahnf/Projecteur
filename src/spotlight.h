@@ -37,6 +37,7 @@ public:
   bool anySpotlightDeviceConnected() const;
   uint32_t connectedDeviceCount() const;
   QList<ConnectedDeviceInfo> connectedDevices() const;
+  std::shared_ptr<DeviceConnection> deviceConnection(const DeviceId& deviceId);
 
 signals:
   void deviceConnected(const DeviceId& id, const QString& name);
@@ -58,7 +59,7 @@ private:
   void onEventDataAvailable(int fd, SubEventConnection& connection);
 
   const Options m_options;
-  std::map<DeviceId, std::unique_ptr<DeviceConnection>> m_deviceConnections;
+  std::map<DeviceId, std::shared_ptr<DeviceConnection>> m_deviceConnections;
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;

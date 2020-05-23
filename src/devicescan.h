@@ -33,6 +33,7 @@ namespace DeviceScan
 
   struct Device { // Structure for device scan results
     enum class BusType : uint16_t { Unknown, Usb, Bluetooth };
+    const QString& getName() const { return userName.size() ? userName : name; }
     QString name;
     QString userName;
     DeviceId id;
