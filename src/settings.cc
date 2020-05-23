@@ -157,7 +157,7 @@ void Settings::initializeStringProperties()
                     [this](const QString& value){ setShowSpotShade(toBool(value)); } } } );
   map.push_back( {"shade.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::shadeOpacity.min, ::settings::ranges::shadeOpacity.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
+                    [this](const QString& value){ setShadeOpacity(value.toDouble()); } } } );
   map.push_back( {"shade.color", StringProperty{ StringProperty::Color, {},
                     [this](const QString& value){ setShadeColor(QColor(value)); } } } );
   // --- center dot
@@ -178,7 +178,7 @@ void Settings::initializeStringProperties()
                     [this](const QString& value){ setBorderColor(QColor(value)); } } });
   map.push_back( {"border.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::borderOpacity.min, ::settings::ranges::borderOpacity.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
+                    [this](const QString& value){ setBorderOpacity(value.toDouble()); } } } );
   // --- zoom
   map.push_back( {"zoom", StringProperty{ StringProperty::Bool, {false, true},
                   [this](const QString& value){ setZoomEnabled(toBool(value)); } } } );
