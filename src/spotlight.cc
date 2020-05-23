@@ -50,26 +50,26 @@ namespace {
   enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 
   // -----------------------------------------------------------------------------------------------
-  struct ConnectionInfo {
-    ConnectionInfo() = default;
-    ConnectionInfo(const QString& path, ConnectionType type, ConnectionMode mode)
+  struct SubDeviceConnectionDetails {
+    SubDeviceConnectionDetails(const QString& path, ConnectionType type, ConnectionMode mode)
       : type(type), mode(mode), devicePath(path) {}
 
     ConnectionType type;
     ConnectionMode mode;
     bool grabbed = false;
     DeviceFlags deviceFlags = DeviceFlags::NoFlags;
+    QString phys;
     QString devicePath;
   };
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
-struct Spotlight::ConnectionDetails {
-  ConnectionDetails(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev)
+struct Spotlight::DeviceConnection {
+  DeviceConnection(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev)
     : deviceId(id), deviceName(name), im(std::make_shared<InputMapper>(std::move(vdev))){}
 
   using DevicePath = QString;
-  using ConnectionMap = std::map<DevicePath, std::shared_ptr<DeviceConnection>>;
+  using ConnectionMap = std::map<DevicePath, std::shared_ptr<SubDeviceConnection>>;
 
   DeviceId deviceId;
   QString deviceName;
@@ -78,12 +78,11 @@ struct Spotlight::ConnectionDetails {
 };
 
 // -------------------------------------------------------------------------------------------------
-struct Spotlight::DeviceConnection
+struct Spotlight::SubDeviceConnection
 {
-  DeviceConnection() = default;
-  DeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode)
+  SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode)
     : info(path, type, mode) {}
-  ConnectionInfo info;
+  SubDeviceConnectionDetails info;
   InputBuffer<12> inputBuffer;
   std::shared_ptr<InputMapper> im; // each device connection for a device shares the same input mapper
   std::unique_ptr<QSocketNotifier> notifier;
@@ -120,8 +119,6 @@ Spotlight::Spotlight(QObject* parent, Options options)
     logDebug(device) << tr("New connection check triggered");
     connectDevices();
   });
-
-//  QMetaType::registerComparators<DeviceId>();
 
   // Try to find already attached device(s) and connect to it.
   connectDevices();
@@ -175,46 +172,41 @@ int Spotlight::connectDevices()
   const auto scanResult = DeviceScan::getDevices(m_options.additionalDevices);
   for (const auto& dev : scanResult.devices)
   {
-    // Get all readable event input device paths for the device
-    QStringList inputPaths;
-    std::for_each(dev.subDevices.cbegin(), dev.subDevices.cend(),
-    [&inputPaths](const auto& subDevice){
-      if (subDevice.type == DeviceScan::SubDevice::Type::Event
-          && subDevice.deviceReadable) inputPaths.append(subDevice.deviceFile);
-    });
-    if (inputPaths.empty()) continue; // TODO debug msg
-
-    auto& connectionDetails = m_deviceConnections[dev.id];
-    if (!connectionDetails) {
-      connectionDetails = std::make_unique<ConnectionDetails>(dev.id,
-                                                              dev.userName.size() ? dev.userName : dev.name,
-                                                              m_virtualDevice);
+    auto& deviceConnection = m_deviceConnections[dev.id];
+    if (!deviceConnection) {
+      deviceConnection = std::make_unique<DeviceConnection>(dev.id,
+                                                            dev.userName.size() ? dev.userName : dev.name,
+                                                            m_virtualDevice);
     }
 
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
-    for (const auto& inputPath : inputPaths)
+    for (const auto scanSubDevice : dev.subDevices)
     {
-      auto find_it = connectionDetails->map.find(inputPath);
+      if (scanSubDevice.type != DeviceScan::SubDevice::Type::Event) continue;
+      if (!scanSubDevice.deviceReadable) continue;
+
+      auto find_it = deviceConnection->map.find(scanSubDevice.deviceFile);
 
       // Check if a connection for the path exists...
-      if (find_it != connectionDetails->map.end()
+      if (find_it != deviceConnection->map.end()
           && find_it->second
           && find_it->second->notifier
           && find_it->second->notifier->isEnabled()) {
         continue;
       }
       else {
-        auto connection = openEventDevice(inputPath, dev.id);
-        if (connection && connection->notifier
-            && connection->notifier->isEnabled()
-            && addInputEventHandler(connection))
+        auto subDeviceConnection = openEventDevice(scanSubDevice.deviceFile, dev.id);
+        if (subDeviceConnection && subDeviceConnection->notifier
+            && subDeviceConnection->notifier->isEnabled()
+            && addInputEventHandler(subDeviceConnection))
         {
-          connection->im = connectionDetails->im;
-          connectionDetails->map[inputPath] = std::move(connection);
-          if (connectionDetails->map.size() == 1)
+          subDeviceConnection->im = deviceConnection->im;
+          subDeviceConnection->info.phys = scanSubDevice.phys;
+          deviceConnection->map[scanSubDevice.deviceFile] = std::move(subDeviceConnection);
+          if (deviceConnection->map.size() == 1)
           {
             QTimer::singleShot(0, this,
-            [this, id = dev.id, devName = connectionDetails->deviceName, anyConnectedBefore](){
+            [this, id = dev.id, devName = deviceConnection->deviceName, anyConnectedBefore](){
               logInfo(device) << tr("Connected device: %1 (%2:%3)")
                                  .arg(devName)
                                  .arg(id.vendorId, 4, 16, QChar('0'))
@@ -224,18 +216,18 @@ int Spotlight::connectDevices()
             });
           }
           logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
-                              .arg(connectionDetails->deviceName)
+                              .arg(deviceConnection->deviceName)
                               .arg(dev.id.vendorId, 4, 16, QChar('0'))
                               .arg(dev.id.productId, 4, 16, QChar('0'))
-                              .arg(inputPath);
-          emit subDeviceConnected(dev.id, connectionDetails->deviceName, inputPath);
+                              .arg(scanSubDevice.deviceFile);
+          emit subDeviceConnected(dev.id, deviceConnection->deviceName, scanSubDevice.deviceFile);
         }
         else {
-          connectionDetails->map.erase(inputPath);
+          deviceConnection->map.erase(scanSubDevice.deviceFile);
         }
       }
     }
-    if (connectionDetails->map.empty()) {
+    if (deviceConnection->map.empty()) {
       m_deviceConnections.erase(dev.id);
     }
   }
@@ -243,14 +235,14 @@ int Spotlight::connectDevices()
 }
 
 // -------------------------------------------------------------------------------------------------
-std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QString& devicePath,
-                                                                        const DeviceId& devId)
+std::shared_ptr<Spotlight::SubDeviceConnection> Spotlight::openEventDevice(const QString& devicePath,
+                                                                           const DeviceId& devId)
 {
   const int evfd = ::open(devicePath.toLocal8Bit().constData(), O_RDONLY, 0);
 
   if (evfd < 0) {
     logDebug(device) << tr("Opening input event device failed:") << devicePath;
-    return std::shared_ptr<DeviceConnection>();
+    return std::shared_ptr<SubDeviceConnection>();
   }
 
   struct input_id id{};
@@ -264,7 +256,7 @@ std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QS
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
-    return std::shared_ptr<DeviceConnection>();
+    return std::shared_ptr<SubDeviceConnection>();
   }
 
   unsigned long bitmask = 0;
@@ -275,10 +267,10 @@ std::shared_ptr<Spotlight::DeviceConnection> Spotlight::openEventDevice(const QS
                         .arg(devicePath)
                         .arg(id.vendor, 4, 16, QChar('0'))
                         .arg(id.product, 4, 16, QChar('0'));
-    return std::shared_ptr<DeviceConnection>();
+    return std::shared_ptr<SubDeviceConnection>();
   }
 
-  auto connection = std::make_shared<DeviceConnection>(devicePath, ConnectionType::Event, ConnectionMode::ReadOnly);
+  auto connection = std::make_shared<SubDeviceConnection>(devicePath, ConnectionType::Event, ConnectionMode::ReadOnly);
 
   connection->info.grabbed = [this, evfd, &devicePath]()
   {
@@ -366,7 +358,7 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 }
 
 // -------------------------------------------------------------------------------------------------
-void Spotlight::onDeviceDataAvailable(int fd, DeviceConnection& connection)
+void Spotlight::onDeviceDataAvailable(int fd, SubDeviceConnection& connection)
 {
   const bool isNonBlocking = !!(connection.info.deviceFlags & DeviceFlag::NonBlocking);
   while (true)
@@ -425,7 +417,7 @@ void Spotlight::onDeviceDataAvailable(int fd, DeviceConnection& connection)
 }
 
 // -------------------------------------------------------------------------------------------------
-bool Spotlight::addInputEventHandler(std::shared_ptr<DeviceConnection> connection)
+bool Spotlight::addInputEventHandler(std::shared_ptr<SubDeviceConnection> connection)
 {
   if (!connection || connection->info.type != ConnectionType::Event
       || !connection->notifier || !connection->notifier->isEnabled()) {

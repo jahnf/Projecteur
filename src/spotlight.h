@@ -51,19 +51,19 @@ private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
+  struct SubDeviceConnection;
   struct DeviceConnection;
-  struct ConnectionDetails;
 
-  std::shared_ptr<DeviceConnection> openEventDevice(const QString& devicePath, const DeviceId& devId);
-  bool addInputEventHandler(std::shared_ptr<DeviceConnection> connection);
+  std::shared_ptr<SubDeviceConnection> openEventDevice(const QString& devicePath, const DeviceId& devId);
+  bool addInputEventHandler(std::shared_ptr<SubDeviceConnection> connection);
 
   bool setupDevEventInotify();
   int connectDevices();
   void removeDeviceConnection(const QString& devicePath);
-  void onDeviceDataAvailable(int fd, DeviceConnection& connection);
+  void onDeviceDataAvailable(int fd, SubDeviceConnection& connection);
 
   const Options m_options;
-  std::map<DeviceId, std::unique_ptr<ConnectionDetails>> m_deviceConnections;
+  std::map<DeviceId, std::unique_ptr<DeviceConnection>> m_deviceConnections;
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;
