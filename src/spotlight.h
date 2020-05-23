@@ -2,16 +2,14 @@
 #pragma once
 
 #include <QObject>
-#include <QSocketNotifier>
 
 #include <memory>
 #include <map>
-#include <set>
 
 #include "enum-helper.h"
+#include "devicescan.h"
 
 class InputMapper;
-class QSocketNotifier;
 class QTimer;
 class VirtualDevice;
 
@@ -31,16 +29,9 @@ class Spotlight : public QObject
   Q_OBJECT
 
 public:
-  struct SupportedDevice {
-    quint16 vendorId;
-    quint16 productId;
-    bool isBluetooth = false;
-    QString name = {};
-  };
-
   struct Options {
     bool enableUInput = true; // enable virtual uinput device
-    QList<Spotlight::SupportedDevice> additionalDevices;
+    QList<SupportedDevice> additionalDevices;
   };
 
   explicit Spotlight(QObject* parent, Options options);
@@ -49,51 +40,6 @@ public:
   bool spotActive() const { return m_spotActive; }
   bool anySpotlightDeviceConnected() const;
 
-  struct DeviceId {
-    uint16_t vendorId = 0;
-    uint16_t productId = 0;
-    QString phys; // should be sufficient to differentiate between two devices of the same type
-                  // - not tested, don't have two devices of any type currently.
-
-    inline bool operator==(const DeviceId& rhs) const {
-      return std::tie(vendorId, productId, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.phys);
-    }
-
-    inline bool operator!=(const DeviceId& rhs) const {
-      return std::tie(vendorId, productId, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.phys);
-    }
-
-    inline bool operator<(const DeviceId& rhs) const {
-      return std::tie(vendorId, productId, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.phys);
-    }
-  };
-
-  struct SubDevice { // Structure for device scan results
-    enum class Type : uint8_t { Unknown, Event, Hidraw };
-    QString deviceFile;
-    QString phys;
-    Type type = Type::Unknown;
-    bool hasRelativeEvents = false;
-    bool deviceReadable = false;
-    bool deviceWritable = false;
-  };
-
-  struct Device { // Structure for device scan results
-    enum class BusType : uint16_t { Unknown, Usb, Bluetooth };
-    QString name;
-    QString userName;
-    DeviceId id;
-    BusType busType = BusType::Unknown;
-    QList<SubDevice> subDevices;
-  };
-
-  struct ScanResult {
-    QList<Device> devices;
-    quint16 numDevicesReadable = 0;
-    quint16 numDevicesWritable = 0;
-    QStringList errorMessages;
-  };
-
   struct ConnectedDeviceInfo {
     DeviceId id;
     QString name;
@@ -101,9 +47,6 @@ public:
 
   uint32_t connectedDeviceCount() const;
   QList<ConnectedDeviceInfo> connectedDevices() const;
-
-  /// scan for supported devices and check if they are accessible
-  static ScanResult scanForDevices(const QList<SupportedDevice>& additionalDevices = {});
 
 signals:
   void error(const QString& errMsg);
@@ -139,5 +82,3 @@ private:
   bool m_spotActive = false;
   std::shared_ptr<VirtualDevice> m_virtualDevice;
 };
-
-Q_DECLARE_METATYPE(Spotlight::DeviceId);

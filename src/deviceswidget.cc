@@ -16,12 +16,12 @@ DECLARE_LOGGING_CATEGORY(preferences)
 
 // ------------------------------------------------------------------------------------------------
 namespace {
-  QString descriptionString(const QString& name, const Spotlight::DeviceId& id) {
+  QString descriptionString(const QString& name, const DeviceId& id) {
     return QString("%1 (%2:%3) [%4]").arg(name).arg(id.vendorId, 4, 16, QChar('0'))
                                      .arg(id.productId, 4, 16, QChar('0')).arg(id.phys);
   }
 
-  const auto invalidDeviceId =  Spotlight::DeviceId(); // vendorId = 0, productId = 0
+  const auto invalidDeviceId = DeviceId(); // vendorId = 0, productId = 0
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidg
 }
 
 // ------------------------------------------------------------------------------------------------
-const Spotlight::DeviceId& DevicesWidget::currentDevice() const
+const DeviceId& DevicesWidget::currentDevice() const
 {
   return invalidDeviceId;
 }
@@ -111,7 +111,7 @@ QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
   }
 
   connect(spotlight, &Spotlight::deviceDisconnected, this,
-  [devicesCombo](const Spotlight::DeviceId& id, const QString& /*name*/)
+  [devicesCombo](const DeviceId& id, const QString& /*name*/)
   {
     const auto idx = devicesCombo->findData(QVariant::fromValue(id));
     if (idx >= 0) {
@@ -120,7 +120,7 @@ QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
   });
 
   connect(spotlight, &Spotlight::deviceConnected, this,
-  [devicesCombo](const Spotlight::DeviceId& id, const QString& name)
+  [devicesCombo](const DeviceId& id, const QString& name)
   {
     const auto data = QVariant::fromValue(id);
     if (devicesCombo->findData(data) < 0) {
@@ -136,7 +136,7 @@ QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
       return ;
     }
 
-    const auto devId = qvariant_cast<Spotlight::DeviceId>(devicesCombo->itemData(index));
+    const auto devId = qvariant_cast<DeviceId>(devicesCombo->itemData(index));
     emit currentDeviceChanged(devId);
   });
 

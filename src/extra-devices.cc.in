@@ -1,5 +1,5 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
-#include "spotlight.h"
+#include "devicescan.h"
 
 #include <QtCore>
 
@@ -9,7 +9,7 @@
 
 namespace {
   // List of supported extra-devices
-  const std::vector<Spotlight::SupportedDevice> supportedExtraDevices { // @SUPPORTED_EXTRA_DEVICES@
+  const std::vector<SupportedDevice> supportedExtraDevices { // @SUPPORTED_EXTRA_DEVICES@
   };
 }
 
@@ -17,7 +17,7 @@ namespace {
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId)
 {
   const auto it = std::find_if(supportedExtraDevices.cbegin(), supportedExtraDevices.cend(),
-  [vendorId, productId](const Spotlight::SupportedDevice& d) {
+  [vendorId, productId](const SupportedDevice& d) {
     return (vendorId == d.vendorId) && (productId == d.productId);
   });
   return it != supportedExtraDevices.cend();
@@ -26,7 +26,7 @@ bool isExtraDeviceSupported(quint16 vendorId, quint16 productId)
 QString getExtraDeviceName(quint16 vendorId, quint16 productId)
 {
   const auto it = std::find_if(supportedExtraDevices.cbegin(), supportedExtraDevices.cend(),
-  [vendorId, productId](const Spotlight::SupportedDevice& d) {
+  [vendorId, productId](const SupportedDevice& d) {
     return (vendorId == d.vendorId) && (productId == d.productId);
   });
   if (it != supportedExtraDevices.cend()) return it->name;

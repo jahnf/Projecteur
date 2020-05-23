@@ -13,10 +13,10 @@ class DevicesWidget : public QWidget
   Q_OBJECT
 public:
   explicit DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
-  const Spotlight::DeviceId& currentDevice() const;
+  const DeviceId& currentDevice() const;
 
 signals:
-  void currentDeviceChanged(const Spotlight::DeviceId&);
+  void currentDeviceChanged(const DeviceId&);
 
 private:
   QWidget* createDisconnectedStateWidget();

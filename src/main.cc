@@ -166,6 +166,20 @@ int main(int argc, char *argv[])
       if (projecteur::version_isdirty())
         print() << "  - dirty-flag: " << projecteur::version_isdirty();
 
+      if (parser.isSet(additionalDeviceOption)) {
+        for (auto& deviceValue : parser.values(additionalDeviceOption)) {
+          const auto devAttribs = deviceValue.split(":");
+          const auto vendorId = devAttribs[0].toUShort(nullptr, 16);
+          const auto productId = devAttribs[1].toUShort(nullptr, 16);
+          if (vendorId == 0 || productId == 0) {
+            error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
+          } else {
+            const QString name = (devAttribs.size() >= 3) ? devAttribs[2] : "";
+            options.additionalDevices.push_back({vendorId, productId, false, name});
+          }
+        }
+      }
+
       // Additional useful information
       if (parser.isSet(fullVersionOption))
       {
@@ -173,7 +187,7 @@ int main(int argc, char *argv[])
                                     << XSTRINGIFY(CXX_COMPILER_VERSION);
         print() << "  - qt-version: (build: " << QT_VERSION_STR << ", runtime: " << qVersion() << ")";
 
-        const auto result = Spotlight::scanForDevices();
+        const auto result = DeviceScan::getDevices(options.additionalDevices);
         print() << "  - device-scan: "
                 << QString("(errors: %1, devices: %2 [readable: %3, writable: %4])")
                    .arg(result.errorMessages.size()).arg(result.devices.size())
@@ -182,23 +196,9 @@ int main(int argc, char *argv[])
       return 0;
     }
 
-    if (parser.isSet(additionalDeviceOption)) {
-      for (auto& deviceValue : parser.values(additionalDeviceOption)) {
-        const auto devAttribs = deviceValue.split(":");
-        const auto vendorId = devAttribs[0].toUShort(nullptr, 16);
-        const auto productId = devAttribs[1].toUShort(nullptr, 16);
-        if (vendorId == 0 || productId == 0) {
-          error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
-        } else {
-          const QString name = (devAttribs.size() >= 3) ? devAttribs[2] : "";
-          options.additionalDevices.push_back({vendorId, productId, false, name});
-        }
-      }
-    }
-
     if (parser.isSet(deviceInfoOption))
     {
-      const auto result = Spotlight::scanForDevices(options.additionalDevices);
+      const auto result = DeviceScan::getDevices(options.additionalDevices);
       print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << "; " << Main::tr("device scan") << std::endl;
 
@@ -210,9 +210,9 @@ int main(int argc, char *argv[])
               << Main::tr(" * Found %1 supported devices. (%2 readable, %3 writable)")
                  .arg(result.devices.size()).arg(result.numDevicesReadable).arg(result.numDevicesWritable);
 
-      const auto busTypeToString = [](Spotlight::Device::BusType type) -> QString {
-        if (type == Spotlight::Device::BusType::Usb) return "USB";
-        if (type == Spotlight::Device::BusType::Bluetooth) return "Bluetooth";
+      const auto busTypeToString = [](DeviceScan::Device::BusType type) -> QString {
+        if (type == DeviceScan::Device::BusType::Usb) return "USB";
+        if (type == DeviceScan::Device::BusType::Bluetooth) return "Bluetooth";
         return "unknwon";
       };
 
