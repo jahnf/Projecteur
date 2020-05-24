@@ -170,6 +170,12 @@ All the properties that can be set via the command line, are listed with the `--
 
 ### Device Support
 
+Besides the _Logitech Spotlight_, the following devices are currently supported out of the box:
+
+* AVATTO H100 / August WP200 _(0c45:8101)_
+* August LP315 _(2312:863d)_
+* AVATTO i10 Pro _(2571:4109)_
+
 #### Compile Time
 
 Besides the Logitech Spotlight, similar devices can be used and are supported.
