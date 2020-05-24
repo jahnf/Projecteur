@@ -182,7 +182,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         }
         window->setPosition(screenGeometry.topLeft());
       }
-      window->show();
+      window->showFullScreen();
       m_overlayVisible = true;
       emit overlayVisibleChanged(true);
       window->raise();
@@ -225,6 +225,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
     const auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
+
+    window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
+    window->hide();
 
     window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
