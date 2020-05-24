@@ -149,7 +149,22 @@ int main(int argc, char *argv[])
 
       return 0;
     }
-    else if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))
+
+    if (parser.isSet(additionalDeviceOption)) {
+      for (auto& deviceValue : parser.values(additionalDeviceOption)) {
+        const auto devAttribs = deviceValue.split(":");
+        const auto vendorId = devAttribs[0].toUShort(nullptr, 16);
+        const auto productId = devAttribs[1].toUShort(nullptr, 16);
+        if (vendorId == 0 || productId == 0) {
+          error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
+        } else {
+          const QString name = (devAttribs.size() >= 3) ? devAttribs[2] : "";
+          options.additionalDevices.push_back({vendorId, productId, false, name});
+        }
+      }
+    }
+
+    if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))
     {
       print() << QCoreApplication::applicationName().toStdString() << " "
               << projecteur::version_string();
