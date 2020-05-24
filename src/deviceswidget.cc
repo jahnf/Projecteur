@@ -68,13 +68,13 @@ QWidget* DevicesWidget::createDevicesWidget(Spotlight* /*spotlight*/)
   vLayout->addWidget(tabWidget);
 
   tabWidget->addTab(createInputMapperWidget(), tr("Input Mapping"));
-  tabWidget->addTab(createDeviceInfoWidget(), tr("Device Info"));
+//  tabWidget->addTab(createDeviceInfoWidget(spotlight), tr("Device Info"));
 
   return dw;
 }
 
 // ------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createDeviceInfoWidget()
+QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
 {
   const auto diWidget = new QWidget(this);
   const auto layout = new QHBoxLayout(diWidget);
@@ -159,3 +159,4 @@ QWidget* DevicesWidget::createDisconnectedStateWidget()
   hbox->addStretch();
   return stateWidget;
 }
+

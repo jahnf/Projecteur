@@ -5,12 +5,17 @@
 
 #include <QWidget>
 
+#include <memory>
+
+class DeviceConnection;
 class Settings;
 class QComboBox;
 
+// -------------------------------------------------------------------------------------------------
 class DevicesWidget : public QWidget
 {
   Q_OBJECT
+
 public:
   explicit DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
   const DeviceId& currentDevice() const;
@@ -23,8 +28,7 @@ private:
   QComboBox* createDeviceComboBox(Spotlight* spotlight);
   QWidget* createDevicesWidget(Spotlight* spotlight);
   QWidget* createInputMapperWidget();
-  QWidget* createDeviceInfoWidget();
+  QWidget* createDeviceInfoWidget(Spotlight* spotlight);
 
   QComboBox* m_devicesCombo = nullptr;
 };
-

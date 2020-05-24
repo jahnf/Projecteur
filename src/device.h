@@ -49,9 +49,7 @@ class DeviceConnection : public QObject
 
 public:
   DeviceConnection(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev);
-
-  using DevicePath = QString;
-  using ConnectionMap = std::map<DevicePath, std::shared_ptr<SubDeviceConnection>>;
+  ~DeviceConnection();
 
   const auto& deviceName() const { return m_deviceName; }
   const auto& deviceId() const { return m_deviceId; }
@@ -67,6 +65,9 @@ signals:
   void subDeviceDisconnected(const DeviceId& id, const QString& path);
 
 protected:
+  using DevicePath = QString;
+  using ConnectionMap = std::map<DevicePath, std::shared_ptr<SubDeviceConnection>>;
+
   DeviceId m_deviceId;
   QString m_deviceName;
   std::shared_ptr<InputMapper> m_inputMapper;
@@ -157,7 +158,6 @@ public:
                                                     const DeviceConnection& dc);
 
   SubEventConnection(Token, const QString& path);
-
   auto& inputBuffer() { return m_inputEventBuffer; }
 
 protected:

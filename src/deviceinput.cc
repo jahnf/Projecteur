@@ -9,7 +9,29 @@
 
 #include <QTimer>
 
+#include <linux/input.h>
+
 LOGGING_CATEGORY(input, "input")
+
+// -------------------------------------------------------------------------------------------------
+DeviceInputEvent::DeviceInputEvent(const struct input_event& ie)
+  : type(ie.type), code(ie.code), value(ie.value) {}
+
+bool DeviceInputEvent::operator==(const DeviceInputEvent& o) const {
+  return std::tie(type,code,value) == std::tie(o.type,o.code,o.value);
+}
+
+bool DeviceInputEvent::operator==(const input_event& o) const {
+  return std::tie(type,code,value) == std::tie(o.type,o.code,o.value);
+}
+
+bool DeviceInputEvent::operator<(const DeviceInputEvent& o) const {
+  return std::tie(type,code,value) < std::tie(o.type,o.code,o.value);
+}
+
+bool DeviceInputEvent::operator<(const input_event& o) const {
+  return std::tie(type,code,value) < std::tie(o.type,o.code,o.value);
+}
 
 // -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &d)
@@ -62,7 +84,7 @@ namespace  {
       Miss, Valid, Hit, AmbigiouslyHit
     };
 
-    Result feed(struct input_event input_events[], size_t num);
+    Result feed(const struct input_event input_events[], size_t num);
 
     auto state() const { return m_pos; }
     void resetState();
@@ -76,7 +98,7 @@ namespace  {
 }
 
 // -------------------------------------------------------------------------------------------------
-DeviceKeyMap::Result DeviceKeyMap::feed(struct input_event input_events[], size_t num)
+DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[], size_t num)
 {
   if (!hasConfig()) return Result::Miss;
 
@@ -163,10 +185,18 @@ void DeviceKeyMap::reconfigure(const std::vector<KeyEventSequence>& kesv)
 }
 
 // -------------------------------------------------------------------------------------------------
-struct InputMapper::Impl {
-  Impl(std::shared_ptr<VirtualDevice> vdev) : m_vdev(std::move(vdev)) {}
+// -------------------------------------------------------------------------------------------------
+struct InputMapper::Impl
+{
+  Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev);
 
+  void sequenceTimeout();
+  void resetState();
+  void record(const struct input_event input_events[], size_t num);
+
+  InputMapper* m_parent = nullptr;
   std::shared_ptr<VirtualDevice> m_vdev; // can be a nullptr if application is started without uinput
+  QTimer* m_seqTimer = nullptr;
   DeviceKeyMap m_keymap;
 
   std::pair<DeviceKeyMap::Result, const RefPair*> m_lastState;
@@ -175,18 +205,92 @@ struct InputMapper::Impl {
 };
 
 // -------------------------------------------------------------------------------------------------
-InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent)
-  : QObject(parent)
-  , impl(std::make_unique<Impl>(Impl(virtualDevice)))
-  , m_seqTimer(new QTimer(this))
+InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev)
+  : m_parent(parent)
+  , m_vdev(std::move(vdev))
+  , m_seqTimer(new QTimer(parent))
 {
-//  std::vector<KeyEventSequence> keysequences;
-//  impl->m_keymap.reconfigure(keysequences);
-
   m_seqTimer->setSingleShot(true);
   m_seqTimer->setInterval(200); // TODO make interval configurable
+  connect(m_seqTimer, &QTimer::timeout, parent, [this](){ sequenceTimeout(); });
+}
 
-  connect(m_seqTimer, &QTimer::timeout, this, &InputMapper::sequenceTimeout);
+// -------------------------------------------------------------------------------------------------
+void InputMapper::Impl::sequenceTimeout()
+{
+  if(m_recordingMode)
+  {
+    emit m_parent->recordingFinished();
+    return;
+  }
+
+  if (m_lastState.first == DeviceKeyMap::Result::Valid) {
+    // last input event was part of a valid key sequence, but timeout hit...
+    if (m_vdev && m_events.size())
+    {
+      m_vdev->emitEvents(m_events);
+      m_events.resize(0);
+    }
+    m_keymap.resetState();
+  }
+  else if (m_lastState.first == DeviceKeyMap::Result::AmbigiouslyHit) {
+    // Last input could have triggered an action, but we needed to wait for the timeout, since
+    // other sequences could have been possible.
+    // TODO trigger actions(s) / inject mapped key(s)
+    resetState();
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::Impl::resetState()
+{
+  m_keymap.resetState();
+  m_events.resize(0);
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::Impl::record(const struct input_event input_events[], size_t num)
+{
+  if (input_events[num-1].type != EV_SYN) {
+    logWarning(input) << tr("Input mapper expects events seperated by SYN event.");
+    return;
+  } else if (num == 1) {
+    logWarning(input) << tr("Ignoring single SYN event received.");
+    return;
+  }
+
+  size_t startpos = 0;
+
+  // For mouse button press ignore MSC_SCAN events
+  if (input_events[num-2].type == EV_KEY
+      && (input_events[num-2].code == BTN_LEFT
+          || input_events[num-2].code == BTN_RIGHT
+          || input_events[num-2].code == BTN_MIDDLE)
+      && input_events[0].type == EV_MSC && input_events[0].code == MSC_SCAN)
+  {
+    ++startpos;
+    if (num - (startpos+1) <= 0) {
+      logWarning(input) << tr("No key event after stripping SYN and MSC event.");
+      return;
+    }
+  }
+
+  const auto ev = KeyEvent(input_events + startpos, input_events + num);
+
+  if (!m_seqTimer->isActive()) {
+    emit m_parent->recordingStarted();
+  }
+  m_seqTimer->start();
+  emit m_parent->keyEventRecorded(ev);
+}
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent)
+  : QObject(parent)
+  , impl(std::make_unique<Impl>(this, std::move(virtualDevice)))
+{
+
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -213,40 +317,27 @@ void InputMapper::setRecordingMode(bool recording)
     return;
 
   impl->m_recordingMode = recording;
+  impl->m_seqTimer->stop();
+  resetState();
   emit recordingModeChanged(impl->m_recordingMode);
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputMapper::sequenceTimeout()
+void InputMapper::addEvents(const struct input_event input_events[], size_t num)
 {
-  if (impl->m_lastState.first == DeviceKeyMap::Result::Valid) {
-    // last input event was part of a valid key sequence, but timeout hit...
-    if (impl->m_vdev && impl->m_events.size())
-    {
-      impl->m_vdev->emitEvents(impl->m_events);
-      impl->m_events.resize(0);
-    }
-    impl->m_keymap.resetState();
-  }
-  else if (impl->m_lastState.first == DeviceKeyMap::Result::AmbigiouslyHit) {
-    // Last input could have triggered an action, but we needed to wait for the timeout, since
-    // other sequences could have been possible.
-    // TODO trigger actions(s) / inject mapped key(s)
-    resetState();
-  }
-}
+  if (num == 0) return;
 
-// -------------------------------------------------------------------------------------------------
-void InputMapper::addEvents(struct input_event input_events[], size_t num)
-{
-  if (num == 0) {
+  if (impl->m_recordingMode)
+  {
+    impl->record(input_events, num);
     return;
   }
 
+  // If no key mapping is configured ...
   if (!impl->m_keymap.hasConfig()) {
-    if (impl->m_vdev) {
+    if (impl->m_vdev) { // ... forward events to virtual device if it exists...
       impl->m_vdev->emitEvents(input_events, num);
-    }
+    } // ... end return
     return;
   }
 
@@ -262,7 +353,7 @@ void InputMapper::addEvents(struct input_event input_events[], size_t num)
 
   if (res == DeviceKeyMap::Result::Miss)
   { // key sequence miss, send all buffered events so far + current event
-    m_seqTimer->stop();
+    impl->m_seqTimer->stop();
     if (impl->m_vdev)
     {
       if (impl->m_events.size()) {
@@ -276,7 +367,7 @@ void InputMapper::addEvents(struct input_event input_events[], size_t num)
   else if (res == DeviceKeyMap::Result::Valid)
   { // KeyEvent is part of valid key sequence.
     impl->m_lastState = std::make_pair(res, impl->m_keymap.state());
-    m_seqTimer->start();
+    impl->m_seqTimer->start();
     if (impl->m_vdev) {
       impl->m_events.reserve(impl->m_events.size() + num);
       std::copy(input_events, input_events + num, std::back_inserter(impl->m_events));
@@ -284,7 +375,7 @@ void InputMapper::addEvents(struct input_event input_events[], size_t num)
   }
   else if (res == DeviceKeyMap::Result::Hit)
   { // Found a valid key sequence
-    m_seqTimer->stop();
+    impl->m_seqTimer->stop();
     if (impl->m_vdev)
     {
       if (impl->m_events.size()) {
@@ -299,7 +390,7 @@ void InputMapper::addEvents(struct input_event input_events[], size_t num)
   else if (res == DeviceKeyMap::Result::AmbigiouslyHit)
   { // Found a valid key sequence, but are still more valid sequences possible -> start timer
     impl->m_lastState = std::make_pair(res, impl->m_keymap.state());
-    m_seqTimer->start();
+    impl->m_seqTimer->start();
     if (impl->m_vdev) {
       impl->m_events.reserve(impl->m_events.size() + num);
       std::copy(input_events, input_events + num, std::back_inserter(impl->m_events));
@@ -310,6 +401,5 @@ void InputMapper::addEvents(struct input_event input_events[], size_t num)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::resetState()
 {
-  impl->m_keymap.resetState();
-  impl->m_events.resize(0);
+  impl->resetState();
 }

@@ -17,14 +17,15 @@ LOGGING_CATEGORY(device, "device")
 namespace  {
   // -----------------------------------------------------------------------------------------------
   static auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
-
 }
-
 
 // -------------------------------------------------------------------------------------------------
 DeviceConnection::DeviceConnection(const DeviceId& id, const QString& name,
                                    std::shared_ptr<VirtualDevice> vdev)
   : m_deviceId(id), m_deviceName(name), m_inputMapper(std::make_shared<InputMapper>(std::move(vdev))){}
+
+// -------------------------------------------------------------------------------------------------
+DeviceConnection::~DeviceConnection() = default;
 
 // -------------------------------------------------------------------------------------------------
 bool DeviceConnection::hasSubDevice(const QString& path) const

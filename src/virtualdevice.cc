@@ -108,7 +108,7 @@ void VirtualDevice::emitEvent(struct input_event ie)
   }
 }
 
-void VirtualDevice::emitEvents(struct input_event input_events[], size_t num)
+void VirtualDevice::emitEvents(const struct input_event input_events[], size_t num)
 {
   if (const ssize_t sz = sizeof(input_event) * num) {
     const auto bytesWritten = write(m_uinpFd, input_events, sz);
