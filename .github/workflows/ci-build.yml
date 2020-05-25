@@ -89,7 +89,7 @@ jobs:
 
     # Remove 'refs/heads/' from github.ref string.
     - run: |
-        ghref="${{ github.ref}}"
+        ghref="${{ github.ref }}"
         branch_name=${ghref:11} 
         echo "::set-env name=branch_name::${branch_name}"
 
@@ -109,7 +109,7 @@ jobs:
         echo "::set-env name=upload_src_pkg::${{ true }}"
 
     - name: Upload source-pkg to Bintray
-      if:  env.upload_src_pkg
+      if: ${{ env.upload_src_pkg }}
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.src_pkg_artifact }}
@@ -124,7 +124,7 @@ jobs:
         publish: 1
   
     - name: Upload binary package to Bintray
-      if: env.upload_bin_pkg
+      if: ${{ env.upload_bin_pkg }}
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.dist_pkg_artifact }}
