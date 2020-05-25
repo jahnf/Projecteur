@@ -185,7 +185,7 @@ jobs:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }} 
         CLOUDSMITH_REPO: ${{ env.cloudsmith_upload_repo }}
       run: |
-        echo Uploading for ${DISTRO} - ${PKG_TYPE}
+        echo Uploading for ${DISTRO} - ${PKG_TYPE}: ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO}
         cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
           ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.src_pkg_artifact }} 
 
