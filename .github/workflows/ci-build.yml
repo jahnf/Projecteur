@@ -39,7 +39,7 @@ jobs:
       run: | 
         pip install --upgrade wheel 
         pip install --upgrade cloudsmith-cli
-        find /usr -iname "cloudsmith*"
+        pip show cloudsmith-cli
         cloudsmith --help
 
     - uses: actions/checkout@v1
