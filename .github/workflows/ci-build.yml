@@ -39,7 +39,7 @@ jobs:
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: docker create build container
-      run: docker run --name build --env TRAVIS_BRANCH=${GITHUB_REF/refs\/heads\//} -d -v `pwd`:/source:ro -t ${DOCKER_IMG}:${{ matrix.docker_tag }}
+      run: docker run --name build --env MAKEFLAGS=${MAKEFLAGS} --env TRAVIS_BRANCH=${GITHUB_REF/refs\/heads\//} -d -v `pwd`:/source:ro -t ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: cmake configuration
       run: docker exec build /bin/bash -c "mkdir -p /build/dist-pkg && cd /build && cmake /source"
     - name: cmake build
@@ -107,7 +107,8 @@ jobs:
     
     - name: Install cloudsmith-cli
       run: | 
-        pip install --upgrade wheel cloudsmith-cli
+        pip install --upgrade wheel 
+        pip install --upgrade cloudsmith-cli
         cloudsmith --help
 
     - name: Check for source pkg upload conditions
