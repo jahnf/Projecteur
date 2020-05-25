@@ -19,11 +19,11 @@ jobs:
         #- fedora-31
         - fedora-32
         #- debian-stretch
-        #- debian-buster
+        - debian-buster
         - ubuntu-18.04
         - ubuntu-20.04
         - opensuse-15.0
-        #- opensuse-15.1
+        - opensuse-15.1
         #- centos-8
         os: 
         - ubuntu-latest
