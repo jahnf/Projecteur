@@ -32,6 +32,7 @@ jobs:
     env:
       DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
+      MAKEFLAGS: -j2
 
     steps:
     - uses: actions/checkout@v1
@@ -106,7 +107,7 @@ jobs:
     
     - name: Install cloudsmith-cli
       run: | 
-        pip install --upgrade cloudsmith-cli
+        pip install --upgrade wheel cloudsmith-cli
         cloudsmith --help
 
     - name: Check for source pkg upload conditions
