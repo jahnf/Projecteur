@@ -80,20 +80,36 @@ jobs:
         dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
         echo "::set-env name=dist_pkg_artifact::${dist_pkg_artifact}"
     
-    # Remove 'refs/heads/' from github.ref string.
-    - run: |
-        ghref="${{ github.ref}}"
-        branch_name=${ghref:11} 
-        echo "::set-env name=branch_name::${branch_name}"
-        
+    # always upload artifacts to github-actions
     - name: Upload artifacts to github
       uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.docker_tag }}-package
         path: ${{ env.dist_pkg_artifact }}
-  
+
+    # Remove 'refs/heads/' from github.ref string.
+    - run: |
+        ghref="${{ github.ref}}"
+        branch_name=${ghref:11} 
+        echo "::set-env name=branch_name::${branch_name}"
+
+    - name: Set environment defaults
+      run: |
+        echo "::set-env name=upload_bin_pkg::${{ false }}"
+        echo "::set-env name=upload_src_pkg::${{ false }}"
+
+    - name: Check for binary pkg upload conditions
+      if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+      run: |
+        echo "::set-env name=upload_bin_pkg::${{ true }}"
+
+    - name: Check for source pkg upload conditions
+      if: env.upload_bin_pkg && startsWith(matrix.docker_tag, 'archlinux')
+      run: |
+        echo "::set-env name=upload_src_pkg::${{ true }}"
+
     - name: Upload source-pkg to Bintray
-      if:  startsWith(matrix.docker_tag, 'archlinux') && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+      if:  env.upload_src_pkg
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.src_pkg_artifact }}
@@ -108,7 +124,7 @@ jobs:
         publish: 1
   
     - name: Upload binary package to Bintray
-      if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+      if: env.upload_bin_pkg
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.dist_pkg_artifact }}
