@@ -48,7 +48,7 @@ jobs:
     # ---------- Checkout and build inside docker container ----------
     - uses: actions/checkout@v1
     - run: |
-        export BRANCH=`git rev-parse --abbrev-ref HEAD`
+        export BRANCH=${GITHUB_REF/refs\/heads\//}
         echo "::set-env name=BRANCH::${BRANCH}"
         
     - name: Pull ${{ matrix.docker_tag }} docker image
