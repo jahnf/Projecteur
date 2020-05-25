@@ -180,7 +180,7 @@ jobs:
         echo "::set-env name=REPO_UPLOAD::${REPO_UPLOAD}"
         
     - name: Linux repo upload on cloudsmith for ${{ env.DISTRO }}
-      if: ${{ REPO_UPLOAD }}
+      if: ${{ env.REPO_UPLOAD }}
       run: echo Uploading for ${DISTRO} , ${PKG_TYPE} 
 
     # ===================================================================================
