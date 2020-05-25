@@ -32,20 +32,12 @@ jobs:
     env:
       DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
-      MAKEFLAGS: -j3
+      MAKEFLAGS: -j2
 
     steps:
     - run: |
         export LOCAL_BIN=~/.local/bin
         echo "::set-env name=PATH::${PATH}:${LOCAL_BIN}"
-
-    - name: Install cloudsmith-cli
-      run: | 
-        pip install --upgrade wheel 
-        pip install --upgrade cloudsmith-cli
-        pip show cloudsmith-cli
-        ls -alh ~/.local/bin
-        cloudsmith --help
 
     - uses: actions/checkout@v1
     - name: Pull ${{ matrix.docker_tag }} docker image
@@ -116,6 +108,13 @@ jobs:
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
         echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
+        pip install --upgrade wheel 
+        pip install --upgrade cloudsmith-cli
+    
+    - name: Install...
+      run: |
+        pip install --upgrade wheel 
+        pip install --upgrade cloudsmith-cli
     
     - name: Check for source pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
