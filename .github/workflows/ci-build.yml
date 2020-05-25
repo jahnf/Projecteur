@@ -35,6 +35,13 @@ jobs:
       MAKEFLAGS: -j3
 
     steps:
+    - name: Install cloudsmith-cli
+      run: | 
+        pip install --upgrade wheel 
+        pip install --upgrade cloudsmith-cli
+        find /usr -iname "cloudsmith*"
+        cloudsmith --help
+
     - uses: actions/checkout@v1
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
@@ -105,12 +112,6 @@ jobs:
         echo "::set-env name=upload_bin_pkg::${{ true }}"
         echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
     
-    - name: Install cloudsmith-cli
-      run: | 
-        pip install --upgrade wheel 
-        pip install --upgrade cloudsmith-cli
-        cloudsmith-cli --help
-
     - name: Check for source pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
       run: |
