@@ -102,9 +102,10 @@ jobs:
       if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
+        echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
 
     - name: Check for source pkg upload conditions
-      if: env.upload_bin_pkg && startsWith(matrix.docker_tag, 'archlinux')
+      if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
       run: |
         echo "::set-env name=upload_src_pkg::${{ true }}"
 
@@ -117,7 +118,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: projecteur-${{ env.branch_name }}
+        package: ${{ env.bintray_upload_pkg }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
         calculate_metadata: false
@@ -132,7 +133,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: projecteur-${{ env.branch_name }}
+        package: ${{ env.bintray_upload_pkg }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
         calculate_metadata: false
