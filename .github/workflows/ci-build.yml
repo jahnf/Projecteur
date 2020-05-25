@@ -33,9 +33,12 @@ jobs:
       DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
       MAKEFLAGS: -j3
-      PATH: ${{ env.PATH }}:~/.local/bin
 
     steps:
+    - run: |
+        export LOCAL_BIN=~/.local/bin
+        echo "::set-env name=PATH::${PATH}:${LOCAL_BIN}"
+
     - name: Install cloudsmith-cli
       run: | 
         pip install --upgrade wheel 
