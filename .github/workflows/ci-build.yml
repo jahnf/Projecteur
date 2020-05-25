@@ -14,17 +14,17 @@ jobs:
     strategy:
       matrix:
         docker_tag: 
-        - archlinux
-        - fedora-30
-        - fedora-31
-        - fedora-32
-        - debian-stretch
-        - debian-buster
+        #- archlinux
+        #- fedora-30
+        #- fedora-31
+        #- fedora-32
+        #- debian-stretch
+        #- debian-buster
         - ubuntu-18.04
         - ubuntu-20.04
-        - opensuse-15.0
-        - opensuse-15.1
-        - centos-8
+        #- opensuse-15.0
+        #- opensuse-15.1
+        #- centos-8
         os: 
         - ubuntu-latest
 
@@ -99,17 +99,21 @@ jobs:
         echo "::set-env name=upload_src_pkg::${{ false }}"
 
     - name: Check for binary pkg upload conditions
-      #if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+      if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
         echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
-        echo "::set-env name=bintray_upload_pkg::projecteur-develop"
+    
+    - name: Install cloudsmith-cli
+      run: | 
+        pip install --upgrade cloudsmith-cli
+        cloudsmith --help
 
     - name: Check for source pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
       run: |
         echo "::set-env name=upload_src_pkg::${{ true }}"
-
+      
     - name: Upload source-pkg to Bintray
       if: env.upload_src_pkg == 'true'
       uses: bpicode/github-action-upload-bintray@master
