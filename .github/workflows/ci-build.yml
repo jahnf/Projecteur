@@ -33,6 +33,7 @@ jobs:
       DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
       MAKEFLAGS: -j2
+      CLOUDSMITH_USER: jahnf
 
     steps:
     - run: |
@@ -108,21 +109,31 @@ jobs:
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
         echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
+        echo "::set-env name=cloudsmith_upload_repo::projecteur-${{ env.branch_name }}"
         pip install --upgrade wheel 
         pip install --upgrade cloudsmith-cli
     
+    - run: echo "::set-env name=cloudsmith_upload_repo::projecteur-develop"
+    #- if: github.ref == 'refs/heads/master'
+    - if: github.ref == 'refs/heads/feature/cloudsmith-upload'
+      run: echo "::set-env name=cloudsmith_upload_repo::projecteur-stable"
+
     - name: Install...
       run: |
         pip install --upgrade wheel 
         pip install --upgrade cloudsmith-cli
     
     - name: Upload raw binary-pkg to cloudsmith
+      #if:
       env:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }} 
-      #if:
+        CLOUDSMITH_REPO: ${{ env.cloudsmith_upload_repo }}
+        CLOUDSMITH_SUMMARY: ci-build of version ${{ env.projecteur_version }} from ${{ github.ref }}
+        CLOUDSMITH_DESC: Visit https://github.com/jahnf/Projecteur
       run: |
         cloudsmith push raw -W -k ${CLOUDSMITH_API_KEY} --name ${{ matrix.docker_tag }} --republish \
-        --version ${{ env.projecteur_version }} jahnf/projecteur-develop ${{ env.dist_pkg_artifact }}
+          --version ${{ env.projecteur_version }} ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO} \
+          --summary "${CLOUDSMITH_SUMMARY}" --description "${CLOUDSMITH_DESC}" ${{ env.dist_pkg_artifact }}
     
     - name: Check for source pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
