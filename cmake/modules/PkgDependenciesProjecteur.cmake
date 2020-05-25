@@ -2,7 +2,7 @@ list(APPEND _PkgDeps_Projecteur_opensuse
   "libqt5-qtgraphicaleffects >= 5.7"
   "libQt5Widgets5 >= 5.7"
   "libQt5X11Extras5 >= 5.7"
-  "libQt5DBus >= 5.7"
+  "libQt5DBus5 >= 5.7"
   "shadow"
   "udev"
 )
