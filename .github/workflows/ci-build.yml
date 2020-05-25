@@ -33,6 +33,7 @@ jobs:
       DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
       MAKEFLAGS: -j3
+      PATH: ${{ env.PATH }}:~/.local/bin
 
     steps:
     - name: Install cloudsmith-cli
