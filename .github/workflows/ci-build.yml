@@ -124,7 +124,7 @@ jobs:
         publish: 1
   
     - name: Upload binary package to Bintray
-      if: ${{ env.upload_bin_pkg }} == 'true'
+      if: env.upload_bin_pkg == 'true'
       uses: bpicode/github-action-upload-bintray@master
       with:
         file: ${{ env.dist_pkg_artifact }}
