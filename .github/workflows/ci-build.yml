@@ -187,7 +187,7 @@ jobs:
       run: |
         echo Uploading for ${DISTRO} - ${PKG_TYPE}: ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO}
         cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
-          ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.src_pkg_artifact }} 
+          ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.dist_pkg_artifact }} 
 
     # ===================================================================================
     # ---------- Upload artifacts to bintray ----------
