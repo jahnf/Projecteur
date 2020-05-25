@@ -32,7 +32,7 @@ jobs:
     env:
       DOCKER_IMG: jahnf/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
-      MAKEFLAGS: -j2
+      MAKEFLAGS: -j3
 
     steps:
     - uses: actions/checkout@v1
@@ -109,7 +109,7 @@ jobs:
       run: | 
         pip install --upgrade wheel 
         pip install --upgrade cloudsmith-cli
-        cloudsmith --help
+        cloudsmith-cli --help
 
     - name: Check for source pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
