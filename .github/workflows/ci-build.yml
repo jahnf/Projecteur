@@ -99,10 +99,11 @@ jobs:
         echo "::set-env name=upload_src_pkg::${{ false }}"
 
     - name: Check for binary pkg upload conditions
-      if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+      #if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
         echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
+        echo "::set-env name=bintray_upload_pkg::projecteur-develop"
 
     - name: Check for source pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
