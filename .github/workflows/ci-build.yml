@@ -47,12 +47,16 @@ jobs:
     # ===================================================================================
     # ---------- Checkout and build inside docker container ----------
     - uses: actions/checkout@v1
+    - run: |
+        export BRANCH=`git rev-parse --abbrev-ref HEAD
+        echo "::set-env name=BRANCH::${BRANCH}"
+        
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: docker create build container
       run: |
         docker run --name build --env MAKEFLAGS=${MAKEFLAGS} \
-          --env TRAVIS_BRANCH=${GITHUB_REF/refs\/heads\//} \
+          --env TRAVIS_BRANCH=${BRANCH} \
           -d -v `pwd`:/source:ro -t ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: cmake configuration
       run: docker exec build /bin/bash -c "mkdir -p /build/dist-pkg && cd /build && cmake /source"
@@ -112,16 +116,13 @@ jobs:
       run: |
         echo "::set-env name=upload_bin_pkg::${{ false }}"
         echo "::set-env name=upload_src_pkg::${{ false }}"
-        ghref="${{ github.ref }}"
-        branch_name=${ghref:11} 
-        echo "::set-env name=branch_name::${branch_name}"
         echo "::set-env name=cloudsmith_upload_repo::projecteur-develop"
 
     - name: Check for binary-pkg upload conditions
-      if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+      if: env.BRANCH == 'develop' || env.BRANCH == 'master'
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
-        echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.branch_name }}"
+        echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.BRANCH }}"
         pip install --upgrade wheel 
         pip install --upgrade cloudsmith-cli
 
@@ -130,7 +131,7 @@ jobs:
       run: |
         echo "::set-env name=upload_src_pkg::${{ true }}"
 
-    - if: github.ref == 'refs/heads/master'
+    - if: env.BRANCH == 'master'
       run: echo "::set-env name=cloudsmith_upload_repo::projecteur-stable"
 
     # ===================================================================================
@@ -172,6 +173,15 @@ jobs:
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
         echo DISTRO=$DISTRO
+        echo "::set-env name=PKG_TYPE::${PKG_TYPE}"
+        echo "::set-env name=DISTRO::${DISTRO}"
+        if [ -z ${DISTRO} ] || [ -z ${PKG_TYPE} ]; then \
+          export REPO_UPLOAD=0; else export REPO_UPLOAD=1; fi;
+        echo "::set-env name=REPO_UPLOAD::${REPO_UPLOAD}"
+        
+    - name: Linux repo upload on cloudsmith for ${{ env.DISTRO }}
+      if: ${{ REPO_UPLOAD }}
+      run: echo Uploading for ${DISTRO} , ${PKG_TYPE} 
 
     # ===================================================================================
     # ---------- Upload artifacts to bintray ----------
@@ -186,7 +196,7 @@ jobs:
         repository: Projecteur
         package: ${{ env.bintray_upload_pkg }}
         version: ${{ env.projecteur_version }}
-        upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
+        upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
         publish: 1
   
@@ -201,7 +211,7 @@ jobs:
         repository: Projecteur
         package: ${{ env.bintray_upload_pkg }}
         version: ${{ env.projecteur_version }}
-        upload_path: packages/branches/${{ env.branch_name }}/${{ env.projecteur_version }}
+        upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
         publish: 1
   
