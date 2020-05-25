@@ -176,12 +176,15 @@ jobs:
         echo "::set-env name=PKG_TYPE::${PKG_TYPE}"
         echo "::set-env name=DISTRO::${DISTRO}"
         if [ -z ${DISTRO} ] || [ -z ${PKG_TYPE} ]; then \
-          export REPO_UPLOAD=0; else export REPO_UPLOAD=1; fi;
+          export REPO_UPLOAD=false; else export REPO_UPLOAD=true; fi;
         echo "::set-env name=REPO_UPLOAD::${REPO_UPLOAD}"
         
     - name: Linux repo upload on cloudsmith for ${{ env.DISTRO }}
-      if: ${{ env.REPO_UPLOAD }}
-      run: echo Uploading for ${DISTRO} , ${PKG_TYPE} 
+      if: env.REPO_UPLOAD == 'true'
+      run: |
+        echo Uploading for ${DISTRO} - ${PKG_TYPE}
+        cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
+          ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.src_pkg_artifact }} 
 
     # ===================================================================================
     # ---------- Upload artifacts to bintray ----------
