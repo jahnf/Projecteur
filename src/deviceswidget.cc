@@ -121,10 +121,10 @@ QWidget* DevicesWidget::createInputMapperWidget(Spotlight* spotlight)
       connect(m_inputMapper, &InputMapper::recordingFinished, this, [](){
         //qDebug() << "Recording finished...";
       });
-      connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [](bool r){
+      connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [](bool /*r*/){
         //qDebug() << "Recording mode... " << r;
       });
-      connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [](const KeyEvent& ke){
+      connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [](const KeyEvent& /*ke*/){
         //qDebug() << "Recorded... " << ke;
       });
     }

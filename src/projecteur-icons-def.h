@@ -6,6 +6,8 @@
 namespace Font
 {
   enum Icon {
+    arrow_73 = 0xf10b, // svg/iconmonstr-arrow-73.svg
+    arrow_74 = 0xf10c, // svg/iconmonstr-arrow-74.svg
     battery_3 = 0xf100, // svg/iconmonstr-battery-3.svg
     battery_4 = 0xf101, // svg/iconmonstr-battery-4.svg
     battery_5 = 0xf102, // svg/iconmonstr-battery-5.svg

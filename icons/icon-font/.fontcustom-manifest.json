@@ -1,0 +1,100 @@
+{
+  "checksum": {
+    "previous": "91764cdb51d5417b2e9114a5b7e0130a76733519eac15eb940d42e399758d7f8",
+    "current": "91764cdb51d5417b2e9114a5b7e0130a76733519eac15eb940d42e399758d7f8"
+  },
+  "fonts": [
+    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.ttf",
+    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.svg",
+    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.woff",
+    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.eot",
+    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.woff2"
+  ],
+  "glyphs": {
+    "iconmonstr-arrow-73": {
+      "codepoint": 61707,
+      "source": "svg/iconmonstr-arrow-73.svg"
+    },
+    "iconmonstr-arrow-74": {
+      "codepoint": 61708,
+      "source": "svg/iconmonstr-arrow-74.svg"
+    },
+    "iconmonstr-battery-3": {
+      "codepoint": 61696,
+      "source": "svg/iconmonstr-battery-3.svg"
+    },
+    "iconmonstr-battery-4": {
+      "codepoint": 61697,
+      "source": "svg/iconmonstr-battery-4.svg"
+    },
+    "iconmonstr-battery-5": {
+      "codepoint": 61698,
+      "source": "svg/iconmonstr-battery-5.svg"
+    },
+    "iconmonstr-battery-6": {
+      "codepoint": 61699,
+      "source": "svg/iconmonstr-battery-6.svg"
+    },
+    "iconmonstr-battery-7": {
+      "codepoint": 61700,
+      "source": "svg/iconmonstr-battery-7.svg"
+    },
+    "iconmonstr-control-panel-9": {
+      "codepoint": 61701,
+      "source": "svg/iconmonstr-control-panel-9.svg"
+    },
+    "iconmonstr-gear-12": {
+      "codepoint": 61702,
+      "source": "svg/iconmonstr-gear-12.svg"
+    },
+    "iconmonstr-plus-5": {
+      "codepoint": 61703,
+      "source": "svg/iconmonstr-plus-5.svg"
+    },
+    "iconmonstr-share-8": {
+      "codepoint": 61704,
+      "source": "svg/iconmonstr-share-8.svg"
+    },
+    "iconmonstr-time-19": {
+      "codepoint": 61705,
+      "source": "svg/iconmonstr-time-19.svg"
+    },
+    "iconmonstr-trash-can-1": {
+      "codepoint": 61706,
+      "source": "svg/iconmonstr-trash-can-1.svg"
+    }
+  },
+  "options": {
+    "autowidth": false,
+    "base64": false,
+    "config": "fontcustom.yml",
+    "copyright": "",
+    "css3": false,
+    "css_selector": ".icon-{{glyph}}",
+    "debug": false,
+    "font_ascent": 448,
+    "font_descent": 64,
+    "font_design_size": 16,
+    "font_em": 512,
+    "font_name": "projecteur-icons",
+    "force": false,
+    "input": {
+      "templates": "templates",
+      "vectors": "svg"
+    },
+    "no_hash": false,
+    "output": {
+      "css": "output/fonts",
+      "fonts": "output/fonts",
+      "preview": "output/fonts"
+    },
+    "preprocessor_path": null,
+    "quiet": false,
+    "templates": [
+      "projecteur-icons-def.h"
+    ]
+  },
+  "templates": [
+    "output/fonts/projecteur-icons-def.h"
+  ]
+}
