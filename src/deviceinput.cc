@@ -251,31 +251,7 @@ void InputMapper::Impl::resetState()
 // -------------------------------------------------------------------------------------------------
 void InputMapper::Impl::record(const struct input_event input_events[], size_t num)
 {
-  if (input_events[num-1].type != EV_SYN) {
-    logWarning(input) << tr("Input mapper expects events seperated by SYN event.");
-    return;
-  } else if (num == 1) {
-    logWarning(input) << tr("Ignoring single SYN event received.");
-    return;
-  }
-
-  size_t startpos = 0;
-
-  // For mouse button press ignore MSC_SCAN events
-  if (input_events[num-2].type == EV_KEY
-      && (input_events[num-2].code == BTN_LEFT
-          || input_events[num-2].code == BTN_RIGHT
-          || input_events[num-2].code == BTN_MIDDLE)
-      && input_events[0].type == EV_MSC && input_events[0].code == MSC_SCAN)
-  {
-    ++startpos;
-    if (num - (startpos+1) <= 0) {
-      logWarning(input) << tr("No key event after stripping SYN and MSC event.");
-      return;
-    }
-  }
-
-  const auto ev = KeyEvent(input_events + startpos, input_events + num);
+  const auto ev = KeyEvent(input_events, input_events + num);
 
   if (!m_seqTimer->isActive()) {
     emit m_parent->recordingStarted();
@@ -316,6 +292,9 @@ void InputMapper::setRecordingMode(bool recording)
   if (impl->m_recordingMode == recording)
     return;
 
+  if (impl->m_recordingMode && impl->m_seqTimer->isActive()) {
+    emit recordingFinished();
+  }
   impl->m_recordingMode = recording;
   impl->m_seqTimer->stop();
   resetState();
@@ -323,18 +302,12 @@ void InputMapper::setRecordingMode(bool recording)
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputMapper::addEvents(const struct input_event input_events[], size_t num)
+void InputMapper::addEvents(const input_event* input_events, size_t num)
 {
   if (num == 0) return;
 
-  if (impl->m_recordingMode)
-  {
-    impl->record(input_events, num);
-    return;
-  }
-
   // If no key mapping is configured ...
-  if (!impl->m_keymap.hasConfig()) {
+  if (!impl->m_recordingMode && !impl->m_keymap.hasConfig()) {
     if (impl->m_vdev) { // ... forward events to virtual device if it exists...
       impl->m_vdev->emitEvents(input_events, num);
     } // ... end return
@@ -346,6 +319,23 @@ void InputMapper::addEvents(const struct input_event input_events[], size_t num)
     return;
   } else if (num == 1) {
     logWarning(input) << tr("Ignoring single SYN event received.");
+    return;
+  }
+
+  // For mouse button press ignore MSC_SCAN events
+  if (num == 3
+      && input_events[1].type == EV_KEY
+      && (input_events[1].code == BTN_LEFT
+          || input_events[1].code == BTN_RIGHT
+          || input_events[1].code == BTN_MIDDLE)
+      && input_events[0].type == EV_MSC && input_events[0].code == MSC_SCAN)
+  {
+    ++input_events; --num;
+  }
+
+  if (impl->m_recordingMode)
+  {
+    impl->record(input_events, num-1); // exclude closing syn event for recording
     return;
   }
 

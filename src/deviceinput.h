@@ -38,6 +38,10 @@ using KeyEvent = std::vector<DeviceInputEvent>;
 using KeyEventSequence = std::vector<KeyEvent>;
 
 // -------------------------------------------------------------------------------------------------
+QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
+QDebug operator<<(QDebug debug, const KeyEvent &ke);
+
+// -------------------------------------------------------------------------------------------------
 class InputMapper : public QObject
 {
   Q_OBJECT

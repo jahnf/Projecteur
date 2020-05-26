@@ -3,6 +3,7 @@
 
 #include "spotlight.h"
 
+#include <QPointer>
 #include <QWidget>
 
 #include <memory>
@@ -10,6 +11,7 @@
 class DeviceConnection;
 class Settings;
 class QComboBox;
+class InputMapper;
 
 // -------------------------------------------------------------------------------------------------
 class DevicesWidget : public QWidget
@@ -18,7 +20,7 @@ class DevicesWidget : public QWidget
 
 public:
   explicit DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
-  const DeviceId& currentDevice() const;
+  const DeviceId currentDeviceId() const;
 
 signals:
   void currentDeviceChanged(const DeviceId&);
@@ -27,8 +29,9 @@ private:
   QWidget* createDisconnectedStateWidget();
   QComboBox* createDeviceComboBox(Spotlight* spotlight);
   QWidget* createDevicesWidget(Spotlight* spotlight);
-  QWidget* createInputMapperWidget();
+  QWidget* createInputMapperWidget(Spotlight* spotlight);
   QWidget* createDeviceInfoWidget(Spotlight* spotlight);
 
   QComboBox* m_devicesCombo = nullptr;
+  QPointer<InputMapper> m_inputMapper;
 };

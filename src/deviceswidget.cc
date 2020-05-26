@@ -1,12 +1,14 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "deviceswidget.h"
 
+#include "deviceinput.h"
 #include "logging.h"
 #include "spotlight.h"
 
 #include <QComboBox>
 #include <QLabel>
 #include <QLayout>
+#include <QPushButton>
 #include <QStackedLayout>
 #include <QStyle>
 #include <QTabWidget>
@@ -45,13 +47,16 @@ DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidg
 }
 
 // ------------------------------------------------------------------------------------------------
-const DeviceId& DevicesWidget::currentDevice() const
+const DeviceId DevicesWidget::currentDeviceId() const
 {
-  return invalidDeviceId;
+  if (m_devicesCombo->currentIndex() < 0)
+    return invalidDeviceId;
+
+  return qvariant_cast<DeviceId>(m_devicesCombo->currentData());
 }
 
 // ------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createDevicesWidget(Spotlight* /*spotlight*/)
+QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight)
 {
   const auto dw = new QWidget(this);
   const auto vLayout = new QVBoxLayout(dw);
@@ -67,7 +72,7 @@ QWidget* DevicesWidget::createDevicesWidget(Spotlight* /*spotlight*/)
   const auto tabWidget = new QTabWidget(dw);
   vLayout->addWidget(tabWidget);
 
-  tabWidget->addTab(createInputMapperWidget(), tr("Input Mapping"));
+  tabWidget->addTab(createInputMapperWidget(spotlight), tr("Input Mapping"));
 //  tabWidget->addTab(createDeviceInfoWidget(spotlight), tr("Device Info"));
 
   return dw;
@@ -86,12 +91,54 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
 }
 
 // ------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createInputMapperWidget()
+QWidget* DevicesWidget::createInputMapperWidget(Spotlight* spotlight)
 {
   const auto imWidget = new QWidget(this);
   const auto layout = new QHBoxLayout(imWidget);
+
+  const auto recordTglBtn = new QPushButton(tr("Record"), this);
+  recordTglBtn->setCheckable(true);
+
+  auto connectInputMapper = [recordTglBtn, spotlight, this](const DeviceId& devId){
+    const auto devConn = spotlight->deviceConnection(devId);
+    if (m_inputMapper) {
+      m_inputMapper->setRecordingMode(false);
+      recordTglBtn->disconnect(m_inputMapper);
+      m_inputMapper->disconnect(recordTglBtn);
+      m_inputMapper->disconnect(this);
+      recordTglBtn->disconnect(this);
+      recordTglBtn->setChecked(false);
+    }
+
+    m_inputMapper = devConn ? devConn->inputMapper().get() : nullptr;
+    recordTglBtn->setEnabled(m_inputMapper);
+    if (m_inputMapper) {
+      qDebug() << m_inputMapper;
+      connect(recordTglBtn, &QPushButton::toggled, m_inputMapper, &InputMapper::setRecordingMode);
+      connect(m_inputMapper, &InputMapper::recordingStarted, this, [](){
+        //qDebug() << "Recording started...";
+      });
+      connect(m_inputMapper, &InputMapper::recordingFinished, this, [](){
+        //qDebug() << "Recording finished...";
+      });
+      connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [](bool r){
+        //qDebug() << "Recording mode... " << r;
+      });
+      connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [](const KeyEvent& ke){
+        //qDebug() << "Recorded... " << ke;
+      });
+    }
+  };
+
+  connectInputMapper(currentDeviceId());
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [connectInputMapper=std::move(connectInputMapper)](const DeviceId& devId){
+    connectInputMapper(devId);
+  });
+
   layout->addStretch(1);
   layout->addWidget(new QLabel(tr("Not yet implemented"), this));
+//  layout->addWidget(recordTglBtn);
   layout->addStretch(1);
   imWidget->setDisabled(true);
   return imWidget;

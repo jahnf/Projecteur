@@ -207,16 +207,13 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       const auto &first_ev = buf[0];
       const bool isMouseMoveEvent = first_ev.type == EV_REL
                                     && (first_ev.code == REL_X || first_ev.code == REL_Y);
-      if (isMouseMoveEvent) {
-        if (!connection.inputMapper()->recordingMode()) // skip activation of spot in recording mode
-        {
-          if (!m_activeTimer->isActive()) {
-            m_spotActive = true;
-            emit spotActiveChanged(true);
-          }
-          m_activeTimer->start();
+      if (isMouseMoveEvent)
+      { // Skip input mapping for mouse move events completely
+        if (!m_activeTimer->isActive()) {
+          m_spotActive = true;
+          emit spotActiveChanged(true);
         }
-        // Skip input mapping for mouse move events completely
+        m_activeTimer->start();
         if (m_virtualDevice) m_virtualDevice->emitEvents(buf.data(), buf.pos());
       }
       else
