@@ -16,7 +16,7 @@
 
 DECLARE_LOGGING_CATEGORY(preferences)
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 namespace {
   QString descriptionString(const QString& name, const DeviceId& id) {
     return QString("%1 (%2:%3) [%4]").arg(name).arg(id.vendorId, 4, 16, QChar('0'))
@@ -26,7 +26,7 @@ namespace {
   const auto invalidDeviceId = DeviceId(); // vendorId = 0, productId = 0
 }
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidget* parent)
   : QWidget(parent)
   , m_devicesCombo(createDeviceComboBox(spotlight))
@@ -46,7 +46,7 @@ DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidg
   });
 }
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 const DeviceId DevicesWidget::currentDeviceId() const
 {
   if (m_devicesCombo->currentIndex() < 0)
@@ -55,7 +55,7 @@ const DeviceId DevicesWidget::currentDeviceId() const
   return qvariant_cast<DeviceId>(m_devicesCombo->currentData());
 }
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight)
 {
   const auto dw = new QWidget(this);
@@ -78,7 +78,7 @@ QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight)
   return dw;
 }
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
 {
   const auto diWidget = new QWidget(this);
@@ -90,61 +90,19 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
   return diWidget;
 }
 
-// ------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createInputMapperWidget(Spotlight* spotlight)
+// -------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
 {
   const auto imWidget = new QWidget(this);
   const auto layout = new QHBoxLayout(imWidget);
-
-  const auto recordTglBtn = new QPushButton(tr("Record"), this);
-  recordTglBtn->setCheckable(true);
-
-  auto connectInputMapper = [recordTglBtn, spotlight, this](const DeviceId& devId){
-    const auto devConn = spotlight->deviceConnection(devId);
-    if (m_inputMapper) {
-      m_inputMapper->setRecordingMode(false);
-      recordTglBtn->disconnect(m_inputMapper);
-      m_inputMapper->disconnect(recordTglBtn);
-      m_inputMapper->disconnect(this);
-      recordTglBtn->disconnect(this);
-      recordTglBtn->setChecked(false);
-    }
-
-    m_inputMapper = devConn ? devConn->inputMapper().get() : nullptr;
-    recordTglBtn->setEnabled(m_inputMapper);
-    if (m_inputMapper) {
-      qDebug() << m_inputMapper;
-      connect(recordTglBtn, &QPushButton::toggled, m_inputMapper, &InputMapper::setRecordingMode);
-      connect(m_inputMapper, &InputMapper::recordingStarted, this, [](){
-        //qDebug() << "Recording started...";
-      });
-      connect(m_inputMapper, &InputMapper::recordingFinished, this, [](){
-        //qDebug() << "Recording finished...";
-      });
-      connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [](bool /*r*/){
-        //qDebug() << "Recording mode... " << r;
-      });
-      connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [](const KeyEvent& /*ke*/){
-        //qDebug() << "Recorded... " << ke;
-      });
-    }
-  };
-
-  connectInputMapper(currentDeviceId());
-  connect(this, &DevicesWidget::currentDeviceChanged, this,
-  [connectInputMapper=std::move(connectInputMapper)](const DeviceId& devId){
-    connectInputMapper(devId);
-  });
-
   layout->addStretch(1);
   layout->addWidget(new QLabel(tr("Not yet implemented"), this));
-//  layout->addWidget(recordTglBtn);
   layout->addStretch(1);
   imWidget->setDisabled(true);
   return imWidget;
 }
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
 {
   const auto devicesCombo = new QComboBox(this);
@@ -190,7 +148,7 @@ QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
   return devicesCombo;
 }
 
-// ------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createDisconnectedStateWidget()
 {
   const auto stateWidget = new QWidget(this);
