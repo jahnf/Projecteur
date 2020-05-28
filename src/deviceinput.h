@@ -38,6 +38,11 @@ using KeyEvent = std::vector<DeviceInputEvent>;
 using KeyEventSequence = std::vector<KeyEvent>;
 
 // -------------------------------------------------------------------------------------------------
+QString& operator<<(QString& s, const KeyEventSequence& kes);
+const QString& operator<<(QString&& s, const KeyEventSequence& kes);
+const QString& operator>>(const QString& s, KeyEventSequence& kes);
+
+// -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
 

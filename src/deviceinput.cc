@@ -7,11 +7,17 @@
 #include <map>
 #include <set>
 
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QTimer>
 
 #include <linux/input.h>
 
 LOGGING_CATEGORY(input, "input")
+
+namespace  {
+  // -----------------------------------------------------------------------------------------------
+}
 
 // -------------------------------------------------------------------------------------------------
 DeviceInputEvent::DeviceInputEvent(const struct input_event& ie)
@@ -41,6 +47,7 @@ QDebug operator<<(QDebug debug, const DeviceInputEvent &d)
   return debug;
 }
 
+// -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const KeyEvent &ke)
 {
   QDebugStateSaver saver(debug);
@@ -49,6 +56,59 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke)
     debug.nospace() << e << ',';
   debug.nospace() << "]";
   return debug;
+}
+
+// -------------------------------------------------------------------------------------------------
+QString& operator<<(QString& s, const KeyEventSequence& kes)
+{
+  QJsonArray seqArr;
+  for (const auto& ke : kes)
+  {
+    QJsonArray keArr;
+    for (const auto& die : ke)
+    {
+      QJsonArray dieArr;
+      dieArr.append(die.type);
+      dieArr.append(die.code);
+      dieArr.append(double(die.value));
+      keArr.append(dieArr);
+    }
+    seqArr.append(keArr);
+  }
+
+  return s.append(QJsonDocument(seqArr).toJson(QJsonDocument::JsonFormat::Compact));
+}
+
+// -------------------------------------------------------------------------------------------------
+const QString& operator<<(QString&& s, const KeyEventSequence& kes)
+{
+  return s << kes;
+}
+
+// -------------------------------------------------------------------------------------------------
+const QString& operator>>(const QString& s,  KeyEventSequence& kes)
+{
+  const auto doc = QJsonDocument::fromJson(s.toLocal8Bit());
+  const auto seqArr = doc.array();
+
+  kes.clear();
+  for (const auto& keObj : seqArr)
+  {
+    KeyEvent ke;
+    const auto keArr = keObj.toArray();
+    for (const auto& dieObj : keArr)
+    {
+      const auto dieArr = dieObj.toArray();
+      if (dieArr.size() != 3) continue;
+      ke.emplace_back(DeviceInputEvent{
+                        uint16_t(dieArr[0].toInt()),
+                        uint16_t(dieArr[1].toInt()),
+                        uint32_t(dieArr[2].toDouble())
+                      });
+    }
+    if (!ke.empty()) kes.emplace_back(std::move(ke));
+  }
+  return s;
 }
 
 // -------------------------------------------------------------------------------------------------
