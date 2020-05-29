@@ -27,7 +27,7 @@ signals:
 
 private:
   QWidget* createDisconnectedStateWidget();
-  QComboBox* createDeviceComboBox(Spotlight* spotlight);
+  void createDeviceComboBox(Spotlight* spotlight);
   QWidget* createDevicesWidget(Spotlight* spotlight);
   QWidget* createInputMapperWidget(Spotlight* spotlight);
   QWidget* createDeviceInfoWidget(Spotlight* spotlight);

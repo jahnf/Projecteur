@@ -1,10 +1,12 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
+#include "deviceinput.h"
+
 #include <QWidget>
 
 // -------------------------------------------------------------------------------------------------
-class InputMapper;
+class QStyleOptionFrame;
 
 // -------------------------------------------------------------------------------------------------
 class InputSeqEdit : public QWidget
@@ -12,10 +14,30 @@ class InputSeqEdit : public QWidget
   Q_OBJECT
 
 public:
+  InputSeqEdit(QWidget* parent = nullptr);
   InputSeqEdit(InputMapper* im, QWidget* parent = nullptr);
 
   void setInputMapper(InputMapper* im);
 
+  const KeyEventSequence& inputSequence() const;
+  void setInputSequence(const KeyEventSequence& is);
+
+  void clear();
+
+signals:
+  void inputSequenceChanged(const KeyEventSequence& inputSequence);
+
+protected:
+  void paintEvent(QPaintEvent* e) override;
+  void mouseDoubleClickEvent(QMouseEvent* e) override;
+  void keyPressEvent(QKeyEvent* e) override;
+  void keyReleaseEvent(QKeyEvent* e) override;
+  void focusOutEvent(QFocusEvent* e) override;
+  void initStyleOption(QStyleOptionFrame&) const;
+
 private:
   InputMapper* m_inputMapper = nullptr;
+  KeyEventSequence m_inputSequence;
+  KeyEventSequence m_recordedSequence;
+  uint8_t m_maxRecordingLength = 8; // = 8 KeyEvents, also equals 4 Button Presses (press + release)
 };

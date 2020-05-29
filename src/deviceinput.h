@@ -51,6 +51,9 @@ class InputMapper : public QObject
 {
   Q_OBJECT
 
+  static constexpr int intervalMaxMs = 750;
+  static constexpr int intervalMinMs = 100;
+
 public:
   InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent = nullptr);
   ~InputMapper();
@@ -63,13 +66,18 @@ public:
   bool recordingMode() const;
   void setRecordingMode(bool recording);
 
+  int keyEventInterval() const;
+  void setKeyEventInterval(int interval);
+
   std::shared_ptr<VirtualDevice> virtualDevice() const;
 
 signals:
   void recordingModeChanged(bool recording);
   void keyEventRecorded(const KeyEvent&);
-  void recordingStarted(); // right befor first key event recorded
-  void recordingFinished(); // after key sequence interval timer timout or max sequence length reached
+  // Right befor first key event recorded:
+  void recordingStarted();
+  // After key sequence interval timer timout or max sequence length reached
+  void recordingFinished(bool canceled); // canceled if recordingMode was set to false instead of interval time out
 
 private:
   struct Impl;

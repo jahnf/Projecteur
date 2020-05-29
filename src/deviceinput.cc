@@ -271,7 +271,7 @@ InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev
   , m_seqTimer(new QTimer(parent))
 {
   m_seqTimer->setSingleShot(true);
-  m_seqTimer->setInterval(200); // TODO make interval configurable
+  m_seqTimer->setInterval(250);
   connect(m_seqTimer, &QTimer::timeout, parent, [this](){ sequenceTimeout(); });
 }
 
@@ -280,7 +280,7 @@ void InputMapper::Impl::sequenceTimeout()
 {
   if(m_recordingMode)
   {
-    emit m_parent->recordingFinished();
+    emit m_parent->recordingFinished(false);
     return;
   }
 
@@ -322,11 +322,14 @@ void InputMapper::Impl::record(const struct input_event input_events[], size_t n
 
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
+constexpr int InputMapper::intervalMinMs;
+constexpr int InputMapper::intervalMaxMs;
+
+// -------------------------------------------------------------------------------------------------
 InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent)
   : QObject(parent)
   , impl(std::make_unique<Impl>(this, std::move(virtualDevice)))
 {
-
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -353,12 +356,24 @@ void InputMapper::setRecordingMode(bool recording)
     return;
 
   if (impl->m_recordingMode && impl->m_seqTimer->isActive()) {
-    emit recordingFinished();
+    emit recordingFinished(true);
   }
   impl->m_recordingMode = recording;
   impl->m_seqTimer->stop();
   resetState();
   emit recordingModeChanged(impl->m_recordingMode);
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputMapper::keyEventInterval() const
+{
+  return impl->m_seqTimer->interval();
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::setKeyEventInterval(int interval)
+{
+  impl->m_seqTimer->setInterval(std::min(intervalMaxMs, std::max(intervalMinMs, interval)));
 }
 
 // -------------------------------------------------------------------------------------------------

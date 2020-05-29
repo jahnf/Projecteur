@@ -2,6 +2,7 @@
 #include "deviceswidget.h"
 
 #include "deviceinput.h"
+#include "inputseqedit.h"
 #include "logging.h"
 #include "spotlight.h"
 
@@ -29,8 +30,9 @@ namespace {
 // -------------------------------------------------------------------------------------------------
 DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidget* parent)
   : QWidget(parent)
-  , m_devicesCombo(createDeviceComboBox(spotlight))
 {
+  createDeviceComboBox(spotlight);
+
   const auto stackLayout = new QStackedLayout(this);
   const auto disconnectedWidget = createDisconnectedStateWidget();
   stackLayout->addWidget(disconnectedWidget);
@@ -95,6 +97,12 @@ QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
 {
   const auto imWidget = new QWidget(this);
   const auto layout = new QHBoxLayout(imWidget);
+
+  const auto ise = new InputSeqEdit(m_inputMapper, imWidget);
+  connect(this, &DevicesWidget::currentDeviceChanged, this, [this, ise](){
+    ise->setInputMapper(m_inputMapper);
+  });
+
   layout->addStretch(1);
   layout->addWidget(new QLabel(tr("Not yet implemented"), this));
   layout->addStretch(1);
@@ -103,49 +111,54 @@ QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
 }
 
 // -------------------------------------------------------------------------------------------------
-QComboBox* DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
+void DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
 {
-  const auto devicesCombo = new QComboBox(this);
-  devicesCombo->setToolTip(tr("List of connected devices."));
+  m_devicesCombo = new QComboBox(this);
+  m_devicesCombo->setToolTip(tr("List of connected devices."));
 
   for (const auto& dev : spotlight->connectedDevices()) {
     const auto data = QVariant::fromValue(dev.id);
-    if (devicesCombo->findData(data) < 0) {
-      devicesCombo->addItem(descriptionString(dev.name, dev.id), data);
+    if (m_devicesCombo->findData(data) < 0) {
+      m_devicesCombo->addItem(descriptionString(dev.name, dev.id), data);
     }
   }
 
   connect(spotlight, &Spotlight::deviceDisconnected, this,
-  [devicesCombo](const DeviceId& id, const QString& /*name*/)
+  [this](const DeviceId& id, const QString& /*name*/)
   {
-    const auto idx = devicesCombo->findData(QVariant::fromValue(id));
+    const auto idx = m_devicesCombo->findData(QVariant::fromValue(id));
     if (idx >= 0) {
-      devicesCombo->removeItem(idx);
+      m_devicesCombo->removeItem(idx);
     }
   });
 
   connect(spotlight, &Spotlight::deviceConnected, this,
-  [devicesCombo](const DeviceId& id, const QString& name)
+  [this](const DeviceId& id, const QString& name)
   {
     const auto data = QVariant::fromValue(id);
-    if (devicesCombo->findData(data) < 0) {
-      devicesCombo->addItem(descriptionString(name, id), data);
+    if (m_devicesCombo->findData(data) < 0) {
+      m_devicesCombo->addItem(descriptionString(name, id), data);
     }
   });
 
-  connect(devicesCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
-  [this, devicesCombo](int index)
+  connect(m_devicesCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+  [this, spotlight](int index)
   {
-    if (index < 0) {
+    if (index < 0)
+    {
+      m_inputMapper = nullptr;
       emit currentDeviceChanged(invalidDeviceId);
-      return ;
+      return;
     }
 
-    const auto devId = qvariant_cast<DeviceId>(devicesCombo->itemData(index));
+    const auto devId = qvariant_cast<DeviceId>(m_devicesCombo->itemData(index));
+    const auto currentConn = spotlight->deviceConnection(devId);
+    m_inputMapper = currentConn ? currentConn->inputMapper().get() : nullptr;
     emit currentDeviceChanged(devId);
   });
 
-  return devicesCombo;
+  const auto currentConn = spotlight->deviceConnection(currentDeviceId());
+  m_inputMapper = currentConn ? currentConn->inputMapper().get() : nullptr;
 }
 
 // -------------------------------------------------------------------------------------------------
