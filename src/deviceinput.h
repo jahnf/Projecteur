@@ -36,6 +36,7 @@ using KeyEvent = std::vector<DeviceInputEvent>;
 
 /// KeyEventSequence is a sequence of KeyEvents.
 using KeyEventSequence = std::vector<KeyEvent>;
+Q_DECLARE_METATYPE(KeyEventSequence);
 
 // -------------------------------------------------------------------------------------------------
 QString& operator<<(QString& s, const KeyEventSequence& kes);

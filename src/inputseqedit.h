@@ -3,6 +3,7 @@
 
 #include "deviceinput.h"
 
+#include <QStyledItemDelegate>
 #include <QWidget>
 
 // -------------------------------------------------------------------------------------------------
@@ -26,6 +27,7 @@ public:
 
 signals:
   void inputSequenceChanged(const KeyEventSequence& inputSequence);
+  void editingFinished(InputSeqEdit*);
 
 protected:
   void paintEvent(QPaintEvent* e) override;
@@ -40,4 +42,25 @@ private:
   KeyEventSequence m_inputSequence;
   KeyEventSequence m_recordedSequence;
   uint8_t m_maxRecordingLength = 8; // = 8 KeyEvents, also equals 4 Button Presses (press + release)
+};
+
+
+// -------------------------------------------------------------------------------------------------
+class InputSeqDelegate : public QStyledItemDelegate
+{
+  Q_OBJECT
+
+public:
+  using QStyledItemDelegate::QStyledItemDelegate;
+
+  enum Roles { InputSeqRole = Qt::UserRole + 1 };
+
+  void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  void setEditorData(QWidget* editor, const QModelIndex& index) const override;
+  void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+
+private:
+  void commitAndCloseEditor(InputSeqEdit* editor);
 };

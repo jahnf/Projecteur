@@ -76,6 +76,7 @@ void InputSeqEdit::setInputSequence(const KeyEventSequence& is)
   m_inputSequence = is;
   update();
   emit inputSequenceChanged(m_inputSequence);
+  qDebug() << "new ise = " << m_inputSequence;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -104,8 +105,10 @@ void InputSeqEdit::keyPressEvent(QKeyEvent* e)
   }
   else if (e->key() == Qt::Key_Delete)
   {
-    if (m_inputMapper) m_inputMapper->setRecordingMode(false);
-    setInputSequence(KeyEventSequence{});
+    if (m_inputMapper && m_inputMapper->recordingMode())
+      m_inputMapper->setRecordingMode(false);
+    else
+      setInputSequence(KeyEventSequence{});
     return;
   }
 
@@ -146,29 +149,112 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
     removeIm();
   });
 
-  // TODO connect signals from/to
   connect(m_inputMapper, &InputMapper::recordingStarted, this, [this](){
-    qDebug() << "Recording started...";
+//    qDebug() << "Recording started...";
     m_recordedSequence.clear();
   });
 
   connect(m_inputMapper, &InputMapper::recordingFinished, this, [this](bool canceled){
-    qDebug() << "Recording finished..." << canceled;
+//    qDebug() << "Recording finished..." << canceled;
     m_inputMapper->setRecordingMode(false);
     if (!canceled) setInputSequence(m_recordedSequence);
   });
 
-  connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [this](bool recording){
-    qDebug() << "Recording mode... " << recording;
+  connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [this](bool /*recording*/){
+//    qDebug() << "Recording mode... " << recording;
     update();
+    emit editingFinished(this);
   });
 
   connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [this](const KeyEvent& ke){
-    qDebug() << "Recorded... " << ke;
+//    qDebug() << "Recorded... " << ke;
     m_recordedSequence.push_back(ke);
     if (m_recordedSequence.size() >= m_maxRecordingLength) {
       setInputSequence(m_recordedSequence);
       m_inputMapper->setRecordingMode(false);
     }
   });
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+                             const QModelIndex& index) const
+{
+  if (index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  {
+    //StarRating starRating = qvariant_cast<StarRating>(index.data());
+    //    if (option.state & QStyle::State_Selected)
+    painter->fillRect(option.rect, option.palette.highlight());
+    // TODO paint input seq..
+  }
+  else {
+    QStyledItemDelegate::paint(painter, option, index);
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* InputSeqDelegate::createEditor(QWidget* parent,
+                                        const QStyleOptionViewItem& /*option*/,
+                                        const QModelIndex& index) const
+
+{
+  if (index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  {
+    // TODO set inputmapper!
+    auto *editor = new InputSeqEdit(parent);
+    connect(editor, &InputSeqEdit::editingFinished, this, &InputSeqDelegate::commitAndCloseEditor);
+    return editor;
+  }
+
+  return nullptr;
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::commitAndCloseEditor(InputSeqEdit* editor)
+{
+  emit commitData(editor);
+  emit closeEditor(editor);
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
+{
+  const auto seqEditor = qobject_cast<InputSeqEdit*>(editor);
+  if (seqEditor && index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  {
+    seqEditor->setInputSequence(qvariant_cast<KeyEventSequence>(index.data(InputSeqRole)));
+    // TODO et input mapper if not already set
+    // TODO start recording mode
+  }
+  else {
+    QStyledItemDelegate::setEditorData(editor, index);
+  }
+
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
+                                    const QModelIndex& index) const
+{
+  const auto seqEditor = qobject_cast<InputSeqEdit*>(editor);
+  if (seqEditor && index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  {
+    model->setData(index, QVariant::fromValue(seqEditor->inputSequence()));
+  }
+  else {
+    QStyledItemDelegate::setModelData(editor, model, index);
+  }
+}
+
+QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
+                                 const QModelIndex& index) const
+{
+  if (index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  {
+    // TODO calc size hint from KeyEventSequence.....
+    return QStyledItemDelegate::sizeHint(option, index);
+  }
+  return QStyledItemDelegate::sizeHint(option, index);
 }

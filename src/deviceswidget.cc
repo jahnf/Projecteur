@@ -102,10 +102,12 @@ QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
   connect(this, &DevicesWidget::currentDeviceChanged, this, [this, ise](){
     ise->setInputMapper(m_inputMapper);
   });
+  ise->setVisible(false);
 
-  layout->addStretch(1);
+  layout->addStretch();
   layout->addWidget(new QLabel(tr("Not yet implemented"), this));
-  layout->addStretch(1);
+  layout->addStretch();
+//  layout->addWidget(ise);
   imWidget->setDisabled(true);
   return imWidget;
 }

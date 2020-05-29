@@ -355,10 +355,10 @@ void InputMapper::setRecordingMode(bool recording)
   if (impl->m_recordingMode == recording)
     return;
 
-  if (impl->m_recordingMode && impl->m_seqTimer->isActive()) {
-    emit recordingFinished(true);
-  }
+  const auto wasRecording = (impl->m_recordingMode && impl->m_seqTimer->isActive());
   impl->m_recordingMode = recording;
+
+  if (wasRecording) emit recordingFinished(true);
   impl->m_seqTimer->stop();
   resetState();
   emit recordingModeChanged(impl->m_recordingMode);
