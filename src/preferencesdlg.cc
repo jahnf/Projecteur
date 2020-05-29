@@ -131,13 +131,15 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
-  const auto testBtn = new QPushButton(tr("&Show test..."), widget);
-  connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
+  const auto presetSelector = createPresetSelector(settings);
 
   const auto resetBtn = new IconButton(Font::Icon::gear_12, widget);
   resetBtn->setToolTip(tr("Reset all settings to their default value."));
   resetBtn->setSizePolicy(resetBtn->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
   connect(resetBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
+
+  const auto testBtn = new QPushButton(tr("&Show test..."), widget);
+  connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
 
   const auto hbox = new QHBoxLayout;
   hbox->addWidget(resetBtn);
@@ -149,7 +151,7 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
 
   const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
-  mainVBox->addWidget(createPresetSelector(settings));
+  mainVBox->addWidget(presetSelector);
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
