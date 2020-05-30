@@ -18,6 +18,8 @@ public:
   InputSeqEdit(QWidget* parent = nullptr);
   InputSeqEdit(InputMapper* im, QWidget* parent = nullptr);
 
+  QSize sizeHint() const override;
+
   void setInputMapper(InputMapper* im);
 
   const KeyEventSequence& inputSequence() const;

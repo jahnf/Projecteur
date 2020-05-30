@@ -4,11 +4,64 @@
 #include "deviceinput.h"
 #include "logging.h"
 
+#include <QApplication>
 #include <QLineEdit>
 #include <QPaintEvent>
 #include <QStyleOptionFrame>
 #include <QStylePainter>
 #include <QVBoxLayout>
+
+// -------------------------------------------------------------------------------------------------
+namespace {
+
+  // -----------------------------------------------------------------------------------------------
+  int drawRecordingSymbol(int startX, QPainter& p, const QStyleOptionFrame& option)
+  {
+    const auto iconSize = option.fontMetrics.height();
+    const auto marginTop = (option.rect.height() - iconSize) / 2;
+    const QRect iconRect(startX, marginTop, iconSize, iconSize);
+
+    p.save();
+    p.setPen(Qt::red);
+    p.setBrush(QBrush(Qt::red));
+    p.setRenderHint(QPainter::Antialiasing);
+    p.drawRoundedRect(iconRect, 20, 20, Qt::RelativeSize);;
+    p.restore();
+
+    return iconRect.width();
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOptionFrame& option, const QString& text)
+  {
+    const auto r = QRect(startX, 0, option.fontMetrics.width(text), option.rect.height());
+
+    p.save();
+    p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+    QRect br;
+    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+    p.restore();
+
+    return br.width();
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  int drawKeyEvent(int startX, QPainter& p, const QStyleOptionFrame& option, const KeyEvent& ke)
+  {
+    if (ke.empty()) return 0;
+
+    const auto text = QString("[%1]").arg(ke.back().code, 0, 16);
+    const auto r = QRect(startX, 0, option.fontMetrics.width(text), option.rect.height());
+
+    p.save();
+    p.setPen(option.palette.color(QPalette::Text));
+    QRect br;
+    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+    p.restore();
+
+    return br.width();
+  }
+}
 
 // -------------------------------------------------------------------------------------------------
 InputSeqEdit::InputSeqEdit(QWidget* parent)
@@ -22,12 +75,9 @@ InputSeqEdit::InputSeqEdit(InputMapper* im, QWidget* parent)
   setInputMapper(im);
 
   setFocusPolicy(Qt::StrongFocus); // Accept focus by tabbing and clicking
-  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   setAttribute(Qt::WA_InputMethodEnabled, false);
   setAttribute(Qt::WA_MacShowFocusRect, true);
-
-  // TODO: Start recording on "Enter-Key", DblClick ....
-  // TODO: Cancel recording on focus out, or ESC
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -43,6 +93,25 @@ void InputSeqEdit::initStyleOption(QStyleOptionFrame& option) const
 }
 
 // -------------------------------------------------------------------------------------------------
+QSize InputSeqEdit::sizeHint() const
+{
+  // borrowed and adjusted from QLineEdit (Qt 5.9)
+  ensurePolished();
+  QFontMetrics fm(font());
+  constexpr int verticalMargin = 3;
+  constexpr int horizontalMargin = 3;
+//  const int h = qMax(fm.height(), qMax(16, inputSequenceIconSize)) + 2 * verticalMargin;
+  const int h = fm.height() + 2 * verticalMargin;
+  const int w = fm.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin;
+
+  QStyleOptionFrame opt;
+  initStyleOption(opt);
+
+  return (style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h).
+                                    expandedTo(QApplication::globalStrut()), this));
+}
+
+// -------------------------------------------------------------------------------------------------
 void InputSeqEdit::paintEvent(QPaintEvent*)
 {
   QStyleOptionFrame option;
@@ -54,11 +123,32 @@ void InputSeqEdit::paintEvent(QPaintEvent*)
   // TODO: Paint KeyEventSequence...
   // TODO: If recording show record indicator
   //       + placeholder text if nothing recorded yet || recorded events in current recording.
-  if (m_inputMapper && m_inputMapper->recordingMode())
-  {
-    p.setPen(Qt::red);
-    p.setBrush(QBrush(Qt::red));
-    p.drawRect(5,5,16,16);
+
+  const bool recording = m_inputMapper && m_inputMapper->recordingMode();
+
+  const auto& fm = option.fontMetrics;
+  const auto space = fm.width(' ');
+  int xPos = (option.rect.height()-fm.height()) / 2;
+
+  if (recording) {
+    xPos += drawRecordingSymbol(xPos, p, option) + space;
+
+    if (m_recordedSequence.empty()) {
+      xPos += drawPlaceHolderText(xPos, p, option, tr("Press device button(s)...")) + space;
+    }
+    else {
+      for (const auto& ke : m_recordedSequence) {
+        // TODO merge button events (press,releae)
+        // TODO merge multiple button events .. eg. 2 x BTN1...
+        xPos += drawKeyEvent(xPos, p, option, ke) + space;
+      }
+    }
+  } else {
+    for (const auto& ke : m_inputSequence) {
+      // TODO merge button events (press,releae)
+      // TODO merge multiple button events .. eg. 2 x BTN1...
+      xPos += drawKeyEvent(xPos, p, option, ke) + space;
+    }
   }
 }
 
@@ -76,7 +166,7 @@ void InputSeqEdit::setInputSequence(const KeyEventSequence& is)
   m_inputSequence = is;
   update();
   emit inputSequenceChanged(m_inputSequence);
-  qDebug() << "new ise = " << m_inputSequence;
+//  qDebug() << "new ise = " << m_inputSequence;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -122,9 +212,12 @@ void InputSeqEdit::keyReleaseEvent(QKeyEvent* e)
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqEdit::focusOutEvent(QFocusEvent*)
+void InputSeqEdit::focusOutEvent(QFocusEvent* e)
 {
-  if (m_inputMapper) m_inputMapper->setRecordingMode(false);
+  if (m_inputMapper)
+    m_inputMapper->setRecordingMode(false);
+
+  QWidget::focusOutEvent(e);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -156,14 +249,15 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
 
   connect(m_inputMapper, &InputMapper::recordingFinished, this, [this](bool canceled){
 //    qDebug() << "Recording finished..." << canceled;
-    m_inputMapper->setRecordingMode(false);
     if (!canceled) setInputSequence(m_recordedSequence);
+    m_inputMapper->setRecordingMode(false);
+    m_recordedSequence.clear();
   });
 
-  connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [this](bool /*recording*/){
+  connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [this](bool recording){
 //    qDebug() << "Recording mode... " << recording;
     update();
-    emit editingFinished(this);
+    if (!recording) emit editingFinished(this);
   });
 
   connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [this](const KeyEvent& ke){
@@ -172,6 +266,8 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
     if (m_recordedSequence.size() >= m_maxRecordingLength) {
       setInputSequence(m_recordedSequence);
       m_inputMapper->setRecordingMode(false);
+    } else {
+      update();
     }
   });
 }
