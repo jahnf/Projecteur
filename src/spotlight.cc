@@ -189,12 +189,13 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
     {
       if (errno != EAGAIN)
       {
+        const bool anyConnectedBefore = anySpotlightDeviceConnected();
         connection.disable();
-        if (!anySpotlightDeviceConnected()) {
-          emit anySpotlightDeviceConnectedChanged(false);
-        }
-        QTimer::singleShot(0, this, [this, devicePath=connection.path()](){
+        QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
           removeDeviceConnection(devicePath);
+          if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
+            emit anySpotlightDeviceConnectedChanged(false);
+          }
         });
       }
       break;

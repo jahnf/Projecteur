@@ -2,6 +2,7 @@
 #include "inputseqedit.h"
 
 #include "deviceinput.h"
+#include "inputseqmapconfig.h"
 #include "logging.h"
 
 #include <QApplication>
@@ -11,11 +12,9 @@
 #include <QStylePainter>
 #include <QVBoxLayout>
 
-// -------------------------------------------------------------------------------------------------
 namespace {
-
   // -----------------------------------------------------------------------------------------------
-  int drawRecordingSymbol(int startX, QPainter& p, const QStyleOptionFrame& option)
+  int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
   {
     const auto iconSize = option.fontMetrics.height();
     const auto marginTop = (option.rect.height() - iconSize) / 2;
@@ -32,9 +31,10 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOptionFrame& option, const QString& text)
+  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
-    const auto r = QRect(startX, 0, option.fontMetrics.width(text), option.rect.height());
+    const auto r = QRect(startX + option.rect.left(), option.rect.top(),
+                         option.fontMetrics.width(text), option.rect.height());
 
     p.save();
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
@@ -46,12 +46,15 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  int drawKeyEvent(int startX, QPainter& p, const QStyleOptionFrame& option, const KeyEvent& ke)
+  int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke)
   {
     if (ke.empty()) return 0;
 
-    const auto text = QString("[%1]").arg(ke.back().code, 0, 16);
-    const auto r = QRect(startX, 0, option.fontMetrics.width(text), option.rect.height());
+    const auto text = QString("[%1%2]")
+                        .arg(ke.back().code, 0, 16)
+                        .arg(ke.back().value ? QChar(0x2193) : QChar(0x2191));
+    const auto r = QRect(startX + option.rect.left(), option.rect.top(),
+                         option.fontMetrics.width(text), option.rect.height());
 
     p.save();
     p.setPen(option.palette.color(QPalette::Text));
@@ -60,6 +63,29 @@ namespace {
     p.restore();
 
     return br.width();
+  }
+
+
+  // -----------------------------------------------------------------------------------------------
+  int drawKeyEventSequence(int startX, QPainter& p, const QStyleOption& option,
+                           const KeyEventSequence& kes, bool drawEmptyPlaceholder = true)
+  {
+    if (kes.empty()) {
+      Q_UNUSED(drawEmptyPlaceholder);
+      // TODO draw empty indicator if drawEmptyPlaceholder.
+      return 0;
+    }
+
+    int sequenceWidth = 0;
+    const auto paddingX = option.fontMetrics.width(' ');
+
+    for (auto it = kes.cbegin(); it!=kes.cend(); ++it)
+    {
+      if (it != kes.cbegin()) sequenceWidth += paddingX;
+      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it);
+    }
+
+    return sequenceWidth;
   }
 }
 
@@ -87,20 +113,18 @@ void InputSeqEdit::initStyleOption(QStyleOptionFrame& option) const
   option.rect = contentsRect();
   option.lineWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth, &option, this);
   option.midLineWidth = 0;
-  option.state |= QStyle::State_Sunken;
-  option.state |= QStyle::State_ReadOnly; // TODO: is this necessary? (borrowed from QLineEdit)
+  option.state |= (QStyle::State_Sunken | QStyle::State_ReadOnly);
   option.features = QStyleOptionFrame::None;
 }
 
 // -------------------------------------------------------------------------------------------------
 QSize InputSeqEdit::sizeHint() const
 {
-  // borrowed and adjusted from QLineEdit (Qt 5.9)
+  // Adjusted from QLineEdit::sizeHint (Qt 5.9)
   ensurePolished();
   QFontMetrics fm(font());
   constexpr int verticalMargin = 3;
   constexpr int horizontalMargin = 3;
-//  const int h = qMax(fm.height(), qMax(16, inputSequenceIconSize)) + 2 * verticalMargin;
   const int h = fm.height() + 2 * verticalMargin;
   const int w = fm.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin;
 
@@ -120,35 +144,22 @@ void InputSeqEdit::paintEvent(QPaintEvent*)
   QStylePainter p(this);
   p.drawPrimitive(QStyle::PE_PanelLineEdit, option);
 
-  // TODO: Paint KeyEventSequence...
-  // TODO: If recording show record indicator
-  //       + placeholder text if nothing recorded yet || recorded events in current recording.
-
   const bool recording = m_inputMapper && m_inputMapper->recordingMode();
 
   const auto& fm = option.fontMetrics;
-  const auto space = fm.width(' ');
+  const auto spacingX = option.fontMetrics.width(' ');
   int xPos = (option.rect.height()-fm.height()) / 2;
 
   if (recording) {
-    xPos += drawRecordingSymbol(xPos, p, option) + space;
-
+    xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedSequence.empty()) {
-      xPos += drawPlaceHolderText(xPos, p, option, tr("Press device button(s)...")) + space;
+      xPos += drawPlaceHolderText(xPos, p, option, tr("Press device button(s)...")) + spacingX;
+    } else {
+      xPos += drawKeyEventSequence(xPos, p, option, m_recordedSequence, false);
     }
-    else {
-      for (const auto& ke : m_recordedSequence) {
-        // TODO merge button events (press,releae)
-        // TODO merge multiple button events .. eg. 2 x BTN1...
-        xPos += drawKeyEvent(xPos, p, option, ke) + space;
-      }
-    }
-  } else {
-    for (const auto& ke : m_inputSequence) {
-      // TODO merge button events (press,releae)
-      // TODO merge multiple button events .. eg. 2 x BTN1...
-      xPos += drawKeyEvent(xPos, p, option, ke) + space;
-    }
+  }
+  else {
+    xPos += drawKeyEventSequence(xPos, p, option, m_inputSequence);
   }
 }
 
@@ -166,7 +177,6 @@ void InputSeqEdit::setInputSequence(const KeyEventSequence& is)
   m_inputSequence = is;
   update();
   emit inputSequenceChanged(m_inputSequence);
-//  qDebug() << "new ise = " << m_inputSequence;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -243,25 +253,21 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
   });
 
   connect(m_inputMapper, &InputMapper::recordingStarted, this, [this](){
-//    qDebug() << "Recording started...";
     m_recordedSequence.clear();
   });
 
   connect(m_inputMapper, &InputMapper::recordingFinished, this, [this](bool canceled){
-//    qDebug() << "Recording finished..." << canceled;
     if (!canceled) setInputSequence(m_recordedSequence);
     m_inputMapper->setRecordingMode(false);
     m_recordedSequence.clear();
   });
 
   connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [this](bool recording){
-//    qDebug() << "Recording mode... " << recording;
     update();
     if (!recording) emit editingFinished(this);
   });
 
   connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [this](const KeyEvent& ke){
-//    qDebug() << "Recorded... " << ke;
     m_recordedSequence.push_back(ke);
     if (m_recordedSequence.size() >= m_maxRecordingLength) {
       setInputSequence(m_recordedSequence);
@@ -272,22 +278,20 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
   });
 }
 
-
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                              const QModelIndex& index) const
 {
-  if (index.data(InputSeqRole).canConvert<KeyEventSequence>())
-  {
-    //StarRating starRating = qvariant_cast<StarRating>(index.data());
-    //    if (option.state & QStyle::State_Selected)
-    painter->fillRect(option.rect, option.palette.highlight());
-    // TODO paint input seq..
-  }
-  else {
+  const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model());
+  if (!imModel) {
     QStyledItemDelegate::paint(painter, option, index);
+    return;
   }
+
+  const auto& fm = option.fontMetrics;
+  const int xPos = (option.rect.height()-fm.height()) / 2;
+  drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).sequence);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -296,11 +300,12 @@ QWidget* InputSeqDelegate::createEditor(QWidget* parent,
                                         const QModelIndex& index) const
 
 {
-  if (index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
   {
-    // TODO set inputmapper!
-    auto *editor = new InputSeqEdit(parent);
+    if (imModel->inputMapper()) imModel->inputMapper()->setRecordingMode(false);
+    auto *editor = new InputSeqEdit(imModel->inputMapper(), parent);
     connect(editor, &InputSeqEdit::editingFinished, this, &InputSeqDelegate::commitAndCloseEditor);
+    if (imModel->inputMapper()) imModel->inputMapper()->setRecordingMode(true);
     return editor;
   }
 
@@ -317,37 +322,40 @@ void InputSeqDelegate::commitAndCloseEditor(InputSeqEdit* editor)
 // -------------------------------------------------------------------------------------------------
 void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
 {
-  const auto seqEditor = qobject_cast<InputSeqEdit*>(editor);
-  if (seqEditor && index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  if (const auto seqEditor = qobject_cast<InputSeqEdit*>(editor))
   {
-    seqEditor->setInputSequence(qvariant_cast<KeyEventSequence>(index.data(InputSeqRole)));
-    // TODO et input mapper if not already set
-    // TODO start recording mode
-  }
-  else {
-    QStyledItemDelegate::setEditorData(editor, index);
+    if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+    {
+      seqEditor->setInputSequence(imModel->configData(index).sequence);
+      // TODO start recording mode
+      return;
+    }
   }
 
+  QStyledItemDelegate::setEditorData(editor, index);
 }
 
 // -------------------------------------------------------------------------------------------------
 void InputSeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                                     const QModelIndex& index) const
 {
-  const auto seqEditor = qobject_cast<InputSeqEdit*>(editor);
-  if (seqEditor && index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  if (const auto seqEditor = qobject_cast<InputSeqEdit*>(editor))
   {
-    model->setData(index, QVariant::fromValue(seqEditor->inputSequence()));
+    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model))
+    {
+      imModel->setInputSequence(index, seqEditor->inputSequence());
+      return;
+    }
   }
-  else {
-    QStyledItemDelegate::setModelData(editor, model, index);
-  }
+
+  QStyledItemDelegate::setModelData(editor, model, index);
 }
 
+// -------------------------------------------------------------------------------------------------
 QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
                                  const QModelIndex& index) const
 {
-  if (index.data(InputSeqRole).canConvert<KeyEventSequence>())
+  if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
   {
     // TODO calc size hint from KeyEventSequence.....
     return QStyledItemDelegate::sizeHint(option, index);

@@ -3,6 +3,7 @@
 
 #include "deviceinput.h"
 #include "inputseqedit.h"
+#include "inputseqmapconfig.h"
 #include "logging.h"
 #include "spotlight.h"
 
@@ -10,6 +11,7 @@
 #include <QLabel>
 #include <QLayout>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QStackedLayout>
 #include <QStyle>
 #include <QTabWidget>
@@ -96,19 +98,43 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
 QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
 {
   const auto imWidget = new QWidget(this);
-  const auto layout = new QHBoxLayout(imWidget);
+  const auto layout = new QVBoxLayout(imWidget);
+  const auto intervalLayout = new QHBoxLayout();
 
-  const auto ise = new InputSeqEdit(m_inputMapper, imWidget);
-  connect(this, &DevicesWidget::currentDeviceChanged, this, [this, ise](){
-    ise->setInputMapper(m_inputMapper);
+  const auto intervalLbl = new QLabel(tr("Button Sequence Interval"), imWidget);
+  const auto intervalSb = new QSpinBox(this);
+  const auto intervalUnitLbl = new QLabel(tr("ms"), imWidget);
+  intervalSb->setMaximum(750);
+  intervalSb->setMinimum(100);
+  intervalSb->setValue(m_inputMapper ? m_inputMapper->keyEventInterval() : 250);
+  intervalSb->setSingleStep(50);
+  intervalLayout->addWidget(intervalLbl);
+  intervalLayout->addWidget(intervalSb);
+  intervalLayout->addWidget(intervalUnitLbl);
+  intervalLayout->setStretch(1, 1);
+  intervalLayout->setMargin(0);
+
+  const auto tblView = new InputSeqMapTableView(imWidget);
+  const auto imModel = new InputSeqMapConfigModel(m_inputMapper, imWidget);
+
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [this, imModel, intervalSb, imWidget](){
+    imModel->setInputMapper(m_inputMapper);
+    if (m_inputMapper) intervalSb->setValue(m_inputMapper->keyEventInterval());
+    // TODO load device mappings from stored config
+    imWidget->setDisabled(!m_inputMapper);
   });
-  ise->setVisible(false);
 
-  layout->addStretch();
-  layout->addWidget(new QLabel(tr("Not yet implemented"), this));
-  layout->addStretch();
-//  layout->addWidget(ise);
-  imWidget->setDisabled(true);
+  connect(intervalSb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+  this, [this](int valueMs){
+    if (m_inputMapper) m_inputMapper->setKeyEventInterval(valueMs);
+    // TODO store device sequence interval to config
+  });
+
+  tblView->setModel(imModel);
+
+  layout->addLayout(intervalLayout);
+  layout->addWidget(tblView);
   return imWidget;
 }
 

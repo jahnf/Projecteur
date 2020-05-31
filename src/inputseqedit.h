@@ -55,8 +55,6 @@ class InputSeqDelegate : public QStyledItemDelegate
 public:
   using QStyledItemDelegate::QStyledItemDelegate;
 
-  enum Roles { InputSeqRole = Qt::UserRole + 1 };
-
   void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override;
   QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
