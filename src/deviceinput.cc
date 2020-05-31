@@ -410,6 +410,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
 
   if (impl->m_recordingMode)
   {
+    logDebug(input) << "Recorded device event:" << KeyEvent{input_events, input_events + num - 1};
     impl->record(input_events, num-1); // exclude closing syn event for recording
     return;
   }

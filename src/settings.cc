@@ -126,10 +126,13 @@ Settings::~Settings()
 void Settings::init()
 {
   const QFileInfo fi(m_settings->fileName());
+
+  if (!fi.isReadable()) {
+    logError(lcSettings) << tr("Settings file '%1' not readable.").arg(m_settings->fileName());
+  }
+
   if (!fi.isWritable()) {
     logWarning(lcSettings) << tr("Settings file '%1' not writable.").arg(m_settings->fileName());
-  } else if (!fi.isReadable()) {
-    logError(lcSettings) << tr("Settings file '%1' not readable.").arg(m_settings->fileName());
   }
 
   shapeSettingsInitialize();

@@ -68,7 +68,7 @@ QVariant InputSeqMapConfigModel::headerData(int section, Qt::Orientation orienta
     switch(section)
     {
     case InputSeqCol: return tr("Input Sequence");
-    case ActionTypeCol: return tr("Action Type");
+    case ActionTypeCol: return tr("Type");
     case ActionCol: return tr("Action");
     }
   }
