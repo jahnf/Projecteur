@@ -1,6 +1,6 @@
 name: ci-build
 
-on: 
+on:
   push:
     branches:
       - "**"
@@ -13,7 +13,7 @@ jobs:
   build:
     strategy:
       matrix:
-        docker_tag: 
+        docker_tag:
         - archlinux
         - fedora-30
         - fedora-31
@@ -25,7 +25,7 @@ jobs:
         - opensuse-15.0
         - opensuse-15.1
         - centos-8
-        os: 
+        os:
         - ubuntu-latest
 
     runs-on: ${{ matrix.os }}
@@ -51,7 +51,7 @@ jobs:
         export BRANCH=${GITHUB_REF/refs\/heads\//}
         echo Deteted branch: ${BRANCH}
         echo "::set-env name=BRANCH::${BRANCH}"
-        
+
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
     - name: docker create build container
@@ -76,7 +76,7 @@ jobs:
       run: |
         docker cp build:/build/dist-pkg .
         docker cp build:/build/version-string .
-    
+
     - name: Set version environment variable
       run: |
         projecteur_version=`cat version-string`
@@ -95,7 +95,7 @@ jobs:
       run: |
         dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
         echo "::set-env name=dist_pkg_artifact::${dist_pkg_artifact}"
-    
+
     # ===================================================================================
     # ---------- Upload artifacts to github ----------
     - name: Upload source-pkg artifact to github
@@ -125,7 +125,7 @@ jobs:
       run: |
         echo "::set-env name=upload_bin_pkg::${{ true }}"
         echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.BRANCH }}"
-        pip install --upgrade wheel 
+        pip install --upgrade wheel
         pip install --upgrade cloudsmith-cli
 
     - name: Check for source-pkg upload conditions
@@ -141,7 +141,7 @@ jobs:
     - name: Upload raw binary-pkg to cloudsmith
       if: env.upload_bin_pkg == 'true'
       env:
-        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }} 
+        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_REPO: ${{ env.cloudsmith_upload_repo }}
       run: |
         cloudsmith push raw -W -k ${CLOUDSMITH_API_KEY} --name ${{ matrix.docker_tag }} --republish \
@@ -151,13 +151,13 @@ jobs:
     - name: Upload raw source-pkg to cloudsmith
       if: env.upload_src_pkg == 'true'
       env:
-        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }} 
+        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_REPO: ${{ env.cloudsmith_upload_repo }}
       run: |
         cloudsmith push raw -W -k ${CLOUDSMITH_API_KEY} --name sources --republish \
           --version ${{ env.projecteur_version }} ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO} \
           --summary "${CLOUDSMITH_SUMMARY}" --description "${CLOUDSMITH_DESC}" ${{ env.src_pkg_artifact }}
-           
+
     - name: Get package and repo type for upload
       if: env.upload_bin_pkg == 'true'
       run: |
@@ -176,16 +176,16 @@ jobs:
         if [ -z ${DISTRO} ] || [ -z ${PKG_TYPE} ]; then \
           export REPO_UPLOAD=false; else export REPO_UPLOAD=true; fi;
         echo "::set-env name=REPO_UPLOAD::${REPO_UPLOAD}"
-        
+
     - name: Linux repo upload on cloudsmith for ${{ env.DISTRO }}
       if: env.REPO_UPLOAD == 'true'
       env:
-        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }} 
+        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_REPO: ${{ env.cloudsmith_upload_repo }}
       run: |
         echo Uploading for ${DISTRO} - ${PKG_TYPE}: ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO}
         cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
-          ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.dist_pkg_artifact }} 
+          ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.dist_pkg_artifact }}
 
     # ===================================================================================
     # ---------- Upload artifacts to bintray ----------
@@ -203,7 +203,7 @@ jobs:
         upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
         publish: 1
-  
+
     - name: Upload binary package to Bintray
       if: env.upload_bin_pkg == 'true'
       uses: bpicode/github-action-upload-bintray@master
@@ -218,4 +218,4 @@ jobs:
         upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
         publish: 1
-  
+
