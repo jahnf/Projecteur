@@ -33,6 +33,9 @@ public:
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
   Qt::ItemFlags flags(const QModelIndex& index) const override;
 
+  void removeConfigItemRows(std::vector<int> rows);
+  int addConfigItem(const InputSeqMapConfig& cfg = {});
+
   const InputSeqMapConfig& configData(const QModelIndex& index) const;
   void setInputSequence(const QModelIndex& index, const KeyEventSequence& kes);
 
@@ -40,8 +43,9 @@ public:
   void setInputMapper(InputMapper* im);
 
 private:
+  void removeConfigItemRows(int fromRow, int toRow);
   QPointer<InputMapper> m_inputMapper;
-  std::vector<InputSeqMapConfig> m_inputSeqMapConfigs;
+  QList<InputSeqMapConfig> m_inputSeqMapConfigs;
 };
 
 // -------------------------------------------------------------------------------------------------

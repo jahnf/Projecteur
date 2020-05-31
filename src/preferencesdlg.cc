@@ -5,6 +5,7 @@
 
 #include "colorselector.h"
 #include "deviceswidget.h"
+#include "iconwidgets.h"
 #include "logging.h"
 #include "settings.h"
 #include "spotlight.h"
@@ -49,28 +50,6 @@ namespace {
     { CURSOR_PATH "cursor-uparrow.png", {"Up Arrow Cursor", Qt::UpArrowCursor}},
     { CURSOR_PATH "cursor-whatsthis.png", {"What't This Cursor", Qt::WhatsThisCursor}},
   };
-
-  bool isLight(const QColor& c) {
-    return (c.redF() * 0.299 + c.greenF() * 0.587 + c.blueF() * 0.114 ) > 0.6;
-  }
-
-  bool isDark(const QColor& c) { return !isLight(c); }
-}
-
-// -------------------------------------------------------------------------------------------------
-IconButton::IconButton(Font::Icon symbol, QWidget* parent)
-  : QToolButton(parent)
-{
-  QFont iconFont("projecteur-icons");
-  iconFont.setPointSizeF(font().pointSizeF());
-
-  setFont(iconFont);
-  setText(QChar(symbol));
-
-  auto p = palette();
-  p.setColor(QPalette::ButtonText, isDark(p.color(QPalette::ButtonText)) ? QColor(Qt::darkGray).darker()
-                                                                         : QColor(Qt::lightGray).lighter());
-  setPalette(p);
 }
 
 // -------------------------------------------------------------------------------------------------

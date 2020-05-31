@@ -2,6 +2,7 @@
 #include "deviceswidget.h"
 
 #include "deviceinput.h"
+#include "iconwidgets.h"
 #include "inputseqedit.h"
 #include "inputseqmapconfig.h"
 #include "logging.h"
@@ -102,6 +103,12 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   const auto layout = new QVBoxLayout(imWidget);
   const auto intervalLayout = new QHBoxLayout();
 
+  const auto addBtn = new IconButton(Font::Icon::plus_5, imWidget);
+  addBtn->setToolTip(tr("Add a new input mapping entry."));
+  const auto delBtn = new IconButton(Font::Icon::trash_can_1, imWidget);
+  delBtn->setToolTip(tr("Delete the selected input mapping entries."));
+  delBtn->setEnabled(false);
+
   const auto intervalLbl = new QLabel(tr("Button Sequence Interval"), imWidget);
   const auto intervalSb = new QSpinBox(this);
   const auto intervalUnitLbl = new QLabel(tr("ms"), imWidget);
@@ -110,14 +117,19 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   intervalSb->setValue(m_inputMapper ? m_inputMapper->keyEventInterval()
                                      : settings->deviceInputSeqInterval(currentDeviceId()));
   intervalSb->setSingleStep(50);
+
+  intervalLayout->addWidget(addBtn);
+  intervalLayout->addWidget(delBtn);
+  intervalLayout->addStretch(1);
   intervalLayout->addWidget(intervalLbl);
   intervalLayout->addWidget(intervalSb);
   intervalLayout->addWidget(intervalUnitLbl);
-  intervalLayout->setStretch(1, 1);
-  intervalLayout->setMargin(0);
 
   const auto tblView = new InputSeqMapTableView(imWidget);
   const auto imModel = new InputSeqMapConfigModel(m_inputMapper, imWidget);
+
+  tblView->setModel(imModel);
+  const auto selectionModel = tblView->selectionModel();
 
   connect(this, &DevicesWidget::currentDeviceChanged, this,
   [this, imModel, intervalSb, imWidget](){
@@ -130,14 +142,31 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   });
 
   connect(intervalSb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-  this, [this, settings](int valueMs){
+  this, [this, settings](int valueMs) {
     if (m_inputMapper) {
       m_inputMapper->setKeyEventInterval(valueMs);
       settings->setDeviceInputSeqInterval(currentDeviceId(), valueMs);
     }
   });
 
-  tblView->setModel(imModel);
+  connect(selectionModel, &QItemSelectionModel::selectionChanged, this,
+  [delBtn, selectionModel](){
+    delBtn->setEnabled(selectionModel->hasSelection());
+  });
+
+  connect(delBtn, &QToolButton::clicked, this, [imModel, selectionModel]() {
+    const auto selectedRows = selectionModel->selectedRows();
+    std::vector<int> rows;
+    rows.reserve(selectedRows.size());
+    for (const auto& selectedRow : selectedRows) {
+      rows.emplace_back(selectedRow.row());
+    }
+    imModel->removeConfigItemRows(std::move(rows));
+  });
+
+  connect(addBtn, &QToolButton::clicked, this, [imModel, tblView](){
+    tblView->selectRow(imModel->addConfigItem());
+  });
 
   layout->addLayout(intervalLayout);
   layout->addWidget(tblView);

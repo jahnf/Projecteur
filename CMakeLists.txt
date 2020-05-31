@@ -50,6 +50,7 @@ add_executable(projecteur
   src/devicescan.cc         src/devicescan.h
   src/deviceswidget.cc      src/deviceswidget.h
   src/linuxdesktop.cc       src/linuxdesktop.h
+  src/iconwidgets.cc        src/iconwidgets.h
   src/imageitem.cc          src/imageitem.h
   src/inputseqedit.cc       src/inputseqedit.h
   src/inputseqmapconfig.cc  src/inputseqmapconfig.h

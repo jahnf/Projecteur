@@ -21,9 +21,7 @@ InputSeqMapConfigModel::InputSeqMapConfigModel(QObject* parent)
 InputSeqMapConfigModel::InputSeqMapConfigModel(InputMapper* im, QObject* parent)
   : QAbstractTableModel(parent)
   , m_inputMapper(im)
-{
-  m_inputSeqMapConfigs.resize(3);
-}
+{}
 
 // -------------------------------------------------------------------------------------------------
 int InputSeqMapConfigModel::rowCount(const QModelIndex& parent) const
@@ -87,6 +85,53 @@ const InputSeqMapConfig& InputSeqMapConfigModel::configData(const QModelIndex& i
 }
 
 // -------------------------------------------------------------------------------------------------
+void InputSeqMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
+{
+  if (fromRow > toRow) return;
+
+  beginRemoveRows(QModelIndex(), fromRow, toRow);
+  for (int i = toRow; i >= fromRow && i < m_inputSeqMapConfigs.size(); --i) {
+    m_inputSeqMapConfigs.removeAt(i);
+  }
+  endRemoveRows();
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputSeqMapConfigModel::addConfigItem(const InputSeqMapConfig& cfg)
+{
+  const auto row = m_inputSeqMapConfigs.size();
+  beginInsertRows(QModelIndex(), row, row);
+  m_inputSeqMapConfigs.push_back(cfg);
+  endInsertRows();
+  return row;
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqMapConfigModel::removeConfigItemRows(std::vector<int> rows)
+{
+  if (rows.empty()) return;
+  std::sort(rows.rbegin(), rows.rend());
+
+  int seq_last = rows.front();
+  int seq_first = seq_last;
+
+  for (auto it = ++rows.cbegin(); it != rows.cend(); ++it)
+  {
+    if (seq_first - *it > 1)
+    {
+      removeConfigItemRows(seq_first, seq_last);
+      seq_last = seq_first = *it;
+    }
+    else
+    {
+      seq_first = *it;
+    }
+  }
+
+  removeConfigItemRows(seq_first, seq_last);
+}
+
+// -------------------------------------------------------------------------------------------------
 void InputSeqMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEventSequence& kes)
 {
   if (index.row() < static_cast<int>(m_inputSeqMapConfigs.size()))
@@ -121,7 +166,8 @@ InputSeqMapTableView::InputSeqMapTableView(QWidget* parent)
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputSeqMapConfigModel::InputSeqCol, imSeqDelegate);
 
-  setSelectionMode(QAbstractItemView::SelectionMode::NoSelection);
+  setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
+  setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
   horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
 }
 

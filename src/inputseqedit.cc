@@ -58,7 +58,12 @@ namespace {
                          option.fontMetrics.width(text), option.rect.height());
 
     p.save();
-    p.setPen(option.palette.color(QPalette::Text));
+
+    if (option.state & QStyle::State_Selected)
+      p.setPen(option.palette.color(QPalette::HighlightedText));
+    else
+      p.setPen(option.palette.color(QPalette::Text));
+
     QRect br;
     p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
     p.restore();
@@ -77,7 +82,10 @@ namespace {
 
       p.save();
       p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
-      p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+      if (option.state & QStyle::State_Selected)
+        p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
+      else
+        p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
 
       static const QStaticText textNone(InputSeqEdit::tr("None"));
       const auto top = (option.rect.height() - textNone.size().height()) / 2;

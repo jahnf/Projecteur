@@ -9,17 +9,6 @@ class QGroupBox;
 class Settings;
 class Spotlight;
 
-#include "projecteur-icons-def.h"
-
-// -------------------------------------------------------------------------------------------------
-class IconButton : public QToolButton
-{
-  Q_OBJECT
-
-public:
-  IconButton(Font::Icon symbol, QWidget* parent = nullptr);
-};
-
 // -------------------------------------------------------------------------------------------------
 class PreferencesDialog : public QDialog
 {
