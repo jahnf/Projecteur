@@ -109,7 +109,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   delBtn->setToolTip(tr("Delete the selected input mapping entries."));
   delBtn->setEnabled(false);
 
-  const auto intervalLbl = new QLabel(tr("Button Sequence Interval"), imWidget);
+  const auto intervalLbl = new QLabel(tr("Input Sequence Interval"), imWidget);
   const auto intervalSb = new QSpinBox(this);
   const auto intervalUnitLbl = new QLabel(tr("ms"), imWidget);
   intervalSb->setMaximum(settings->inputSequenceIntervalRange().max);

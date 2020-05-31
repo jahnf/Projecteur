@@ -4,6 +4,7 @@
 #include <deviceinput.h>
 
 #include <QAbstractTableModel>
+#include <QKeySequence>
 #include <QPointer>
 #include <QTableView>
 
@@ -12,7 +13,7 @@
 // -------------------------------------------------------------------------------------------------
 struct InputSeqMapConfig {
   KeyEventSequence sequence;
-  int action = -1;
+  QKeySequence keySequence;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -22,7 +23,7 @@ class InputSeqMapConfigModel : public QAbstractTableModel
 
 public:
   enum Roles { InputSeqRole = Qt::UserRole + 1 };
-  enum Columns { InputSeqCol = 0, ActionTypeCol, ActionCol};
+  enum Columns { InputSeqCol = 0, /*ActionTypeCol,*/ ActionCol, ColumnsCount};
 
   InputSeqMapConfigModel(QObject* parent = nullptr);
   InputSeqMapConfigModel(InputMapper* im, QObject* parent = nullptr);
@@ -38,6 +39,7 @@ public:
 
   const InputSeqMapConfig& configData(const QModelIndex& index) const;
   void setInputSequence(const QModelIndex& index, const KeyEventSequence& kes);
+  void setKeySequence(const QModelIndex& index, const QKeySequence& ks);
 
   InputMapper* inputMapper() const;
   void setInputMapper(InputMapper* im);

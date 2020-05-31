@@ -32,14 +32,16 @@ int InputSeqMapConfigModel::rowCount(const QModelIndex& parent) const
 // -------------------------------------------------------------------------------------------------
 int InputSeqMapConfigModel::columnCount(const QModelIndex& /*parent*/) const
 {
-  return 3; // input sequence, action type, action
+  return ColumnsCount;
 }
 
 // -------------------------------------------------------------------------------------------------
 Qt::ItemFlags InputSeqMapConfigModel::flags(const QModelIndex &index) const
 {
   if (index.column() == InputSeqCol)
-    return (QAbstractTableModel::flags(index) | Qt::ItemIsEditable); // & ~Qt::ItemIsSelectable;
+    return (QAbstractTableModel::flags(index) | Qt::ItemIsEditable);
+  else if (index.column() == ActionCol)
+    return (QAbstractTableModel::flags(index) | Qt::ItemIsEditable);
 
   return QAbstractTableModel::flags(index) & ~Qt::ItemIsEditable;
 }
@@ -53,8 +55,8 @@ QVariant InputSeqMapConfigModel::data(const QModelIndex& index, int role) const
   if (index.column() == InputSeqCol && role == Roles::InputSeqRole) {
     return QVariant::fromValue(m_inputSeqMapConfigs[index.row()].sequence);
   }
-  else if (index.column() == ActionTypeCol && role == Qt::DisplayRole) {
-    return QString::number(m_inputSeqMapConfigs[index.row()].action);
+  else if (index.column() == ActionCol && role == Qt::DisplayRole) {
+    return m_inputSeqMapConfigs[index.row()].keySequence;
   }
 
   return QVariant();
@@ -68,8 +70,8 @@ QVariant InputSeqMapConfigModel::headerData(int section, Qt::Orientation orienta
     switch(section)
     {
     case InputSeqCol: return tr("Input Sequence");
-    case ActionTypeCol: return tr("Type");
-    case ActionCol: return tr("Action");
+    //case ActionTypeCol: return tr("Type");
+    case ActionCol: return tr("Mapped Key(s)");
     }
   }
   return QVariant();
@@ -146,6 +148,20 @@ void InputSeqMapConfigModel::setInputSequence(const QModelIndex& index, const Ke
 }
 
 // -------------------------------------------------------------------------------------------------
+void InputSeqMapConfigModel::setKeySequence(const QModelIndex& index, const QKeySequence& ks)
+{
+  if (index.row() < static_cast<int>(m_inputSeqMapConfigs.size()))
+  {
+    auto& c = m_inputSeqMapConfigs[index.row()];
+    if (c.keySequence != ks)
+    {
+      c.keySequence = ks;
+      emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
+    }
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 InputMapper* InputSeqMapConfigModel::inputMapper() const
 {
   return m_inputMapper;
@@ -163,8 +179,12 @@ InputSeqMapTableView::InputSeqMapTableView(QWidget* parent)
   : QTableView(parent)
 {
   verticalHeader()->setHidden(true);
+
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputSeqMapConfigModel::InputSeqCol, imSeqDelegate);
+
+  const auto keySeqDelegate = new KeySequenceDelegate(this);
+  setItemDelegateForColumn(InputSeqMapConfigModel::ActionCol, keySeqDelegate);
 
   setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
   setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
@@ -176,10 +196,10 @@ void InputSeqMapTableView::setModel(QAbstractItemModel* model)
 {
   QTableView::setModel(model);
 
-  if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model)) {
-    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionTypeCol, QHeaderView::ResizeToContents);
-    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionCol, QHeaderView::ResizeToContents);
-  }
+//  if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model)) {
+//    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionTypeCol, QHeaderView::ResizeToContents);
+//    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionCol, QHeaderView::ResizeToContents);
+//  }
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -194,8 +214,14 @@ void InputSeqMapTableView::keyPressEvent(QKeyEvent* e)
     }
     break;
   case Qt::Key_Delete:
-    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model())) {
+    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model()))
+    switch (currentIndex().column())
+    {
+    case InputSeqMapConfigModel::InputSeqCol:
       imModel->setInputSequence(currentIndex(), KeyEventSequence{});
+      return;
+    case InputSeqMapConfigModel::ActionCol:
+      imModel->setKeySequence(currentIndex(), QKeySequence());
       return;
     }
     break;

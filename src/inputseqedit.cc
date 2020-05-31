@@ -6,6 +6,7 @@
 #include "logging.h"
 
 #include <QApplication>
+#include <QKeySequenceEdit>
 #include <QLineEdit>
 #include <QPaintEvent>
 #include <QStaticText>
@@ -346,7 +347,6 @@ void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
     if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
     {
       seqEditor->setInputSequence(imModel->configData(index).sequence);
-      // TODO start recording mode
       return;
     }
   }
@@ -380,4 +380,72 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
     return QStyledItemDelegate::sizeHint(option, index);
   }
   return QStyledItemDelegate::sizeHint(option, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+void KeySequenceDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+                                const QModelIndex& index) const
+{
+  QStyledItemDelegate::paint(painter, option, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+QSize KeySequenceDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
+{
+  return QStyledItemDelegate::sizeHint(option, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* KeySequenceDelegate::createEditor(QWidget* parent,
+                                           const QStyleOptionViewItem& /*option*/,
+                                           const QModelIndex& index) const
+{
+  if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+  {
+    auto *editor = new QKeySequenceEdit(imModel->configData(index).keySequence, parent);
+    connect(editor, &QKeySequenceEdit::editingFinished, this, &KeySequenceDelegate::commitAndCloseEditor);
+    return editor;
+  }
+
+  return nullptr;
+}
+
+// -------------------------------------------------------------------------------------------------
+void KeySequenceDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
+{
+  if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
+  {
+    if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+    {
+      seqEditor->setKeySequence(imModel->configData(index).keySequence);
+      return;
+    }
+  }
+
+  QStyledItemDelegate::setEditorData(editor, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+void KeySequenceDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
+                                       const QModelIndex& index) const
+{
+  if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
+  {
+    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model))
+    {
+      imModel->setKeySequence(index, seqEditor->keySequence());
+      return;
+    }
+  }
+
+  QStyledItemDelegate::setModelData(editor, model, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+void KeySequenceDelegate::commitAndCloseEditor()
+{
+  const auto editor = qobject_cast<QKeySequenceEdit*>(sender());
+  emit commitData(editor);
+  emit closeEditor(editor);
 }

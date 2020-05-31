@@ -7,6 +7,7 @@
 #include <QWidget>
 
 // -------------------------------------------------------------------------------------------------
+class QKeySequenceEdit;
 class QStyleOptionFrame;
 
 // -------------------------------------------------------------------------------------------------
@@ -64,3 +65,23 @@ public:
 private:
   void commitAndCloseEditor(InputSeqEdit* editor);
 };
+
+
+// -------------------------------------------------------------------------------------------------
+class KeySequenceDelegate : public QStyledItemDelegate
+{
+  Q_OBJECT
+
+public:
+  using QStyledItemDelegate::QStyledItemDelegate;
+
+  void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  void setEditorData(QWidget* editor, const QModelIndex& index) const override;
+  void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+
+private:
+  void commitAndCloseEditor();
+};
+
