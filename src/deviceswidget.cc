@@ -5,6 +5,7 @@
 #include "inputseqedit.h"
 #include "inputseqmapconfig.h"
 #include "logging.h"
+#include "settings.h"
 #include "spotlight.h"
 
 #include <QComboBox>
@@ -30,7 +31,7 @@ namespace {
 }
 
 // -------------------------------------------------------------------------------------------------
-DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidget* parent)
+DevicesWidget::DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent)
   : QWidget(parent)
 {
   createDeviceComboBox(spotlight);
@@ -38,7 +39,7 @@ DevicesWidget::DevicesWidget(Settings* /*settings*/, Spotlight* spotlight, QWidg
   const auto stackLayout = new QStackedLayout(this);
   const auto disconnectedWidget = createDisconnectedStateWidget();
   stackLayout->addWidget(disconnectedWidget);
-  const auto deviceWidget = createDevicesWidget(spotlight);
+  const auto deviceWidget = createDevicesWidget(settings, spotlight);
   stackLayout->addWidget(deviceWidget);
 
   const bool anyDeviceConnected = spotlight->anySpotlightDeviceConnected();
@@ -60,7 +61,7 @@ const DeviceId DevicesWidget::currentDeviceId() const
 }
 
 // -------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight)
+QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotlight)
 {
   const auto dw = new QWidget(this);
   const auto vLayout = new QVBoxLayout(dw);
@@ -76,7 +77,7 @@ QWidget* DevicesWidget::createDevicesWidget(Spotlight* spotlight)
   const auto tabWidget = new QTabWidget(dw);
   vLayout->addWidget(tabWidget);
 
-  tabWidget->addTab(createInputMapperWidget(spotlight), tr("Input Mapping"));
+  tabWidget->addTab(createInputMapperWidget(settings, spotlight), tr("Input Mapping"));
 //  tabWidget->addTab(createDeviceInfoWidget(spotlight), tr("Device Info"));
 
   return dw;
@@ -95,7 +96,7 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
 }
 
 // -------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
+QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /*spotlight*/)
 {
   const auto imWidget = new QWidget(this);
   const auto layout = new QVBoxLayout(imWidget);
@@ -104,9 +105,10 @@ QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
   const auto intervalLbl = new QLabel(tr("Button Sequence Interval"), imWidget);
   const auto intervalSb = new QSpinBox(this);
   const auto intervalUnitLbl = new QLabel(tr("ms"), imWidget);
-  intervalSb->setMaximum(750);
-  intervalSb->setMinimum(100);
-  intervalSb->setValue(m_inputMapper ? m_inputMapper->keyEventInterval() : 250);
+  intervalSb->setMaximum(settings->inputSequenceIntervalRange().max);
+  intervalSb->setMinimum(settings->inputSequenceIntervalRange().min);
+  intervalSb->setValue(m_inputMapper ? m_inputMapper->keyEventInterval()
+                                     : settings->deviceInputSeqInterval(currentDeviceId()));
   intervalSb->setSingleStep(50);
   intervalLayout->addWidget(intervalLbl);
   intervalLayout->addWidget(intervalSb);
@@ -120,15 +122,19 @@ QWidget* DevicesWidget::createInputMapperWidget(Spotlight* /*spotlight*/)
   connect(this, &DevicesWidget::currentDeviceChanged, this,
   [this, imModel, intervalSb, imWidget](){
     imModel->setInputMapper(m_inputMapper);
-    if (m_inputMapper) intervalSb->setValue(m_inputMapper->keyEventInterval());
-    // TODO load device mappings from stored config
+    if (m_inputMapper) {
+      intervalSb->setValue(m_inputMapper->keyEventInterval());
+      // TODO load device mappings from input mapper
+    }
     imWidget->setDisabled(!m_inputMapper);
   });
 
   connect(intervalSb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-  this, [this](int valueMs){
-    if (m_inputMapper) m_inputMapper->setKeyEventInterval(valueMs);
-    // TODO store device sequence interval to config
+  this, [this, settings](int valueMs){
+    if (m_inputMapper) {
+      m_inputMapper->setKeyEventInterval(valueMs);
+      settings->setDeviceInputSeqInterval(currentDeviceId(), valueMs);
+    }
   });
 
   tblView->setModel(imModel);

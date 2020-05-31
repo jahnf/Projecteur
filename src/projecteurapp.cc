@@ -52,9 +52,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   setQuitOnLastWindowClosed(false);
   QFontDatabase::addApplicationFont(":/icons/projecteur-icons.ttf");
 
-  m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices});
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
+  m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices},
+                              m_settings);
+
   m_settings->setOverlayDisabled(options.disableOverlay);
   m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight,
                                        options.dialogMinimizeOnly

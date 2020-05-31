@@ -1,17 +1,20 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "settings.h"
 
+#include "device.h"
 #include "logging.h"
 
 #include <functional>
 
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QQmlPropertyMap>
 #include <QSettings>
 
 LOGGING_CATEGORY(lcSettings, "settings")
 
 namespace {
+  // -----------------------------------------------------------------------------------------------
   namespace settings {
     constexpr char showSpotShade[] = "showSpotShade";
     constexpr char spotSize[] = "spotSize";
@@ -33,6 +36,9 @@ namespace {
     constexpr char zoomFactor[] = "zoomFactor";
     constexpr char dblClickDuration[] = "dblClickDuration";
 
+    // -- device specific
+    constexpr char inputSequenceInterval[] = "inputSequenceInterval";
+
     namespace defaultValue {
       constexpr bool showSpotShade = true;
       constexpr int spotSize = 32;
@@ -52,6 +58,9 @@ namespace {
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
       constexpr int dblClickDuration = 300;
+
+      // -- device specific defaults
+      constexpr int inputSequenceInterval = 250;
     }
 
     namespace ranges {
@@ -63,18 +72,29 @@ namespace {
       constexpr Settings::SettingRange<int> borderSize{ 0, 100 };
       constexpr Settings::SettingRange<double> borderOpacity{ 0.0, 1.0 };
       constexpr Settings::SettingRange<double> zoomFactor{ 1.5, 20.0 };
+
+      constexpr Settings::SettingRange<int> inputSequenceInterval{ 100, 950 };
     }
   }
 
+  // -----------------------------------------------------------------------------------------------
   bool toBool(const QString& value) {
     return (value.toLower() == "true" || value.toLower() == "on" || value.toInt() > 0);
   }
 
+  // -----------------------------------------------------------------------------------------------
   #define SETTINGS_PRESET_PREFIX "Preset_"
   QString presetSection(const QString& preset, bool withSeparator = true) {
      return QString(SETTINGS_PRESET_PREFIX "%1%2").arg(preset).arg(withSeparator ? "/" : "");
   }
 
+  // -----------------------------------------------------------------------------------------------
+  QString settingsKey(const DeviceId& dId, const QString& key) {
+    return QString("Device_%1_%2/%3")
+      .arg(dId.vendorId, 4, 16, QChar('0'))
+      .arg(dId.productId, 4, 16, QChar('0'))
+      .arg(key);
+  }
 } // end anonymous namespace
 
 
@@ -105,6 +125,13 @@ Settings::~Settings()
 // -------------------------------------------------------------------------------------------------
 void Settings::init()
 {
+  const QFileInfo fi(m_settings->fileName());
+  if (!fi.isWritable()) {
+    logWarning(lcSettings) << tr("Settings file '%1' not writable.").arg(m_settings->fileName());
+  } else if (!fi.isReadable()) {
+    logError(lcSettings) << tr("Settings file '%1' not readable.").arg(m_settings->fileName());
+  }
+
   shapeSettingsInitialize();
   load();
   initializeStringProperties();
@@ -208,6 +235,7 @@ const Settings::SettingRange<double>& Settings::spotRotationRange() { return ::s
 const Settings::SettingRange<int>& Settings::borderSizeRange() { return settings::ranges::borderSize; }
 const Settings::SettingRange<double>& Settings::borderOpacityRange() { return settings::ranges::borderOpacity; }
 const Settings::SettingRange<double>& Settings::zoomFactorRange() { return settings::ranges::zoomFactor; }
+const Settings::SettingRange<int>& Settings::inputSequenceIntervalRange() { return settings::ranges::inputSequenceInterval; }
 
 // -------------------------------------------------------------------------------------------------
 const QList<Settings::SpotShape>& Settings::spotShapes() const
@@ -734,4 +762,21 @@ QString Settings::StringProperty::typeToString(Type type)
   case Type::StringEnum: return "Value";
   }
   return QString();
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs)
+{
+  const auto v = qMin(qMax(::settings::ranges::inputSequenceInterval.min, intervalMs),
+                           ::settings::ranges::inputSequenceInterval.max);
+  m_settings->setValue(settingsKey(dId, ::settings::inputSequenceInterval), v);
+}
+
+// -------------------------------------------------------------------------------------------------
+int Settings::deviceInputSeqInterval(const DeviceId& dId) const
+{
+  const auto value = m_settings->value(settingsKey(dId, ::settings::inputSequenceInterval),
+                                       ::settings::defaultValue::inputSequenceInterval).toInt();
+  return qMin(qMax(::settings::ranges::inputSequenceInterval.min, value),
+                   ::settings::ranges::inputSequenceInterval.max);
 }

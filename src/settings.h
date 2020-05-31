@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QVariant>
 
+struct DeviceId;
 class QSettings;
 class QQmlPropertyMap;
 
@@ -96,6 +97,7 @@ public:
   static const SettingRange<int>& borderSizeRange();
   static const SettingRange<double>& borderOpacityRange();
   static const SettingRange<double>& zoomFactorRange();
+  static const SettingRange<int>& inputSequenceIntervalRange();
 
   class SpotShapeSetting {
   public:
@@ -158,6 +160,9 @@ public:
   void loadPreset(const QString& preset);
   void removePreset(const QString& preset);
   QStringList presets() const;
+
+  void setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs);
+  int deviceInputSeqInterval(const DeviceId& dId) const;
 
 signals:
   void showSpotShadeChanged(bool show);

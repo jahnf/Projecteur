@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QLineEdit>
 #include <QPaintEvent>
+#include <QStaticText>
 #include <QStyleOptionFrame>
 #include <QStylePainter>
 #include <QVBoxLayout>
@@ -70,10 +71,19 @@ namespace {
   int drawKeyEventSequence(int startX, QPainter& p, const QStyleOption& option,
                            const KeyEventSequence& kes, bool drawEmptyPlaceholder = true)
   {
-    if (kes.empty()) {
-      Q_UNUSED(drawEmptyPlaceholder);
-      // TODO draw empty indicator if drawEmptyPlaceholder.
-      return 0;
+    if (kes.empty())
+    {
+      if (!drawEmptyPlaceholder) { return 0; }
+
+      p.save();
+      p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
+      p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+
+      static const QStaticText textNone(InputSeqEdit::tr("None"));
+      const auto top = (option.rect.height() - textNone.size().height()) / 2;
+      p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
+      p.restore();
+      return textNone.size().width();
     }
 
     int sequenceWidth = 0;
@@ -283,12 +293,13 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
 void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                              const QModelIndex& index) const
 {
-  const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model());
-  if (!imModel) {
-    QStyledItemDelegate::paint(painter, option, index);
-    return;
-  }
 
+  // Let QStyledItemDelegate handle drawing current focus inidicator and other basic stuff..
+  QStyledItemDelegate::paint(painter, option, index);
+  const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model());
+  if (!imModel) { return; }
+
+  // Our custom drawing of the KeyEventSequence...
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
   drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).sequence);

@@ -2,8 +2,9 @@
 #include "spotlight.h"
 
 #include "deviceinput.h"
-#include "virtualdevice.h"
 #include "logging.h"
+#include "settings.h"
+#include "virtualdevice.h"
 
 #include <QSocketNotifier>
 #include <QTimer>
@@ -22,11 +23,12 @@ namespace {
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
-Spotlight::Spotlight(QObject* parent, Options options)
+Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   : QObject(parent)
   , m_options(std::move(options))
   , m_activeTimer(new QTimer(this))
   , m_connectionTimer(new QTimer(this))
+  , m_settings(settings)
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
@@ -117,6 +119,12 @@ int Spotlight::connectDevices()
 
       auto subDeviceConnection = SubEventConnection::create(scanSubDevice, *dc);
       if (!addInputEventHandler(subDeviceConnection)) continue;
+
+      if (dc->subDeviceCount() == 0) {
+        // Load Input mapping settings when first sub-device gets added.
+        dc->inputMapper()->setKeyEventInterval(m_settings->deviceInputSeqInterval(dev.id));
+        // TODO load input mappings
+      }
 
       dc->addSubDevice(std::move(subDeviceConnection));
       if (dc->subDeviceCount() == 1)

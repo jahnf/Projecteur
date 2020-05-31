@@ -34,7 +34,7 @@ int InputSeqMapConfigModel::rowCount(const QModelIndex& parent) const
 // -------------------------------------------------------------------------------------------------
 int InputSeqMapConfigModel::columnCount(const QModelIndex& /*parent*/) const
 {
-  return 3; // inputseq, mapping type, edit..
+  return 3; // input sequence, action type, action
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -52,16 +52,11 @@ QVariant InputSeqMapConfigModel::data(const QModelIndex& index, int role) const
   if (index.row() >= static_cast<int>(m_inputSeqMapConfigs.size()))
     return QVariant();
 
-  if (index.column() == InputSeqCol) {
-    if (role == Qt::DisplayRole) {
-      return (QString() << m_inputSeqMapConfigs[index.row()].sequence);
-    } else if (role == Roles::InputSeqRole) {
-      return QVariant::fromValue(m_inputSeqMapConfigs[index.row()].sequence);
-    }
+  if (index.column() == InputSeqCol && role == Roles::InputSeqRole) {
+    return QVariant::fromValue(m_inputSeqMapConfigs[index.row()].sequence);
   }
-  else if (index.column() == ActionTypeCol) {
-    if (role == Qt::DisplayRole)
-      return QString::number(m_inputSeqMapConfigs[index.row()].action);
+  else if (index.column() == ActionTypeCol && role == Qt::DisplayRole) {
+    return QString::number(m_inputSeqMapConfigs[index.row()].action);
   }
 
   return QVariant();
@@ -126,7 +121,7 @@ InputSeqMapTableView::InputSeqMapTableView(QWidget* parent)
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputSeqMapConfigModel::InputSeqCol, imSeqDelegate);
 
-  setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
+  setSelectionMode(QAbstractItemView::SelectionMode::NoSelection);
   horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
 }
 
@@ -140,7 +135,6 @@ void InputSeqMapTableView::setModel(QAbstractItemModel* model)
     horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionCol, QHeaderView::ResizeToContents);
   }
 }
-
 
 //-------------------------------------------------------------------------------------------------
 void InputSeqMapTableView::keyPressEvent(QKeyEvent* e)
@@ -159,6 +153,9 @@ void InputSeqMapTableView::keyPressEvent(QKeyEvent* e)
       return;
     }
     break;
+  case Qt::Key_Tab:
+    e->ignore(); // Allow to change focus to other widgets in dialog.
+    return;
   }
 
   QTableView::keyPressEvent(e);

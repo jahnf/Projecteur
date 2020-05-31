@@ -154,7 +154,7 @@ namespace {
   }
 
 }
-
+#include <QDebug>
 namespace DeviceScan {
   // -----------------------------------------------------------------------------------------------
   ScanResult getDevices(const QList<SupportedDevice>& additionalDevices)
@@ -237,6 +237,7 @@ namespace DeviceScan {
           // Check if device supports relative events
           const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));
           const bool hasRelativeEvents = !!(supportedEvents & (1 << EV_REL));
+
           // Check if device supports relative x and y event types
           const auto supportedRelEv = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/rel"));
           const bool hasRelXEvents = !!(supportedRelEv & (1 << REL_X));

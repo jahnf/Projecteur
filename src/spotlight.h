@@ -10,6 +10,7 @@
 #include "devicescan.h"
 
 class QTimer;
+class Settings;
 class VirtualDevice;
 
 /// Class handling spotlight device connections and indicating if a device is sending
@@ -24,7 +25,7 @@ public:
     QList<SupportedDevice> additionalDevices;
   };
 
-  explicit Spotlight(QObject* parent, Options options);
+  explicit Spotlight(QObject* parent, Options options, Settings* settings);
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
@@ -65,4 +66,5 @@ private:
   QTimer* m_connectionTimer = nullptr;
   bool m_spotActive = false;
   std::shared_ptr<VirtualDevice> m_virtualDevice;
+  Settings* m_settings = nullptr;
 };
