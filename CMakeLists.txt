@@ -55,6 +55,7 @@ add_executable(projecteur
   src/inputmapconfig.cc     src/inputmapconfig.h
   src/inputseqedit.cc       src/inputseqedit.h
   src/logging.cc            src/logging.h
+  src/nativekeyseqedit.cc   src/nativekeyseqedit.h
   src/preferencesdlg.cc     src/preferencesdlg.h
   src/projecteurapp.cc      src/projecteurapp.h
   src/runguard.cc           src/runguard.h

@@ -23,10 +23,10 @@ namespace {
     const QRect iconRect(startX, marginTop, iconSize, iconSize);
 
     p.save();
-    p.setPen(Qt::red);
+    p.setPen(Qt::lightGray);
     p.setBrush(QBrush(Qt::red));
     p.setRenderHint(QPainter::Antialiasing);
-    p.drawRoundedRect(iconRect, 20, 20, Qt::RelativeSize);;
+    p.drawEllipse(iconRect);
     p.restore();
 
     return iconRect.width();
@@ -194,6 +194,16 @@ void InputSeqEdit::setInputSequence(const KeyEventSequence& is)
   if (is == m_inputSequence) return;
 
   m_inputSequence = is;
+  update();
+  emit inputSequenceChanged(m_inputSequence);
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqEdit::clear()
+{
+  if (m_inputSequence.size() == 0) return;
+
+  m_inputSequence.clear();
   update();
   emit inputSequenceChanged(m_inputSequence);
 }

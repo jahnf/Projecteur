@@ -145,7 +145,6 @@ void InputMapConfigModel::removeConfigItemRows(std::vector<int> rows)
     {
       seq_first = *it;
     }
-    Qt::Key_Right;
   }
 
   removeConfigItemRows(seq_first, seq_last);
@@ -257,7 +256,8 @@ void InputMapConfigView::setModel(QAbstractItemModel* model)
 //-------------------------------------------------------------------------------------------------
 void InputMapConfigView::keyPressEvent(QKeyEvent* e)
 {
-  switch (e->key()) {
+  switch (e->key())
+  {
   case Qt::Key_Enter:
   case Qt::Key_Return:
     if (model()->flags(currentIndex()) & Qt::ItemIsEditable) {
