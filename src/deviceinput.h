@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include <QDataStream>
 #include <QObject>
 #include <QKeySequence>
 
@@ -32,12 +33,39 @@ struct DeviceInputEvent
 };
 
 // -------------------------------------------------------------------------------------------------
+QDataStream& operator<<(QDataStream& s, const DeviceInputEvent& die);
+QDataStream& operator>>(QDataStream& s, DeviceInputEvent& die);
+
+// -------------------------------------------------------------------------------------------------
 /// KeyEvent is a sequence of DeviceInputEvent.
 using KeyEvent = std::vector<DeviceInputEvent>;
 
 /// KeyEventSequence is a sequence of KeyEvents.
 using KeyEventSequence = std::vector<KeyEvent>;
 Q_DECLARE_METATYPE(KeyEventSequence);
+
+// -------------------------------------------------------------------------------------------------
+template<typename T>
+QDataStream& operator<<(QDataStream& s, const std::vector<T>& container)
+{
+  s << quint32(container.size());
+  for (const auto& item : container) {
+    s << item;
+  }
+  return s;
+}
+
+template<typename T>
+QDataStream& operator>>(QDataStream& s, std::vector<T>& container)
+{
+  quint32 size{};
+  s >> size;
+  container.resize(size);
+  for (quint64 i = 0; i < size; ++i) {
+    s >> container[i];
+  }
+  return s;
+}
 
 // -------------------------------------------------------------------------------------------------
 QString& operator<<(QString& s, const KeyEventSequence& kes);
@@ -72,19 +100,36 @@ public:
 
   void swap(NativeKeySequence& other);
 
+  friend QDataStream& operator>>(QDataStream& s, NativeKeySequence& ks) {
+    return s >> ks.m_keySequence >> ks.m_nativeSequence;
+  }
+
+  friend QDataStream& operator<<(QDataStream& s, const NativeKeySequence& ks) {
+    return s << ks.m_keySequence << ks.m_nativeSequence;
+  }
+
 private:
   QKeySequence m_keySequence;
   KeyEventSequence m_nativeSequence;
 };
+Q_DECLARE_METATYPE(NativeKeySequence);
 
 // -------------------------------------------------------------------------------------------------
-struct MappedInputAction {
+struct MappedInputAction
+{
+  bool operator==(const MappedInputAction& o) const { return sequence == o.sequence; }
+
   // For now this can only be a mapped key sequence
   // TODO This action could also be sth like toggle the zoom...
   NativeKeySequence sequence;
 };
+Q_DECLARE_METATYPE(MappedInputAction);
 
-using InputMapConfig = std::map<KeyEventSequence, MappedInputAction>;
+QDataStream& operator>>(QDataStream& s, MappedInputAction& mia);
+QDataStream& operator<<(QDataStream& s, const MappedInputAction& mia);
+
+// -------------------------------------------------------------------------------------------------
+class InputMapConfig : public std::map<KeyEventSequence, MappedInputAction>{};
 
 // -------------------------------------------------------------------------------------------------
 class InputMapper : public QObject
@@ -113,6 +158,7 @@ public:
   const InputMapConfig& configuration() const;
 
 signals:
+  void configurationChanged();
   void recordingModeChanged(bool recording);
   void keyEventRecorded(const KeyEvent&);
   // Right befor first key event recorded:

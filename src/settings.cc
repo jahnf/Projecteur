@@ -2,6 +2,7 @@
 #include "settings.h"
 
 #include "device.h"
+#include "deviceinput.h"
 #include "logging.h"
 
 #include <functional>
@@ -38,6 +39,7 @@ namespace {
 
     // -- device specific
     constexpr char inputSequenceInterval[] = "inputSequenceInterval";
+    constexpr char inputMapConfig[] = "inputMapConfig";
 
     namespace defaultValue {
       constexpr bool showSpotShade = true;
@@ -783,3 +785,34 @@ int Settings::deviceInputSeqInterval(const DeviceId& dId) const
   return qMin(qMax(::settings::ranges::inputSequenceInterval.min, value),
                    ::settings::ranges::inputSequenceInterval.max);
 }
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc)
+{
+  m_settings->beginWriteArray(settingsKey(dId, ::settings::inputMapConfig), imc.size());
+  int index = 0;
+  for (const auto& item : imc )
+  {
+    m_settings->setArrayIndex(index++);
+    m_settings->setValue("deviceSequence", QVariant::fromValue(item.first));
+    m_settings->setValue("mappedAction", QVariant::fromValue(item.second));
+  }
+  m_settings->endArray();
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc)
+{
+  const int size = m_settings->beginReadArray(settingsKey(dId, ::settings::inputMapConfig));
+  for (int i = 0; i < size; ++i)
+  {
+    m_settings->setArrayIndex(i);
+    const auto seq = m_settings->value("deviceSequence");
+    if (!seq.canConvert<KeyEventSequence>()) continue;
+    const auto conf = m_settings->value("mappedAction");
+    if (!conf.canConvert<MappedInputAction>()) continue;
+    imc.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedInputAction>(conf));
+  }
+  m_settings->endArray();
+}
+

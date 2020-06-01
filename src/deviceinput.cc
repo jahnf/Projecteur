@@ -19,6 +19,8 @@ LOGGING_CATEGORY(input, "input")
 
 namespace  {
   // -----------------------------------------------------------------------------------------------
+  static auto registered_ = qRegisterMetaTypeStreamOperators<KeyEventSequence>()
+                            && qRegisterMetaTypeStreamOperators<MappedInputAction>();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -42,6 +44,15 @@ bool DeviceInputEvent::operator<(const input_event& o) const {
 }
 
 // -------------------------------------------------------------------------------------------------
+QDataStream& operator<<(QDataStream& s, const DeviceInputEvent& die) {
+  return s << die.type << die.code <<die.value;
+}
+
+QDataStream& operator>>(QDataStream& s, DeviceInputEvent& die) {
+  return s >> die.type >> die.code >> die.value;
+}
+
+// -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &d)
 {
   QDebugStateSaver saver(debug);
@@ -58,6 +69,15 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke)
     debug.nospace() << e << ',';
   debug.nospace() << "]";
   return debug;
+}
+
+// -------------------------------------------------------------------------------------------------
+QDataStream& operator>>(QDataStream& s, MappedInputAction& mia) {
+  return s >> mia.sequence;
+}
+
+QDataStream& operator<<(QDataStream& s, const MappedInputAction& mia) {
+  return s << mia.sequence;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -551,17 +571,23 @@ void InputMapper::resetState()
 // -------------------------------------------------------------------------------------------------
 void InputMapper::setConfiguration(const InputMapConfig& config)
 {
+  if (config == impl->m_config) return;
+
   impl->m_config = config;
   impl->resetState();
   impl->m_keymap.reconfigure(impl->m_config);
+  emit configurationChanged();
 }
 
 // -------------------------------------------------------------------------------------------------
 void InputMapper::setConfiguration(InputMapConfig&& config)
 {
+  if (config == impl->m_config) return;
+
   impl->m_config.swap(config);
   impl->resetState();
   impl->m_keymap.reconfigure(impl->m_config);
+  emit configurationChanged();
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -127,6 +127,8 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
 
   const auto tblView = new InputMapConfigView(imWidget);
   const auto imModel = new InputMapConfigModel(m_inputMapper, imWidget);
+  if (m_inputMapper) imModel->setConfiguration(m_inputMapper->configuration());
+
 
   tblView->setModel(imModel);
   const auto selectionModel = tblView->selectionModel();
@@ -136,7 +138,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
     imModel->setInputMapper(m_inputMapper);
     if (m_inputMapper) {
       intervalSb->setValue(m_inputMapper->keyEventInterval());
-      // TODO load device mappings from input mapper
+      imModel->setConfiguration(m_inputMapper->configuration());
     }
     imWidget->setDisabled(!m_inputMapper);
   });

@@ -328,8 +328,6 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
   m_recordedEvents.emplace_back(std::move(pressed));
   m_recordedEvents.emplace_back(std::move(released));
 
-//  m_nativeModifiers.clear();
-
   update();
   e->accept();
 

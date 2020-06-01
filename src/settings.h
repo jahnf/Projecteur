@@ -8,6 +8,7 @@
 #include <QVariant>
 
 struct DeviceId;
+class InputMapConfig;
 class QSettings;
 class QQmlPropertyMap;
 
@@ -163,6 +164,8 @@ public:
 
   void setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs);
   int deviceInputSeqInterval(const DeviceId& dId) const;
+  void setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc);
+  void getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc);
 
 signals:
   void showSpotShadeChanged(bool show);
