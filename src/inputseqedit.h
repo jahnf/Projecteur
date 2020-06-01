@@ -18,6 +18,7 @@ class InputSeqEdit : public QWidget
 public:
   InputSeqEdit(QWidget* parent = nullptr);
   InputSeqEdit(InputMapper* im, QWidget* parent = nullptr);
+  ~InputSeqEdit();
 
   QSize sizeHint() const override;
 
@@ -62,13 +63,16 @@ public:
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
 
+signals:
+  void editingStarted() const;
+
 private:
   void commitAndCloseEditor(InputSeqEdit* editor);
 };
 
 
 // -------------------------------------------------------------------------------------------------
-class KeySequenceDelegate : public QStyledItemDelegate
+class QKeySequenceDelegate : public QStyledItemDelegate
 {
   Q_OBJECT
 

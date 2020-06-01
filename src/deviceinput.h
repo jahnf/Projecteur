@@ -23,7 +23,7 @@ struct DeviceInputEvent
 
   uint16_t type;
   uint16_t code;
-  uint32_t value;
+  int32_t  value;
 
   bool operator==(const DeviceInputEvent& o) const;
   bool operator==(const struct input_event& o) const;
@@ -49,10 +49,39 @@ QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
 
 // -------------------------------------------------------------------------------------------------
+class NativeKeySequence
+{
+public:
+  NativeKeySequence() = default;
+  NativeKeySequence(NativeKeySequence&&) = default;
+  NativeKeySequence(const NativeKeySequence&) = default;
+  NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes);
+
+  NativeKeySequence& operator=(NativeKeySequence&&) = default;
+  NativeKeySequence& operator=(const NativeKeySequence&) = default;
+  bool operator==(const NativeKeySequence& other) const;
+  bool operator!=(const NativeKeySequence& other) const;
+
+
+  auto count() const { return m_keySequence.count(); }
+  bool empty() const { return count() == 0; }
+  const auto& keySequence() const { return m_keySequence; }
+  const auto& nativeSequence() const { return m_nativeSequence; }
+
+  void clear();
+
+  void swap(NativeKeySequence& other);
+
+private:
+  QKeySequence m_keySequence;
+  KeyEventSequence m_nativeSequence;
+};
+
+// -------------------------------------------------------------------------------------------------
 struct MappedInputAction {
   // For now this can only be a mapped key sequence
   // TODO This action could also be sth like toggle the zoom...
-  QKeySequence keySequence;
+  NativeKeySequence sequence;
 };
 
 using InputMapConfig = std::map<KeyEventSequence, MappedInputAction>;

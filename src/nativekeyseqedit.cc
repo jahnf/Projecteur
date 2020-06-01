@@ -1,6 +1,7 @@
 ﻿// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "nativekeyseqedit.h"
 
+#include "inputmapconfig.h"
 #include "logging.h"
 
 #include <linux/input.h>
@@ -106,37 +107,6 @@ namespace {
 }
 
 // -------------------------------------------------------------------------------------------------
-NativeKeySequence::NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes)
-  : m_keySequence(std::move(ks))
-  , m_nativeSequence(std::move(kes))
-{}
-
-// -------------------------------------------------------------------------------------------------
-bool NativeKeySequence::operator==(const NativeKeySequence &other) const
-{
-  return m_keySequence == other.m_keySequence && m_nativeSequence == other.m_nativeSequence;
-}
-
-// -------------------------------------------------------------------------------------------------
-bool NativeKeySequence::operator!=(const NativeKeySequence &other) const
-{
-  return m_keySequence != other.m_keySequence || m_nativeSequence != other.m_nativeSequence;
-}
-
-// -------------------------------------------------------------------------------------------------
-void NativeKeySequence::clear()
-{
-  m_keySequence = QKeySequence{};
-  m_nativeSequence.clear();
-}
-
-void NativeKeySequence::swap(NativeKeySequence& other)
-{
-  m_keySequence.swap(other.m_keySequence);
-  m_nativeSequence.swap(other.m_nativeSequence);
-}
-
-// -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 NativeKeySeqEdit::NativeKeySeqEdit(QWidget* parent)
   : QWidget(parent)
@@ -150,6 +120,11 @@ NativeKeySeqEdit::NativeKeySeqEdit(QWidget* parent)
   m_timer->setSingleShot(true);
   m_timer->setInterval(950);
   connect(m_timer, &QTimer::timeout, this, [this](){ setRecording(false); });
+}
+
+// -------------------------------------------------------------------------------------------------
+NativeKeySeqEdit::~NativeKeySeqEdit()
+{
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -239,6 +214,7 @@ void NativeKeySeqEdit::paintEvent(QPaintEvent*)
 void NativeKeySeqEdit::mouseDoubleClickEvent(QMouseEvent* e)
 {
   QWidget::mouseDoubleClickEvent(e);
+  e->accept();
   setRecording(!recording());
 }
 
@@ -264,14 +240,18 @@ void NativeKeySeqEdit::setRecording(bool doRecord)
   { // started recording mode
     reset();
   }
-  else if (m_recordedKeys.size() > 0)
+  else
   { // finished recording
-    NativeKeySequence recorded(std::move(m_recordedSequence), std::move(m_recordedEvents));
-    if (recorded != m_nativeSequence) {
-      m_nativeSequence.swap(recorded);
-      emit keySequenceChanged(m_nativeSequence);
+    if (m_recordedKeys.size() > 0)
+    {
+      NativeKeySequence recorded(std::move(m_recordedSequence), std::move(m_recordedEvents));
+      if (recorded != m_nativeSequence) {
+        m_nativeSequence.swap(recorded);
+        emit keySequenceChanged(m_nativeSequence);
+      }
     }
     reset();
+    emit editingFinished(this);
   }
   update();
   emit recordingChanged(m_recording);
@@ -314,7 +294,7 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
       || key == Qt::Key_Alt
       || key == Qt::Key_AltGr)
   {
-    m_nativeModifiers.push_back(e->nativeScanCode() - 8); // See comment below about the -8;
+    m_nativeModifiers.insert(e->nativeScanCode() - 8); // See comment below about the -8;
     return;
   }
 
@@ -348,7 +328,7 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
   m_recordedEvents.emplace_back(std::move(pressed));
   m_recordedEvents.emplace_back(std::move(released));
 
-  m_nativeModifiers.clear();
+//  m_nativeModifiers.clear();
 
   update();
   e->accept();
@@ -363,7 +343,7 @@ void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
 {
   if (!recording())
   {
-    if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return)
+    if (e->key() == Qt::Key_Enter ||   e->key() == Qt::Key_Return)
     {
       setRecording(true);
       return;
@@ -385,6 +365,15 @@ void NativeKeySeqEdit::keyReleaseEvent(QKeyEvent* e)
 {
   if (recording())
   {
+    if (e->key() == Qt::Key_Control
+        || e->key() == Qt::Key_Shift
+        || e->key() == Qt::Key_Meta
+        || e->key() == Qt::Key_Alt
+        || e->key() == Qt::Key_AltGr)
+    {
+      m_nativeModifiers.erase(e->nativeScanCode() - 8);
+    }
+
     if (m_recordedKeys.size() && m_lastKey == e->key()) {
       if (m_recordedKeys.size() < maxKeyCount) {
         m_timer->start();
@@ -415,4 +404,97 @@ int NativeKeySeqEdit::translateModifiers(Qt::KeyboardModifiers state)
   if (state & Qt::GroupSwitchModifier)  result |= Qt::GroupSwitchModifier;
   return result;
 }
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void NativeKeySeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+                                 const QModelIndex& index) const
+{
+  // Let QStyledItemDelegate handle drawing current focus inidicator and other basic stuff..
+  QStyledItemDelegate::paint(painter, option, index);
+  const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
+  if (!imModel) { return; }
+
+  // Our custom drawing of the KeyEventSequence...
+  const auto& fm = option.fontMetrics;
+  const int xPos = (option.rect.height()-fm.height()) / 2;
+  drawQKeySeqText(xPos, *painter, option, imModel->configData(index).mappedSequence.keySequence());
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* NativeKeySeqDelegate::createEditor(QWidget* parent,
+                                            const QStyleOptionViewItem& /*option*/,
+                                            const QModelIndex& index) const
+
+{
+  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
+  {
+    auto *editor = new NativeKeySeqEdit(parent);
+    connect(editor, &NativeKeySeqEdit::editingFinished, this, &NativeKeySeqDelegate::commitAndCloseEditor);
+    return editor;
+  }
+
+  return nullptr;
+}
+
+// -------------------------------------------------------------------------------------------------
+void NativeKeySeqDelegate::commitAndCloseEditor(NativeKeySeqEdit* editor)
+{
+  emit commitData(editor);
+  emit closeEditor(editor);
+}
+
+// -------------------------------------------------------------------------------------------------
+void NativeKeySeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
+{
+  if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor))
+  {
+    if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
+    {
+      seqEditor->setKeySequence(imModel->configData(index).mappedSequence);
+      seqEditor->setRecording(true);
+      emit editingStarted();
+      return;
+    }
+  }
+
+  QStyledItemDelegate::setEditorData(editor, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+void NativeKeySeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
+                                        const QModelIndex& index) const
+{
+  if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor))
+  {
+    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
+    {
+      imModel->setKeySequence(index, seqEditor->keySequence());
+      return;
+    }
+  }
+
+  QStyledItemDelegate::setModelData(editor, model, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+QSize NativeKeySeqDelegate::sizeHint(const QStyleOptionViewItem& opt,
+                                     const QModelIndex& index) const
+{
+  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
+  {
+    constexpr int verticalMargin = 3;
+    constexpr int horizontalMargin = 3;
+
+    const int h = opt.fontMetrics.height() + 2 * verticalMargin;
+    const int w = std::max(opt.fontMetrics.width(tr("None")) + 2 * horizontalMargin,
+                           opt.fontMetrics.width(imModel->configData(index)
+                                                   .mappedSequence.keySequence().toString()));
+
+    return QSize(w, h);
+  }
+  return QStyledItemDelegate::sizeHint(opt, index);
+}
+
+
 

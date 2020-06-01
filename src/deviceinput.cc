@@ -123,7 +123,7 @@ namespace  {
   using RefSet = std::set<const RefPair*>;
 
   struct Next {
-    QKeySequence mappedKeys; // TODO replace with generic action
+    NativeKeySequence mappedKeys; // TODO replace with generic action
     RefSet next_events;
   };
 
@@ -216,7 +216,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   // -- fill maps
   for (const auto& item: config)
   {
-    if (item.second.keySequence.count() == 0) continue;
+    if (item.second.sequence.count() == 0) continue;
 
     const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i) {
@@ -227,7 +227,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   // -- fill references
   for (const auto& item: config)
   {
-    if (item.second.keySequence.count() == 0) continue;
+    if (item.second.sequence.count() == 0) continue;
 
     const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i)
@@ -242,7 +242,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
       if (i == kes.size() - 1) // last keyevent in seq
       {
         // Set (placeholder/fake) action for now in this prototype.
-        refobj->mappedKeys = item.second.keySequence; // TODO generic action
+        refobj->mappedKeys = item.second.sequence; // TODO generic action
       }
       else if (i+1 < m_keymaps.size()) // if not last keyevent in seq
       {
@@ -256,6 +256,38 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
+NativeKeySequence::NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes)
+  : m_keySequence(std::move(ks))
+    , m_nativeSequence(std::move(kes))
+{}
+
+// -------------------------------------------------------------------------------------------------
+bool NativeKeySequence::operator==(const NativeKeySequence &other) const
+{
+  return m_keySequence == other.m_keySequence && m_nativeSequence == other.m_nativeSequence;
+}
+
+// -------------------------------------------------------------------------------------------------
+bool NativeKeySequence::operator!=(const NativeKeySequence &other) const
+{
+  return m_keySequence != other.m_keySequence || m_nativeSequence != other.m_nativeSequence;
+}
+
+// -------------------------------------------------------------------------------------------------
+void NativeKeySequence::clear()
+{
+  m_keySequence = QKeySequence{};
+  m_nativeSequence.clear();
+}
+
+void NativeKeySequence::swap(NativeKeySequence& other)
+{
+  m_keySequence.swap(other.m_keySequence);
+  m_nativeSequence.swap(other.m_nativeSequence);
+}
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 struct InputMapper::Impl
 {
   Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev);
@@ -263,7 +295,7 @@ struct InputMapper::Impl
   void sequenceTimeout();
   void resetState();
   void record(const struct input_event input_events[], size_t num);
-  void emitQKeySequence(const QKeySequence& ks);
+  void emitQKeySequence(const NativeKeySequence& ks);
 
   InputMapper* m_parent = nullptr;
   std::shared_ptr<VirtualDevice> m_vdev; // can be a nullptr if application is started without uinput
@@ -311,7 +343,7 @@ void InputMapper::Impl::sequenceTimeout()
     if (m_lastState.second->second)
     {
       logDebug(input) << "AbigiouslyHit: Emitting Key Sequence:"
-                      << m_lastState.second->second->mappedKeys;
+                      << m_lastState.second->second->mappedKeys.keySequence();
       emitQKeySequence(m_lastState.second->second->mappedKeys);
       // TODO trigger actions(s) / inject mapped key(s)
     }
@@ -332,15 +364,19 @@ void InputMapper::Impl::resetState()
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputMapper::Impl::emitQKeySequence(const QKeySequence& ks)
+void InputMapper::Impl::emitQKeySequence(const NativeKeySequence& ks)
 {
   if (!m_vdev) return;
 
-  for (int i = 0; i < ks.count(); ++i)
+  std::vector<input_event> events;
+  events.reserve(5); // 3 modifier keys + 1 key + 1 syn event
+  for (const auto& ke : ks.nativeSequence())
   {
-    // TODO replace QKeySequence with similar custom type that supports native scan codes,
-    // or map every key value to a linux value...
-    // ... sadly there seems to be no public Qt API for mapping native to Qt codes and vice versa
+    for (const auto& ie : ke)
+      events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
+
+    m_vdev->emitEvents(events);
+    events.resize(0);
   }
 }
 
@@ -481,7 +517,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
       {
         // TODO run action(s) / send mapped key events
         logDebug(input) << "Hit: Emitting Key Sequence"
-                        << impl->m_keymap.state()->second->mappedKeys;
+                        << impl->m_keymap.state()->second->mappedKeys.keySequence();
         impl->emitQKeySequence(impl->m_keymap.state()->second->mappedKeys);
       }
       else

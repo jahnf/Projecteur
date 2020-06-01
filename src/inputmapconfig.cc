@@ -53,10 +53,7 @@ QVariant InputMapConfigModel::data(const QModelIndex& index, int role) const
     return QVariant();
 
   if (index.column() == InputSeqCol && role == Roles::InputSeqRole) {
-    return QVariant::fromValue(m_configItems[index.row()].sequence);
-  }
-  else if (index.column() == ActionCol && role == Qt::DisplayRole) {
-    return m_configItems[index.row()].keySequence;
+    return QVariant::fromValue(m_configItems[index.row()].deviceSequence);
   }
 
   return QVariant();
@@ -110,7 +107,7 @@ int InputMapConfigModel::addConfigItem(const InputMapModelItem& cfg)
   m_configItems.push_back(cfg);
   endInsertRows();
 
-  if (cfg.sequence.size()) {
+  if (cfg.deviceSequence.size()) {
     configureInputMapper();
   }
 
@@ -157,9 +154,9 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
   if (index.row() < static_cast<int>(m_configItems.size()))
   {
     auto& c = m_configItems[index.row()];
-    if (c.sequence != kes)
+    if (c.deviceSequence != kes)
     {
-      c.sequence = kes;
+      c.deviceSequence = kes;
       configureInputMapper();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
     }
@@ -167,14 +164,14 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputMapConfigModel::setKeySequence(const QModelIndex& index, const QKeySequence& ks)
+void InputMapConfigModel::setKeySequence(const QModelIndex& index, const NativeKeySequence& ks)
 {
   if (index.row() < static_cast<int>(m_configItems.size()))
   {
     auto& c = m_configItems[index.row()];
-    if (c.keySequence != ks)
+    if (c.mappedSequence != ks)
     {
-      c.keySequence = ks;
+      c.mappedSequence = ks;
       configureInputMapper();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
     }
@@ -204,8 +201,8 @@ InputMapConfig InputMapConfigModel::configuration() const
 
   for (const auto& item : m_configItems)
   {
-    if (item.sequence.size() == 0) continue;
-    config.emplace(item.sequence, MappedInputAction{item.keySequence});
+    if (item.deviceSequence.size() == 0) continue;
+    config.emplace(item.deviceSequence, MappedInputAction{item.mappedSequence});
   }
 
   return config;
@@ -218,7 +215,7 @@ void InputMapConfigModel::setConfiguration(const InputMapConfig& config)
   m_configItems.clear();
 
   for (const auto& item : config) {
-    m_configItems.push_back(InputMapModelItem{item.first, item.second.keySequence});
+    m_configItems.push_back(InputMapModelItem{item.first, item.second.sequence});
   }
 
   endResetModel();
@@ -234,12 +231,19 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::InputSeqCol, imSeqDelegate);
 
-  const auto keySeqDelegate = new KeySequenceDelegate(this);
+  const auto keySeqDelegate = new NativeKeySeqDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::ActionCol, keySeqDelegate);
 
   setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
   setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
   horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
+
+  setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+
+  connect(imSeqDelegate, &InputSeqDelegate::editingStarted, [this](){ m_editing = true; });
+  connect(imSeqDelegate, &InputSeqDelegate::closeEditor, [this](){ m_editing = false; });
+  connect(keySeqDelegate, &NativeKeySeqDelegate::editingStarted, [this](){ m_editing = true; });
+  connect(keySeqDelegate, &NativeKeySeqDelegate::closeEditor, [this](){ m_editing = false; });
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -273,7 +277,7 @@ void InputMapConfigView::keyPressEvent(QKeyEvent* e)
       imModel->setInputSequence(currentIndex(), KeyEventSequence{});
       return;
     case InputMapConfigModel::ActionCol:
-      imModel->setKeySequence(currentIndex(), QKeySequence());
+      imModel->setKeySequence(currentIndex(), NativeKeySequence());
       return;
     }
     break;

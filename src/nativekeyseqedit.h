@@ -11,39 +11,13 @@
 #include "deviceinput.h"
 
 #include <QKeySequence>
+#include <QStyledItemDelegate>
 #include <QWidget>
+
+#include <set>
 
 // -------------------------------------------------------------------------------------------------
 class QStyleOptionFrame;
-
-// -------------------------------------------------------------------------------------------------
-class NativeKeySequence
-{
-public:
-  NativeKeySequence() = default;
-  NativeKeySequence(NativeKeySequence&&) = default;
-  NativeKeySequence(const NativeKeySequence&) = default;
-  NativeKeySequence(QKeySequence&&, KeyEventSequence&&);
-
-  NativeKeySequence& operator=(NativeKeySequence&&) = default;
-  NativeKeySequence& operator=(const NativeKeySequence&) = default;
-  bool operator==(const NativeKeySequence& other) const;
-  bool operator!=(const NativeKeySequence& other) const;
-
-
-  auto count() const { return m_keySequence.count(); }
-  bool empty() const { return count() == 0; }
-  const auto& keySequence() const { return m_keySequence; }
-  const auto& nativeSequence() const { return m_nativeSequence; }
-
-  void clear();
-
-  void swap(NativeKeySequence& other);
-
-private:
-  QKeySequence m_keySequence;
-  KeyEventSequence m_nativeSequence;
-};
 
 // -------------------------------------------------------------------------------------------------
 class NativeKeySeqEdit : public QWidget
@@ -52,6 +26,7 @@ class NativeKeySeqEdit : public QWidget
 
 public:
   NativeKeySeqEdit(QWidget* parent = nullptr);
+  virtual ~NativeKeySeqEdit();
 
   QSize sizeHint() const override;
 
@@ -84,10 +59,31 @@ private:
 
   NativeKeySequence m_nativeSequence;
   std::vector<int> m_recordedKeys;
-  std::vector<int> m_nativeModifiers;
+  std::set<int> m_nativeModifiers;
   QKeySequence m_recordedSequence;
   KeyEventSequence m_recordedEvents;
   QTimer* m_timer = nullptr;
   int m_lastKey = -1;
   bool m_recording = false;
+};
+
+// -------------------------------------------------------------------------------------------------
+class NativeKeySeqDelegate : public QStyledItemDelegate
+{
+  Q_OBJECT
+
+public:
+  using QStyledItemDelegate::QStyledItemDelegate;
+
+  void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  void setEditorData(QWidget* editor, const QModelIndex& index) const override;
+  void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+
+signals:
+  void editingStarted() const;
+
+private:
+  void commitAndCloseEditor(NativeKeySeqEdit* editor);
 };

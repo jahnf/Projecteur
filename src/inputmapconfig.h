@@ -2,6 +2,7 @@
 #pragma once
 
 #include "deviceinput.h"
+#include "nativekeyseqedit.h"
 
 #include <QAbstractTableModel>
 #include <QKeySequence>
@@ -12,8 +13,8 @@
 
 // -------------------------------------------------------------------------------------------------
 struct InputMapModelItem {
-  KeyEventSequence sequence;
-  QKeySequence keySequence;
+  KeyEventSequence deviceSequence;
+  NativeKeySequence mappedSequence;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -22,7 +23,7 @@ class InputMapConfigModel : public QAbstractTableModel
   Q_OBJECT
 
 public:
-  enum Roles { InputSeqRole = Qt::UserRole + 1 };
+  enum Roles { InputSeqRole = Qt::UserRole + 1, NativeSeqRole };
   enum Columns { InputSeqCol = 0, /*ActionTypeCol,*/ ActionCol, ColumnsCount};
 
   InputMapConfigModel(QObject* parent = nullptr);
@@ -39,7 +40,7 @@ public:
 
   const InputMapModelItem& configData(const QModelIndex& index) const;
   void setInputSequence(const QModelIndex& index, const KeyEventSequence& kes);
-  void setKeySequence(const QModelIndex& index, const QKeySequence& ks);
+  void setKeySequence(const QModelIndex& index, const NativeKeySequence& ks);
 
   InputMapper* inputMapper() const;
   void setInputMapper(InputMapper* im);
@@ -66,5 +67,8 @@ public:
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
+
+private:
+  bool m_editing = false;
 };
 

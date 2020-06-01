@@ -126,6 +126,11 @@ InputSeqEdit::InputSeqEdit(InputMapper* im, QWidget* parent)
 }
 
 // -------------------------------------------------------------------------------------------------
+InputSeqEdit::~InputSeqEdit()
+{
+}
+
+// -------------------------------------------------------------------------------------------------
 void InputSeqEdit::initStyleOption(QStyleOptionFrame& option) const
 {
   option.initFrom(this);
@@ -213,7 +218,7 @@ void InputSeqEdit::mouseDoubleClickEvent(QMouseEvent* e)
 {
   QWidget::mouseDoubleClickEvent(e);
   if (!m_inputMapper) return;
-
+  e->accept();
   m_inputMapper->setRecordingMode(!m_inputMapper->recordingMode());
 }
 
@@ -312,7 +317,6 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
 void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                              const QModelIndex& index) const
 {
-
   // Let QStyledItemDelegate handle drawing current focus inidicator and other basic stuff..
   QStyledItemDelegate::paint(painter, option, index);
   const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
@@ -321,7 +325,7 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   // Our custom drawing of the KeyEventSequence...
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
-  drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).sequence);
+  drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).deviceSequence);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -356,7 +360,8 @@ void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
   {
     if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
-      seqEditor->setInputSequence(imModel->configData(index).sequence);
+      seqEditor->setInputSequence(imModel->configData(index).deviceSequence);
+      emit editingStarted();
       return;
     }
   }
@@ -394,27 +399,27 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
 
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
-void KeySequenceDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+void QKeySequenceDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                                 const QModelIndex& index) const
 {
   QStyledItemDelegate::paint(painter, option, index);
 }
 
 // -------------------------------------------------------------------------------------------------
-QSize KeySequenceDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
+QSize QKeySequenceDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
   return QStyledItemDelegate::sizeHint(option, index);
 }
 
 // -------------------------------------------------------------------------------------------------
-QWidget* KeySequenceDelegate::createEditor(QWidget* parent,
+QWidget* QKeySequenceDelegate::createEditor(QWidget* parent,
                                            const QStyleOptionViewItem& /*option*/,
                                            const QModelIndex& index) const
 {
   if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
-    auto *editor = new QKeySequenceEdit(imModel->configData(index).keySequence, parent);
-    connect(editor, &QKeySequenceEdit::editingFinished, this, &KeySequenceDelegate::commitAndCloseEditor);
+    auto *editor = new QKeySequenceEdit(imModel->configData(index).mappedSequence.keySequence(), parent);
+    connect(editor, &QKeySequenceEdit::editingFinished, this, &QKeySequenceDelegate::commitAndCloseEditor);
     return editor;
   }
 
@@ -422,13 +427,13 @@ QWidget* KeySequenceDelegate::createEditor(QWidget* parent,
 }
 
 // -------------------------------------------------------------------------------------------------
-void KeySequenceDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
+void QKeySequenceDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
 {
   if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
   {
     if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
-      seqEditor->setKeySequence(imModel->configData(index).keySequence);
+      seqEditor->setKeySequence(imModel->configData(index).mappedSequence.keySequence());
       return;
     }
   }
@@ -437,14 +442,14 @@ void KeySequenceDelegate::setEditorData(QWidget* editor, const QModelIndex& inde
 }
 
 // -------------------------------------------------------------------------------------------------
-void KeySequenceDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
+void QKeySequenceDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                                        const QModelIndex& index) const
 {
   if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
   {
     if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
     {
-      imModel->setKeySequence(index, seqEditor->keySequence());
+//      imModel->setKeySequence(index, seqEditor->keySequence());
       return;
     }
   }
@@ -453,7 +458,7 @@ void KeySequenceDelegate::setModelData(QWidget* editor, QAbstractItemModel* mode
 }
 
 // -------------------------------------------------------------------------------------------------
-void KeySequenceDelegate::commitAndCloseEditor()
+void QKeySequenceDelegate::commitAndCloseEditor()
 {
   const auto editor = qobject_cast<QKeySequenceEdit*>(sender());
   emit commitData(editor);
