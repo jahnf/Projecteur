@@ -496,5 +496,15 @@ QSize NativeKeySeqDelegate::sizeHint(const QStyleOptionViewItem& opt,
   return QStyledItemDelegate::sizeHint(opt, index);
 }
 
+// -------------------------------------------------------------------------------------------------
+bool NativeKeySeqDelegate::eventFilter(QObject* obj, QEvent* ev)
+{
+  if (ev->type() == QEvent::KeyPress)
+  { // let all key press events pass through to editor,
+    // otherwise some keys cannot be recorded as a key sequence (e.g. [Tab] and [Esc])
+    return false;
+  }
+  return QStyledItemDelegate::eventFilter(obj,ev);
+}
 
 

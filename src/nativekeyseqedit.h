@@ -84,6 +84,9 @@ public:
 signals:
   void editingStarted() const;
 
+protected:
+  bool eventFilter(QObject* obj, QEvent* ev) override;
+
 private:
   void commitAndCloseEditor(NativeKeySeqEdit* editor);
 };
