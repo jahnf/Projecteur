@@ -45,8 +45,10 @@ public:
   void setInputMapper(InputMapper* im);
 
   InputMapConfig configuration() const;
+  void setConfiguration(const InputMapConfig& config);
 
 private:
+  void configureInputMapper();
   void removeConfigItemRows(int fromRow, int toRow);
   QPointer<InputMapper> m_inputMapper;
   QList<InputMapModelItem> m_configItems;

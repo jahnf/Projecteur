@@ -10,6 +10,7 @@
 
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QKeyEvent>
 #include <QTimer>
 
 #include <linux/input.h>
@@ -215,6 +216,8 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   // -- fill maps
   for (const auto& item: config)
   {
+    if (item.second.keySequence.count() == 0) continue;
+
     const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i) {
       m_keymaps[i].emplace(kes[i], nullptr);
@@ -224,6 +227,8 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   // -- fill references
   for (const auto& item: config)
   {
+    if (item.second.keySequence.count() == 0) continue;
+
     const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i)
     {
@@ -258,6 +263,7 @@ struct InputMapper::Impl
   void sequenceTimeout();
   void resetState();
   void record(const struct input_event input_events[], size_t num);
+  void emitQKeySequence(const QKeySequence& ks);
 
   InputMapper* m_parent = nullptr;
   std::shared_ptr<VirtualDevice> m_vdev; // can be a nullptr if application is started without uinput
@@ -296,14 +302,24 @@ void InputMapper::Impl::sequenceTimeout()
     if (m_vdev && m_events.size())
     {
       m_vdev->emitEvents(m_events);
-      m_events.resize(0);
     }
-    m_keymap.resetState();
+    resetState();
   }
   else if (m_lastState.first == DeviceKeyMap::Result::AmbigiouslyHit) {
     // Last input could have triggered an action, but we needed to wait for the timeout, since
     // other sequences could have been possible.
-    // TODO trigger actions(s) / inject mapped key(s)
+    if (m_lastState.second->second)
+    {
+      logDebug(input) << "AbigiouslyHit: Emitting Key Sequence:"
+                      << m_lastState.second->second->mappedKeys;
+      emitQKeySequence(m_lastState.second->second->mappedKeys);
+      // TODO trigger actions(s) / inject mapped key(s)
+    }
+    else if (m_vdev && m_events.size())
+    {
+      m_vdev->emitEvents(m_events);
+      m_events.resize(0);
+    }
     resetState();
   }
 }
@@ -313,6 +329,19 @@ void InputMapper::Impl::resetState()
 {
   m_keymap.resetState();
   m_events.resize(0);
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::Impl::emitQKeySequence(const QKeySequence& ks)
+{
+  if (!m_vdev) return;
+
+  for (int i = 0; i < ks.count(); ++i)
+  {
+    // TODO replace QKeySequence with similar custom type that supports native scan codes,
+    // or map every key value to a linux value...
+    // ... sadly there seems to be no public Qt API for mapping native to Qt codes and vice versa
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -446,15 +475,16 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   else if (res == DeviceKeyMap::Result::Hit)
   { // Found a valid key sequence
     impl->m_seqTimer->stop();
-    //impl->m_keymap.state()->second->action;
     if (impl->m_vdev)
     {
       if (impl->m_keymap.state()->second)
       {
         // TODO run action(s) / send mapped key events
-        qDebug() << "Emitting Key Sequence" << impl->m_keymap.state()->second->mappedKeys;
+        logDebug(input) << "Hit: Emitting Key Sequence"
+                        << impl->m_keymap.state()->second->mappedKeys;
+        impl->emitQKeySequence(impl->m_keymap.state()->second->mappedKeys);
       }
-//      else
+      else
       {
         if (impl->m_events.size()) impl->m_vdev->emitEvents(impl->m_events);
         impl->m_vdev->emitEvents(input_events, num);

@@ -109,7 +109,20 @@ int InputMapConfigModel::addConfigItem(const InputMapModelItem& cfg)
   beginInsertRows(QModelIndex(), row, row);
   m_configItems.push_back(cfg);
   endInsertRows();
+
+  if (cfg.sequence.size()) {
+    configureInputMapper();
+  }
+
   return row;
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapConfigModel::configureInputMapper()
+{
+  if (m_inputMapper) {
+    m_inputMapper->setConfiguration(configuration());
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -132,9 +145,11 @@ void InputMapConfigModel::removeConfigItemRows(std::vector<int> rows)
     {
       seq_first = *it;
     }
+    Qt::Key_Right;
   }
 
   removeConfigItemRows(seq_first, seq_last);
+  configureInputMapper();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -146,6 +161,7 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
     if (c.sequence != kes)
     {
       c.sequence = kes;
+      configureInputMapper();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
     }
   }
@@ -160,6 +176,7 @@ void InputMapConfigModel::setKeySequence(const QModelIndex& index, const QKeySeq
     if (c.keySequence != ks)
     {
       c.keySequence = ks;
+      configureInputMapper();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
     }
   }
@@ -175,6 +192,10 @@ InputMapper* InputMapConfigModel::inputMapper() const
 void InputMapConfigModel::setInputMapper(InputMapper* im)
 {
   m_inputMapper = im;
+
+  if (m_inputMapper) {
+    setConfiguration(m_inputMapper->configuration());
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -185,11 +206,23 @@ InputMapConfig InputMapConfigModel::configuration() const
   for (const auto& item : m_configItems)
   {
     if (item.sequence.size() == 0) continue;
-    if (item.keySequence.count() == 0) continue;
     config.emplace(item.sequence, MappedInputAction{item.keySequence});
   }
 
   return config;
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapConfigModel::setConfiguration(const InputMapConfig& config)
+{
+  beginResetModel();
+  m_configItems.clear();
+
+  for (const auto& item : config) {
+    m_configItems.push_back(InputMapModelItem{item.first, item.second.keySequence});
+  }
+
+  endResetModel();
 }
 
 // -------------------------------------------------------------------------------------------------
