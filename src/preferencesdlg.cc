@@ -153,8 +153,10 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 
   const auto loadBtn = new IconButton(Font::Icon::share_8, widget);
   loadBtn->setToolTip(tr("Load currently selected preset."));
+  loadBtn->setEnabled(cb->currentIndex() >= 0);
   const auto deleteBtn = new IconButton(Font::Icon::trash_can_1, widget);
   deleteBtn->setToolTip(tr("Delete currently selected preset."));
+  deleteBtn->setEnabled(cb->currentIndex() >= 0);
   const auto newBtn = new IconButton(Font::Icon::plus_5, widget);
   newBtn->setToolTip(tr("Create new preset from current spotlight settings."));
 
@@ -165,6 +167,13 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
   }
 
   hbox->setStretch(1, 1); // stretch combobox
+
+  connect(cb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  [loadBtn, deleteBtn](int index)
+  {
+    loadBtn->setEnabled(index >= 0);
+    deleteBtn->setEnabled(index >= 0);
+  });
 
   connect(newBtn, &QPushButton::clicked, this, [cb, settings]()
   {
