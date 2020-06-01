@@ -1,5 +1,5 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
-#include "inputseqmapconfig.h"
+#include "inputmapconfig.h"
 
 #include "inputseqedit.h"
 #include "logging.h"
@@ -9,34 +9,34 @@
 
 // -------------------------------------------------------------------------------------------------
 namespace  {
-  const InputSeqMapConfig invalidItem_;
+  const InputMapModelItem invalidItem_;
 }
 
 // -------------------------------------------------------------------------------------------------
-InputSeqMapConfigModel::InputSeqMapConfigModel(QObject* parent)
-  : InputSeqMapConfigModel(nullptr, parent)
+InputMapConfigModel::InputMapConfigModel(QObject* parent)
+  : InputMapConfigModel(nullptr, parent)
 {}
 
 // -------------------------------------------------------------------------------------------------
-InputSeqMapConfigModel::InputSeqMapConfigModel(InputMapper* im, QObject* parent)
+InputMapConfigModel::InputMapConfigModel(InputMapper* im, QObject* parent)
   : QAbstractTableModel(parent)
   , m_inputMapper(im)
 {}
 
 // -------------------------------------------------------------------------------------------------
-int InputSeqMapConfigModel::rowCount(const QModelIndex& parent) const
+int InputMapConfigModel::rowCount(const QModelIndex& parent) const
 {
-  return ( parent == QModelIndex() ) ? m_inputSeqMapConfigs.size() : 0;
+  return ( parent == QModelIndex() ) ? m_configItems.size() : 0;
 }
 
 // -------------------------------------------------------------------------------------------------
-int InputSeqMapConfigModel::columnCount(const QModelIndex& /*parent*/) const
+int InputMapConfigModel::columnCount(const QModelIndex& /*parent*/) const
 {
   return ColumnsCount;
 }
 
 // -------------------------------------------------------------------------------------------------
-Qt::ItemFlags InputSeqMapConfigModel::flags(const QModelIndex &index) const
+Qt::ItemFlags InputMapConfigModel::flags(const QModelIndex &index) const
 {
   if (index.column() == InputSeqCol)
     return (QAbstractTableModel::flags(index) | Qt::ItemIsEditable);
@@ -47,23 +47,23 @@ Qt::ItemFlags InputSeqMapConfigModel::flags(const QModelIndex &index) const
 }
 
 // -------------------------------------------------------------------------------------------------
-QVariant InputSeqMapConfigModel::data(const QModelIndex& index, int role) const
+QVariant InputMapConfigModel::data(const QModelIndex& index, int role) const
 {
-  if (index.row() >= static_cast<int>(m_inputSeqMapConfigs.size()))
+  if (index.row() >= static_cast<int>(m_configItems.size()))
     return QVariant();
 
   if (index.column() == InputSeqCol && role == Roles::InputSeqRole) {
-    return QVariant::fromValue(m_inputSeqMapConfigs[index.row()].sequence);
+    return QVariant::fromValue(m_configItems[index.row()].sequence);
   }
   else if (index.column() == ActionCol && role == Qt::DisplayRole) {
-    return m_inputSeqMapConfigs[index.row()].keySequence;
+    return m_configItems[index.row()].keySequence;
   }
 
   return QVariant();
 }
 
 // -------------------------------------------------------------------------------------------------
-QVariant InputSeqMapConfigModel::headerData(int section, Qt::Orientation orientation, int role) const
+QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
   if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
   {
@@ -74,42 +74,46 @@ QVariant InputSeqMapConfigModel::headerData(int section, Qt::Orientation orienta
     case ActionCol: return tr("Mapped Key(s)");
     }
   }
+  else if (orientation == Qt::Vertical && role == Qt::DisplayRole)
+  {
+    return section;
+  }
   return QVariant();
 }
 
 // -------------------------------------------------------------------------------------------------
-const InputSeqMapConfig& InputSeqMapConfigModel::configData(const QModelIndex& index) const
+const InputMapModelItem& InputMapConfigModel::configData(const QModelIndex& index) const
 {
-  if (index.row() >= static_cast<int>(m_inputSeqMapConfigs.size()))
+  if (index.row() >= static_cast<int>(m_configItems.size()))
     return invalidItem_;
 
-  return m_inputSeqMapConfigs[index.row()];
+  return m_configItems[index.row()];
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
+void InputMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
 {
   if (fromRow > toRow) return;
 
   beginRemoveRows(QModelIndex(), fromRow, toRow);
-  for (int i = toRow; i >= fromRow && i < m_inputSeqMapConfigs.size(); --i) {
-    m_inputSeqMapConfigs.removeAt(i);
+  for (int i = toRow; i >= fromRow && i < m_configItems.size(); --i) {
+    m_configItems.removeAt(i);
   }
   endRemoveRows();
 }
 
 // -------------------------------------------------------------------------------------------------
-int InputSeqMapConfigModel::addConfigItem(const InputSeqMapConfig& cfg)
+int InputMapConfigModel::addConfigItem(const InputMapModelItem& cfg)
 {
-  const auto row = m_inputSeqMapConfigs.size();
+  const auto row = m_configItems.size();
   beginInsertRows(QModelIndex(), row, row);
-  m_inputSeqMapConfigs.push_back(cfg);
+  m_configItems.push_back(cfg);
   endInsertRows();
   return row;
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqMapConfigModel::removeConfigItemRows(std::vector<int> rows)
+void InputMapConfigModel::removeConfigItemRows(std::vector<int> rows)
 {
   if (rows.empty()) return;
   std::sort(rows.rbegin(), rows.rend());
@@ -134,11 +138,11 @@ void InputSeqMapConfigModel::removeConfigItemRows(std::vector<int> rows)
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEventSequence& kes)
+void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEventSequence& kes)
 {
-  if (index.row() < static_cast<int>(m_inputSeqMapConfigs.size()))
+  if (index.row() < static_cast<int>(m_configItems.size()))
   {
-    auto& c = m_inputSeqMapConfigs[index.row()];
+    auto& c = m_configItems[index.row()];
     if (c.sequence != kes)
     {
       c.sequence = kes;
@@ -148,11 +152,11 @@ void InputSeqMapConfigModel::setInputSequence(const QModelIndex& index, const Ke
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqMapConfigModel::setKeySequence(const QModelIndex& index, const QKeySequence& ks)
+void InputMapConfigModel::setKeySequence(const QModelIndex& index, const QKeySequence& ks)
 {
-  if (index.row() < static_cast<int>(m_inputSeqMapConfigs.size()))
+  if (index.row() < static_cast<int>(m_configItems.size()))
   {
-    auto& c = m_inputSeqMapConfigs[index.row()];
+    auto& c = m_configItems[index.row()];
     if (c.keySequence != ks)
     {
       c.keySequence = ks;
@@ -162,29 +166,44 @@ void InputSeqMapConfigModel::setKeySequence(const QModelIndex& index, const QKey
 }
 
 // -------------------------------------------------------------------------------------------------
-InputMapper* InputSeqMapConfigModel::inputMapper() const
+InputMapper* InputMapConfigModel::inputMapper() const
 {
   return m_inputMapper;
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqMapConfigModel::setInputMapper(InputMapper* im)
+void InputMapConfigModel::setInputMapper(InputMapper* im)
 {
   m_inputMapper = im;
 }
 
 // -------------------------------------------------------------------------------------------------
+InputMapConfig InputMapConfigModel::configuration() const
+{
+  InputMapConfig config;
+
+  for (const auto& item : m_configItems)
+  {
+    if (item.sequence.size() == 0) continue;
+    if (item.keySequence.count() == 0) continue;
+    config.emplace(item.sequence, MappedInputAction{item.keySequence});
+  }
+
+  return config;
+}
+
 // -------------------------------------------------------------------------------------------------
-InputSeqMapTableView::InputSeqMapTableView(QWidget* parent)
+// -------------------------------------------------------------------------------------------------
+InputMapConfigView::InputMapConfigView(QWidget* parent)
   : QTableView(parent)
 {
-  verticalHeader()->setHidden(true);
+  // verticalHeader()->setHidden(true);
 
   const auto imSeqDelegate = new InputSeqDelegate(this);
-  setItemDelegateForColumn(InputSeqMapConfigModel::InputSeqCol, imSeqDelegate);
+  setItemDelegateForColumn(InputMapConfigModel::InputSeqCol, imSeqDelegate);
 
   const auto keySeqDelegate = new KeySequenceDelegate(this);
-  setItemDelegateForColumn(InputSeqMapConfigModel::ActionCol, keySeqDelegate);
+  setItemDelegateForColumn(InputMapConfigModel::ActionCol, keySeqDelegate);
 
   setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
   setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
@@ -192,7 +211,7 @@ InputSeqMapTableView::InputSeqMapTableView(QWidget* parent)
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqMapTableView::setModel(QAbstractItemModel* model)
+void InputMapConfigView::setModel(QAbstractItemModel* model)
 {
   QTableView::setModel(model);
 
@@ -203,7 +222,7 @@ void InputSeqMapTableView::setModel(QAbstractItemModel* model)
 }
 
 //-------------------------------------------------------------------------------------------------
-void InputSeqMapTableView::keyPressEvent(QKeyEvent* e)
+void InputMapConfigView::keyPressEvent(QKeyEvent* e)
 {
   switch (e->key()) {
   case Qt::Key_Enter:
@@ -214,13 +233,13 @@ void InputSeqMapTableView::keyPressEvent(QKeyEvent* e)
     }
     break;
   case Qt::Key_Delete:
-    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model()))
+    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model()))
     switch (currentIndex().column())
     {
-    case InputSeqMapConfigModel::InputSeqCol:
+    case InputMapConfigModel::InputSeqCol:
       imModel->setInputSequence(currentIndex(), KeyEventSequence{});
       return;
-    case InputSeqMapConfigModel::ActionCol:
+    case InputMapConfigModel::ActionCol:
       imModel->setKeySequence(currentIndex(), QKeySequence());
       return;
     }

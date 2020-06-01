@@ -2,7 +2,7 @@
 #include "inputseqedit.h"
 
 #include "deviceinput.h"
-#include "inputseqmapconfig.h"
+#include "inputmapconfig.h"
 #include "logging.h"
 
 #include <QApplication>
@@ -305,7 +305,7 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
   // Let QStyledItemDelegate handle drawing current focus inidicator and other basic stuff..
   QStyledItemDelegate::paint(painter, option, index);
-  const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model());
+  const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
   if (!imModel) { return; }
 
   // Our custom drawing of the KeyEventSequence...
@@ -320,7 +320,7 @@ QWidget* InputSeqDelegate::createEditor(QWidget* parent,
                                         const QModelIndex& index) const
 
 {
-  if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
     if (imModel->inputMapper()) imModel->inputMapper()->setRecordingMode(false);
     auto *editor = new InputSeqEdit(imModel->inputMapper(), parent);
@@ -344,7 +344,7 @@ void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
 {
   if (const auto seqEditor = qobject_cast<InputSeqEdit*>(editor))
   {
-    if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+    if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
       seqEditor->setInputSequence(imModel->configData(index).sequence);
       return;
@@ -360,7 +360,7 @@ void InputSeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
 {
   if (const auto seqEditor = qobject_cast<InputSeqEdit*>(editor))
   {
-    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model))
+    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
     {
       imModel->setInputSequence(index, seqEditor->inputSequence());
       return;
@@ -374,7 +374,7 @@ void InputSeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
 QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
                                  const QModelIndex& index) const
 {
-  if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
     // TODO calc size hint from KeyEventSequence.....
     return QStyledItemDelegate::sizeHint(option, index);
@@ -401,7 +401,7 @@ QWidget* KeySequenceDelegate::createEditor(QWidget* parent,
                                            const QStyleOptionViewItem& /*option*/,
                                            const QModelIndex& index) const
 {
-  if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
     auto *editor = new QKeySequenceEdit(imModel->configData(index).keySequence, parent);
     connect(editor, &QKeySequenceEdit::editingFinished, this, &KeySequenceDelegate::commitAndCloseEditor);
@@ -416,7 +416,7 @@ void KeySequenceDelegate::setEditorData(QWidget* editor, const QModelIndex& inde
 {
   if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
   {
-    if (const auto imModel = qobject_cast<const InputSeqMapConfigModel*>(index.model()))
+    if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
       seqEditor->setKeySequence(imModel->configData(index).keySequence);
       return;
@@ -432,7 +432,7 @@ void KeySequenceDelegate::setModelData(QWidget* editor, QAbstractItemModel* mode
 {
   if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
   {
-    if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model))
+    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
     {
       imModel->setKeySequence(index, seqEditor->keySequence());
       return;

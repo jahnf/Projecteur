@@ -4,7 +4,7 @@
 #include "deviceinput.h"
 #include "iconwidgets.h"
 #include "inputseqedit.h"
-#include "inputseqmapconfig.h"
+#include "inputmapconfig.h"
 #include "logging.h"
 #include "settings.h"
 #include "spotlight.h"
@@ -125,8 +125,8 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   intervalLayout->addWidget(intervalSb);
   intervalLayout->addWidget(intervalUnitLbl);
 
-  const auto tblView = new InputSeqMapTableView(imWidget);
-  const auto imModel = new InputSeqMapConfigModel(m_inputMapper, imWidget);
+  const auto tblView = new InputMapConfigView(imWidget);
+  const auto imModel = new InputMapConfigModel(m_inputMapper, imWidget);
 
   tblView->setModel(imModel);
   const auto selectionModel = tblView->selectionModel();

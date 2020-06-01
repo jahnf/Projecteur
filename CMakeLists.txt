@@ -52,8 +52,8 @@ add_executable(projecteur
   src/linuxdesktop.cc       src/linuxdesktop.h
   src/iconwidgets.cc        src/iconwidgets.h
   src/imageitem.cc          src/imageitem.h
+  src/inputmapconfig.cc     src/inputmapconfig.h
   src/inputseqedit.cc       src/inputseqedit.h
-  src/inputseqmapconfig.cc  src/inputseqmapconfig.h
   src/logging.cc            src/logging.h
   src/preferencesdlg.cc     src/preferencesdlg.h
   src/projecteurapp.cc      src/projecteurapp.h

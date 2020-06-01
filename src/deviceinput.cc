@@ -2,6 +2,7 @@
 #include "deviceinput.h"
 
 #include "logging.h"
+#include "settings.h"
 #include "virtualdevice.h"
 
 #include <map>
@@ -121,15 +122,15 @@ namespace  {
   using RefSet = std::set<const RefPair*>;
 
   struct Next {
-    int action = 0;  // TODO dummy - this is still a prototype
+    QKeySequence mappedKeys; // TODO replace with generic action
     RefSet next_events;
   };
 
   // Helper function
-  size_t maxSequenceLength(const std::vector<KeyEventSequence>& kesv) {
+  size_t maxSequenceLength(const InputMapConfig& config) {
     size_t maxLen = 0;
-    for (const auto& kes: kesv)
-      if (kes.size() > maxLen) maxLen = kes.size();
+    for (const auto& item: config)
+      if (item.first.size() > maxLen) maxLen = item.first.size();
     return maxLen;
   }
 
@@ -138,7 +139,7 @@ namespace  {
   // if the configuration changes.
   struct DeviceKeyMap
   {
-    DeviceKeyMap(const std::vector<KeyEventSequence>& kesv = {}) { reconfigure(kesv); }
+    DeviceKeyMap(const InputMapConfig& config = {}) { reconfigure(config); }
 
     enum Result : uint8_t {
       Miss, Valid, Hit, AmbigiouslyHit
@@ -148,7 +149,7 @@ namespace  {
 
     auto state() const { return m_pos; }
     void resetState();
-    void reconfigure(const std::vector<KeyEventSequence>& kesv = {});
+    void reconfigure(const InputMapConfig& config = {});
     bool hasConfig() const { return m_keymaps.size(); }
 
   private:
@@ -189,7 +190,7 @@ DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[],
   }
 
   // KeyEvent in Sequence has action attached, but there are other possible sequences...
-  if (m_pos->second->action != 0) {
+  if (m_pos->second->mappedKeys.count() != 0) {
     return Result::AmbigiouslyHit;
   }
 
@@ -203,23 +204,27 @@ void DeviceKeyMap::resetState()
 }
 
 // -------------------------------------------------------------------------------------------------
-void DeviceKeyMap::reconfigure(const std::vector<KeyEventSequence>& kesv)
+void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 {
-  m_keymaps.resize(maxSequenceLength(kesv));
+  m_keymaps.resize(maxSequenceLength(config));
 
   // -- clear maps + position
-  for (auto& synKeyEventMap : m_keymaps) { synKeyEventMap.clear(); }
   m_pos = nullptr;
+  for (auto& synKeyEventMap : m_keymaps) { synKeyEventMap.clear(); }
 
   // -- fill maps
-  for (const auto& kes: kesv) {
+  for (const auto& item: config)
+  {
+    const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i) {
       m_keymaps[i].emplace(kes[i], nullptr);
     }
   }
 
   // -- fill references
-  for (const auto& kes: kesv) {
+  for (const auto& item: config)
+  {
+    const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i)
     {
       const auto r = m_keymaps[i].equal_range(kes[i]);
@@ -232,7 +237,7 @@ void DeviceKeyMap::reconfigure(const std::vector<KeyEventSequence>& kesv)
       if (i == kes.size() - 1) // last keyevent in seq
       {
         // Set (placeholder/fake) action for now in this prototype.
-        refobj->action = 1;
+        refobj->mappedKeys = item.second.keySequence; // TODO generic action
       }
       else if (i+1 < m_keymaps.size()) // if not last keyevent in seq
       {
@@ -261,6 +266,7 @@ struct InputMapper::Impl
 
   std::pair<DeviceKeyMap::Result, const RefPair*> m_lastState;
   std::vector<input_event> m_events;
+  InputMapConfig m_config;
   bool m_recordingMode = false;
 };
 
@@ -285,7 +291,8 @@ void InputMapper::Impl::sequenceTimeout()
   }
 
   if (m_lastState.first == DeviceKeyMap::Result::Valid) {
-    // last input event was part of a valid key sequence, but timeout hit...
+    // Last input event was part of a valid key sequence, but timeout hit
+    // So we emit our stored event so far to the virtual device
     if (m_vdev && m_events.size())
     {
       m_vdev->emitEvents(m_events);
@@ -321,10 +328,6 @@ void InputMapper::Impl::record(const struct input_event input_events[], size_t n
 }
 
 // -------------------------------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-constexpr int InputMapper::intervalMinMs;
-constexpr int InputMapper::intervalMaxMs;
-
 // -------------------------------------------------------------------------------------------------
 InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent)
   : QObject(parent)
@@ -373,7 +376,8 @@ int InputMapper::keyEventInterval() const
 // -------------------------------------------------------------------------------------------------
 void InputMapper::setKeyEventInterval(int interval)
 {
-  impl->m_seqTimer->setInterval(std::min(intervalMaxMs, std::max(intervalMinMs, interval)));
+  impl->m_seqTimer->setInterval(std::min(Settings::inputSequenceIntervalRange().max,
+                                std::max(Settings::inputSequenceIntervalRange().min, interval)));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -442,16 +446,21 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   else if (res == DeviceKeyMap::Result::Hit)
   { // Found a valid key sequence
     impl->m_seqTimer->stop();
+    //impl->m_keymap.state()->second->action;
     if (impl->m_vdev)
     {
-      if (impl->m_events.size()) {
-        impl->m_vdev->emitEvents(impl->m_events);
-        impl->m_events.resize(0);
+      if (impl->m_keymap.state()->second)
+      {
+        // TODO run action(s) / send mapped key events
+        qDebug() << "Emitting Key Sequence" << impl->m_keymap.state()->second->mappedKeys;
       }
-      impl->m_vdev->emitEvents(input_events, num);
+//      else
+      {
+        if (impl->m_events.size()) impl->m_vdev->emitEvents(impl->m_events);
+        impl->m_vdev->emitEvents(input_events, num);
+      }
     }
-    // TODO run action(s) / send mapped key events
-    impl->m_keymap.resetState();
+    impl->resetState();
   }
   else if (res == DeviceKeyMap::Result::AmbigiouslyHit)
   { // Found a valid key sequence, but are still more valid sequences possible -> start timer
@@ -469,3 +478,27 @@ void InputMapper::resetState()
 {
   impl->resetState();
 }
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::setConfiguration(const InputMapConfig& config)
+{
+  impl->m_config = config;
+  impl->resetState();
+  impl->m_keymap.reconfigure(impl->m_config);
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::setConfiguration(InputMapConfig&& config)
+{
+  impl->m_config.swap(config);
+  impl->resetState();
+  impl->m_keymap.reconfigure(impl->m_config);
+}
+
+// -------------------------------------------------------------------------------------------------
+const InputMapConfig& InputMapper::configuration() const
+{
+  return impl->m_config;
+}
+
+

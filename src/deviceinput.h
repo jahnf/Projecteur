@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <QObject>
+#include <QKeySequence>
 
 class VirtualDevice;
 
@@ -48,12 +49,18 @@ QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
 
 // -------------------------------------------------------------------------------------------------
+struct MappedInputAction {
+  // For now this can only be a mapped key sequence
+  // TODO This action could also be sth like toggle the zoom...
+  QKeySequence keySequence;
+};
+
+using InputMapConfig = std::map<KeyEventSequence, MappedInputAction>;
+
+// -------------------------------------------------------------------------------------------------
 class InputMapper : public QObject
 {
   Q_OBJECT
-
-  static constexpr int intervalMaxMs = 750;
-  static constexpr int intervalMinMs = 100;
 
 public:
   InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent = nullptr);
@@ -71,6 +78,10 @@ public:
   void setKeyEventInterval(int interval);
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
+
+  void setConfiguration(const InputMapConfig& config);
+  void setConfiguration(InputMapConfig&& config);
+  const InputMapConfig& configuration() const;
 
 signals:
   void recordingModeChanged(bool recording);
