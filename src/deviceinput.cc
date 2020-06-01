@@ -256,6 +256,9 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
+NativeKeySequence::NativeKeySequence() = default;
+
+  // -------------------------------------------------------------------------------------------------
 NativeKeySequence::NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes)
   : m_keySequence(std::move(ks))
     , m_nativeSequence(std::move(kes))

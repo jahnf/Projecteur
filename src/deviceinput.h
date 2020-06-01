@@ -52,7 +52,7 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke);
 class NativeKeySequence
 {
 public:
-  NativeKeySequence() = default;
+  NativeKeySequence();
   NativeKeySequence(NativeKeySequence&&) = default;
   NativeKeySequence(const NativeKeySequence&) = default;
   NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes);

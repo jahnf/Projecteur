@@ -36,6 +36,7 @@ signals:
 protected:
   virtual bool event(QEvent* event) override;
   virtual void closeEvent(QCloseEvent* e) override;
+  virtual void keyPressEvent(QKeyEvent* e) override;
 
 private:
   void setDialogActive(bool active);

@@ -748,3 +748,16 @@ void PreferencesDialog::closeEvent(QCloseEvent*)
   }
 }
 
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::keyPressEvent(QKeyEvent* e)
+{
+  if (m_dialogMode == Mode::MinimizeOnlyDialog)
+  {
+    if(e->key() == Qt::Key_Escape)
+    {
+      this->showMinimized();
+      return;
+    }
+  }
+  QDialog::keyPressEvent(e);
+}
