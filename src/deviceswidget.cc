@@ -133,14 +133,19 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   tblView->setModel(imModel);
   const auto selectionModel = tblView->selectionModel();
 
+  auto updateImWidget = [this, imWidget]() {
+    imWidget->setDisabled(!m_inputMapper || !m_inputMapper->hasVirtualDevice());
+  };
+  updateImWidget();
+
   connect(this, &DevicesWidget::currentDeviceChanged, this,
-  [this, imModel, intervalSb, imWidget](){
+  [this, imModel, intervalSb, updateImWidget=std::move(updateImWidget)](){
     imModel->setInputMapper(m_inputMapper);
     if (m_inputMapper) {
       intervalSb->setValue(m_inputMapper->keyEventInterval());
       imModel->setConfiguration(m_inputMapper->configuration());
     }
-    imWidget->setDisabled(!m_inputMapper);
+    updateImWidget();
   });
 
   connect(intervalSb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
