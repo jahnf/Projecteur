@@ -127,7 +127,6 @@ int Spotlight::connectDevices()
 
         InputMapConfig config;
         m_settings->getDeviceInputMapConfig(dev.id, config);
-        qDebug() << this << config.size();
         im->setConfiguration(std::move(config));
 
         connect(im, &InputMapper::configurationChanged, this, [this, id=dev.id, im]() {
