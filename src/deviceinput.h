@@ -152,6 +152,7 @@ public:
   void setKeyEventInterval(int interval);
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
+  bool hasVirtualDevice() const;
 
   void setConfiguration(const InputMapConfig& config);
   void setConfiguration(InputMapConfig&& config);

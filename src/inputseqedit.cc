@@ -35,8 +35,14 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto width = option.fontMetrics.horizontalAdvance(text);
+    #else
+      const auto width = option.fontMetrics.width(text);
+    #endif
+
     const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         option.fontMetrics.width(text), option.rect.height());
+                         width, option.rect.height());
 
     p.save();
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
@@ -55,8 +61,15 @@ namespace {
     const auto text = QString("[%1%2]")
                         .arg(ke.back().code, 0, 16)
                         .arg(ke.back().value ? QChar(0x2193) : QChar(0x2191));
+
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto width = option.fontMetrics.horizontalAdvance(text);
+    #else
+      const auto width = option.fontMetrics.width(text);
+    #endif
+
     const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         option.fontMetrics.width(text), option.rect.height());
+                         width, option.rect.height());
 
     p.save();
 
@@ -96,7 +109,11 @@ namespace {
     }
 
     int sequenceWidth = 0;
-    const auto paddingX = option.fontMetrics.width(' ');
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto paddingX = option.fontMetrics.horizontalAdvance(' ');
+    #else
+      const auto paddingX = option.fontMetrics.width(' ');
+    #endif
 
     for (auto it = kes.cbegin(); it!=kes.cend(); ++it)
     {
@@ -150,7 +167,11 @@ QSize InputSeqEdit::sizeHint() const
   constexpr int verticalMargin = 3;
   constexpr int horizontalMargin = 3;
   const int h = fm.height() + 2 * verticalMargin;
-  const int w = fm.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin;
+  #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+    const int w = fm.horizontalAdvance(QLatin1Char('x')) * 17 + 2 * horizontalMargin;
+  #else
+    const int w = fm.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin;
+  #endif
 
   QStyleOptionFrame opt;
   initStyleOption(opt);
@@ -171,10 +192,16 @@ void InputSeqEdit::paintEvent(QPaintEvent*)
   const bool recording = m_inputMapper && m_inputMapper->recordingMode();
 
   const auto& fm = option.fontMetrics;
-  const auto spacingX = option.fontMetrics.width(' ');
   int xPos = (option.rect.height()-fm.height()) / 2;
 
-  if (recording) {
+  if (recording)
+  {
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto spacingX = option.fontMetrics.horizontalAdvance(' ');
+    #else
+      const auto spacingX = option.fontMetrics.width(' ');
+    #endif
+
     xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedSequence.empty()) {
       xPos += drawPlaceHolderText(xPos, p, option, tr("Press device button(s)...")) + spacingX;

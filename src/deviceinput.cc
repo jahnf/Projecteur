@@ -435,6 +435,12 @@ std::shared_ptr<VirtualDevice> InputMapper::virtualDevice() const
 }
 
 // -------------------------------------------------------------------------------------------------
+bool InputMapper::hasVirtualDevice() const
+{
+  return !!(impl->m_vdev);
+}
+
+// -------------------------------------------------------------------------------------------------
 bool InputMapper::recordingMode() const
 {
   return impl->m_recordingMode;
@@ -471,7 +477,7 @@ void InputMapper::setKeyEventInterval(int interval)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::addEvents(const input_event* input_events, size_t num)
 {
-  if (num == 0) return;
+  if (num == 0 || (!impl->m_vdev)) return;
 
   // If no key mapping is configured ...
   if (!impl->m_recordingMode && !impl->m_keymap.hasConfig()) {

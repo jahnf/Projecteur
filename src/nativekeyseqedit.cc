@@ -48,8 +48,14 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto width = option.fontMetrics.horizontalAdvance(text);
+    #else
+      const auto width = option.fontMetrics.width(text);
+    #endif
+
     const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         option.fontMetrics.width(text), option.rect.height());
+                         width, option.rect.height());
 
     p.save();
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
@@ -63,8 +69,14 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   int drawText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto width = option.fontMetrics.horizontalAdvance(text);
+    #else
+      const auto width = option.fontMetrics.width(text);
+    #endif
+
     const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         option.fontMetrics.width(text), option.rect.height());
+                         width, option.rect.height());
 
     p.save();
 
@@ -176,8 +188,14 @@ QSize NativeKeySeqEdit::sizeHint() const
   constexpr int verticalMargin = 3;
   constexpr int horizontalMargin = 3;
   const int h = opt.fontMetrics.height() + 2 * verticalMargin;
-  const int w = std::max(opt.fontMetrics.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin,
-                         opt.fontMetrics.width(m_nativeSequence.keySequence().toString()));
+
+  #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+    const int w = std::max(opt.fontMetrics.horizontalAdvance(QLatin1Char('x')) * 17 + 2 * horizontalMargin,
+                           opt.fontMetrics.horizontalAdvance(m_nativeSequence.keySequence().toString()));
+  #else
+    const int w = std::max(opt.fontMetrics.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin,
+                           opt.fontMetrics.width(m_nativeSequence.keySequence().toString()));
+  #endif
 
   return (style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h).
                                     expandedTo(QApplication::globalStrut()), this));
@@ -196,7 +214,11 @@ void NativeKeySeqEdit::paintEvent(QPaintEvent*)
   int xPos = (option.rect.height()-fm.height()) / 2;
   if (recording())
   {
-    const auto spacingX = option.fontMetrics.width(' ');
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const auto spacingX = option.fontMetrics.horizontalAdvance(' ');
+    #else
+      const auto spacingX = option.fontMetrics.width(' ');
+    #endif
     xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedKeys.empty()) {
       xPos += drawPlaceHolderText(xPos, p, option, tr("Press shortcut..."));
@@ -485,9 +507,16 @@ QSize NativeKeySeqDelegate::sizeHint(const QStyleOptionViewItem& opt,
     constexpr int horizontalMargin = 3;
 
     const int h = opt.fontMetrics.height() + 2 * verticalMargin;
-    const int w = std::max(opt.fontMetrics.width(tr("None")) + 2 * horizontalMargin,
-                           opt.fontMetrics.width(imModel->configData(index)
+
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const int w = std::max(opt.fontMetrics.horizontalAdvance(tr("None")) + 2 * horizontalMargin,
+                             opt.fontMetrics.horizontalAdvance(imModel->configData(index)
+                                                               .mappedSequence.keySequence().toString()));
+    #else
+      const int w = std::max(opt.fontMetrics.width(tr("None")) + 2 * horizontalMargin,
+                             opt.fontMetrics.width(imModel->configData(index)
                                                    .mappedSequence.keySequence().toString()));
+    #endif
 
     return QSize(w, h);
   }
