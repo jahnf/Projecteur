@@ -38,7 +38,7 @@ So here it is: a Linux application for the Logitech Spotlight.
   * Zoom (magnifier) functionality.
 * Multiple screen support
 * Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
-* Button mapping: Map any button on the device to any keyboard combination.
+* Button mapping: Map any button on the device to (almost) any keyboard combination.
 
 ### Screenshots
 
