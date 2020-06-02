@@ -4,9 +4,9 @@ matrix:
   - os: linux
     dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:archlinux
-  - os: linux
-    dist: xenial
-    env: DOCKER_IMG=jahnf/projecteur:debian-stretch
+#  - os: linux
+#    dist: xenial
+#    env: DOCKER_IMG=jahnf/projecteur:debian-stretch
   - os: linux
     dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:debian-buster
@@ -16,18 +16,18 @@ matrix:
   - os: linux
     dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:ubuntu-20.04
-  - os: linux
-    dist: xenial
-    env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
+#  - os: linux
+#    dist: xenial
+#    env: DOCKER_IMG=jahnf/projecteur:opensuse-15.0
   - os: linux
     dist: xenial
     env: DOCKER_IMG=jahnf/projecteur:opensuse-15.1
-  - os: linux
-    dist: bionic
-    env: DOCKER_IMG=jahnf/projecteur:fedora-30
-  - os: linux
-    dist: bionic
-    env: DOCKER_IMG=jahnf/projecteur:fedora-31
+#  - os: linux
+#    dist: bionic
+#    env: DOCKER_IMG=jahnf/projecteur:fedora-30
+#  - os: linux
+#    dist: bionic
+#    env: DOCKER_IMG=jahnf/projecteur:fedora-31
   - os: linux
     dist: bionic
     env: DOCKER_IMG=jahnf/projecteur:fedora-32
