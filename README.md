@@ -38,6 +38,7 @@ So here it is: a Linux application for the Logitech Spotlight.
   * Zoom (magnifier) functionality.
 * Multiple screen support
 * Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
+* Button mapping: Map any button on the device to any keyboard combination.
 
 ### Screenshots
 
@@ -47,7 +48,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ### Planned features
 
-* Support for device button configuration/mapping
+* Support for device button mapping actions (e.g. toggle zoom, increase spot size...)
 * Vibration (Timer) Support (Logitech Spotlight)
 
 ## Supported Environments
@@ -65,20 +66,21 @@ As mouse events the device sends relative cursor movements and left button press
 Acting as a keyboard, the device basically just sends left and right arrow key press
 events when forward or back on the device is pressed.
 
-The mouse events of the detected device is what we are interested in. Since the device is
+The mouse move events of device is what we are mainly interested in. Since the device is
 already detected as a mouse input device and able to move the cursor, we simply detect
 if the Spotlight device is sending mouse move events. If it is sending mouse events,
-we will 'turn on' the desktop spot.
+we will 'turn on' the desktop spot (virtual laser).
 
 For more details: Have a look at the source code ;)
 
-### Notes about v0.7
+### Button mapping
 
-This version implemented a virtual device by default (You can still disable it with
-the `--disable-uinput` command line option). _Projecteur_ will now **grab** all device
-events and forward it to the virtual 'uniput' device. While this does currently not
-change any behavior or feature from `v0.6`, this prepares _Projecteur_ for the planned
-button mapping feature.
+Button mapping works by **grabbing** all device events of connected
+devices and forwarding them to a virtual _'uinput'_ device if not configured
+differently by the button mapping configuration. If a mapped configuration for
+a button exists, _Projecteur_ will inject the mapped keyboard events instead.
+(You can still disable device grabbing with the `--disable-uinput` command
+line option - button mapping will be disabled then.)
 
 ## Download
 
@@ -92,7 +94,6 @@ _Arch_ Linux are automatically built.
 * Latest release:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
 
-
 ## Building
 
 ### Requirements
@@ -103,14 +104,18 @@ _Arch_ Linux are automatically built.
 
 ### Build Example
 
-Note: You can omit setting the `QTDIR` variable, CMake will then usually find
-the Qt version that comes with the distribution's package management.
+```
+    git clone https://github.com/jahnf/Projecteur
+    cd Projecteur
+    mkdir build && cd build
+    cmake ..
+    make
+```
 
-      > git clone https://github.com/jahnf/projecteur
-      > cd projecteur
-      > mkdir build && cd build
-      > QTDIR=/opt/Qt/5.9.6/gcc_64 cmake ..
-      > make
+Building against other Qt versions, than the default one from your Linux distribution
+can be done by setting the `QTDIR` variable during CMake configuration.
+
+Example: `QTDIR=/opt/Qt/5.9.6/gcc_64 cmake ..`
 
 ## Installation/Running
 
@@ -154,9 +159,12 @@ Usage: projecteur [option]
   -h, --help             Show command line usage.
   --help-all             Show complete command line usage with all properties.
   -v, --version          Print application version.
+  -f, --fullversion      Print extended version info.
   --cfg FILE             Set custom config file.
   -d, --device-scan      Print device-scan results.
   -l, --log-level LEVEL  Set log level (dbg,inf,wrn,err), default is 'inf'.
+  --show-dialog          Show preferences dialog on start.
+  -m, --minimize-only    Only allow minimizing the preferences dialog.
   -D DEVICE              Additional accepted device; DEVICE=vendorId:productId
   -c COMMAND|PROPERTY    Send command/property to a running instance.
 
@@ -190,8 +198,9 @@ command line option.
 
 Example: `projecteur -D 04b3:310c`
 
-This will enable devices for _Projecteur_, but it is up to the user to make sure
-the device is accessible (via udev rules).
+This will enable devices within _Projecteur_ and the application will try to
+connect to that device if it is detected. It is up to the user though to make
+sure the device is accessible (via udev rules).
 
 ### Troubleshooting
 
@@ -210,8 +219,10 @@ compositing manager running you will see the spotlight overlay as an opaque wind
 _Projecteur_ was developed and tested on GNOME and KDE Desktop environments, but should
 work on most other desktop environments. If the system tray with the _Application Menu_
 is not showing, commands can be send to the application to bring up the preferences
-dialog, to test the spotlight, quit the application or set spotlight properties.
-See [Command Line Interface](#command-line-interface).
+dialog, test the spotlight, quit the application or set spotlight properties.
+See [Command Line Interface](#command-line-interface). There is also a command
+line option (`-m`) to prevent the preferences dialog from hiding, allowing it
+only to minimize - behaving more like a regular application window.
 
 On some distributions that have a **GNOME Desktop** by default there is **no system tray extensions**
 installed (_Fedora_ for example). You can install the
@@ -267,4 +278,5 @@ If the device shows as not connected, there are some things you can do:
 
 Copyright 2018-2020 Jahn Fuchs
 
-This project is distributed under the [MIT License](https://opensource.org/licenses/MIT), see [LICENSE.md](./LICENSE.md) for more information.
+This project is distributed under the [MIT License](https://opensource.org/licenses/MIT),
+see [LICENSE.md](./LICENSE.md) for more information.
