@@ -75,7 +75,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
                     << tr("Desktop Environment: %1;").arg(desktopEnv)
                     << tr("Wayland: %1").arg(m_linuxDesktop->isWayland() ? "true" : "false");
 
-  if (options.showPreferencesOnStart) {
+  const bool xcbOnWayland = QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland();
+  if (xcbOnWayland) {
+    logWarning(mainapp) << tr("Qt 'xcb' platform and Wayland session detected.");
+  }
+
+  if (options.showPreferencesOnStart || m_linuxDesktop->isWayland()) {
     QTimer::singleShot(0, this, [this](){ showPreferences(true); });
   }
   else if (options.dialogMinimizeOnly) {
@@ -153,11 +158,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   connect(this, &ProjecteurApplication::aboutToQuit, [window](){ if (window) window->close(); });
-
-  const bool xcbOnWayland = QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland();
-  if (xcbOnWayland) {
-    logWarning(mainapp) << tr("Qt 'xcb' platform and Wayland session detected.");
-  }
 
   // Handling of spotlight window when mouse move events from spotlight device are detected
   connect(m_spotlight, &Spotlight::spotActiveChanged,
@@ -390,10 +390,14 @@ void ProjecteurApplication::showPreferences(bool show)
   {
     m_dialog->show();
     m_dialog->raise();
-    m_dialog->activateWindow();
+    static const bool qtPlatformIsWayland = QGuiApplication::platformName().toLower().startsWith("wayland");
+    if (!qtPlatformIsWayland) m_dialog->activateWindow();
   }
   else {
-    m_dialog->hide();
+    if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog)
+      m_dialog->showMinimized();
+    else 
+      m_dialog->hide();
   }
 }
 
