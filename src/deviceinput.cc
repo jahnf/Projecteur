@@ -125,7 +125,7 @@ const QString& operator>>(const QString& s,  KeyEventSequence& kes)
       ke.emplace_back(DeviceInputEvent{
                         uint16_t(dieArr[0].toInt()),
                         uint16_t(dieArr[1].toInt()),
-                        uint32_t(dieArr[2].toDouble())
+                        int32_t(dieArr[2].toDouble())
                       });
     }
     if (!ke.empty()) kes.emplace_back(std::move(ke));

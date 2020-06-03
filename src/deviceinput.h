@@ -14,7 +14,7 @@ class VirtualDevice;
 struct DeviceInputEvent
 {
   DeviceInputEvent() = default;
-  DeviceInputEvent(uint16_t type, uint16_t code, uint32_t value) : type(type), code(code), value(value) {}
+  DeviceInputEvent(uint16_t type, uint16_t code, int32_t value) : type(type), code(code), value(value) {}
   DeviceInputEvent(const struct input_event& ie);
   DeviceInputEvent(const DeviceInputEvent&) = default;
   DeviceInputEvent(DeviceInputEvent&&) = default;
