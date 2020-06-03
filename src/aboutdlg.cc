@@ -58,6 +58,7 @@ namespace {
       Contributor("TBK", "TBK"),
       Contributor("Louie Lu", "mlouielu"),
       Contributor("fmuelle4711", "fmuelle4711"),
+      Contributor("Deniz Bahadir", "Bagira80"),
     };
 
     static std::random_device rd;
