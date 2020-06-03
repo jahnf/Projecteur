@@ -412,8 +412,12 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCom
 
   QLocalSocket* const localSocket = new QLocalSocket(this);
 
-  connect(localSocket,
+  #if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    connect(localSocket, &QLocalSocket::errorOccurred,
+  #else
+    connect(localSocket,
           static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
+  #endif
   [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
     logError(cmdclient) << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
     localSocket->close();

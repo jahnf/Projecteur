@@ -18,6 +18,8 @@ endif()
 
 project(Projecteur LANGUAGES CXX)
 
+add_compile_options(-Wall -Wextra -Werror)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
 include(Translation)
