@@ -122,7 +122,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   m_trayMenu->addSeparator();
   const auto actionQuit = m_trayMenu->addAction(tr("&Quit"));
-  connect(actionQuit, &QAction::triggered, [this](){ this->quit(); });
+  connect(actionQuit, &QAction::triggered, [this, engine](){
+    engine->deleteLater(); // see: https://bugreports.qt.io/browse/QTBUG-81247
+    this->quit(); 
+  });
   m_trayIcon->setContextMenu(&*m_trayMenu);
 
   m_trayIcon->setIcon(QIcon(":/icons/projecteur-tray-64.png"));
