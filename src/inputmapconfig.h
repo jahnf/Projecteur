@@ -9,12 +9,14 @@
 #include <QPointer>
 #include <QTableView>
 
+#include <map>
 #include <vector>
 
 // -------------------------------------------------------------------------------------------------
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
   NativeKeySequence mappedSequence;
+  bool isDuplicate = false;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -51,8 +53,10 @@ public:
 private:
   void configureInputMapper();
   void removeConfigItemRows(int fromRow, int toRow);
+  void updateDuplicates();
   QPointer<InputMapper> m_inputMapper;
   QList<InputMapModelItem> m_configItems;
+  std::map<KeyEventSequence, int> m_duplicates;
 };
 
 // -------------------------------------------------------------------------------------------------

@@ -53,13 +53,15 @@ protected:
   void initStyleOption(QStyleOptionFrame&) const;
 
 private:
-  static int translateModifiers(Qt::KeyboardModifiers state);
+  static int getQtModifiers(Qt::KeyboardModifiers state);
+  static uint16_t getNativeModifiers(const std::set<int>& modifiersPressed);
   void recordKeyPressEvent(QKeyEvent* e);
   void reset();
 
   NativeKeySequence m_nativeSequence;
-  std::vector<int> m_recordedKeys;
-  std::set<int> m_nativeModifiers;
+  std::vector<int> m_recordedQtKeys;
+  std::vector<uint16_t> m_recordedNativeModifiers;
+  std::set<int> m_nativeModifiersPressed;
   QKeySequence m_recordedSequence;
   KeyEventSequence m_recordedEvents;
   QTimer* m_timer = nullptr;

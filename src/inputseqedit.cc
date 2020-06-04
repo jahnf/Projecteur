@@ -14,7 +14,36 @@
 #include <QStylePainter>
 #include <QVBoxLayout>
 
+#include <linux/input.h>
+
 namespace {
+  // -----------------------------------------------------------------------------------------------
+  // Returns true if the second Key event equals the first one, with the first one
+  // being the press and the second the release event.
+  bool isButtonTap(const KeyEvent& first, const KeyEvent& second)
+  {
+    auto it1 = first.cbegin();
+    const auto end1 = first.cend();
+    auto it2 = second.cbegin();
+    const auto end2 = second.cend();
+    for( ; it1 != end1 && it2 != end2; ++it1, ++it2)
+    {
+      if (it1->type == EV_KEY) {
+        if (it2->type != EV_KEY
+            || it1->code != it2->code
+            || it1->value != 1  // key event 1 press
+            || it2->value != 0) // key event 2 release
+        {
+          return false;
+        }
+      }
+      else if (*it1 != *it2) {
+        return false;
+      }
+    }
+    return (it1 == end1 && it2 == end2);
+  }
+
   // -----------------------------------------------------------------------------------------------
   int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
   {
@@ -35,14 +64,8 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto width = option.fontMetrics.horizontalAdvance(text);
-    #else
-      const auto width = option.fontMetrics.width(text);
-    #endif
-
-    const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         width, option.rect.height());
+    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                         option.rect.bottomRight());
 
     p.save();
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
@@ -54,22 +77,24 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke)
+  int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke,
+                   bool buttonTap = false)
   {
     if (ke.empty()) return 0;
 
+    static auto const pressChar = QChar(0x2193);
+    static auto const releaseChar = QChar(0x2191);
+    static auto const tapString = QString("%1%2").arg(pressChar).arg(releaseChar);
+
+    // TODO some devices (e.g. August WP 200) have buttons that send a key combination
+    //      (modifiers + key) - this is ignored completely right now.
     const auto text = QString("[%1%2]")
                         .arg(ke.back().code, 0, 16)
-                        .arg(ke.back().value ? QChar(0x2193) : QChar(0x2191));
+                        .arg(buttonTap ? tapString
+                                       : ke.back().value ? pressChar : releaseChar);
 
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto width = option.fontMetrics.horizontalAdvance(text);
-    #else
-      const auto width = option.fontMetrics.width(text);
-    #endif
-
-    const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         width, option.rect.height());
+    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                         option.rect.bottomRight());
 
     p.save();
 
@@ -84,7 +109,6 @@ namespace {
 
     return br.width();
   }
-
 
   // -----------------------------------------------------------------------------------------------
   int drawKeyEventSequence(int startX, QPainter& p, const QStyleOption& option,
@@ -109,16 +133,23 @@ namespace {
     }
 
     int sequenceWidth = 0;
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto paddingX = option.fontMetrics.horizontalAdvance(' ');
-    #else
-      const auto paddingX = option.fontMetrics.width(' ');
-    #endif
-
+    const int paddingX = QStaticText(" ").size().width();
     for (auto it = kes.cbegin(); it!=kes.cend(); ++it)
     {
       if (it != kes.cbegin()) sequenceWidth += paddingX;
-      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it);
+      if (startX + sequenceWidth >= option.rect.width()) break;
+
+      const bool isTap = [&]()
+      { // Check if this event and the next event represent a button press & release
+        const auto next = std::next(it);
+        if (next != kes.cend() && isButtonTap(*it, *next)) {
+          it = next;
+          return true;
+        }
+        return false;
+      }();
+
+      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it, isTap);
     }
 
     return sequenceWidth;
@@ -196,12 +227,7 @@ void InputSeqEdit::paintEvent(QPaintEvent*)
 
   if (recording)
   {
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto spacingX = option.fontMetrics.horizontalAdvance(' ');
-    #else
-      const auto spacingX = option.fontMetrics.width(' ');
-    #endif
-
+    const auto spacingX = QStaticText(" ").size().width();
     xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedSequence.empty()) {
       xPos += drawPlaceHolderText(xPos, p, option, tr("Press device button(s)...")) + spacingX;
@@ -422,72 +448,4 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
     return QStyledItemDelegate::sizeHint(option, index);
   }
   return QStyledItemDelegate::sizeHint(option, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-// -------------------------------------------------------------------------------------------------
-void QKeySequenceDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
-                                const QModelIndex& index) const
-{
-  QStyledItemDelegate::paint(painter, option, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-QSize QKeySequenceDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
-  return QStyledItemDelegate::sizeHint(option, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-QWidget* QKeySequenceDelegate::createEditor(QWidget* parent,
-                                           const QStyleOptionViewItem& /*option*/,
-                                           const QModelIndex& index) const
-{
-  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
-  {
-    auto *editor = new QKeySequenceEdit(imModel->configData(index).mappedSequence.keySequence(), parent);
-    connect(editor, &QKeySequenceEdit::editingFinished, this, &QKeySequenceDelegate::commitAndCloseEditor);
-    return editor;
-  }
-
-  return nullptr;
-}
-
-// -------------------------------------------------------------------------------------------------
-void QKeySequenceDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
-{
-  if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
-  {
-    if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
-    {
-      seqEditor->setKeySequence(imModel->configData(index).mappedSequence.keySequence());
-      return;
-    }
-  }
-
-  QStyledItemDelegate::setEditorData(editor, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-void QKeySequenceDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
-                                       const QModelIndex& index) const
-{
-  if (const auto seqEditor = qobject_cast<QKeySequenceEdit*>(editor))
-  {
-    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
-    {
-//      imModel->setKeySequence(index, seqEditor->keySequence());
-      return;
-    }
-  }
-
-  QStyledItemDelegate::setModelData(editor, model, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-void QKeySequenceDelegate::commitAndCloseEditor()
-{
-  const auto editor = qobject_cast<QKeySequenceEdit*>(sender());
-  emit commitData(editor);
-  emit closeEditor(editor);
 }

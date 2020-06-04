@@ -789,6 +789,8 @@ int Settings::deviceInputSeqInterval(const DeviceId& dId) const
 // -------------------------------------------------------------------------------------------------
 void Settings::setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc)
 {
+  const int sizeBefore = m_settings->value(settingsKey(dId, ::settings::inputMapConfig)
+                                           + "/size", 0).toInt();
   m_settings->beginWriteArray(settingsKey(dId, ::settings::inputMapConfig), imc.size());
   int index = 0;
   for (const auto& item : imc )
@@ -798,6 +800,13 @@ void Settings::setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig
     m_settings->setValue("mappedAction", QVariant::fromValue(item.second));
   }
   m_settings->endArray();
+
+  // Remove old entries...
+  m_settings->beginGroup(settingsKey(dId, ::settings::inputMapConfig));
+  for (; index < sizeBefore; ++index) {
+    m_settings->remove(QString::number(index+1));
+  }
+  m_settings->endGroup();
 }
 
 // -------------------------------------------------------------------------------------------------

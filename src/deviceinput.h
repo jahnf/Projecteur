@@ -14,7 +14,7 @@ class VirtualDevice;
 struct DeviceInputEvent
 {
   DeviceInputEvent() = default;
-  DeviceInputEvent(uint16_t type, uint16_t code, uint32_t value) : type(type), code(code), value(value) {}
+  DeviceInputEvent(uint16_t type, uint16_t code, int32_t value) : type(type), code(code), value(value) {}
   DeviceInputEvent(const struct input_event& ie);
   DeviceInputEvent(const DeviceInputEvent&) = default;
   DeviceInputEvent(DeviceInputEvent&&) = default;
@@ -27,6 +27,7 @@ struct DeviceInputEvent
   int32_t  value;
 
   bool operator==(const DeviceInputEvent& o) const;
+  bool operator!=(const DeviceInputEvent& o) const;
   bool operator==(const struct input_event& o) const;
   bool operator<(const DeviceInputEvent& o) const;
   bool operator<(const struct input_event& o) const;
@@ -80,39 +81,58 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke);
 class NativeKeySequence
 {
 public:
+  enum Modifier : uint16_t {
+    NoModifier  = 0,
+    LeftCtrl    = 1 << 0,
+    RightCtrl   = 1 << 1,
+    LeftAlt     = 1 << 2,
+    RightAlt    = 1 << 3,
+    LeftShift   = 1 << 4,
+    RightShift  = 1 << 5,
+    LeftMeta    = 1 << 6,
+    RightMeta   = 1 << 7,
+  };
+
   NativeKeySequence();
   NativeKeySequence(NativeKeySequence&&) = default;
   NativeKeySequence(const NativeKeySequence&) = default;
-  NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes);
+
+  NativeKeySequence(const std::vector<int>& qtKeys, 
+                    std::vector<uint16_t>&& nativeModifiers,
+                    KeyEventSequence&& kes);
 
   NativeKeySequence& operator=(NativeKeySequence&&) = default;
   NativeKeySequence& operator=(const NativeKeySequence&) = default;
   bool operator==(const NativeKeySequence& other) const;
   bool operator!=(const NativeKeySequence& other) const;
 
-
-  auto count() const { return m_keySequence.count(); }
+  void swap(NativeKeySequence& other);
+  int count() const;
   bool empty() const { return count() == 0; }
   const auto& keySequence() const { return m_keySequence; }
   const auto& nativeSequence() const { return m_nativeSequence; }
+  QString toString() const;
 
   void clear();
 
-  void swap(NativeKeySequence& other);
-
   friend QDataStream& operator>>(QDataStream& s, NativeKeySequence& ks) {
-    return s >> ks.m_keySequence >> ks.m_nativeSequence;
+    return s >> ks.m_keySequence >> ks.m_nativeSequence >> ks.m_nativeModifiers;
   }
 
   friend QDataStream& operator<<(QDataStream& s, const NativeKeySequence& ks) {
-    return s << ks.m_keySequence << ks.m_nativeSequence;
+    return s << ks.m_keySequence << ks.m_nativeSequence << ks.m_nativeModifiers;
   }
+
+  static QString toString(int qtKey, uint16_t nativeModifiers);
+  static QString toString(const std::vector<int>& qtKey,
+                          const std::vector<uint16_t>& nativeModifiers);
 
 private:
   QKeySequence m_keySequence;
   KeyEventSequence m_nativeSequence;
+  std::vector<uint16_t> m_nativeModifiers;
 };
-Q_DECLARE_METATYPE(NativeKeySequence);
+Q_DECLARE_METATYPE(NativeKeySequence)
 
 // -------------------------------------------------------------------------------------------------
 struct MappedInputAction

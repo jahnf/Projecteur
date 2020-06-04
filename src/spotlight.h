@@ -6,7 +6,6 @@
 #include <map>
 #include <memory>
 
-#include "enum-helper.h"
 #include "devicescan.h"
 
 class QTimer;

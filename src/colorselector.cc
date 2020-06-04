@@ -2,6 +2,7 @@
 #include "colorselector.h"
 
 #include <QColorDialog>
+#include <QPainterPath>
 #include <QStyleOption>
 #include <QStylePainter>
 

@@ -71,11 +71,16 @@ QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientatio
     case ActionCol: return tr("Mapped Key(s)");
     }
   }
-  else if (orientation == Qt::Vertical && role == Qt::DisplayRole)
+  else if (orientation == Qt::Vertical)
   {
-    return section;
+    if (role == Qt::ForegroundRole) {
+      if (m_configItems[section].isDuplicate) {
+        return QColor(Qt::red);
+      }
+    }
   }
-  return QVariant();
+
+  return QAbstractTableModel::headerData(section, orientation, role);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -94,6 +99,7 @@ void InputMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
 
   beginRemoveRows(QModelIndex(), fromRow, toRow);
   for (int i = toRow; i >= fromRow && i < m_configItems.size(); --i) {
+    --m_duplicates[m_configItems[i].deviceSequence];
     m_configItems.removeAt(i);
   }
   endRemoveRows();
@@ -108,6 +114,7 @@ int InputMapConfigModel::addConfigItem(const InputMapModelItem& cfg)
   endInsertRows();
 
   if (cfg.deviceSequence.size()) {
+    ++m_duplicates[cfg.deviceSequence];
     configureInputMapper();
   }
 
@@ -146,6 +153,7 @@ void InputMapConfigModel::removeConfigItemRows(std::vector<int> rows)
 
   removeConfigItemRows(seq_first, seq_last);
   configureInputMapper();
+  updateDuplicates();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -156,8 +164,11 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
     auto& c = m_configItems[index.row()];
     if (c.deviceSequence != kes)
     {
+      --m_duplicates[c.deviceSequence];
+      ++m_duplicates[kes];
       c.deviceSequence = kes;
       configureInputMapper();
+      updateDuplicates();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
     }
   }
@@ -213,12 +224,29 @@ void InputMapConfigModel::setConfiguration(const InputMapConfig& config)
 {
   beginResetModel();
   m_configItems.clear();
+  m_duplicates.clear();
 
   for (const auto& item : config) {
     m_configItems.push_back(InputMapModelItem{item.first, item.second.sequence});
+    ++m_duplicates[item.first];
   }
 
   endResetModel();
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapConfigModel::updateDuplicates()
+{
+  for (int i = 0; i < m_configItems.size(); ++i)
+  {
+    auto& item = m_configItems[i];
+    const bool duplicate = item.deviceSequence.size() && m_duplicates[item.deviceSequence] > 1;
+    if (item.isDuplicate != duplicate)
+    {
+      item.isDuplicate = duplicate;
+      emit headerDataChanged(Qt::Vertical, i, i);
+    }
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -227,6 +255,7 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   : QTableView(parent)
 {
   // verticalHeader()->setHidden(true);
+  verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
 
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::InputSeqCol, imSeqDelegate);

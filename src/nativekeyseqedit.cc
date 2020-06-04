@@ -48,15 +48,8 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto width = option.fontMetrics.horizontalAdvance(text);
-    #else
-      const auto width = option.fontMetrics.width(text);
-    #endif
-
-    const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         width, option.rect.height());
-
+    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                         option.rect.bottomRight());
     p.save();
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
     QRect br;
@@ -69,15 +62,8 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   int drawText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
   {
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto width = option.fontMetrics.horizontalAdvance(text);
-    #else
-      const auto width = option.fontMetrics.width(text);
-    #endif
-
-    const auto r = QRect(startX + option.rect.left(), option.rect.top(),
-                         width, option.rect.height());
-
+    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                         option.rect.bottomRight());
     p.save();
 
     if (option.state & QStyle::State_Selected)
@@ -93,10 +79,10 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  int drawQKeySeqText(int startX, QPainter& p, const QStyleOption& option, const QKeySequence& qks,
+  int drawKeySeqText(int startX, QPainter& p, const QStyleOption& option, const NativeKeySequence& ks,
                     bool drawEmptyPlaceholder = true)
   {
-    if (qks.count() == 0)
+    if (ks.count() == 0)
     {
       if (!drawEmptyPlaceholder) { return 0; }
 
@@ -114,7 +100,7 @@ namespace {
       return textNone.size().width();
     }
 
-    return drawText(startX, p, option, qks.toString());
+    return drawText(startX, p, option, ks.toString());
   }
 }
 
@@ -191,10 +177,10 @@ QSize NativeKeySeqEdit::sizeHint() const
 
   #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
     const int w = std::max(opt.fontMetrics.horizontalAdvance(QLatin1Char('x')) * 17 + 2 * horizontalMargin,
-                           opt.fontMetrics.horizontalAdvance(m_nativeSequence.keySequence().toString()));
+                           opt.fontMetrics.horizontalAdvance(m_nativeSequence.toString()));
   #else
     const int w = std::max(opt.fontMetrics.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin,
-                           opt.fontMetrics.width(m_nativeSequence.keySequence().toString()));
+                           opt.fontMetrics.width(m_nativeSequence.toString()));
   #endif
 
   return (style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h).
@@ -214,21 +200,17 @@ void NativeKeySeqEdit::paintEvent(QPaintEvent*)
   int xPos = (option.rect.height()-fm.height()) / 2;
   if (recording())
   {
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const auto spacingX = option.fontMetrics.horizontalAdvance(' ');
-    #else
-      const auto spacingX = option.fontMetrics.width(' ');
-    #endif
+    const int spacingX = QStaticText(" ").size().width();
     xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
-    if (m_recordedKeys.empty()) {
+    if (m_recordedQtKeys.empty()) {
       xPos += drawPlaceHolderText(xPos, p, option, tr("Press shortcut..."));
     } else {
-      xPos += drawQKeySeqText(xPos, p, option, m_recordedSequence, false);
+      xPos += drawText(xPos, p, option, NativeKeySequence::toString(m_recordedQtKeys, m_recordedNativeModifiers));
       xPos += drawText(xPos, p, option, ", ...");
     }
   }
   else {
-    xPos += drawQKeySeqText(xPos, p, option, m_nativeSequence.keySequence());
+    xPos += drawKeySeqText(xPos, p, option, m_nativeSequence);
   }
 }
 
@@ -244,11 +226,12 @@ void NativeKeySeqEdit::mouseDoubleClickEvent(QMouseEvent* e)
 void NativeKeySeqEdit::reset()
 {
   m_timer->stop();
-  m_recordedKeys.clear();
+  m_recordedQtKeys.clear();
+  m_recordedNativeModifiers.clear();
   m_recordedEvents.clear();
   m_lastKey = -1;
   m_recordedSequence = QKeySequence();
-  m_nativeModifiers.clear();
+  m_nativeModifiersPressed.clear();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -264,9 +247,10 @@ void NativeKeySeqEdit::setRecording(bool doRecord)
   }
   else
   { // finished recording
-    if (m_recordedKeys.size() > 0)
+    if (m_recordedQtKeys.size() > 0)
     {
-      NativeKeySequence recorded(std::move(m_recordedSequence), std::move(m_recordedEvents));
+      NativeKeySequence recorded(m_recordedQtKeys, std::move(m_recordedNativeModifiers),
+                                 std::move(m_recordedEvents));
       if (recorded != m_nativeSequence) {
         m_nativeSequence.swap(recorded);
         emit keySequenceChanged(m_nativeSequence);
@@ -316,7 +300,7 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
       || key == Qt::Key_Alt
       || key == Qt::Key_AltGr)
   {
-    m_nativeModifiers.insert(e->nativeScanCode() - 8); // See comment below about the -8;
+    m_nativeModifiersPressed.insert(e->nativeScanCode() - 8); // See comment below about the -8;
     return;
   }
 
@@ -324,20 +308,21 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
     return;
   }
 
-  if (m_recordedKeys.size() >= maxKeyCount) {
+  if (m_recordedQtKeys.size() >= maxKeyCount) {
     setRecording(false);
     return;
   }
 
-  key |= translateModifiers(e->modifiers());
+  key |= getQtModifiers(e->modifiers());
 
-  m_recordedKeys.push_back(key);
-  m_recordedSequence = makeQKeySequence(m_recordedKeys);
+  m_recordedQtKeys.push_back(key);
+  m_recordedNativeModifiers.push_back(getNativeModifiers(m_nativeModifiersPressed));
+  m_recordedSequence = makeQKeySequence(m_recordedQtKeys);
 
   // TODO Verify that (nativeScanCode - 8) equals the codes from input-event-codes.h on
   // all Linux desktops.. (not only xcb..) - comes from #define MIN_KEYCODE 8 in evdev.c
   KeyEvent pressed; KeyEvent released;
-  for (const auto modifierKey : m_nativeModifiers)
+  for (const auto modifierKey : m_nativeModifiersPressed)
   {
     pressed.emplace_back(EV_KEY, modifierKey, 1);
     released.emplace_back(EV_KEY, modifierKey, 0);
@@ -353,7 +338,7 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
   update();
   e->accept();
 
-  if (m_recordedKeys.size() >= maxKeyCount) {
+  if (m_recordedQtKeys.size() >= maxKeyCount) {
     setRecording(false);
   }
 }
@@ -391,11 +376,11 @@ void NativeKeySeqEdit::keyReleaseEvent(QKeyEvent* e)
         || e->key() == Qt::Key_Alt
         || e->key() == Qt::Key_AltGr)
     {
-      m_nativeModifiers.erase(e->nativeScanCode() - 8);
+      m_nativeModifiersPressed.erase(e->nativeScanCode() - 8);
     }
 
-    if (m_recordedKeys.size() && m_lastKey == e->key()) {
-      if (m_recordedKeys.size() < maxKeyCount) {
+    if (m_recordedQtKeys.size() && m_lastKey == e->key()) {
+      if (m_recordedQtKeys.size() < maxKeyCount) {
         m_timer->start();
       } else {
         setRecording(false);
@@ -414,7 +399,8 @@ void NativeKeySeqEdit::focusOutEvent(QFocusEvent* e)
   QWidget::focusOutEvent(e);
 }
 
-int NativeKeySeqEdit::translateModifiers(Qt::KeyboardModifiers state)
+//-------------------------------------------------------------------------------------------------
+int NativeKeySeqEdit::getQtModifiers(Qt::KeyboardModifiers state)
 {
   int result = 0;
   if (state & Qt::ControlModifier)    result |= Qt::ControlModifier;
@@ -423,6 +409,29 @@ int NativeKeySeqEdit::translateModifiers(Qt::KeyboardModifiers state)
   if (state & Qt::ShiftModifier)      result |= Qt::ShiftModifier;
   if (state & Qt::GroupSwitchModifier)  result |= Qt::GroupSwitchModifier;
   return result;
+}
+
+//-------------------------------------------------------------------------------------------------
+uint16_t NativeKeySeqEdit::getNativeModifiers(const std::set<int>& modifiersPressed)
+{
+  using Modifier = NativeKeySequence::Modifier;
+  uint16_t modifiers = Modifier::NoModifier;
+  for (const auto& modKey : modifiersPressed)
+  {
+    switch(modKey)
+    {
+      case KEY_LEFTCTRL: modifiers |= Modifier::LeftCtrl; break;
+      case KEY_RIGHTCTRL: modifiers |= Modifier::RightCtrl; break;
+      case KEY_LEFTALT: modifiers |= Modifier::LeftAlt; break;
+      case KEY_RIGHTALT: modifiers |= Modifier::RightAlt; break;
+      case KEY_LEFTSHIFT: modifiers |= Modifier::LeftShift; break;
+      case KEY_RIGHTSHIFT: modifiers |= Modifier::RightShift; break;
+      case KEY_LEFTMETA: modifiers |= Modifier::LeftMeta; break;
+      case KEY_RIGHTMETA: modifiers |= Modifier::RightMeta; break;
+      default: break;
+    }
+  }
+  return modifiers;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -438,7 +447,7 @@ void NativeKeySeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& 
   // Our custom drawing of the KeyEventSequence...
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
-  drawQKeySeqText(xPos, *painter, option, imModel->configData(index).mappedSequence.keySequence());
+  drawKeySeqText(xPos, *painter, option, imModel->configData(index).mappedSequence);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -511,11 +520,11 @@ QSize NativeKeySeqDelegate::sizeHint(const QStyleOptionViewItem& opt,
     #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
       const int w = std::max(opt.fontMetrics.horizontalAdvance(tr("None")) + 2 * horizontalMargin,
                              opt.fontMetrics.horizontalAdvance(imModel->configData(index)
-                                                               .mappedSequence.keySequence().toString()));
+                                                               .mappedSequence.toString()));
     #else
       const int w = std::max(opt.fontMetrics.width(tr("None")) + 2 * horizontalMargin,
                              opt.fontMetrics.width(imModel->configData(index)
-                                                   .mappedSequence.keySequence().toString()));
+                                                   .mappedSequence.toString()));
     #endif
 
     return QSize(w, h);
