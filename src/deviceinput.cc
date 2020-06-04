@@ -21,6 +21,24 @@ namespace  {
   // -----------------------------------------------------------------------------------------------
   static auto registered_ = qRegisterMetaTypeStreamOperators<KeyEventSequence>()
                             && qRegisterMetaTypeStreamOperators<MappedInputAction>();
+
+  // -----------------------------------------------------------------------------------------------
+  void addKeyToString(QString& str, const QString& key)
+  {
+    if (!str.isEmpty()) { str += QLatin1Char('+'); }
+    str += key;
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  QKeySequence makeQKeySequence(const std::vector<int>& keys) {
+    switch (keys.size()) {
+    case 4: return QKeySequence(keys[0], keys[1], keys[2], keys[3]);
+    case 3: return QKeySequence(keys[0], keys[1], keys[2]);
+    case 2: return QKeySequence(keys[0], keys[1]);
+    case 1: return QKeySequence(keys[0]);
+    }
+    return QKeySequence();
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -282,35 +300,127 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 // -------------------------------------------------------------------------------------------------
 NativeKeySequence::NativeKeySequence() = default;
 
-  // -------------------------------------------------------------------------------------------------
-NativeKeySequence::NativeKeySequence(QKeySequence&& ks, KeyEventSequence&& kes)
-  : m_keySequence(std::move(ks))
-    , m_nativeSequence(std::move(kes))
-{}
+// -------------------------------------------------------------------------------------------------
+NativeKeySequence::NativeKeySequence(const std::vector<int>& qtKeys, 
+                                     std::vector<uint16_t>&& nativeModifiers,
+                                     KeyEventSequence&& kes)
+  : m_keySequence(makeQKeySequence(qtKeys))
+  , m_nativeSequence(std::move(kes))
+  , m_nativeModifiers(std::move(nativeModifiers))
+{ 
+}
 
 // -------------------------------------------------------------------------------------------------
 bool NativeKeySequence::operator==(const NativeKeySequence &other) const
 {
-  return m_keySequence == other.m_keySequence && m_nativeSequence == other.m_nativeSequence;
+  return m_keySequence == other.m_keySequence 
+         && m_nativeSequence == other.m_nativeSequence
+         && m_nativeModifiers == other.m_nativeModifiers;
 }
 
 // -------------------------------------------------------------------------------------------------
 bool NativeKeySequence::operator!=(const NativeKeySequence &other) const
 {
-  return m_keySequence != other.m_keySequence || m_nativeSequence != other.m_nativeSequence;
+  return m_keySequence != other.m_keySequence 
+         || m_nativeSequence != other.m_nativeSequence
+         || m_nativeModifiers != other.m_nativeModifiers;
 }
 
 // -------------------------------------------------------------------------------------------------
 void NativeKeySequence::clear()
 {
   m_keySequence = QKeySequence{};
+  m_nativeModifiers.clear();
   m_nativeSequence.clear();
 }
 
+// -------------------------------------------------------------------------------------------------
+int NativeKeySequence::count() const
+{
+  return m_keySequence.count();
+}
+
+// -------------------------------------------------------------------------------------------------
+QString NativeKeySequence::toString() const
+{
+  QString seqString;
+  const size_t size = count();
+  for (size_t i = 0; i < size; ++i) 
+  {
+    if (i > 0) seqString += QLatin1String(", ");
+    seqString += toString(m_keySequence[i], 
+                          (i < m_nativeModifiers.size()) ? m_nativeModifiers[i]
+                                                         : (uint16_t)Modifier::NoModifier);
+  }
+  return seqString;
+}
+
+// -------------------------------------------------------------------------------------------------
+QString NativeKeySequence::toString(int qtKey, uint16_t nativeModifiers)
+{
+  QString keyStr; 
+  Q_UNUSED(nativeModifiers)
+
+//  // commented out for now, but we have the possibility to differentiate
+//  //  between left and right modifier keys later on...
+//  if ((nativeModifiers & Modifier::LeftCtrl) == Modifier::LeftCtrl) {
+//    addKey(keyStr, QLatin1String("Ctrl"));
+//  }
+//  if ((nativeModifiers & Modifier::RightCtrl) == Modifier::RightCtrl) {
+//    addKey(keyStr, QLatin1String("Ctrl"));
+//  }
+//  else if ((nativeModifiers & Modifier::LeftCtrl) != Modifier::LeftCtrl
+//           && (qtKey & Qt::ControlModifier) == Qt::ControlModifier)
+
+  if((qtKey & Qt::MetaModifier) == Qt::MetaModifier) {
+    addKeyToString(keyStr, QLatin1String("Meta"));
+  }
+
+  if((qtKey & Qt::ControlModifier) == Qt::ControlModifier) {
+    addKeyToString(keyStr, QLatin1String("Ctrl"));
+  } 
+
+  if((qtKey & Qt::AltModifier) == Qt::AltModifier) {
+    addKeyToString(keyStr, QLatin1String("Alt"));
+  }
+
+  if((qtKey & Qt::GroupSwitchModifier) == Qt::GroupSwitchModifier) {
+    addKeyToString(keyStr, QLatin1String("AltGr"));
+  }
+
+  if((qtKey & Qt::ShiftModifier) == Qt::ShiftModifier) {
+    addKeyToString(keyStr, QLatin1String("Shift"));
+  }
+
+  qtKey &= ~(Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier
+             | Qt::MetaModifier | Qt::KeypadModifier | Qt::GroupSwitchModifier);
+  addKeyToString(keyStr, QKeySequence(qtKey).toString());
+
+  return keyStr;
+}
+
+// -------------------------------------------------------------------------------------------------
+QString NativeKeySequence::toString(const std::vector<int>& qtKeys,
+                                    const std::vector<uint16_t>& nativeModifiers)
+{
+  QString seqString;
+  const auto size = qtKeys.size();
+  for (size_t i = 0; i < size; ++i) 
+  {
+    if (i > 0) seqString += QLatin1String(", ");
+    seqString += toString(qtKeys[i], 
+                          (i < nativeModifiers.size()) ? nativeModifiers[i]
+                                                       : (uint16_t)Modifier::NoModifier);
+  }
+  return seqString;
+}
+
+// -------------------------------------------------------------------------------------------------
 void NativeKeySequence::swap(NativeKeySequence& other)
 {
   m_keySequence.swap(other.m_keySequence);
   m_nativeSequence.swap(other.m_nativeSequence);
+  m_nativeModifiers.swap(other.m_nativeModifiers);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -322,7 +432,7 @@ struct InputMapper::Impl
   void sequenceTimeout();
   void resetState();
   void record(const struct input_event input_events[], size_t num);
-  void emitQKeySequence(const NativeKeySequence& ks);
+  void emitNativeKeySequence(const NativeKeySequence& ks);
 
   InputMapper* m_parent = nullptr;
   std::shared_ptr<VirtualDevice> m_vdev; // can be a nullptr if application is started without uinput
@@ -370,9 +480,8 @@ void InputMapper::Impl::sequenceTimeout()
     if (m_lastState.second->second)
     {
       logDebug(input) << "AbigiouslyHit: Emitting Key Sequence:"
-                      << m_lastState.second->second->mappedKeys.keySequence();
-      emitQKeySequence(m_lastState.second->second->mappedKeys);
-      // TODO trigger actions(s) / inject mapped key(s)
+                      << m_lastState.second->second->mappedKeys.toString();
+      emitNativeKeySequence(m_lastState.second->second->mappedKeys);
     }
     else if (m_vdev && m_events.size())
     {
@@ -391,12 +500,12 @@ void InputMapper::Impl::resetState()
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputMapper::Impl::emitQKeySequence(const NativeKeySequence& ks)
+void InputMapper::Impl::emitNativeKeySequence(const NativeKeySequence& ks)
 {
   if (!m_vdev) return;
 
   std::vector<input_event> events;
-  events.reserve(5); // 3 modifier keys + 1 key + 1 syn event
+  events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
   for (const auto& ke : ks.nativeSequence())
   {
     for (const auto& ie : ke)
@@ -550,8 +659,8 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
       {
         // TODO run action(s) / send mapped key events
         logDebug(input) << "Hit: Emitting Key Sequence"
-                        << impl->m_keymap.state()->second->mappedKeys.keySequence();
-        impl->emitQKeySequence(impl->m_keymap.state()->second->mappedKeys);
+                        << impl->m_keymap.state()->second->mappedKeys.toString();
+        impl->emitNativeKeySequence(impl->m_keymap.state()->second->mappedKeys);
       }
       else
       {
