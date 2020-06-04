@@ -27,6 +27,7 @@ struct DeviceInputEvent
   int32_t  value;
 
   bool operator==(const DeviceInputEvent& o) const;
+  bool operator!=(const DeviceInputEvent& o) const;
   bool operator==(const struct input_event& o) const;
   bool operator<(const DeviceInputEvent& o) const;
   bool operator<(const struct input_event& o) const;

@@ -31,6 +31,10 @@ bool DeviceInputEvent::operator==(const DeviceInputEvent& o) const {
   return std::tie(type,code,value) == std::tie(o.type,o.code,o.value);
 }
 
+bool DeviceInputEvent::operator!=(const DeviceInputEvent& o) const {
+  return std::tie(type,code,value) != std::tie(o.type,o.code,o.value);
+}
+
 bool DeviceInputEvent::operator==(const input_event& o) const {
   return std::tie(type,code,value) == std::tie(o.type,o.code,o.value);
 }
