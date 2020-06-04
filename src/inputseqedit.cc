@@ -82,16 +82,16 @@ namespace {
   {
     if (ke.empty()) return 0;
 
-    static auto const pressChar = QChar(0x2193);
-    static auto const releaseChar = QChar(0x2191);
-    static auto const tapString = QString("%1%2").arg(pressChar).arg(releaseChar);
+    static auto const pressChar = QChar(0x2193); // ↓
+    static auto const releaseChar = QChar(0x2191); // ↑
 
     // TODO some devices (e.g. August WP 200) have buttons that send a key combination
     //      (modifiers + key) - this is ignored completely right now.
-    const auto text = QString("[%1%2]")
-                        .arg(ke.back().code, 0, 16)
-                        .arg(buttonTap ? tapString
-                                       : ke.back().value ? pressChar : releaseChar);
+    const auto text = QString("[%1%2%3")
+                         .arg(ke.back().code, 0, 16)
+                         .arg(buttonTap ? pressChar
+                                        : ke.back().value ? pressChar : releaseChar)
+                         .arg(buttonTap ? "" : "]");
 
     const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
                          option.rect.bottomRight());
@@ -105,6 +105,17 @@ namespace {
 
     QRect br;
     p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+
+    if (buttonTap)
+    {
+      QRect br2; // draw down and up arrow closer together
+      const auto t2 = QString("%2]").arg(releaseChar);
+      const auto w = option.fontMetrics.rightBearing(pressChar)
+                   + option.fontMetrics.leftBearing(releaseChar);
+      p.drawText(r.adjusted(br.width() - w, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, t2, &br2);
+      br.setWidth(br.width() + br2.width());
+    }
+
     p.restore();
 
     return br.width();
