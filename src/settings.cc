@@ -35,7 +35,6 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
-    constexpr char dblClickDuration[] = "dblClickDuration";
 
     // -- device specific
     constexpr char inputSequenceInterval[] = "inputSequenceInterval";
@@ -59,7 +58,6 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
-      constexpr int dblClickDuration = 300;
 
       // -- device specific defaults
       constexpr int inputSequenceInterval = 250;
@@ -277,7 +275,6 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
-  setDblClickDuration(settings::defaultValue::dblClickDuration);
   shapeSettingsSetDefaults();
 }
 
@@ -438,7 +435,6 @@ void Settings::load(const QString& preset)
   setBorderOpacity(m_settings->value(s+::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   setZoomEnabled(m_settings->value(s+::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
   setZoomFactor(m_settings->value(s+::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
-  setDblClickDuration(m_settings->value(s+::settings::dblClickDuration, settings::defaultValue::dblClickDuration).toInt());
   shapeSettingsLoad(preset);
 }
 
@@ -464,7 +460,6 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::borderOpacity, m_borderOpacity);
   m_settings->setValue(section+::settings::zoomEnabled, m_zoomEnabled);
   m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
-  m_settings->setValue(section+::settings::dblClickDuration, m_dblClickDuration);
   shapeSettingsSavePreset(preset);
 }
 
@@ -734,18 +729,6 @@ void Settings::setZoomFactor(double factor)
     logDebug(lcSettings) << "zoom.factor = " << m_zoomFactor;
     emit zoomFactorChanged(m_zoomFactor);
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-void Settings::setDblClickDuration(int duration)
-{
-  // duration in millisecond
-  if (m_dblClickDuration == duration)
-    return;
-
-  m_dblClickDuration = duration;
-  m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
-  emit dblClickDurationChanged(m_dblClickDuration);
 }
 
 // -------------------------------------------------------------------------------------------------

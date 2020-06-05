@@ -18,17 +18,6 @@ namespace {
   constexpr int maxKeyCount = 4; // Same as QKeySequence
 
   // -----------------------------------------------------------------------------------------------
-  QKeySequence makeQKeySequence(const std::vector<int>& keys) {
-    switch (keys.size()) {
-    case 4: return QKeySequence(keys[0], keys[1], keys[2], keys[3]);
-    case 3: return QKeySequence(keys[0], keys[1], keys[2]);
-    case 2: return QKeySequence(keys[0], keys[1]);
-    case 1: return QKeySequence(keys[0]);
-    }
-    return QKeySequence();
-  }
-
-  // -----------------------------------------------------------------------------------------------
   int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
   {
     const auto iconSize = option.fontMetrics.height();
@@ -230,7 +219,6 @@ void NativeKeySeqEdit::reset()
   m_recordedNativeModifiers.clear();
   m_recordedEvents.clear();
   m_lastKey = -1;
-  m_recordedSequence = QKeySequence();
   m_nativeModifiersPressed.clear();
 }
 
@@ -317,7 +305,6 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
 
   m_recordedQtKeys.push_back(key);
   m_recordedNativeModifiers.push_back(getNativeModifiers(m_nativeModifiersPressed));
-  m_recordedSequence = makeQKeySequence(m_recordedQtKeys);
 
   // TODO Verify that (nativeScanCode - 8) equals the codes from input-event-codes.h on
   // all Linux desktops.. (not only xcb..) - comes from #define MIN_KEYCODE 8 in evdev.c

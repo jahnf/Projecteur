@@ -4,8 +4,8 @@
 #include <memory>
 
 #include <QDataStream>
-#include <QObject>
 #include <QKeySequence>
+#include <QObject>
 
 class VirtualDevice;
 
@@ -67,11 +67,6 @@ QDataStream& operator>>(QDataStream& s, std::vector<T>& container)
   }
   return s;
 }
-
-// -------------------------------------------------------------------------------------------------
-QString& operator<<(QString& s, const KeyEventSequence& kes);
-const QString& operator<<(QString&& s, const KeyEventSequence& kes);
-const QString& operator>>(const QString& s, KeyEventSequence& kes);
 
 // -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);

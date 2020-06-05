@@ -80,8 +80,6 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
-  int dblClickDuration() const { return m_dblClickDuration; }
-  void setDblClickDuration(int duration);
   bool overlayDisabled() const { return m_overlayDisabled; }
   void setOverlayDisabled(bool disabled);
 

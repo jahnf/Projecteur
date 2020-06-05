@@ -2,10 +2,8 @@
 #pragma once
 
 #include "deviceinput.h"
-#include "nativekeyseqedit.h"
 
 #include <QAbstractTableModel>
-#include <QKeySequence>
 #include <QPointer>
 #include <QTableView>
 
@@ -26,7 +24,7 @@ class InputMapConfigModel : public QAbstractTableModel
 
 public:
   enum Roles { InputSeqRole = Qt::UserRole + 1, NativeSeqRole };
-  enum Columns { InputSeqCol = 0, /*ActionTypeCol,*/ ActionCol, ColumnsCount};
+  enum Columns { InputSeqCol = 0, ActionCol, ColumnsCount};
 
   InputMapConfigModel(QObject* parent = nullptr);
   InputMapConfigModel(InputMapper* im, QObject* parent = nullptr);

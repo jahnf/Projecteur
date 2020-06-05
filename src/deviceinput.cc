@@ -8,9 +8,6 @@
 #include <map>
 #include <set>
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QKeyEvent>
 #include <QTimer>
 
 #include <linux/input.h>
@@ -100,59 +97,6 @@ QDataStream& operator>>(QDataStream& s, MappedInputAction& mia) {
 
 QDataStream& operator<<(QDataStream& s, const MappedInputAction& mia) {
   return s << mia.sequence;
-}
-
-// -------------------------------------------------------------------------------------------------
-QString& operator<<(QString& s, const KeyEventSequence& kes)
-{
-  QJsonArray seqArr;
-  for (const auto& ke : kes)
-  {
-    QJsonArray keArr;
-    for (const auto& die : ke)
-    {
-      QJsonArray dieArr;
-      dieArr.append(die.type);
-      dieArr.append(die.code);
-      dieArr.append(double(die.value));
-      keArr.append(dieArr);
-    }
-    seqArr.append(keArr);
-  }
-
-  return s.append(QJsonDocument(seqArr).toJson(QJsonDocument::JsonFormat::Compact));
-}
-
-// -------------------------------------------------------------------------------------------------
-const QString& operator<<(QString&& s, const KeyEventSequence& kes)
-{
-  return s << kes;
-}
-
-// -------------------------------------------------------------------------------------------------
-const QString& operator>>(const QString& s,  KeyEventSequence& kes)
-{
-  const auto doc = QJsonDocument::fromJson(s.toLocal8Bit());
-  const auto seqArr = doc.array();
-
-  kes.clear();
-  for (const auto& keObj : seqArr)
-  {
-    KeyEvent ke;
-    const auto keArr = keObj.toArray();
-    for (const auto& dieObj : keArr)
-    {
-      const auto dieArr = dieObj.toArray();
-      if (dieArr.size() != 3) continue;
-      ke.emplace_back(DeviceInputEvent{
-                        uint16_t(dieArr[0].toInt()),
-                        uint16_t(dieArr[1].toInt()),
-                        int32_t(dieArr[2].toDouble())
-                      });
-    }
-    if (!ke.empty()) kes.emplace_back(std::move(ke));
-  }
-  return s;
 }
 
 // -------------------------------------------------------------------------------------------------

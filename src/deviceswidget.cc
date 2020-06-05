@@ -3,7 +3,6 @@
 
 #include "deviceinput.h"
 #include "iconwidgets.h"
-#include "inputseqedit.h"
 #include "inputmapconfig.h"
 #include "logging.h"
 #include "settings.h"
@@ -12,12 +11,10 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLayout>
-#include <QPushButton>
 #include <QSpinBox>
 #include <QStackedLayout>
 #include <QStyle>
 #include <QTabWidget>
-#include <QTimer>
 
 DECLARE_LOGGING_CATEGORY(preferences)
 

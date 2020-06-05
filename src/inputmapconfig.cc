@@ -3,6 +3,7 @@
 
 #include "inputseqedit.h"
 #include "logging.h"
+#include "nativekeyseqedit.h"
 
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -67,7 +68,6 @@ QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientatio
     switch(section)
     {
     case InputSeqCol: return tr("Input Sequence");
-    //case ActionTypeCol: return tr("Type");
     case ActionCol: return tr("Mapped Key(s)");
     }
   }
@@ -279,11 +279,6 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
 void InputMapConfigView::setModel(QAbstractItemModel* model)
 {
   QTableView::setModel(model);
-
-//  if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model)) {
-//    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionTypeCol, QHeaderView::ResizeToContents);
-//    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionCol, QHeaderView::ResizeToContents);
-//  }
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -3,9 +3,9 @@
 
 // _Note_: This is custom implementation similar to QKeySequenceEdit. Unfortunately QKeySequence
 // and QKeySequenceEdit do not support native key codes, which are needed if we want to
-// emit key sequences on a configured input from a 'spotlight' device.
+// emit key sequences via the uinput device.
 //
-// There is also not public API in Qt that allows us to map Qt Keycodes back to system key codes
+// There is also no public API in Qt that allows us to map Qt Keycodes back to system key codes
 // and vice versa.
 
 #include "deviceinput.h"
@@ -62,7 +62,6 @@ private:
   std::vector<int> m_recordedQtKeys;
   std::vector<uint16_t> m_recordedNativeModifiers;
   std::set<int> m_nativeModifiersPressed;
-  QKeySequence m_recordedSequence;
   KeyEventSequence m_recordedEvents;
   QTimer* m_timer = nullptr;
   int m_lastKey = -1;
