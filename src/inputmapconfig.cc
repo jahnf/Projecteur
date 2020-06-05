@@ -268,11 +268,6 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
 
   setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
-
-  connect(imSeqDelegate, &InputSeqDelegate::editingStarted, [this](){ m_editing = true; });
-  connect(imSeqDelegate, &InputSeqDelegate::closeEditor, [this](){ m_editing = false; });
-  connect(keySeqDelegate, &NativeKeySeqDelegate::editingStarted, [this](){ m_editing = true; });
-  connect(keySeqDelegate, &NativeKeySeqDelegate::closeEditor, [this](){ m_editing = false; });
 }
 
 // -------------------------------------------------------------------------------------------------

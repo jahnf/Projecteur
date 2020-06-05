@@ -290,7 +290,7 @@ bool Spotlight::setupDevEventInotify()
   }
 
   const auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-  connect(notifier, &QSocketNotifier::activated, [this](int fd)
+  connect(notifier, &QSocketNotifier::activated, this, [this](int fd)
   {
     int bytesAvaibable = 0;
     if (ioctl(fd, FIONREAD, &bytesAvaibable) < 0 || bytesAvaibable <= 0) {

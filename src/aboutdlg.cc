@@ -226,7 +226,7 @@ QWidget* AboutDialog::createThirdPartyLicensesWidget()
   {
     html += "<li>";
     if (tpl.projectUrl.size())
-      html += QString("<b><a href=\"%1\">%2</a></b>").arg(tpl.projectUrl).arg(tpl.projectName);
+      html += QString("<b><a href=\"%1\">%2</a></b>").arg(tpl.projectUrl, tpl.projectName);
     else
       html += QString("<b>%1</b>").arg(tpl.projectName);
 
@@ -234,7 +234,7 @@ QWidget* AboutDialog::createThirdPartyLicensesWidget()
       html += "<br/><tt>" + tpl.copyrightNotice + "</tt>";
 
     if (tpl.licenseUrl.size())
-      html += QString("<br/><a href=\"%1\">%2</a>").arg(tpl.licenseUrl).arg(tpl.licenseName);
+      html += QString("<br/><a href=\"%1\">%2</a>").arg(tpl.licenseUrl, tpl.licenseName);
     else
       html += QString("<br/><i>License</i>: %1").arg(tpl.licenseName);
 

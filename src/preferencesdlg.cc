@@ -168,7 +168,7 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 
   hbox->setStretch(1, 1); // stretch combobox
 
-  connect(cb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(cb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), widget,
   [loadBtn, deleteBtn](int index)
   {
     loadBtn->setEnabled(index >= 0);
@@ -183,7 +183,7 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
     const auto le = cb->lineEdit();
     le->setMaxLength(35);
     le->setCompleter(nullptr);
-    connect(le, &QLineEdit::editingFinished, [cb, settings](){
+    connect(le, &QLineEdit::editingFinished, cb, [cb, settings](){
       auto text = cb->currentText().trimmed();
       if (cb->findText(text) >= 0) { // Item with same name alrady exists
         text.append(" (%1)");
@@ -304,7 +304,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   for (const auto& shape : settings->spotShapes()) {
     shapeCombo->addItem(shape.displayName(), shape.qmlComponent());
   }
-  connect(settings, &Settings::spotShapeChanged, [shapeCombo](const QString& spotShape){
+  connect(settings, &Settings::spotShapeChanged, shapeCombo, [shapeCombo](const QString& spotShape){
     const int idx = shapeCombo->findData(spotShape);
     if (idx != -1) {
       shapeCombo->setCurrentIndex(idx);
@@ -377,7 +377,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
           if (pm && pm->property(s.settingsKey().toLocal8Bit()).isValid())
           {
             spinbox->setValue(pm->property(s.settingsKey().toLocal8Bit()).toInt());
-            connect(spinbox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            connect(spinbox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), pm,
             [s, pm](int newValue){
               pm->setProperty(s.settingsKey().toLocal8Bit(), newValue);
             });
@@ -393,7 +393,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
     }
   };
 
-  connect(shapeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(shapeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
   [settings, shapeCombo, updateShapeSettingsWidgets](int index)
   {
     const QString shapeQml = shapeCombo->itemData(index).toString();
@@ -587,12 +587,12 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   for (const auto& item : cursorMap) {
     cursorCb->addItem(QIcon(item.first), item.second.first, static_cast<int>(item.second.second));
   }
-  connect(settings, &Settings::cursorChanged, [cursorCb](int cursor){
+  connect(settings, &Settings::cursorChanged, cursorCb, [cursorCb](int cursor){
     const int idx = cursorCb->findData(cursor);
     cursorCb->setCurrentIndex((idx == -1) ? Qt::BlankCursor : idx);
   });
   emit settings->cursorChanged(settings->cursor()); // set initial value
-  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
   [settings, cursorCb](int index) {
     settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
   });
@@ -642,7 +642,7 @@ QWidget* PreferencesDialog::createLogTabWidget()
   const int idx = logLvlCombo->findData(static_cast<int>(logging::currentLevel()));
   logLvlCombo->setCurrentIndex((idx == -1) ? 0 : idx);
 
-  connect(logLvlCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(logLvlCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
   [logLvlCombo, te](int index) {
     const auto lvl = static_cast<logging::level>(logLvlCombo->itemData(index).toInt());
     te->appendPlainText(tr("--- Setting new log level: %1").arg(logging::levelToString(lvl)));

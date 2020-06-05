@@ -82,9 +82,6 @@ public:
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
 
-signals:
-  void editingStarted() const;
-
 protected:
   bool eventFilter(QObject* obj, QEvent* ev) override;
 

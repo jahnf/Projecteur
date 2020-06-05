@@ -425,7 +425,6 @@ void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
     if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
       seqEditor->setInputSequence(imModel->configData(index).deviceSequence);
-      emit editingStarted();
       return;
     }
   }

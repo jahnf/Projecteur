@@ -69,8 +69,5 @@ public:
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
-
-private:
-  bool m_editing = false;
 };
 

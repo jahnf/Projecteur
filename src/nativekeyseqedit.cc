@@ -469,7 +469,6 @@ void NativeKeySeqDelegate::setEditorData(QWidget* editor, const QModelIndex& ind
     {
       seqEditor->setKeySequence(imModel->configData(index).mappedSequence);
       seqEditor->setRecording(true);
-      emit editingStarted();
       return;
     }
   }

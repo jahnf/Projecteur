@@ -357,7 +357,8 @@ void Settings::shapeSettingsInitialize()
     if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
     {
       auto pm = new QQmlPropertyMap(this);
-      connect(pm, &QQmlPropertyMap::valueChanged, [this, shape, pm](const QString& key, const QVariant& value)
+      connect(pm, &QQmlPropertyMap::valueChanged, this,
+      [this, shape, pm](const QString& key, const QVariant& value)
       {
         const auto& s = shape.shapeSettings();
         auto it = std::find_if(s.cbegin(), s.cend(), [&key](const SpotShapeSetting& sss) {
@@ -623,7 +624,7 @@ QObject* Settings::shapeSettingsRootObject()
 // -------------------------------------------------------------------------------------------------
 QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
 {
-  const auto it = m_shapeSettings.find(shapeName);
+  const auto it = m_shapeSettings.constFind(shapeName);
   if (it != m_shapeSettings.cend()) {
     return it.value();
   }
