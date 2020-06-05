@@ -44,11 +44,12 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 [<img src="doc/screenshot-settings.png" height="300" />](./doc/screenshot-settings.png)
 [<img src="doc/screenshot-spot.png" height="300" />](./doc/screenshot-spot.png)
+[<img src="doc/screenshot-button-mapping.png" height="300" />](./doc/screenshot-button-mapping.png)
 [<img src="doc/screenshot-traymenu.png">](./doc/screenshot-traymenu.png)
 
 ### Planned features
 
-* Support for device button mapping actions (e.g. toggle zoom, increase spot size...)
+* Support for device button mapping actions (e.g. toggle zoom...)
 * Vibration (Timer) Support (Logitech Spotlight)
 
 ## Supported Environments
