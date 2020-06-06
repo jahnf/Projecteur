@@ -21,7 +21,7 @@ class Spotlight : public QObject
 public:
   struct Options {
     bool enableUInput = true; // enable virtual uinput device
-    QList<SupportedDevice> additionalDevices;
+    std::vector<SupportedDevice> additionalDevices;
   };
 
   explicit Spotlight(QObject* parent, Options options, Settings* settings);

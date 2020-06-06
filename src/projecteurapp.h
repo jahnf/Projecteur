@@ -29,7 +29,7 @@ public:
     bool showPreferencesOnStart = false;
     bool dialogMinimizeOnly = false;
     bool disableOverlay = false;
-    QList<SupportedDevice> additionalDevices;
+    std::vector<SupportedDevice> additionalDevices;
   };
 
   explicit ProjecteurApplication(int &argc, char **argv, const Options& options);

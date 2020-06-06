@@ -32,7 +32,8 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  bool isAdditionallySupported(quint16 vendorId, quint16 productId, const QList<SupportedDevice>& devices)
+  bool isAdditionallySupported(quint16 vendorId, quint16 productId,
+                               const std::vector<SupportedDevice>& devices)
   {
     const auto it = std::find_if(devices.cbegin(), devices.cend(),
     [vendorId, productId](const SupportedDevice& d) {
@@ -44,7 +45,8 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   // Return the defined device name for vendor/productId if defined in
   // any of the supported device lists (default, extra, additional)
-  QString getUserDeviceName(quint16 vendorId, quint16 productId, const QList<SupportedDevice>& additionalDevices)
+  QString getUserDeviceName(quint16 vendorId, quint16 productId,
+                            const std::vector<SupportedDevice>& additionalDevices)
   {
     const auto it = std::find_if(supportedDefaultDevices.cbegin(), supportedDefaultDevices.cend(),
     [vendorId, productId](const SupportedDevice& d) {
@@ -154,10 +156,10 @@ namespace {
   }
 
 }
-#include <QDebug>
+
 namespace DeviceScan {
   // -----------------------------------------------------------------------------------------------
-  ScanResult getDevices(const QList<SupportedDevice>& additionalDevices)
+  ScanResult getDevices(const std::vector<SupportedDevice>& additionalDevices)
   {
     constexpr char hidDevicePath[] = "/sys/bus/hid/devices";
 
@@ -173,7 +175,6 @@ namespace DeviceScan {
       result.errorMessages.push_back(DeviceScan_::tr("HID device path '%1': Cannot list files.").arg(hidDevicePath));
       return result;
     }
-
 
     QDirIterator hidIt(hidDevicePath, QDir::System | QDir::Dirs | QDir::Executable | QDir::NoDotAndDotDot);
     while (hidIt.hasNext())
@@ -202,8 +203,8 @@ namespace DeviceScan {
         if (find_it == result.devices.end())
         {
           newDevice.userName = getUserDeviceName(newDevice.id.vendorId, newDevice.id.productId, additionalDevices);
-          result.devices.push_back(newDevice);
-          return result.devices.last();
+          result.devices.emplace_back(std::move(newDevice));
+          return result.devices.back();
         }
         return *find_it;
       }();
@@ -249,7 +250,7 @@ namespace DeviceScan {
           subDevice.deviceReadable = fi.isReadable();
           subDevice.deviceWritable = fi.isWritable();
 
-          rootDevice.subDevices.push_back(subDevice);
+          rootDevice.subDevices.emplace_back(std::move(subDevice));
         }
       }
 
@@ -280,7 +281,7 @@ namespace DeviceScan {
             subDevice.deviceReadable = fi.isReadable();
             subDevice.deviceWritable = fi.isWritable();
 
-            rootDevice.subDevices.push_back(subDevice);
+            rootDevice.subDevices.emplace_back(std::move(subDevice));
           }
         }
       }
