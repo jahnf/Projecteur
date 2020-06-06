@@ -802,8 +802,8 @@ void Settings::getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc)
     const auto seq = m_settings->value("deviceSequence");
     if (!seq.canConvert<KeyEventSequence>()) continue;
     const auto conf = m_settings->value("mappedAction");
-    if (!conf.canConvert<MappedInputAction>()) continue;
-    imc.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedInputAction>(conf));
+    if (!conf.canConvert<MappedAction>()) continue;
+    imc.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedAction>(conf));
   }
   m_settings->endArray();
 }

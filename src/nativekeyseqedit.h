@@ -69,7 +69,7 @@ private:
 };
 
 // -------------------------------------------------------------------------------------------------
-class NativeKeySeqDelegate : public QStyledItemDelegate
+class ActionDelegate : public QStyledItemDelegate
 {
   Q_OBJECT
 
@@ -78,7 +78,7 @@ public:
 
   void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override;
-  QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  QWidget* createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
 
@@ -86,5 +86,6 @@ protected:
   bool eventFilter(QObject* obj, QEvent* ev) override;
 
 private:
-  void commitAndCloseEditor(NativeKeySeqEdit* editor);
+  QWidget* createEditor(QWidget* parent, const Action* action) const;
+  void commitAndCloseEditor(QWidget* editor);
 };

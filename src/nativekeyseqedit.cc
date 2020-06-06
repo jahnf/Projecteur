@@ -421,112 +421,163 @@ uint16_t NativeKeySeqEdit::getNativeModifiers(const std::set<int>& modifiersPres
   return modifiers;
 }
 
+
+// -------------------------------------------------------------------------------------------------
+namespace delegate {
+namespace keysequence {
+  //------------------------------------------------------------------------------------------------
+  void paint(QPainter* p, const QStyleOptionViewItem& option, const KeySequenceAction* action)
+  {
+    const auto& fm = option.fontMetrics;
+    const int xPos = (option.rect.height()-fm.height()) / 2;
+    drawKeySeqText(xPos, *p, option, action->keySequence);
+  }
+
+  //------------------------------------------------------------------------------------------------
+  QSize sizeHint(const QStyleOptionViewItem& opt, const KeySequenceAction* action)
+  {
+    constexpr int verticalMargin = 3;
+    constexpr int horizontalMargin = 3;
+    const int h = opt.fontMetrics.height() + 2 * verticalMargin;
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const int w = std::max(opt.fontMetrics.horizontalAdvance(ActionDelegate::tr("None")) + 2 * horizontalMargin,
+                             opt.fontMetrics.horizontalAdvance(action->keySequence.toString()));
+    #else
+      const int w = std::max(opt.fontMetrics.width(ActionDelegate::tr("None")) + 2 * horizontalMargin,
+                             opt.fontMetrics.width(action->keySequence.toString()));
+    #endif
+    return QSize(w, h);
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  NativeKeySeqEdit* createEditor(QWidget* parent, const QStyleOptionViewItem& /*option*/,
+                                 const KeySequenceAction* /*action*/)
+  {
+    return new NativeKeySeqEdit(parent);
+  }
+}
+}
+
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
-                                 const QModelIndex& index) const
+void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+                           const QModelIndex& index) const
 {
   // Let QStyledItemDelegate handle drawing current focus inidicator and other basic stuff..
   QStyledItemDelegate::paint(painter, option, index);
+
   const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
   if (!imModel) { return; }
+  const auto& item = imModel->configData(index);
+  if (!item.action) { return; }
 
-  // Our custom drawing of the KeyEventSequence...
-  const auto& fm = option.fontMetrics;
-  const int xPos = (option.rect.height()-fm.height()) / 2;
-  drawKeySeqText(xPos, *painter, option, imModel->configData(index).mappedSequence);
+  switch (item.action->type())
+  {
+  case Action::Type::KeySequence:
+    delegate::keysequence::paint(painter, option, static_cast<KeySequenceAction*>(item.action.get()));
+    break;
+  case Action::Type::CyclePresets:
+    break;
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
-QWidget* NativeKeySeqDelegate::createEditor(QWidget* parent,
-                                            const QStyleOptionViewItem& /*option*/,
-                                            const QModelIndex& index) const
-
+QSize ActionDelegate::sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& index) const
 {
-  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
+  const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
+  if (!imModel) return QStyledItemDelegate::sizeHint(opt, index);
+  const auto& item = imModel->configData(index);
+  if (!item.action) { return QStyledItemDelegate::sizeHint(opt, index); }
+
+  switch (item.action->type())
   {
-    auto *editor = new NativeKeySeqEdit(parent);
-    connect(editor, &NativeKeySeqEdit::editingFinished, this, &NativeKeySeqDelegate::commitAndCloseEditor);
-    return editor;
+  case Action::Type::KeySequence:
+    return delegate::keysequence::sizeHint(opt, static_cast<KeySequenceAction*>(item.action.get()));
+  case Action::Type::CyclePresets:
+    break;
   }
 
+  return QStyledItemDelegate::sizeHint(opt, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* ActionDelegate::createEditor(QWidget* parent, const Action* action) const
+{
+  switch (action->type())
+  {
+  case Action::Type::KeySequence: {
+    const auto editor = new NativeKeySeqEdit(parent);
+    connect(editor, &NativeKeySeqEdit::editingFinished, this, &ActionDelegate::commitAndCloseEditor);
+    return editor;
+  }
+  case Action::Type::CyclePresets:
+    break;
+  }
   return nullptr;
 }
 
 // -------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::commitAndCloseEditor(NativeKeySeqEdit* editor)
+QWidget* ActionDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem& /*option*/,
+                                      const QModelIndex& index) const
+
 {
-  emit commitData(editor);
-  emit closeEditor(editor);
+  const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
+  if (!imModel) return nullptr;
+  const auto& item = imModel->configData(index);
+  if (!item.action) { return nullptr; }
+
+  return createEditor(parent, item.action.get());
 }
 
 // -------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
+void ActionDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
 {
   if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor))
   {
     if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
-      seqEditor->setKeySequence(imModel->configData(index).mappedSequence);
+      const auto& item = imModel->configData(index);
+      const auto action = static_cast<KeySequenceAction*>(item.action.get());
+      seqEditor->setKeySequence(action->keySequence);
       seqEditor->setRecording(true);
       return;
     }
   }
+  // TODO check for cyclepresets editor/type
 
   QStyledItemDelegate::setEditorData(editor, index);
 }
 
 // -------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
-                                        const QModelIndex& index) const
+void ActionDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
+                                  const QModelIndex& index) const
 {
-  if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor))
-  {
-    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
-    {
+  if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor)) {
+    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model)) {
       imModel->setKeySequence(index, seqEditor->keySequence());
       return;
     }
   }
+  // TODO check for cyclePresets editor /type
 
   QStyledItemDelegate::setModelData(editor, model, index);
 }
 
 // -------------------------------------------------------------------------------------------------
-QSize NativeKeySeqDelegate::sizeHint(const QStyleOptionViewItem& opt,
-                                     const QModelIndex& index) const
-{
-  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
-  {
-    constexpr int verticalMargin = 3;
-    constexpr int horizontalMargin = 3;
-
-    const int h = opt.fontMetrics.height() + 2 * verticalMargin;
-
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const int w = std::max(opt.fontMetrics.horizontalAdvance(tr("None")) + 2 * horizontalMargin,
-                             opt.fontMetrics.horizontalAdvance(imModel->configData(index)
-                                                               .mappedSequence.toString()));
-    #else
-      const int w = std::max(opt.fontMetrics.width(tr("None")) + 2 * horizontalMargin,
-                             opt.fontMetrics.width(imModel->configData(index)
-                                                   .mappedSequence.toString()));
-    #endif
-
-    return QSize(w, h);
-  }
-  return QStyledItemDelegate::sizeHint(opt, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-bool NativeKeySeqDelegate::eventFilter(QObject* obj, QEvent* ev)
+bool ActionDelegate::eventFilter(QObject* obj, QEvent* ev)
 {
   if (ev->type() == QEvent::KeyPress)
-  { // let all key press events pass through to editor,
+  {
+    // let all key press events pass through to editor,
     // otherwise some keys cannot be recorded as a key sequence (e.g. [Tab] and [Esc])
-    return false;
+    if (qobject_cast<NativeKeySeqEdit*>(obj)) return false;
   }
   return QStyledItemDelegate::eventFilter(obj,ev);
 }
 
-
+// -------------------------------------------------------------------------------------------------
+void ActionDelegate::commitAndCloseEditor(QWidget* editor)
+{
+  emit commitData(editor);
+  emit closeEditor(editor);
+}
