@@ -90,11 +90,12 @@ std::shared_ptr<DeviceConnection> Spotlight::deviceConnection(const DeviceId& de
 }
 
 // -------------------------------------------------------------------------------------------------
-QList<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
+std::vector<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 {
-  QList<ConnectedDeviceInfo> devices;
+  std::vector<ConnectedDeviceInfo> devices;
+  devices.reserve(m_deviceConnections.size());
   for (const auto& dc : m_deviceConnections) {
-    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second->deviceName()});
+    devices.emplace_back(ConnectedDeviceInfo{ dc.first, dc.second->deviceName() });
   }
   return devices;
 }

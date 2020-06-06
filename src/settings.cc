@@ -145,15 +145,15 @@ void Settings::initializeStringProperties()
 {
   auto& map = m_stringPropertyMap;
   // -- spot settings
-  map.push_back( {"spot.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "spot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::spotSize.min, ::settings::ranges::spotSize.max},
-                    [this](const QString& value){ setSpotSize(value.toInt()); } } } );
-  map.push_back( {"spot.rotation", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setSpotSize(value.toInt()); } } );
+  map.emplace_back( "spot.rotation", StringProperty{ StringProperty::Double,
                     {::settings::ranges::spotRotation.min, ::settings::ranges::spotRotation.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
+                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } );
   QVariantList shapesList;
   for (const auto& shape : spotShapes()) { shapesList.push_back(shape.name()); }
-  map.push_back( {"spot.shape", StringProperty{ StringProperty::StringEnum, shapesList,
+  map.emplace_back( "spot.shape", StringProperty{ StringProperty::StringEnum, shapesList,
     [this](const QString& value){
        for (const auto& shape : spotShapes()) {
          if (shape.name().toLower() == value.toLower()) {
@@ -162,7 +162,7 @@ void Settings::initializeStringProperties()
          }
        }
     }
-  } } );
+  } );
 
   for (const auto& shape : spotShapes())
   {
@@ -174,57 +174,56 @@ void Settings::initializeStringProperties()
 
       const auto stringProperty = QString("spot.shape.%1.%2").arg(shape.name().toLower())
                                                              .arg(shapeSetting.settingsKey().toLower());
-      map.push_back( {stringProperty, StringProperty{ StringProperty::Integer,
-                       {shapeSetting.minValue().toInt(), shapeSetting.maxValue().toInt()},
-                       [pm, shapeSetting](const QString& value) {
-                         const int newValue = qMin(qMax(shapeSetting.minValue().toInt(), value.toInt()),
-                                                   shapeSetting.maxValue().toInt());
-                         pm->setProperty(shapeSetting.settingsKey().toLocal8Bit(), newValue);
-                       }
-                     } } );
+      map.emplace_back( stringProperty, StringProperty{ StringProperty::Integer,
+                         {shapeSetting.minValue().toInt(), shapeSetting.maxValue().toInt()},
+                         [pm, shapeSetting](const QString& value) {
+                           const int newValue = qMin(qMax(shapeSetting.minValue().toInt(), value.toInt()),
+                                                     shapeSetting.maxValue().toInt());
+                           pm->setProperty(shapeSetting.settingsKey().toLocal8Bit(), newValue);
+                         } } );
     }
   }
 
   // --- shade
-  map.push_back( {"shade", StringProperty{ StringProperty::Bool, {false, true},
-                    [this](const QString& value){ setShowSpotShade(toBool(value)); } } } );
-  map.push_back( {"shade.opacity", StringProperty{ StringProperty::Double,
+  map.emplace_back( "shade", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowSpotShade(toBool(value)); } } );
+  map.emplace_back( "shade.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::shadeOpacity.min, ::settings::ranges::shadeOpacity.max},
-                    [this](const QString& value){ setShadeOpacity(value.toDouble()); } } } );
-  map.push_back( {"shade.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setShadeColor(QColor(value)); } } } );
+                    [this](const QString& value){ setShadeOpacity(value.toDouble()); } } );
+  map.emplace_back( "shade.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setShadeColor(QColor(value)); } } );
   // --- center dot
-  map.push_back( {"dot", StringProperty{ StringProperty::Bool, {false, true},
-                   [this](const QString& value){ setShowCenterDot(toBool(value)); } } } );
-  map.push_back( {"dot.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "dot", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowCenterDot(toBool(value)); } } );
+  map.emplace_back( "dot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::dotSize.min, ::settings::ranges::dotSize.max},
-                    [this](const QString& value){ setDotSize(value.toInt()); } } } );
-  map.push_back( {"dot.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setDotColor(QColor(value)); } } } );
-  map.push_back( {"dot.opacity", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setDotSize(value.toInt()); } } );
+  map.emplace_back( "dot.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setDotColor(QColor(value)); } } );
+  map.emplace_back( "dot.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::dotOpacity.min, ::settings::ranges::dotOpacity.max},
-                    [this](const QString& value){ setDotOpacity(value.toDouble()); } } } );
+                    [this](const QString& value){ setDotOpacity(value.toDouble()); } } );
   // --- border
-  map.push_back( {"border", StringProperty{ StringProperty::Bool, {false, true},
-                    [this](const QString& value){ setShowBorder(toBool(value)); } } } );
-  map.push_back( {"border.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "border", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowBorder(toBool(value)); } } );
+  map.emplace_back( "border.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::borderSize.min, ::settings::ranges::borderSize.max},
-                    [this](const QString& value){ setBorderSize(value.toInt()); } } } );
-  map.push_back( {"border.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setBorderColor(QColor(value)); } } });
-  map.push_back( {"border.opacity", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setBorderSize(value.toInt()); } } );
+  map.emplace_back( "border.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setBorderColor(QColor(value)); } } );
+  map.emplace_back( "border.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::borderOpacity.min, ::settings::ranges::borderOpacity.max},
-                    [this](const QString& value){ setBorderOpacity(value.toDouble()); } } } );
+                    [this](const QString& value){ setBorderOpacity(value.toDouble()); } } );
   // --- zoom
-  map.push_back( {"zoom", StringProperty{ StringProperty::Bool, {false, true},
-                  [this](const QString& value){ setZoomEnabled(toBool(value)); } } } );
-  map.push_back( {"zoom.factor", StringProperty{ StringProperty::Double,
+  map.emplace_back( "zoom", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setZoomEnabled(toBool(value)); } } );
+  map.emplace_back( "zoom.factor", StringProperty{ StringProperty::Double,
                     {::settings::ranges::zoomFactor.min, ::settings::ranges::zoomFactor.max},
-                    [this](const QString& value){ setZoomFactor(value.toDouble()); } } } );
+                    [this](const QString& value){ setZoomFactor(value.toDouble()); } } );
 }
 
 // -------------------------------------------------------------------------------------------------
-const QList<QPair<QString, Settings::StringProperty>>& Settings::stringProperties() const
+const std::vector<std::pair<QString, Settings::StringProperty>>& Settings::stringProperties() const
 {
   return m_stringPropertyMap;
 }

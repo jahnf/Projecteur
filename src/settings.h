@@ -153,7 +153,7 @@ public:
     std::function<void(const QString&)> setFunction;
   };
 
-  const QList<QPair<QString, StringProperty>>& stringProperties() const;
+  const std::vector<std::pair<QString, StringProperty>>& stringProperties() const;
 
   void savePreset(const QString& preset);
   void loadPreset(const QString& preset);
@@ -216,7 +216,7 @@ private:
   bool m_showBorder=false;
   bool m_overlayDisabled = false;
 
-  QList<QPair<QString, StringProperty>> m_stringPropertyMap;
+  std::vector<std::pair<QString, StringProperty>> m_stringPropertyMap;
 
 private:
   void init();
