@@ -112,7 +112,7 @@ int Spotlight::connectDevices()
     }
 
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
-    for (const auto scanSubDevice : dev.subDevices)
+    for (const auto& scanSubDevice : dev.subDevices)
     {
       if (scanSubDevice.type != DeviceScan::SubDevice::Type::Event) continue;
       if (!scanSubDevice.deviceReadable) continue;
