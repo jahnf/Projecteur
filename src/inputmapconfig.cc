@@ -315,8 +315,9 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   {
     if (!idx.isValid()) return;
     if (idx.column() == InputMapConfigModel::ActionTypeCol) {
+      const auto pos = viewport()->mapToGlobal(visualRect(currentIndex()).bottomLeft());
       m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                              idx, QCursor::pos());
+                                              idx, pos);
     }
   });
 }
@@ -326,7 +327,7 @@ void InputMapConfigView::setModel(QAbstractItemModel* model)
 {
   QTableView::setModel(model);
 
-  if(const auto m = qobject_cast<InputMapConfigModel*>(model))
+  if (const auto m = qobject_cast<InputMapConfigModel*>(model))
   {
     horizontalHeader()->setSectionResizeMode(InputMapConfigModel::Columns::ActionTypeCol,
                                              QHeaderView::ResizeMode::ResizeToContents);

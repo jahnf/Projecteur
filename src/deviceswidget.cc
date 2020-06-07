@@ -11,6 +11,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLayout>
+#include <QShortcut>
 #include <QSpinBox>
 #include <QStackedLayout>
 #include <QStyle>
@@ -96,6 +97,8 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
 // -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /*spotlight*/)
 {
+  const auto delShortcut = new QShortcut( QKeySequence(Qt::ShiftModifier + Qt::Key_Delete), this);
+
   const auto imWidget = new QWidget(this);
   const auto layout = new QVBoxLayout(imWidget);
   const auto intervalLayout = new QHBoxLayout();
@@ -103,7 +106,8 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   const auto addBtn = new IconButton(Font::Icon::plus_5, imWidget);
   addBtn->setToolTip(tr("Add a new input mapping entry."));
   const auto delBtn = new IconButton(Font::Icon::trash_can_1, imWidget);
-  delBtn->setToolTip(tr("Delete the selected input mapping entries."));
+  delBtn->setToolTip(tr("Delete the selected input mapping entries (%1).", "%1=shortcut")
+                       .arg(delShortcut->key().toString()));
   delBtn->setEnabled(false);
 
   const auto intervalLbl = new QLabel(tr("Input Sequence Interval"), imWidget);
@@ -158,7 +162,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
     delBtn->setEnabled(selectionModel->hasSelection());
   });
 
-  connect(delBtn, &QToolButton::clicked, this, [imModel, selectionModel]() {
+  auto removeCurrentSelection = [imModel, selectionModel](){
     const auto selectedRows = selectionModel->selectedRows();
     std::vector<int> rows;
     rows.reserve(selectedRows.size());
@@ -166,7 +170,11 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
       rows.emplace_back(selectedRow.row());
     }
     imModel->removeConfigItemRows(std::move(rows));
-  });
+  };
+
+  connect(delBtn, &QToolButton::clicked, this, removeCurrentSelection);
+  // --- Delete selected items on Shift + Delete
+  connect(delShortcut, &QShortcut::activated, this, std::move(removeCurrentSelection));
 
   connect(addBtn, &QToolButton::clicked, this, [imModel, tblView](){
     tblView->selectRow(imModel->addNewItem(std::make_shared<KeySequenceAction>()));
