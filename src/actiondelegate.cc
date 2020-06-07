@@ -241,6 +241,59 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
 }
 
 // -------------------------------------------------------------------------------------------------
+void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel* model,
+                                           const QModelIndex& index, const QPoint& globalPos)
+{
+  if (!index.isValid() || !model) return;
+  const auto& item = model->configData(index);
+  if (!item.action) return;
+
+  struct actionEntry {
+    Action::Type type;
+    QChar symbol;
+    QString text;
+    QIcon icon = {};
+  };
+
+  static std::vector<actionEntry> items {
+    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence")},
+    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets")},
+  };
+
+  static bool initIcons = []()
+  {
+    Q_UNUSED(initIcons)
+    QFont iconFont("projecteur-icons");
+    constexpr int iconSize = 16;
+    iconFont.setPixelSize(iconSize);
+    for (auto& item : items)
+    {
+      QImage img(QSize(iconSize, iconSize), QImage::Format::Format_ARGB32_Premultiplied);
+      img.fill(Qt::transparent);
+      QPainter p(&img);
+      p.setFont(iconFont);
+      QRect(0, 0, img.width(), img.height());
+      p.drawText(QRect(0, 0, img.width(), img.height()),
+                 Qt::AlignHCenter | Qt::AlignVCenter, QString(item.symbol));
+      item.icon = QIcon(QPixmap::fromImage(img));
+    }
+    return true;
+  }();
+
+  QMenu* menu = new QMenu(parent);
+
+  for (const auto item : items) {
+    const auto qaction = menu->addAction(item.icon, item.text);
+    connect(qaction, &QAction::triggered, this, [model, index, type=item.type](){
+      model->setItemActionType(index, type);
+    });
+  }
+
+  menu->exec(globalPos);
+  menu->deleteLater();
+}
+
+// -------------------------------------------------------------------------------------------------
 int ActionTypeDelegate::drawActionTypeSymbol(int startX, QPainter& p,
                                              const QStyleOptionViewItem& option, const QChar& symbol)
 {
@@ -248,7 +301,7 @@ int ActionTypeDelegate::drawActionTypeSymbol(int startX, QPainter& p,
                        option.rect.bottomRight());
 
   QFont iconFont("projecteur-icons");
-  iconFont.setPixelSize(option.rect.height()-4);
+  iconFont.setPixelSize(qMin(option.rect.height(), option.rect.width()) - 4);
 
   p.save();
   p.setFont(iconFont);

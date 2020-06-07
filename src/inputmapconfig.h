@@ -38,6 +38,7 @@ public:
   const InputMapModelItem& configData(const QModelIndex& index) const;
   void setInputSequence(const QModelIndex& index, const KeyEventSequence& kes);
   void setKeySequence(const QModelIndex& index, const NativeKeySequence& ks);
+  void setItemActionType(const QModelIndex& index, Action::Type type);
 
   InputMapper* inputMapper() const;
   void setInputMapper(InputMapper* im);

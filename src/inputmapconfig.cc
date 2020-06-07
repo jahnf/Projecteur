@@ -187,6 +187,27 @@ void InputMapConfigModel::setKeySequence(const QModelIndex& index, const NativeK
 }
 
 // -------------------------------------------------------------------------------------------------
+void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type type)
+{
+  if (idx.row() >= m_configItems.size()) return;
+  auto& item = m_configItems[idx.row()];
+  if (item.action->type() == type) return;
+
+  switch(type)
+  {
+  case Action::Type::KeySequence:
+    item.action = std::make_shared<KeySequenceAction>();
+    break;
+  case Action::Type::CyclePresets:
+    item.action = std::make_shared<CyclePresetsAction>();
+    break;
+  }
+
+  configureInputMapper();
+  emit dataChanged(index(idx.row(), ActionTypeCol), index(idx.row(), ActionCol));
+}
+
+// -------------------------------------------------------------------------------------------------
 InputMapper* InputMapConfigModel::inputMapper() const
 {
   return m_inputMapper;
@@ -273,13 +294,30 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
 
   connect(this, &QWidget::customContextMenuRequested, this,
-  [this, actionDelegate](const QPoint& pos)
+  [this, actionDelegate, actionTypeDelegate](const QPoint& pos)
   {
     const auto idx = indexAt(pos);
-    if (idx.isValid() && idx.column() == InputMapConfigModel::ActionCol)
+    if (!idx.isValid()) return;
+
+    if (idx.column() == InputMapConfigModel::ActionCol)
     {
       actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
                                         idx, this->viewport()->mapToGlobal(pos));
+    }
+    else if (idx.column() == InputMapConfigModel::ActionTypeCol)
+    {
+      actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                            idx, this->viewport()->mapToGlobal(pos));
+    }
+  });
+
+  connect(this, &QTableView::doubleClicked, this,
+  [this, actionTypeDelegate](const QModelIndex& idx)
+  {
+    if (!idx.isValid()) return;
+    if (idx.column() == InputMapConfigModel::ActionTypeCol) {
+      actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                            idx, QCursor::pos());
     }
   });
 }

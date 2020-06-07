@@ -41,6 +41,8 @@ public:
   using QStyledItemDelegate::QStyledItemDelegate;
 
   void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+  void actionContextMenu(QWidget* parent, InputMapConfigModel* model, const QModelIndex& index,
+                         const QPoint& globalPos);
 
 private:
   static int drawActionTypeSymbol(int startX, QPainter& p, const QStyleOptionViewItem& option,
