@@ -122,6 +122,12 @@ public:
   static QString toString(const std::vector<int>& qtKey,
                           const std::vector<uint16_t>& nativeModifiers);
 
+  struct predefined {
+    static const NativeKeySequence& altTab();
+    static const NativeKeySequence& altF4();
+    static const NativeKeySequence& meta();
+  };
+
 private:
   QKeySequence m_keySequence;
   KeyEventSequence m_nativeSequence;

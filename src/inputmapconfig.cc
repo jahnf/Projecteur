@@ -48,14 +48,10 @@ Qt::ItemFlags InputMapConfigModel::flags(const QModelIndex &index) const
 }
 
 // -------------------------------------------------------------------------------------------------
-QVariant InputMapConfigModel::data(const QModelIndex& index, int role) const
+QVariant InputMapConfigModel::data(const QModelIndex& index, int /*role*/) const
 {
   if (index.row() >= static_cast<int>(m_configItems.size()))
     return QVariant();
-
-  if (index.column() == InputSeqCol && role == Roles::InputSeqRole) {
-    return QVariant::fromValue(m_configItems[index.row()].deviceSequence);
-  }
 
   return QVariant();
 }
@@ -251,6 +247,7 @@ void InputMapConfigModel::updateDuplicates()
   }
 }
 
+#include <QMenu>
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 InputMapConfigView::InputMapConfigView(QWidget* parent)
@@ -273,6 +270,18 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
 
   setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+  setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
+
+  connect(this, &QWidget::customContextMenuRequested, this,
+  [this, actionDelegate](const QPoint& pos)
+  {
+    const auto idx = indexAt(pos);
+    if (idx.isValid() && idx.column() == InputMapConfigModel::ActionCol)
+    {
+      actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                        idx, this->viewport()->mapToGlobal(pos));
+    }
+  });
 }
 
 // -------------------------------------------------------------------------------------------------

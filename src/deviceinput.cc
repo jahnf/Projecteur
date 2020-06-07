@@ -316,7 +316,7 @@ void NativeKeySequence::clear()
 // -------------------------------------------------------------------------------------------------
 int NativeKeySequence::count() const
 {
-  return m_keySequence.count();
+  return qMax(m_keySequence.count(), static_cast<int>(m_nativeModifiers.size()));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -338,18 +338,34 @@ QString NativeKeySequence::toString() const
 QString NativeKeySequence::toString(int qtKey, uint16_t nativeModifiers)
 {
   QString keyStr; 
-  Q_UNUSED(nativeModifiers)
 
-//  // commented out for now, but we have the possibility to differentiate
-//  //  between left and right modifier keys later on...
-//  if ((nativeModifiers & Modifier::LeftCtrl) == Modifier::LeftCtrl) {
-//    addKey(keyStr, QLatin1String("Ctrl"));
-//  }
-//  if ((nativeModifiers & Modifier::RightCtrl) == Modifier::RightCtrl) {
-//    addKey(keyStr, QLatin1String("Ctrl"));
-//  }
-//  else if ((nativeModifiers & Modifier::LeftCtrl) != Modifier::LeftCtrl
-//           && (qtKey & Qt::ControlModifier) == Qt::ControlModifier)
+  if (qtKey == 0) // Special case for manually created Key Sequences
+  {
+    if ((nativeModifiers & Modifier::LeftMeta) == Modifier::LeftMeta
+        || (nativeModifiers & Modifier::RightMeta) == Modifier::RightMeta) {
+      addKeyToString(keyStr, QLatin1String("Meta"));
+    }
+
+    if ((nativeModifiers & Modifier::LeftCtrl) == Modifier::LeftCtrl
+        || (nativeModifiers & Modifier::RightCtrl) == Modifier::RightCtrl) {
+      addKeyToString(keyStr, QLatin1String("Ctrl"));
+    }
+
+    if ((nativeModifiers & Modifier::LeftAlt) == Modifier::LeftAlt) {
+      addKeyToString(keyStr, QLatin1String("Alt"));
+    }
+
+    if ((nativeModifiers & Modifier::RightAlt) == Modifier::RightAlt) {
+      addKeyToString(keyStr, QLatin1String("AltGr"));
+    }
+
+    if ((nativeModifiers & Modifier::LeftShift) == Modifier::LeftShift
+        || (nativeModifiers & Modifier::RightShift) == Modifier::RightShift) {
+      addKeyToString(keyStr, QLatin1String("Shift"));
+    }
+
+    return keyStr;
+  }
 
   if((qtKey & Qt::MetaModifier) == Qt::MetaModifier) {
     addKeyToString(keyStr, QLatin1String("Meta"));
@@ -400,6 +416,67 @@ void NativeKeySequence::swap(NativeKeySequence& other)
   m_keySequence.swap(other.m_keySequence);
   m_nativeSequence.swap(other.m_nativeSequence);
   m_nativeModifiers.swap(other.m_nativeModifiers);
+}
+
+// -------------------------------------------------------------------------------------------------
+const NativeKeySequence& NativeKeySequence::predefined::altTab()
+{
+  static const NativeKeySequence ks = [](){
+    NativeKeySequence ks;
+    ks.m_keySequence = QKeySequence::fromString("Alt+Tab");
+    ks.m_nativeModifiers.push_back(NativeKeySequence::LeftAlt);
+    KeyEvent pressed; KeyEvent released;
+    pressed.emplace_back(EV_KEY, KEY_LEFTALT, 1);
+    released.emplace_back(EV_KEY, KEY_LEFTALT, 0);
+    pressed.emplace_back(EV_KEY, KEY_TAB, 1);
+    released.emplace_back(EV_KEY, KEY_TAB, 0);
+    pressed.emplace_back(EV_SYN, SYN_REPORT, 0);
+    released.emplace_back(EV_SYN, SYN_REPORT, 0);
+    ks.m_nativeSequence.emplace_back(std::move(pressed));
+    ks.m_nativeSequence.emplace_back(std::move(released));
+    return ks;
+  }();
+  return ks;
+}
+
+// -------------------------------------------------------------------------------------------------
+const NativeKeySequence& NativeKeySequence::predefined::altF4()
+{
+  static const NativeKeySequence ks = [](){
+    NativeKeySequence ks;
+    ks.m_keySequence = QKeySequence::fromString("Alt+F4");
+    ks.m_nativeModifiers.push_back(NativeKeySequence::LeftAlt);
+    KeyEvent pressed; KeyEvent released;
+    pressed.emplace_back(EV_KEY, KEY_LEFTALT, 1);
+    released.emplace_back(EV_KEY, KEY_LEFTALT, 0);
+    pressed.emplace_back(EV_KEY, KEY_F4, 1);
+    released.emplace_back(EV_KEY, KEY_F4, 0);
+    pressed.emplace_back(EV_SYN, SYN_REPORT, 0);
+    released.emplace_back(EV_SYN, SYN_REPORT, 0);
+    ks.m_nativeSequence.emplace_back(std::move(pressed));
+    ks.m_nativeSequence.emplace_back(std::move(released));
+    return ks;
+  }();
+  return ks;
+}
+
+// -------------------------------------------------------------------------------------------------
+const NativeKeySequence& NativeKeySequence::predefined::meta()
+{
+  static const NativeKeySequence ks = [](){
+    NativeKeySequence ks;
+    //ks.m_keySequence = QKeySequence::fromString("Meta");
+    ks.m_nativeModifiers.push_back(NativeKeySequence::LeftMeta);
+    KeyEvent pressed; KeyEvent released;
+    pressed.emplace_back(EV_KEY, KEY_LEFTMETA, 1);
+    released.emplace_back(EV_KEY, KEY_LEFTMETA, 0);
+    pressed.emplace_back(EV_SYN, SYN_REPORT, 0);
+    released.emplace_back(EV_SYN, SYN_REPORT, 0);
+    ks.m_nativeSequence.emplace_back(std::move(pressed));
+    ks.m_nativeSequence.emplace_back(std::move(released));
+    return ks;
+  }();
+  return ks;
 }
 
 // -------------------------------------------------------------------------------------------------

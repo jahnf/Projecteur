@@ -5,6 +5,7 @@
 
 // -------------------------------------------------------------------------------------------------
 class Action;
+class InputMapConfigModel;
 
 // -------------------------------------------------------------------------------------------------
 class ActionDelegate : public QStyledItemDelegate
@@ -19,6 +20,8 @@ public:
   QWidget* createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+  void actionContextMenu(QWidget* parent, InputMapConfigModel* model, const QModelIndex& index,
+                         const QPoint& globalPos);
 
 protected:
   bool eventFilter(QObject* obj, QEvent* ev) override;

@@ -3,11 +3,13 @@
 
 #include "deviceinput.h"
 #include "inputmapconfig.h"
+#include "logging.h"
 #include "nativekeyseqedit.h"
 #include "projecteur-icons-def.h"
 
 #include <QEvent>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPainter>
 
 namespace  {
@@ -185,6 +187,32 @@ void ActionDelegate::commitAndCloseEditor(QWidget* editor)
 void ActionDelegate::commitAndCloseEditor_()
 {
   commitAndCloseEditor(qobject_cast<QWidget*>(sender()));
+}
+
+// -------------------------------------------------------------------------------------------------
+void ActionDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel* model,
+                                       const QModelIndex& index, const QPoint& globalPos)
+{
+  if (!index.isValid() || !model) return;
+  const auto& item = model->configData(index);
+  if (!item.action || item.action->type() != Action::Type::KeySequence) return;
+
+  QMenu* menu = new QMenu(parent);
+  const std::vector<const NativeKeySequence*> predefinedKeys = {
+    &NativeKeySequence::predefined::altTab(),
+    &NativeKeySequence::predefined::altF4(),
+    &NativeKeySequence::predefined::meta(),
+  };
+
+  for (const auto ks : predefinedKeys) {
+    const auto qaction = menu->addAction(ks->toString());
+    connect(qaction, &QAction::triggered, this, [model, index, ks](){
+      model->setKeySequence(index, *ks);
+    });
+  }
+
+  menu->exec(globalPos);
+  menu->deleteLater();
 }
 
 //-------------------------------------------------------------------------------------------------
