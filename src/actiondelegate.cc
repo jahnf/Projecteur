@@ -3,6 +3,7 @@
 
 #include "deviceinput.h"
 #include "inputmapconfig.h"
+#include "inputseqedit.h"
 #include "logging.h"
 #include "nativekeyseqedit.h"
 #include "projecteur-icons-def.h"
@@ -77,6 +78,10 @@ void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option
   case Action::Type::CyclePresets:
     cyclepresets::paint(painter, option, static_cast<CyclePresetsAction*>(item.action.get()));
     break;
+  }
+
+  if (option.state & QStyle::State_HasFocus) {
+    InputSeqDelegate::drawCurrentIndicator(*painter, option);
   }
 }
 
@@ -237,6 +242,10 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
 
   if (symbol != 0)
     drawActionTypeSymbol(0, *painter, option, symbol);
+
+  if (option.state & QStyle::State_HasFocus) {
+    InputSeqDelegate::drawCurrentIndicator(*painter, option);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------

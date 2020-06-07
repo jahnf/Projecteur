@@ -273,6 +273,7 @@ void InputMapConfigModel::updateDuplicates()
 // -------------------------------------------------------------------------------------------------
 InputMapConfigView::InputMapConfigView(QWidget* parent)
   : QTableView(parent)
+    , m_actionTypeDelegate(new ActionTypeDelegate(this))
 {
   // verticalHeader()->setHidden(true);
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
@@ -280,8 +281,7 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::InputSeqCol, imSeqDelegate);
 
-  const auto actionTypeDelegate = new ActionTypeDelegate(this);
-  setItemDelegateForColumn(InputMapConfigModel::ActionTypeCol, actionTypeDelegate);
+  setItemDelegateForColumn(InputMapConfigModel::ActionTypeCol, m_actionTypeDelegate);
 
   const auto actionDelegate = new ActionDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::ActionCol, actionDelegate);
@@ -294,7 +294,7 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
 
   connect(this, &QWidget::customContextMenuRequested, this,
-  [this, actionDelegate, actionTypeDelegate](const QPoint& pos)
+  [this, actionDelegate](const QPoint& pos)
   {
     const auto idx = indexAt(pos);
     if (!idx.isValid()) return;
@@ -306,18 +306,17 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
     }
     else if (idx.column() == InputMapConfigModel::ActionTypeCol)
     {
-      actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                            idx, this->viewport()->mapToGlobal(pos));
+      m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                              idx, this->viewport()->mapToGlobal(pos));
     }
   });
 
-  connect(this, &QTableView::doubleClicked, this,
-  [this, actionTypeDelegate](const QModelIndex& idx)
+  connect(this, &QTableView::doubleClicked, this, [this](const QModelIndex& idx)
   {
     if (!idx.isValid()) return;
     if (idx.column() == InputMapConfigModel::ActionTypeCol) {
-      actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                            idx, QCursor::pos());
+      m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                              idx, QCursor::pos());
     }
   });
 }
@@ -341,7 +340,12 @@ void InputMapConfigView::keyPressEvent(QKeyEvent* e)
   {
   case Qt::Key_Enter:
   case Qt::Key_Return:
-    if (model()->flags(currentIndex()) & Qt::ItemIsEditable) {
+    if (currentIndex().column() == InputMapConfigModel::Columns::ActionTypeCol) {
+      const auto pos = viewport()->mapToGlobal(visualRect(currentIndex()).bottomLeft());
+      m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                              currentIndex(), pos);
+    }
+    else if (model()->flags(currentIndex()) & Qt::ItemIsEditable) {
       edit(currentIndex());
       return;
     }

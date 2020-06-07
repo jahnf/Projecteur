@@ -395,6 +395,31 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
   drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).deviceSequence);
+
+  if (option.state & QStyle::State_HasFocus) {
+    drawCurrentIndicator(*painter, option);
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::drawCurrentIndicator(QPainter &p, const QStyleOption &option)
+{
+  p.save();
+  const auto squareSize = option.rect.height() / 3;
+  const QRectF rect(option.rect.bottomRight()-QPoint(squareSize, squareSize),
+                    QSize(squareSize, squareSize));
+
+  const auto brush = QBrush((option.state & QStyle::State_Selected)
+                              ? option.palette.color(QPalette::HighlightedText)
+                              : option.palette.color(QPalette::Highlight));
+  {
+    QPainterPath path(rect.topRight());
+    path.lineTo(rect.bottomRight());
+    path.lineTo(rect.bottomLeft());
+    path.lineTo(rect.topRight());
+    p.fillPath(path, brush);
+  }
+  p.restore();
 }
 
 // -------------------------------------------------------------------------------------------------

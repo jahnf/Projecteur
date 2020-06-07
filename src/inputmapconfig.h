@@ -8,6 +8,9 @@
 #include <QTableView>
 
 // -------------------------------------------------------------------------------------------------
+class ActionTypeDelegate;
+
+// -------------------------------------------------------------------------------------------------
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
   std::shared_ptr<Action> action;
@@ -67,5 +70,8 @@ public:
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
+
+private:
+  ActionTypeDelegate* m_actionTypeDelegate = nullptr;
 };
 
