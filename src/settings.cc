@@ -35,7 +35,6 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
-    constexpr char dblClickDuration[] = "dblClickDuration";
 
     // -- device specific
     constexpr char inputSequenceInterval[] = "inputSequenceInterval";
@@ -59,7 +58,6 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
-      constexpr int dblClickDuration = 300;
 
       // -- device specific defaults
       constexpr int inputSequenceInterval = 250;
@@ -139,7 +137,19 @@ void Settings::init()
 
   shapeSettingsInitialize();
   load();
+  loadPresets();
   initializeStringProperties();
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::loadPresets()
+{
+  m_presets.clear();
+  for (const auto& group: m_settings->childGroups()) {
+    if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
+      m_presets.emplace(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
+    }
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -147,15 +157,15 @@ void Settings::initializeStringProperties()
 {
   auto& map = m_stringPropertyMap;
   // -- spot settings
-  map.push_back( {"spot.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "spot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::spotSize.min, ::settings::ranges::spotSize.max},
-                    [this](const QString& value){ setSpotSize(value.toInt()); } } } );
-  map.push_back( {"spot.rotation", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setSpotSize(value.toInt()); } } );
+  map.emplace_back( "spot.rotation", StringProperty{ StringProperty::Double,
                     {::settings::ranges::spotRotation.min, ::settings::ranges::spotRotation.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
+                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } );
   QVariantList shapesList;
   for (const auto& shape : spotShapes()) { shapesList.push_back(shape.name()); }
-  map.push_back( {"spot.shape", StringProperty{ StringProperty::StringEnum, shapesList,
+  map.emplace_back( "spot.shape", StringProperty{ StringProperty::StringEnum, shapesList,
     [this](const QString& value){
        for (const auto& shape : spotShapes()) {
          if (shape.name().toLower() == value.toLower()) {
@@ -164,7 +174,7 @@ void Settings::initializeStringProperties()
          }
        }
     }
-  } } );
+  } );
 
   for (const auto& shape : spotShapes())
   {
@@ -176,57 +186,56 @@ void Settings::initializeStringProperties()
 
       const auto stringProperty = QString("spot.shape.%1.%2").arg(shape.name().toLower())
                                                              .arg(shapeSetting.settingsKey().toLower());
-      map.push_back( {stringProperty, StringProperty{ StringProperty::Integer,
-                       {shapeSetting.minValue().toInt(), shapeSetting.maxValue().toInt()},
-                       [pm, shapeSetting](const QString& value) {
-                         const int newValue = qMin(qMax(shapeSetting.minValue().toInt(), value.toInt()),
-                                                   shapeSetting.maxValue().toInt());
-                         pm->setProperty(shapeSetting.settingsKey().toLocal8Bit(), newValue);
-                       }
-                     } } );
+      map.emplace_back( stringProperty, StringProperty{ StringProperty::Integer,
+                         {shapeSetting.minValue().toInt(), shapeSetting.maxValue().toInt()},
+                         [pm, shapeSetting](const QString& value) {
+                           const int newValue = qMin(qMax(shapeSetting.minValue().toInt(), value.toInt()),
+                                                     shapeSetting.maxValue().toInt());
+                           pm->setProperty(shapeSetting.settingsKey().toLocal8Bit(), newValue);
+                         } } );
     }
   }
 
   // --- shade
-  map.push_back( {"shade", StringProperty{ StringProperty::Bool, {false, true},
-                    [this](const QString& value){ setShowSpotShade(toBool(value)); } } } );
-  map.push_back( {"shade.opacity", StringProperty{ StringProperty::Double,
+  map.emplace_back( "shade", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowSpotShade(toBool(value)); } } );
+  map.emplace_back( "shade.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::shadeOpacity.min, ::settings::ranges::shadeOpacity.max},
-                    [this](const QString& value){ setShadeOpacity(value.toDouble()); } } } );
-  map.push_back( {"shade.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setShadeColor(QColor(value)); } } } );
+                    [this](const QString& value){ setShadeOpacity(value.toDouble()); } } );
+  map.emplace_back( "shade.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setShadeColor(QColor(value)); } } );
   // --- center dot
-  map.push_back( {"dot", StringProperty{ StringProperty::Bool, {false, true},
-                   [this](const QString& value){ setShowCenterDot(toBool(value)); } } } );
-  map.push_back( {"dot.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "dot", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowCenterDot(toBool(value)); } } );
+  map.emplace_back( "dot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::dotSize.min, ::settings::ranges::dotSize.max},
-                    [this](const QString& value){ setDotSize(value.toInt()); } } } );
-  map.push_back( {"dot.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setDotColor(QColor(value)); } } } );
-  map.push_back( {"dot.opacity", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setDotSize(value.toInt()); } } );
+  map.emplace_back( "dot.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setDotColor(QColor(value)); } } );
+  map.emplace_back( "dot.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::dotOpacity.min, ::settings::ranges::dotOpacity.max},
-                    [this](const QString& value){ setDotOpacity(value.toDouble()); } } } );
+                    [this](const QString& value){ setDotOpacity(value.toDouble()); } } );
   // --- border
-  map.push_back( {"border", StringProperty{ StringProperty::Bool, {false, true},
-                    [this](const QString& value){ setShowBorder(toBool(value)); } } } );
-  map.push_back( {"border.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "border", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowBorder(toBool(value)); } } );
+  map.emplace_back( "border.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::borderSize.min, ::settings::ranges::borderSize.max},
-                    [this](const QString& value){ setBorderSize(value.toInt()); } } } );
-  map.push_back( {"border.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setBorderColor(QColor(value)); } } });
-  map.push_back( {"border.opacity", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setBorderSize(value.toInt()); } } );
+  map.emplace_back( "border.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setBorderColor(QColor(value)); } } );
+  map.emplace_back( "border.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::borderOpacity.min, ::settings::ranges::borderOpacity.max},
-                    [this](const QString& value){ setBorderOpacity(value.toDouble()); } } } );
+                    [this](const QString& value){ setBorderOpacity(value.toDouble()); } } );
   // --- zoom
-  map.push_back( {"zoom", StringProperty{ StringProperty::Bool, {false, true},
-                  [this](const QString& value){ setZoomEnabled(toBool(value)); } } } );
-  map.push_back( {"zoom.factor", StringProperty{ StringProperty::Double,
+  map.emplace_back( "zoom", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setZoomEnabled(toBool(value)); } } );
+  map.emplace_back( "zoom.factor", StringProperty{ StringProperty::Double,
                     {::settings::ranges::zoomFactor.min, ::settings::ranges::zoomFactor.max},
-                    [this](const QString& value){ setZoomFactor(value.toDouble()); } } } );
+                    [this](const QString& value){ setZoomFactor(value.toDouble()); } } );
 }
 
 // -------------------------------------------------------------------------------------------------
-const QList<QPair<QString, Settings::StringProperty>>& Settings::stringProperties() const
+const std::vector<std::pair<QString, Settings::StringProperty>>& Settings::stringProperties() const
 {
   return m_stringPropertyMap;
 }
@@ -277,7 +286,6 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
-  setDblClickDuration(settings::defaultValue::dblClickDuration);
   shapeSettingsSetDefaults();
 }
 
@@ -360,7 +368,8 @@ void Settings::shapeSettingsInitialize()
     if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
     {
       auto pm = new QQmlPropertyMap(this);
-      connect(pm, &QQmlPropertyMap::valueChanged, [this, shape, pm](const QString& key, const QVariant& value)
+      connect(pm, &QQmlPropertyMap::valueChanged, this,
+      [this, shape, pm](const QString& key, const QVariant& value)
       {
         const auto& s = shape.shapeSettings();
         auto it = std::find_if(s.cbegin(), s.cend(), [&key](const SpotShapeSetting& sss) {
@@ -394,24 +403,20 @@ void Settings::shapeSettingsInitialize()
 void Settings::loadPreset(const QString& preset)
 {
   load(preset);
+  emit presetLoaded(preset);
 }
 
 // -------------------------------------------------------------------------------------------------
 void Settings::removePreset(const QString& preset)
 {
+  m_presets.erase(preset);
   m_settings->remove(presetSection(preset, false));
 }
 
 // -------------------------------------------------------------------------------------------------
-QStringList Settings::presets() const
+const std::set<QString>& Settings::presets() const
 {
-  QStringList presetNames;
-  for (const auto& group: m_settings->childGroups()) {
-    if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
-      presetNames.push_back(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
-    }
-  }
-  return presetNames;
+  return m_presets;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -438,7 +443,6 @@ void Settings::load(const QString& preset)
   setBorderOpacity(m_settings->value(s+::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   setZoomEnabled(m_settings->value(s+::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
   setZoomFactor(m_settings->value(s+::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
-  setDblClickDuration(m_settings->value(s+::settings::dblClickDuration, settings::defaultValue::dblClickDuration).toInt());
   shapeSettingsLoad(preset);
 }
 
@@ -464,8 +468,9 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::borderOpacity, m_borderOpacity);
   m_settings->setValue(section+::settings::zoomEnabled, m_zoomEnabled);
   m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
-  m_settings->setValue(section+::settings::dblClickDuration, m_dblClickDuration);
   shapeSettingsSavePreset(preset);
+
+  m_presets.emplace(preset);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -628,7 +633,7 @@ QObject* Settings::shapeSettingsRootObject()
 // -------------------------------------------------------------------------------------------------
 QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
 {
-  const auto it = m_shapeSettings.find(shapeName);
+  const auto it = m_shapeSettings.constFind(shapeName);
   if (it != m_shapeSettings.cend()) {
     return it.value();
   }
@@ -737,18 +742,6 @@ void Settings::setZoomFactor(double factor)
 }
 
 // -------------------------------------------------------------------------------------------------
-void Settings::setDblClickDuration(int duration)
-{
-  // duration in millisecond
-  if (m_dblClickDuration == duration)
-    return;
-
-  m_dblClickDuration = duration;
-  m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
-  emit dblClickDurationChanged(m_dblClickDuration);
-}
-
-// -------------------------------------------------------------------------------------------------
 void Settings::setOverlayDisabled(bool disabled)
 {
   if (m_overlayDisabled == disabled) return;
@@ -819,8 +812,8 @@ void Settings::getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc)
     const auto seq = m_settings->value("deviceSequence");
     if (!seq.canConvert<KeyEventSequence>()) continue;
     const auto conf = m_settings->value("mappedAction");
-    if (!conf.canConvert<MappedInputAction>()) continue;
-    imc.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedInputAction>(conf));
+    if (!conf.canConvert<MappedAction>()) continue;
+    imc.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedAction>(conf));
   }
   m_settings->endArray();
 }

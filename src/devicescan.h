@@ -3,11 +3,11 @@
 
 #include "device.h"
 
-#include <QList>
 #include <QString>
 #include <QMetaType>
 
 #include <tuple>
+#include <vector>
 
 // -------------------------------------------------------------------------------------------------
 struct SupportedDevice
@@ -38,16 +38,16 @@ namespace DeviceScan
     QString userName;
     DeviceId id;
     BusType busType = BusType::Unknown;
-    QList<SubDevice> subDevices;
+    std::vector<SubDevice> subDevices;
   };
 
   struct ScanResult {
-    QList<Device> devices;
+    std::vector<Device> devices;
     quint16 numDevicesReadable = 0;
     quint16 numDevicesWritable = 0;
     QStringList errorMessages;
   };
 
   /// Scan for supported devices and check if they are accessible
-  ScanResult getDevices(const QList<SupportedDevice>& additionalDevices = {});
+  ScanResult getDevices(const std::vector<SupportedDevice>& additionalDevices = {});
 }

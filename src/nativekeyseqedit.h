@@ -3,20 +3,20 @@
 
 // _Note_: This is custom implementation similar to QKeySequenceEdit. Unfortunately QKeySequence
 // and QKeySequenceEdit do not support native key codes, which are needed if we want to
-// emit key sequences on a configured input from a 'spotlight' device.
+// emit key sequences via the uinput device.
 //
-// There is also not public API in Qt that allows us to map Qt Keycodes back to system key codes
+// There is also no public API in Qt that allows us to map Qt Keycodes back to system key codes
 // and vice versa.
 
 #include "deviceinput.h"
 
-#include <QKeySequence>
-#include <QStyledItemDelegate>
 #include <QWidget>
 
 #include <set>
+#include <vector>
 
 // -------------------------------------------------------------------------------------------------
+class QStyleOption;
 class QStyleOptionFrame;
 
 // -------------------------------------------------------------------------------------------------
@@ -43,6 +43,14 @@ signals:
   void keySequenceChanged(const NativeKeySequence& keySequence);
   void editingFinished(NativeKeySeqEdit*);
 
+public:
+  // Public static helpers - can be reused by other editors or delegates
+  static int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option);
+  static int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text);
+  static int drawText(int startX, QPainter& p, const QStyleOption& option, const QString& text);
+  static int drawSequence(int startX, QPainter& p, const QStyleOption& option,
+                          const NativeKeySequence& ks, bool drawEmptyPlaceholder = true);
+
 protected:
   void paintEvent(QPaintEvent* e) override;
   void mouseDoubleClickEvent(QMouseEvent* e) override;
@@ -62,33 +70,8 @@ private:
   std::vector<int> m_recordedQtKeys;
   std::vector<uint16_t> m_recordedNativeModifiers;
   std::set<int> m_nativeModifiersPressed;
-  QKeySequence m_recordedSequence;
   KeyEventSequence m_recordedEvents;
   QTimer* m_timer = nullptr;
   int m_lastKey = -1;
   bool m_recording = false;
-};
-
-// -------------------------------------------------------------------------------------------------
-class NativeKeySeqDelegate : public QStyledItemDelegate
-{
-  Q_OBJECT
-
-public:
-  using QStyledItemDelegate::QStyledItemDelegate;
-
-  void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
-  QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override;
-  QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
-  void setEditorData(QWidget* editor, const QModelIndex& index) const override;
-  void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
-
-signals:
-  void editingStarted() const;
-
-protected:
-  bool eventFilter(QObject* obj, QEvent* ev) override;
-
-private:
-  void commitAndCloseEditor(NativeKeySeqEdit* editor);
 };

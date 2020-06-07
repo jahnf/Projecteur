@@ -13,10 +13,14 @@ namespace Font
     battery_5 = 0xf102, // svg/iconmonstr-battery-5.svg
     battery_6 = 0xf103, // svg/iconmonstr-battery-6.svg
     battery_7 = 0xf104, // svg/iconmonstr-battery-7.svg
+    connection_8 = 0xf114, // svg/iconmonstr-connection-8.svg
     control_panel_9 = 0xf105, // svg/iconmonstr-control-panel-9.svg
     gear_12 = 0xf106, // svg/iconmonstr-gear-12.svg
+    keyboard_14 = 0xf10e, // svg/iconmonstr-keyboard-14.svg
+    keyboard_4 = 0xf10f, // svg/iconmonstr-keyboard-4.svg
     plus_5 = 0xf107, // svg/iconmonstr-plus-5.svg
     share_8 = 0xf108, // svg/iconmonstr-share-8.svg
+    target_8 = 0xf110, // svg/iconmonstr-target-8.svg
     time_19 = 0xf109, // svg/iconmonstr-time-19.svg
     trash_can_1 = 0xf10a, // svg/iconmonstr-trash-can-1.svg
   };

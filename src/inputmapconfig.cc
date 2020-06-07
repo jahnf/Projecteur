@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "inputmapconfig.h"
 
+#include "actiondelegate.h"
 #include "inputseqedit.h"
 #include "logging.h"
 
@@ -47,14 +48,10 @@ Qt::ItemFlags InputMapConfigModel::flags(const QModelIndex &index) const
 }
 
 // -------------------------------------------------------------------------------------------------
-QVariant InputMapConfigModel::data(const QModelIndex& index, int role) const
+QVariant InputMapConfigModel::data(const QModelIndex& index, int /*role*/) const
 {
   if (index.row() >= static_cast<int>(m_configItems.size()))
     return QVariant();
-
-  if (index.column() == InputSeqCol && role == Roles::InputSeqRole) {
-    return QVariant::fromValue(m_configItems[index.row()].deviceSequence);
-  }
 
   return QVariant();
 }
@@ -67,8 +64,8 @@ QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientatio
     switch(section)
     {
     case InputSeqCol: return tr("Input Sequence");
-    //case ActionTypeCol: return tr("Type");
-    case ActionCol: return tr("Mapped Key(s)");
+    case ActionTypeCol: return "Type";
+    case ActionCol: return tr("Mapped Action");
     }
   }
   else if (orientation == Qt::Vertical)
@@ -106,17 +103,14 @@ void InputMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
 }
 
 // -------------------------------------------------------------------------------------------------
-int InputMapConfigModel::addConfigItem(const InputMapModelItem& cfg)
+int InputMapConfigModel::addNewItem(std::shared_ptr<Action> action)
 {
+  if (!action) return -1;
+
   const auto row = m_configItems.size();
   beginInsertRows(QModelIndex(), row, row);
-  m_configItems.push_back(cfg);
+  m_configItems.push_back({{}, std::move(action)});
   endInsertRows();
-
-  if (cfg.deviceSequence.size()) {
-    ++m_duplicates[cfg.deviceSequence];
-    configureInputMapper();
-  }
 
   return row;
 }
@@ -180,13 +174,37 @@ void InputMapConfigModel::setKeySequence(const QModelIndex& index, const NativeK
   if (index.row() < static_cast<int>(m_configItems.size()))
   {
     auto& c = m_configItems[index.row()];
-    if (c.mappedSequence != ks)
+    // TODO if action is currently not a keysequence action.. -> just change action type?
+    if (auto action = std::dynamic_pointer_cast<KeySequenceAction>(c.action))
     {
-      c.mappedSequence = ks;
-      configureInputMapper();
-      emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
+      if (action->keySequence != ks) {
+        c.action = std::make_shared<KeySequenceAction>(ks);
+        configureInputMapper();
+        emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
+      }
     }
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type type)
+{
+  if (idx.row() >= m_configItems.size()) return;
+  auto& item = m_configItems[idx.row()];
+  if (item.action->type() == type) return;
+
+  switch(type)
+  {
+  case Action::Type::KeySequence:
+    item.action = std::make_shared<KeySequenceAction>();
+    break;
+  case Action::Type::CyclePresets:
+    item.action = std::make_shared<CyclePresetsAction>();
+    break;
+  }
+
+  configureInputMapper();
+  emit dataChanged(index(idx.row(), ActionTypeCol), index(idx.row(), ActionCol));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -213,7 +231,7 @@ InputMapConfig InputMapConfigModel::configuration() const
   for (const auto& item : m_configItems)
   {
     if (item.deviceSequence.size() == 0) continue;
-    config.emplace(item.deviceSequence, MappedInputAction{item.mappedSequence});
+    config.emplace(item.deviceSequence, MappedAction{item.action});
   }
 
   return config;
@@ -226,8 +244,9 @@ void InputMapConfigModel::setConfiguration(const InputMapConfig& config)
   m_configItems.clear();
   m_duplicates.clear();
 
-  for (const auto& item : config) {
-    m_configItems.push_back(InputMapModelItem{item.first, item.second.sequence});
+  for (const auto& item : config)
+  {
+    m_configItems.push_back(InputMapModelItem{item.first, item.second.action});
     ++m_duplicates[item.first];
   }
 
@@ -249,6 +268,7 @@ void InputMapConfigModel::updateDuplicates()
   }
 }
 
+#include <QMenu>
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 InputMapConfigView::InputMapConfigView(QWidget* parent)
@@ -260,19 +280,46 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::InputSeqCol, imSeqDelegate);
 
-  const auto keySeqDelegate = new NativeKeySeqDelegate(this);
-  setItemDelegateForColumn(InputMapConfigModel::ActionCol, keySeqDelegate);
+  const auto actionTypeDelegate = new ActionTypeDelegate(this);
+  setItemDelegateForColumn(InputMapConfigModel::ActionTypeCol, actionTypeDelegate);
+
+  const auto actionDelegate = new ActionDelegate(this);
+  setItemDelegateForColumn(InputMapConfigModel::ActionCol, actionDelegate);
 
   setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
   setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
   horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
 
   setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed);
+  setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
 
-  connect(imSeqDelegate, &InputSeqDelegate::editingStarted, [this](){ m_editing = true; });
-  connect(imSeqDelegate, &InputSeqDelegate::closeEditor, [this](){ m_editing = false; });
-  connect(keySeqDelegate, &NativeKeySeqDelegate::editingStarted, [this](){ m_editing = true; });
-  connect(keySeqDelegate, &NativeKeySeqDelegate::closeEditor, [this](){ m_editing = false; });
+  connect(this, &QWidget::customContextMenuRequested, this,
+  [this, actionDelegate, actionTypeDelegate](const QPoint& pos)
+  {
+    const auto idx = indexAt(pos);
+    if (!idx.isValid()) return;
+
+    if (idx.column() == InputMapConfigModel::ActionCol)
+    {
+      actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                        idx, this->viewport()->mapToGlobal(pos));
+    }
+    else if (idx.column() == InputMapConfigModel::ActionTypeCol)
+    {
+      actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                            idx, this->viewport()->mapToGlobal(pos));
+    }
+  });
+
+  connect(this, &QTableView::doubleClicked, this,
+  [this, actionTypeDelegate](const QModelIndex& idx)
+  {
+    if (!idx.isValid()) return;
+    if (idx.column() == InputMapConfigModel::ActionTypeCol) {
+      actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                            idx, QCursor::pos());
+    }
+  });
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -280,10 +327,11 @@ void InputMapConfigView::setModel(QAbstractItemModel* model)
 {
   QTableView::setModel(model);
 
-//  if (const auto imModel = qobject_cast<InputSeqMapConfigModel*>(model)) {
-//    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionTypeCol, QHeaderView::ResizeToContents);
-//    horizontalHeader()->setSectionResizeMode(InputSeqMapConfigModel::ActionCol, QHeaderView::ResizeToContents);
-//  }
+  if(const auto m = qobject_cast<InputMapConfigModel*>(model))
+  {
+    horizontalHeader()->setSectionResizeMode(InputMapConfigModel::Columns::ActionTypeCol,
+                                             QHeaderView::ResizeMode::ResizeToContents);
+  }
 }
 
 //-------------------------------------------------------------------------------------------------

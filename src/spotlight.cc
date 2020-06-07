@@ -90,11 +90,12 @@ std::shared_ptr<DeviceConnection> Spotlight::deviceConnection(const DeviceId& de
 }
 
 // -------------------------------------------------------------------------------------------------
-QList<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
+std::vector<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 {
-  QList<ConnectedDeviceInfo> devices;
+  std::vector<ConnectedDeviceInfo> devices;
+  devices.reserve(m_deviceConnections.size());
   for (const auto& dc : m_deviceConnections) {
-    devices.push_back(ConnectedDeviceInfo{dc.first, dc.second->deviceName()});
+    devices.emplace_back(ConnectedDeviceInfo{ dc.first, dc.second->deviceName() });
   }
   return devices;
 }
@@ -111,7 +112,7 @@ int Spotlight::connectDevices()
     }
 
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
-    for (const auto scanSubDevice : dev.subDevices)
+    for (const auto& scanSubDevice : dev.subDevices)
     {
       if (scanSubDevice.type != DeviceScan::SubDevice::Type::Event) continue;
       if (!scanSubDevice.deviceReadable) continue;
@@ -131,6 +132,29 @@ int Spotlight::connectDevices()
 
         connect(im, &InputMapper::configurationChanged, this, [this, id=dev.id, im]() {
           m_settings->setDeviceInputMapConfig(id, im->configuration());
+        });
+
+        static QString lastPreset;
+
+        connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
+        {
+          if (action->type() == Action::Type::CyclePresets)
+          {
+            auto it = m_settings->presets().find(lastPreset);
+            if ((it == m_settings->presets().cend()) || (++it == m_settings->presets().cend())) {
+              it = m_settings->presets().cbegin();
+            }
+
+            if (it != m_settings->presets().cend())
+            {
+              lastPreset = *it;
+              m_settings->loadPreset(lastPreset);
+            }
+          }
+        });
+
+        connect(m_settings, &Settings::presetLoaded, this, [](const QString& preset){
+          lastPreset = preset;
         });
       }
 
@@ -290,7 +314,7 @@ bool Spotlight::setupDevEventInotify()
   }
 
   const auto notifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
-  connect(notifier, &QSocketNotifier::activated, [this](int fd)
+  connect(notifier, &QSocketNotifier::activated, this, [this](int fd)
   {
     int bytesAvaibable = 0;
     if (ioctl(fd, FIONREAD, &bytesAvaibable) < 0 || bytesAvaibable <= 0) {

@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
       {
         if (sp.type == Settings::StringProperty::Type::Integer
             || sp.type == Settings::StringProperty::Type::Double) {
-          return QString("(%1 ... %2)").arg(sp.range[0].toString()).arg(sp.range[1].toString());
+          return QString("(%1 ... %2)").arg(sp.range[0].toString(), sp.range[1].toString());
         }
         else if (sp.type == Settings::StringProperty::Type::Bool) {
           return "(false, true)";
@@ -130,14 +130,14 @@ int main(int argc, char *argv[])
       };
 
       Settings settings;
-      QList<QPair<QString, QString>> propertiesList;
+      QVector<QPair<QString, QString>> propertiesList;
       int propertyMaxLen = 0;
 
       // Fill temporary list with properties to be able to format our output better
       for (const auto& sp : settings.stringProperties())
       {
         propertiesList.push_back(
-          {QString("%1=[%2]").arg(sp.first).arg(sp.second.typeToString(sp.second.type)),
+          {QString("%1=[%2]").arg(sp.first, sp.second.typeToString(sp.second.type)),
            getValues(sp.second)});
 
         propertyMaxLen = qMax(propertyMaxLen, propertiesList.last().first.size());

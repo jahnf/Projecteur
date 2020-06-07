@@ -1,14 +1,14 @@
 {
   "checksum": {
-    "previous": "91764cdb51d5417b2e9114a5b7e0130a76733519eac15eb940d42e399758d7f8",
-    "current": "91764cdb51d5417b2e9114a5b7e0130a76733519eac15eb940d42e399758d7f8"
+    "previous": "f2524cd97c9c575c85c05e9f003b8007c64cfe68cce5ae7745c077f4e9c7e8c1",
+    "current": "f2524cd97c9c575c85c05e9f003b8007c64cfe68cce5ae7745c077f4e9c7e8c1"
   },
   "fonts": [
-    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.ttf",
-    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.svg",
-    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.woff",
-    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.eot",
-    "output/fonts/projecteur-icons_91764cdb51d5417b2e9114a5b7e0130a.woff2"
+    "output/fonts/projecteur-icons_f2524cd97c9c575c85c05e9f003b8007.ttf",
+    "output/fonts/projecteur-icons_f2524cd97c9c575c85c05e9f003b8007.svg",
+    "output/fonts/projecteur-icons_f2524cd97c9c575c85c05e9f003b8007.woff",
+    "output/fonts/projecteur-icons_f2524cd97c9c575c85c05e9f003b8007.eot",
+    "output/fonts/projecteur-icons_f2524cd97c9c575c85c05e9f003b8007.woff2"
   ],
   "glyphs": {
     "iconmonstr-arrow-73": {
@@ -39,6 +39,10 @@
       "codepoint": 61700,
       "source": "svg/iconmonstr-battery-7.svg"
     },
+    "iconmonstr-connection-8": {
+      "codepoint": 61716,
+      "source": "svg/iconmonstr-connection-8.svg"
+    },
     "iconmonstr-control-panel-9": {
       "codepoint": 61701,
       "source": "svg/iconmonstr-control-panel-9.svg"
@@ -47,6 +51,14 @@
       "codepoint": 61702,
       "source": "svg/iconmonstr-gear-12.svg"
     },
+    "iconmonstr-keyboard-14": {
+      "codepoint": 61710,
+      "source": "svg/iconmonstr-keyboard-14.svg"
+    },
+    "iconmonstr-keyboard-4": {
+      "codepoint": 61711,
+      "source": "svg/iconmonstr-keyboard-4.svg"
+    },
     "iconmonstr-plus-5": {
       "codepoint": 61703,
       "source": "svg/iconmonstr-plus-5.svg"
@@ -54,6 +66,10 @@
     "iconmonstr-share-8": {
       "codepoint": 61704,
       "source": "svg/iconmonstr-share-8.svg"
+    },
+    "iconmonstr-target-8": {
+      "codepoint": 61712,
+      "source": "svg/iconmonstr-target-8.svg"
     },
     "iconmonstr-time-19": {
       "codepoint": 61705,

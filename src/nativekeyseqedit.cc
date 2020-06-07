@@ -2,6 +2,7 @@
 #include "nativekeyseqedit.h"
 
 #include "inputmapconfig.h"
+#include "inputseqedit.h"
 #include "logging.h"
 
 #include <linux/input.h>
@@ -16,92 +17,6 @@
 namespace {
   // -----------------------------------------------------------------------------------------------
   constexpr int maxKeyCount = 4; // Same as QKeySequence
-
-  // -----------------------------------------------------------------------------------------------
-  QKeySequence makeQKeySequence(const std::vector<int>& keys) {
-    switch (keys.size()) {
-    case 4: return QKeySequence(keys[0], keys[1], keys[2], keys[3]);
-    case 3: return QKeySequence(keys[0], keys[1], keys[2]);
-    case 2: return QKeySequence(keys[0], keys[1]);
-    case 1: return QKeySequence(keys[0]);
-    }
-    return QKeySequence();
-  }
-
-  // -----------------------------------------------------------------------------------------------
-  int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
-  {
-    const auto iconSize = option.fontMetrics.height();
-    const auto marginTop = (option.rect.height() - iconSize) / 2;
-    const QRect iconRect(startX, marginTop, iconSize, iconSize);
-
-    p.save();
-    p.setPen(Qt::lightGray);
-    p.setBrush(QBrush(Qt::red));
-    p.setRenderHint(QPainter::Antialiasing);
-    p.drawEllipse(iconRect);
-    p.restore();
-
-    return iconRect.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
-  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
-  {
-    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
-                         option.rect.bottomRight());
-    p.save();
-    p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-    QRect br;
-    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
-    p.restore();
-
-    return br.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
-  int drawText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
-  {
-    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
-                         option.rect.bottomRight());
-    p.save();
-
-    if (option.state & QStyle::State_Selected)
-      p.setPen(option.palette.color(QPalette::HighlightedText));
-    else
-      p.setPen(option.palette.color(QPalette::Text));
-
-    QRect br;
-    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
-    p.restore();
-
-    return br.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
-  int drawKeySeqText(int startX, QPainter& p, const QStyleOption& option, const NativeKeySequence& ks,
-                    bool drawEmptyPlaceholder = true)
-  {
-    if (ks.count() == 0)
-    {
-      if (!drawEmptyPlaceholder) { return 0; }
-
-      p.save();
-      p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
-      if (option.state & QStyle::State_Selected)
-        p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
-      else
-        p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-
-      static const QStaticText textNone(NativeKeySeqEdit::tr("None"));
-      const auto top = (option.rect.height() - textNone.size().height()) / 2;
-      p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
-      p.restore();
-      return textNone.size().width();
-    }
-
-    return drawText(startX, p, option, ks.toString());
-  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -210,7 +125,7 @@ void NativeKeySeqEdit::paintEvent(QPaintEvent*)
     }
   }
   else {
-    xPos += drawKeySeqText(xPos, p, option, m_nativeSequence);
+    xPos += drawSequence(xPos, p, option, m_nativeSequence);
   }
 }
 
@@ -230,7 +145,6 @@ void NativeKeySeqEdit::reset()
   m_recordedNativeModifiers.clear();
   m_recordedEvents.clear();
   m_lastKey = -1;
-  m_recordedSequence = QKeySequence();
   m_nativeModifiersPressed.clear();
 }
 
@@ -317,7 +231,6 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
 
   m_recordedQtKeys.push_back(key);
   m_recordedNativeModifiers.push_back(getNativeModifiers(m_nativeModifiersPressed));
-  m_recordedSequence = makeQKeySequence(m_recordedQtKeys);
 
   // TODO Verify that (nativeScanCode - 8) equals the codes from input-event-codes.h on
   // all Linux desktops.. (not only xcb..) - comes from #define MIN_KEYCODE 8 in evdev.c
@@ -434,113 +347,47 @@ uint16_t NativeKeySeqEdit::getNativeModifiers(const std::set<int>& modifiersPres
   return modifiers;
 }
 
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
-                                 const QModelIndex& index) const
+// -------------------------------------------------------------------------------------------------
+int NativeKeySeqEdit::drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
 {
-  // Let QStyledItemDelegate handle drawing current focus inidicator and other basic stuff..
-  QStyledItemDelegate::paint(painter, option, index);
-  const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
-  if (!imModel) { return; }
-
-  // Our custom drawing of the KeyEventSequence...
-  const auto& fm = option.fontMetrics;
-  const int xPos = (option.rect.height()-fm.height()) / 2;
-  drawKeySeqText(xPos, *painter, option, imModel->configData(index).mappedSequence);
+  return InputSeqEdit::drawRecordingSymbol(startX, p, option);
 }
 
 // -------------------------------------------------------------------------------------------------
-QWidget* NativeKeySeqDelegate::createEditor(QWidget* parent,
-                                            const QStyleOptionViewItem& /*option*/,
-                                            const QModelIndex& index) const
-
+int NativeKeySeqEdit::drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
 {
-  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
+  return InputSeqEdit::drawPlaceHolderText(startX, p, option, text);
+}
+
+// -------------------------------------------------------------------------------------------------
+int NativeKeySeqEdit::drawText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
+{
+  const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                       option.rect.bottomRight());
+  p.save();
+
+  if (option.state & QStyle::State_Selected)
+    p.setPen(option.palette.color(QPalette::HighlightedText));
+  else
+    p.setPen(option.palette.color(QPalette::Text));
+
+  QRect br;
+  p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+  p.restore();
+
+  return br.width();
+}
+
+// -------------------------------------------------------------------------------------------------
+int NativeKeySeqEdit::drawSequence(int startX, QPainter& p, const QStyleOption& option,
+                                   const NativeKeySequence& ks, bool drawEmptyPlaceholder)
+{
+  if (ks.count() == 0)
   {
-    auto *editor = new NativeKeySeqEdit(parent);
-    connect(editor, &NativeKeySeqEdit::editingFinished, this, &NativeKeySeqDelegate::commitAndCloseEditor);
-    return editor;
+    if (!drawEmptyPlaceholder) { return 0; }
+    return InputSeqEdit::drawEmptyIndicator(startX, p, option);
   }
 
-  return nullptr;
+  return drawText(startX, p, option, ks.toString());
 }
-
-// -------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::commitAndCloseEditor(NativeKeySeqEdit* editor)
-{
-  emit commitData(editor);
-  emit closeEditor(editor);
-}
-
-// -------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
-{
-  if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor))
-  {
-    if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
-    {
-      seqEditor->setKeySequence(imModel->configData(index).mappedSequence);
-      seqEditor->setRecording(true);
-      emit editingStarted();
-      return;
-    }
-  }
-
-  QStyledItemDelegate::setEditorData(editor, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-void NativeKeySeqDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
-                                        const QModelIndex& index) const
-{
-  if (const auto seqEditor = qobject_cast<NativeKeySeqEdit*>(editor))
-  {
-    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model))
-    {
-      imModel->setKeySequence(index, seqEditor->keySequence());
-      return;
-    }
-  }
-
-  QStyledItemDelegate::setModelData(editor, model, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-QSize NativeKeySeqDelegate::sizeHint(const QStyleOptionViewItem& opt,
-                                     const QModelIndex& index) const
-{
-  if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
-  {
-    constexpr int verticalMargin = 3;
-    constexpr int horizontalMargin = 3;
-
-    const int h = opt.fontMetrics.height() + 2 * verticalMargin;
-
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-      const int w = std::max(opt.fontMetrics.horizontalAdvance(tr("None")) + 2 * horizontalMargin,
-                             opt.fontMetrics.horizontalAdvance(imModel->configData(index)
-                                                               .mappedSequence.toString()));
-    #else
-      const int w = std::max(opt.fontMetrics.width(tr("None")) + 2 * horizontalMargin,
-                             opt.fontMetrics.width(imModel->configData(index)
-                                                   .mappedSequence.toString()));
-    #endif
-
-    return QSize(w, h);
-  }
-  return QStyledItemDelegate::sizeHint(opt, index);
-}
-
-// -------------------------------------------------------------------------------------------------
-bool NativeKeySeqDelegate::eventFilter(QObject* obj, QEvent* ev)
-{
-  if (ev->type() == QEvent::KeyPress)
-  { // let all key press events pass through to editor,
-    // otherwise some keys cannot be recorded as a key sequence (e.g. [Tab] and [Esc])
-    return false;
-  }
-  return QStyledItemDelegate::eventFilter(obj,ev);
-}
-
 

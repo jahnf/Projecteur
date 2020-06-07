@@ -3,7 +3,6 @@
 
 #include "deviceinput.h"
 #include "iconwidgets.h"
-#include "inputseqedit.h"
 #include "inputmapconfig.h"
 #include "logging.h"
 #include "settings.h"
@@ -12,12 +11,10 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QLayout>
-#include <QPushButton>
 #include <QSpinBox>
 #include <QStackedLayout>
 #include <QStyle>
 #include <QTabWidget>
-#include <QTimer>
 
 DECLARE_LOGGING_CATEGORY(preferences)
 
@@ -172,7 +169,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   });
 
   connect(addBtn, &QToolButton::clicked, this, [imModel, tblView](){
-    tblView->selectRow(imModel->addConfigItem());
+    tblView->selectRow(imModel->addNewItem(std::make_shared<KeySequenceAction>()));
   });
 
   layout->addLayout(intervalLayout);

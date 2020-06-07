@@ -7,10 +7,8 @@
 
 #include <map>
 #include <set>
+#include <type_traits>
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QKeyEvent>
 #include <QTimer>
 
 #include <linux/input.h>
@@ -20,7 +18,7 @@ LOGGING_CATEGORY(input, "input")
 namespace  {
   // -----------------------------------------------------------------------------------------------
   static auto registered_ = qRegisterMetaTypeStreamOperators<KeyEventSequence>()
-                            && qRegisterMetaTypeStreamOperators<MappedInputAction>();
+                            && qRegisterMetaTypeStreamOperators<MappedAction>();
 
   // -----------------------------------------------------------------------------------------------
   void addKeyToString(QString& str, const QString& key)
@@ -94,65 +92,47 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke)
 }
 
 // -------------------------------------------------------------------------------------------------
-QDataStream& operator>>(QDataStream& s, MappedInputAction& mia) {
-  return s >> mia.sequence;
-}
-
-QDataStream& operator<<(QDataStream& s, const MappedInputAction& mia) {
-  return s << mia.sequence;
-}
-
-// -------------------------------------------------------------------------------------------------
-QString& operator<<(QString& s, const KeyEventSequence& kes)
-{
-  QJsonArray seqArr;
-  for (const auto& ke : kes)
+QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
+  std::underlying_type_t<Action::Type> type;
+  s >> type;
+  switch (static_cast<Action::Type>(type))
   {
-    QJsonArray keArr;
-    for (const auto& die : ke)
-    {
-      QJsonArray dieArr;
-      dieArr.append(die.type);
-      dieArr.append(die.code);
-      dieArr.append(double(die.value));
-      keArr.append(dieArr);
-    }
-    seqArr.append(keArr);
-  }
-
-  return s.append(QJsonDocument(seqArr).toJson(QJsonDocument::JsonFormat::Compact));
-}
-
-// -------------------------------------------------------------------------------------------------
-const QString& operator<<(QString&& s, const KeyEventSequence& kes)
-{
-  return s << kes;
-}
-
-// -------------------------------------------------------------------------------------------------
-const QString& operator>>(const QString& s,  KeyEventSequence& kes)
-{
-  const auto doc = QJsonDocument::fromJson(s.toLocal8Bit());
-  const auto seqArr = doc.array();
-
-  kes.clear();
-  for (const auto& keObj : seqArr)
-  {
-    KeyEvent ke;
-    const auto keArr = keObj.toArray();
-    for (const auto& dieObj : keArr)
-    {
-      const auto dieArr = dieObj.toArray();
-      if (dieArr.size() != 3) continue;
-      ke.emplace_back(DeviceInputEvent{
-                        uint16_t(dieArr[0].toInt()),
-                        uint16_t(dieArr[1].toInt()),
-                        int32_t(dieArr[2].toDouble())
-                      });
-    }
-    if (!ke.empty()) kes.emplace_back(std::move(ke));
+  case Action::Type::KeySequence:
+    mia.action = std::make_shared<KeySequenceAction>();
+    return mia.action->load(s);
+  case Action::Type::CyclePresets:
+    mia.action = std::make_shared<CyclePresetsAction>();
+    return mia.action->load(s);
+  default:
+    mia.action.reset();
+    break;
   }
   return s;
+}
+
+// -------------------------------------------------------------------------------------------------
+bool MappedAction::operator==(const MappedAction& o) const
+{
+  if (!action && !o.action) return true;
+  if (!action || !o.action) return false;
+  if (action->type() != o.action->type()) return false;
+
+  switch(action->type()) {
+  case Action::Type::KeySequence:
+    return (*static_cast<KeySequenceAction*>(action.get()))
+           == (*static_cast<KeySequenceAction*>(o.action.get()));
+  case Action::Type::CyclePresets:
+    return (*static_cast<CyclePresetsAction*>(action.get()))
+           == (*static_cast<CyclePresetsAction*>(o.action.get()));
+  }
+
+  return false;
+}
+
+// -------------------------------------------------------------------------------------------------
+QDataStream& operator<<(QDataStream& s, const MappedAction& mia) {
+  s << static_cast<std::underlying_type_t<Action::Type>>(mia.action->type());
+  return mia.action->save(s);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -165,7 +145,8 @@ namespace  {
   using RefSet = std::set<const RefPair*>;
 
   struct Next {
-    NativeKeySequence mappedKeys; // TODO replace with generic action
+//    NativeKeySequence mappedKeys; // TODO replace with generic action
+    std::shared_ptr<Action> action;
     RefSet next_events;
   };
 
@@ -185,7 +166,7 @@ namespace  {
     DeviceKeyMap(const InputMapConfig& config = {}) { reconfigure(config); }
 
     enum Result : uint8_t {
-      Miss, Valid, Hit, AmbigiouslyHit
+      Miss, Valid, Hit, PartialHit
     };
 
     Result feed(const struct input_event input_events[], size_t num);
@@ -233,8 +214,8 @@ DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[],
   }
 
   // KeyEvent in Sequence has action attached, but there are other possible sequences...
-  if (m_pos->second->mappedKeys.count() != 0) {
-    return Result::AmbigiouslyHit;
+  if (m_pos->second->action && !m_pos->second->action->empty()) {
+    return Result::PartialHit;
   }
 
   return Result::Valid;
@@ -258,7 +239,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   // -- fill maps
   for (const auto& item: config)
   {
-    if (item.second.sequence.count() == 0) continue;
+    if (!item.second.action || item.second.action->empty()) continue;
 
     const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i) {
@@ -269,7 +250,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   // -- fill references
   for (const auto& item: config)
   {
-    if (item.second.sequence.count() == 0) continue;
+    if (!item.second.action || item.second.action->empty()) continue;
 
     const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i)
@@ -281,10 +262,8 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
         refobj = std::make_unique<Next>();
       }
 
-      if (i == kes.size() - 1) // last keyevent in seq
-      {
-        // Set (placeholder/fake) action for now in this prototype.
-        refobj->mappedKeys = item.second.sequence; // TODO generic action
+      if (i == kes.size() - 1) { // last keyevent in seq
+        refobj->action = item.second.action;
       }
       else if (i+1 < m_keymaps.size()) // if not last keyevent in seq
       {
@@ -337,7 +316,7 @@ void NativeKeySequence::clear()
 // -------------------------------------------------------------------------------------------------
 int NativeKeySequence::count() const
 {
-  return m_keySequence.count();
+  return qMax(m_keySequence.count(), static_cast<int>(m_nativeModifiers.size()));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -359,18 +338,34 @@ QString NativeKeySequence::toString() const
 QString NativeKeySequence::toString(int qtKey, uint16_t nativeModifiers)
 {
   QString keyStr; 
-  Q_UNUSED(nativeModifiers)
 
-//  // commented out for now, but we have the possibility to differentiate
-//  //  between left and right modifier keys later on...
-//  if ((nativeModifiers & Modifier::LeftCtrl) == Modifier::LeftCtrl) {
-//    addKey(keyStr, QLatin1String("Ctrl"));
-//  }
-//  if ((nativeModifiers & Modifier::RightCtrl) == Modifier::RightCtrl) {
-//    addKey(keyStr, QLatin1String("Ctrl"));
-//  }
-//  else if ((nativeModifiers & Modifier::LeftCtrl) != Modifier::LeftCtrl
-//           && (qtKey & Qt::ControlModifier) == Qt::ControlModifier)
+  if (qtKey == 0) // Special case for manually created Key Sequences
+  {
+    if ((nativeModifiers & Modifier::LeftMeta) == Modifier::LeftMeta
+        || (nativeModifiers & Modifier::RightMeta) == Modifier::RightMeta) {
+      addKeyToString(keyStr, QLatin1String("Meta"));
+    }
+
+    if ((nativeModifiers & Modifier::LeftCtrl) == Modifier::LeftCtrl
+        || (nativeModifiers & Modifier::RightCtrl) == Modifier::RightCtrl) {
+      addKeyToString(keyStr, QLatin1String("Ctrl"));
+    }
+
+    if ((nativeModifiers & Modifier::LeftAlt) == Modifier::LeftAlt) {
+      addKeyToString(keyStr, QLatin1String("Alt"));
+    }
+
+    if ((nativeModifiers & Modifier::RightAlt) == Modifier::RightAlt) {
+      addKeyToString(keyStr, QLatin1String("AltGr"));
+    }
+
+    if ((nativeModifiers & Modifier::LeftShift) == Modifier::LeftShift
+        || (nativeModifiers & Modifier::RightShift) == Modifier::RightShift) {
+      addKeyToString(keyStr, QLatin1String("Shift"));
+    }
+
+    return keyStr;
+  }
 
   if((qtKey & Qt::MetaModifier) == Qt::MetaModifier) {
     addKeyToString(keyStr, QLatin1String("Meta"));
@@ -424,6 +419,67 @@ void NativeKeySequence::swap(NativeKeySequence& other)
 }
 
 // -------------------------------------------------------------------------------------------------
+const NativeKeySequence& NativeKeySequence::predefined::altTab()
+{
+  static const NativeKeySequence ks = [](){
+    NativeKeySequence ks;
+    ks.m_keySequence = QKeySequence::fromString("Alt+Tab");
+    ks.m_nativeModifiers.push_back(NativeKeySequence::LeftAlt);
+    KeyEvent pressed; KeyEvent released;
+    pressed.emplace_back(EV_KEY, KEY_LEFTALT, 1);
+    released.emplace_back(EV_KEY, KEY_LEFTALT, 0);
+    pressed.emplace_back(EV_KEY, KEY_TAB, 1);
+    released.emplace_back(EV_KEY, KEY_TAB, 0);
+    pressed.emplace_back(EV_SYN, SYN_REPORT, 0);
+    released.emplace_back(EV_SYN, SYN_REPORT, 0);
+    ks.m_nativeSequence.emplace_back(std::move(pressed));
+    ks.m_nativeSequence.emplace_back(std::move(released));
+    return ks;
+  }();
+  return ks;
+}
+
+// -------------------------------------------------------------------------------------------------
+const NativeKeySequence& NativeKeySequence::predefined::altF4()
+{
+  static const NativeKeySequence ks = [](){
+    NativeKeySequence ks;
+    ks.m_keySequence = QKeySequence::fromString("Alt+F4");
+    ks.m_nativeModifiers.push_back(NativeKeySequence::LeftAlt);
+    KeyEvent pressed; KeyEvent released;
+    pressed.emplace_back(EV_KEY, KEY_LEFTALT, 1);
+    released.emplace_back(EV_KEY, KEY_LEFTALT, 0);
+    pressed.emplace_back(EV_KEY, KEY_F4, 1);
+    released.emplace_back(EV_KEY, KEY_F4, 0);
+    pressed.emplace_back(EV_SYN, SYN_REPORT, 0);
+    released.emplace_back(EV_SYN, SYN_REPORT, 0);
+    ks.m_nativeSequence.emplace_back(std::move(pressed));
+    ks.m_nativeSequence.emplace_back(std::move(released));
+    return ks;
+  }();
+  return ks;
+}
+
+// -------------------------------------------------------------------------------------------------
+const NativeKeySequence& NativeKeySequence::predefined::meta()
+{
+  static const NativeKeySequence ks = [](){
+    NativeKeySequence ks;
+    //ks.m_keySequence = QKeySequence::fromString("Meta");
+    ks.m_nativeModifiers.push_back(NativeKeySequence::LeftMeta);
+    KeyEvent pressed; KeyEvent released;
+    pressed.emplace_back(EV_KEY, KEY_LEFTMETA, 1);
+    released.emplace_back(EV_KEY, KEY_LEFTMETA, 0);
+    pressed.emplace_back(EV_SYN, SYN_REPORT, 0);
+    released.emplace_back(EV_SYN, SYN_REPORT, 0);
+    ks.m_nativeSequence.emplace_back(std::move(pressed));
+    ks.m_nativeSequence.emplace_back(std::move(released));
+    return ks;
+  }();
+  return ks;
+}
+
+// -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 struct InputMapper::Impl
 {
@@ -433,6 +489,7 @@ struct InputMapper::Impl
   void resetState();
   void record(const struct input_event input_events[], size_t num);
   void emitNativeKeySequence(const NativeKeySequence& ks);
+  void execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r);
 
   InputMapper* m_parent = nullptr;
   std::shared_ptr<VirtualDevice> m_vdev; // can be a nullptr if application is started without uinput
@@ -457,6 +514,26 @@ InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev
 }
 
 // -------------------------------------------------------------------------------------------------
+void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r)
+{
+  if (!action) return;
+
+  logDebug(input) << "Input map action, type = " << int(action->type())
+                  << ", partial_hit = " << (r == DeviceKeyMap::Result::PartialHit);
+
+  if (action->type() == Action::Type::KeySequence)
+  {
+    const auto keySequenceAction = static_cast<KeySequenceAction*>(action.get());
+    logDebug(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
+    emitNativeKeySequence(keySequenceAction->keySequence);
+  }
+  else
+  {
+    emit m_parent->actionMapped(action);
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 void InputMapper::Impl::sequenceTimeout()
 {
   if(m_recordingMode)
@@ -474,14 +551,12 @@ void InputMapper::Impl::sequenceTimeout()
     }
     resetState();
   }
-  else if (m_lastState.first == DeviceKeyMap::Result::AmbigiouslyHit) {
+  else if (m_lastState.first == DeviceKeyMap::Result::PartialHit) {
     // Last input could have triggered an action, but we needed to wait for the timeout, since
     // other sequences could have been possible.
     if (m_lastState.second->second)
     {
-      logDebug(input) << "AbigiouslyHit: Emitting Key Sequence:"
-                      << m_lastState.second->second->mappedKeys.toString();
-      emitNativeKeySequence(m_lastState.second->second->mappedKeys);
+      execAction(m_lastState.second->second->action, DeviceKeyMap::Result::PartialHit);
     }
     else if (m_vdev && m_events.size())
     {
@@ -655,12 +730,8 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
     impl->m_seqTimer->stop();
     if (impl->m_vdev)
     {
-      if (impl->m_keymap.state()->second)
-      {
-        // TODO run action(s) / send mapped key events
-        logDebug(input) << "Hit: Emitting Key Sequence"
-                        << impl->m_keymap.state()->second->mappedKeys.toString();
-        impl->emitNativeKeySequence(impl->m_keymap.state()->second->mappedKeys);
+      if (impl->m_keymap.state()->second) {
+        impl->execAction(impl->m_keymap.state()->second->action, DeviceKeyMap::Result::Hit);
       }
       else
       {
@@ -670,7 +741,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
     }
     impl->resetState();
   }
-  else if (res == DeviceKeyMap::Result::AmbigiouslyHit)
+  else if (res == DeviceKeyMap::Result::PartialHit)
   { // Found a valid key sequence, but are still more valid sequences possible -> start timer
     impl->m_lastState = std::make_pair(res, impl->m_keymap.state());
     impl->m_seqTimer->start();

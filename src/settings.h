@@ -2,6 +2,7 @@
 # pragma once
 
 #include <functional>
+#include <set>
 
 #include <QColor>
 #include <QObject>
@@ -80,8 +81,6 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
-  int dblClickDuration() const { return m_dblClickDuration; }
-  void setDblClickDuration(int duration);
   bool overlayDisabled() const { return m_overlayDisabled; }
   void setOverlayDisabled(bool disabled);
 
@@ -155,12 +154,12 @@ public:
     std::function<void(const QString&)> setFunction;
   };
 
-  const QList<QPair<QString, StringProperty>>& stringProperties() const;
+  const std::vector<std::pair<QString, StringProperty>>& stringProperties() const;
 
   void savePreset(const QString& preset);
   void loadPreset(const QString& preset);
   void removePreset(const QString& preset);
-  QStringList presets() const;
+  const std::set<QString>& presets() const;
 
   void setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs);
   int deviceInputSeqInterval(const DeviceId& dId) const;
@@ -190,11 +189,14 @@ signals:
   void dblClickDurationChanged(int duration);
   void overlayDisabledChanged(bool disabled);
 
+  void presetLoaded(const QString& preset);
+
 private:
   QSettings* m_settings = nullptr;
 
+  std::set<QString> m_presets;
   QMap<QString, QQmlPropertyMap*> m_shapeSettings;
-  QQmlPropertyMap* m_shapeSettingsRoot;
+  QQmlPropertyMap* m_shapeSettingsRoot = nullptr;
 
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
   int m_dotSize = 5; ///< Center Dot Size (3-100 pixels)
@@ -218,10 +220,11 @@ private:
   bool m_showBorder=false;
   bool m_overlayDisabled = false;
 
-  QList<QPair<QString, StringProperty>> m_stringPropertyMap;
+  std::vector<std::pair<QString, StringProperty>> m_stringPropertyMap;
 
 private:
   void init();
+  void loadPresets();
   void load(const QString& preset = QString());
   QObject* shapeSettingsRootObject();
   void shapeSettingsPopulateRoot();

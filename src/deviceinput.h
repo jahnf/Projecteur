@@ -4,8 +4,8 @@
 #include <memory>
 
 #include <QDataStream>
-#include <QObject>
 #include <QKeySequence>
+#include <QObject>
 
 class VirtualDevice;
 
@@ -69,11 +69,6 @@ QDataStream& operator>>(QDataStream& s, std::vector<T>& container)
 }
 
 // -------------------------------------------------------------------------------------------------
-QString& operator<<(QString& s, const KeyEventSequence& kes);
-const QString& operator<<(QString&& s, const KeyEventSequence& kes);
-const QString& operator>>(const QString& s, KeyEventSequence& kes);
-
-// -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
 
@@ -127,6 +122,12 @@ public:
   static QString toString(const std::vector<int>& qtKey,
                           const std::vector<uint16_t>& nativeModifiers);
 
+  struct predefined {
+    static const NativeKeySequence& altTab();
+    static const NativeKeySequence& altF4();
+    static const NativeKeySequence& meta();
+  };
+
 private:
   QKeySequence m_keySequence;
   KeyEventSequence m_nativeSequence;
@@ -135,21 +136,53 @@ private:
 Q_DECLARE_METATYPE(NativeKeySequence)
 
 // -------------------------------------------------------------------------------------------------
-struct MappedInputAction
+struct Action
 {
-  bool operator==(const MappedInputAction& o) const { return sequence == o.sequence; }
-
-  // For now this can only be a mapped key sequence
-  // TODO This action could also be sth like toggle the zoom...
-  NativeKeySequence sequence;
+  enum class Type { KeySequence = 1, CyclePresets = 2 };
+  virtual Type type() const = 0;
+  virtual QDataStream& save(QDataStream&) const = 0;
+  virtual QDataStream& load(QDataStream&) = 0;
+  virtual bool empty() const = 0;
 };
-Q_DECLARE_METATYPE(MappedInputAction);
-
-QDataStream& operator>>(QDataStream& s, MappedInputAction& mia);
-QDataStream& operator<<(QDataStream& s, const MappedInputAction& mia);
 
 // -------------------------------------------------------------------------------------------------
-class InputMapConfig : public std::map<KeyEventSequence, MappedInputAction>{};
+struct KeySequenceAction : public Action
+{
+  KeySequenceAction() = default;
+  KeySequenceAction(const NativeKeySequence& ks) : keySequence(ks) {}
+  Type type() const override { return Type::KeySequence; }
+  QDataStream& save(QDataStream& s) const override { return s << keySequence; }
+  QDataStream& load(QDataStream& s) override { return s >> keySequence; }
+  bool empty() const override { return keySequence.empty(); }
+  bool operator==(const KeySequenceAction& o) const { return keySequence == o.keySequence; }
+
+  NativeKeySequence keySequence;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct CyclePresetsAction : public Action
+{
+  Type type() const override { return Type::CyclePresets; }
+  QDataStream& save(QDataStream& s) const override { return s << customSelection; }
+  QDataStream& load(QDataStream& s) override { return s >> customSelection; }
+  bool empty() const override { return false; }
+  bool operator==(const CyclePresetsAction&) const { return true; }
+  bool customSelection = false;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct MappedAction
+{
+  bool operator==(const MappedAction& o) const;
+  std::shared_ptr<Action> action;
+};
+Q_DECLARE_METATYPE(MappedAction);
+
+QDataStream& operator>>(QDataStream& s, MappedAction& mia);
+QDataStream& operator<<(QDataStream& s, const MappedAction& mia);
+
+// -------------------------------------------------------------------------------------------------
+class InputMapConfig : public std::map<KeyEventSequence, MappedAction>{};
 
 // -------------------------------------------------------------------------------------------------
 class InputMapper : public QObject
@@ -186,6 +219,8 @@ signals:
   void recordingStarted();
   // After key sequence interval timer timout or max sequence length reached
   void recordingFinished(bool canceled); // canceled if recordingMode was set to false instead of interval time out
+
+  void actionMapped(std::shared_ptr<Action> action);
 
 private:
   struct Impl;

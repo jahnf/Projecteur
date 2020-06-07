@@ -2,20 +2,15 @@
 #pragma once
 
 #include "deviceinput.h"
-#include "nativekeyseqedit.h"
 
 #include <QAbstractTableModel>
-#include <QKeySequence>
 #include <QPointer>
 #include <QTableView>
-
-#include <map>
-#include <vector>
 
 // -------------------------------------------------------------------------------------------------
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
-  NativeKeySequence mappedSequence;
+  std::shared_ptr<Action> action;
   bool isDuplicate = false;
 };
 
@@ -25,8 +20,8 @@ class InputMapConfigModel : public QAbstractTableModel
   Q_OBJECT
 
 public:
-  enum Roles { InputSeqRole = Qt::UserRole + 1, NativeSeqRole };
-  enum Columns { InputSeqCol = 0, /*ActionTypeCol,*/ ActionCol, ColumnsCount};
+  enum Roles { InputSeqRole = Qt::UserRole + 1, ActionTypeRole, NativeSeqRole };
+  enum Columns { InputSeqCol = 0, ActionTypeCol, ActionCol, ColumnsCount};
 
   InputMapConfigModel(QObject* parent = nullptr);
   InputMapConfigModel(InputMapper* im, QObject* parent = nullptr);
@@ -38,11 +33,12 @@ public:
   Qt::ItemFlags flags(const QModelIndex& index) const override;
 
   void removeConfigItemRows(std::vector<int> rows);
-  int addConfigItem(const InputMapModelItem& cfg = {});
+  int addNewItem(std::shared_ptr<Action> action);
 
   const InputMapModelItem& configData(const QModelIndex& index) const;
   void setInputSequence(const QModelIndex& index, const KeyEventSequence& kes);
   void setKeySequence(const QModelIndex& index, const NativeKeySequence& ks);
+  void setItemActionType(const QModelIndex& index, Action::Type type);
 
   InputMapper* inputMapper() const;
   void setInputMapper(InputMapper* im);
@@ -55,7 +51,7 @@ private:
   void removeConfigItemRows(int fromRow, int toRow);
   void updateDuplicates();
   QPointer<InputMapper> m_inputMapper;
-  QList<InputMapModelItem> m_configItems;
+  QVector<InputMapModelItem> m_configItems;
   std::map<KeyEventSequence, int> m_duplicates;
 };
 
@@ -71,8 +67,5 @@ public:
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
-
-private:
-  bool m_editing = false;
 };
 

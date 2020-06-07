@@ -45,53 +45,21 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
-  {
-    const auto iconSize = option.fontMetrics.height();
-    const auto marginTop = (option.rect.height() - iconSize) / 2;
-    const QRect iconRect(startX, marginTop, iconSize, iconSize);
-
-    p.save();
-    p.setPen(Qt::lightGray);
-    p.setBrush(QBrush(Qt::red));
-    p.setRenderHint(QPainter::Antialiasing);
-    p.drawEllipse(iconRect);
-    p.restore();
-
-    return iconRect.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
-  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
-  {
-    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
-                         option.rect.bottomRight());
-
-    p.save();
-    p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-    QRect br;
-    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
-    p.restore();
-
-    return br.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
   int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke,
                    bool buttonTap = false)
   {
     if (ke.empty()) return 0;
 
-    static auto const pressChar = QChar(0x2193);
-    static auto const releaseChar = QChar(0x2191);
-    static auto const tapString = QString("%1%2").arg(pressChar).arg(releaseChar);
+    static auto const pressChar = QChar(0x2193); // ↓
+    static auto const releaseChar = QChar(0x2191); // ↑
 
     // TODO some devices (e.g. August WP 200) have buttons that send a key combination
     //      (modifiers + key) - this is ignored completely right now.
-    const auto text = QString("[%1%2]")
-                        .arg(ke.back().code, 0, 16)
-                        .arg(buttonTap ? tapString
-                                       : ke.back().value ? pressChar : releaseChar);
+    const auto text = QString("[%1%2%3")
+                         .arg(ke.back().code, 0, 16)
+                         .arg(buttonTap ? pressChar
+                                        : ke.back().value ? pressChar : releaseChar)
+                         .arg(buttonTap ? "" : "]");
 
     const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
                          option.rect.bottomRight());
@@ -105,6 +73,17 @@ namespace {
 
     QRect br;
     p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+
+    if (buttonTap)
+    {
+      QRect br2; // draw down and up arrow closer together
+      const auto t2 = QString("%2]").arg(releaseChar);
+      const auto w = option.fontMetrics.rightBearing(pressChar)
+                   + option.fontMetrics.leftBearing(releaseChar);
+      p.drawText(r.adjusted(br.width() - w, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, t2, &br2);
+      br.setWidth(br.width() + br2.width());
+    }
+
     p.restore();
 
     return br.width();
@@ -117,19 +96,7 @@ namespace {
     if (kes.empty())
     {
       if (!drawEmptyPlaceholder) { return 0; }
-
-      p.save();
-      p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
-      if (option.state & QStyle::State_Selected)
-        p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
-      else
-        p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-
-      static const QStaticText textNone(InputSeqEdit::tr("None"));
-      const auto top = (option.rect.height() - textNone.size().height()) / 2;
-      p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
-      p.restore();
-      return textNone.size().width();
+      return InputSeqEdit::drawEmptyIndicator(startX, p, option);
     }
 
     int sequenceWidth = 0;
@@ -366,6 +333,55 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
 }
 
 // -------------------------------------------------------------------------------------------------
+int InputSeqEdit::drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
+{
+  const auto iconSize = option.fontMetrics.height();
+  const auto marginTop = (option.rect.height() - iconSize) / 2;
+  const QRect iconRect(startX, marginTop, iconSize, iconSize);
+
+  p.save();
+  p.setPen(Qt::lightGray);
+  p.setBrush(QBrush(Qt::red));
+  p.setRenderHint(QPainter::Antialiasing);
+  p.drawEllipse(iconRect);
+  p.restore();
+
+  return iconRect.width();
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputSeqEdit::drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
+{
+  const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                       option.rect.bottomRight());
+
+  p.save();
+  p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+  QRect br;
+  p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+  p.restore();
+
+  return br.width();
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputSeqEdit::drawEmptyIndicator(int startX, QPainter& p, const QStyleOption& option)
+{
+  p.save();
+  p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
+  if (option.state & QStyle::State_Selected)
+    p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
+  else
+    p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+
+  static const QStaticText textNone(InputSeqEdit::tr("None"));
+  const auto top = (option.rect.height() - textNone.size().height()) / 2;
+  p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
+  p.restore();
+  return textNone.size().width();
+}
+
+// -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                              const QModelIndex& index) const
@@ -414,7 +430,6 @@ void InputSeqDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
     if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
     {
       seqEditor->setInputSequence(imModel->configData(index).deviceSequence);
-      emit editingStarted();
       return;
     }
   }

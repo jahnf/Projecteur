@@ -1,17 +1,14 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
-#include "spotlight.h"
-
 #include <QPointer>
 #include <QWidget>
 
-#include <memory>
-
-class DeviceConnection;
-class Settings;
-class QComboBox;
+class DeviceId;
 class InputMapper;
+class QComboBox;
+class Settings;
+class Spotlight;
 
 // -------------------------------------------------------------------------------------------------
 class DevicesWidget : public QWidget

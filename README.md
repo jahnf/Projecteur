@@ -1,7 +1,7 @@
 # Projecteur
 
-develop: ![Build Status develop](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop)
-master: ![Build Status master](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master)
+develop: [ ![Build Status develop](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop) ](https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Adevelop)
+master: [ ![Build Status master](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master) ](https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Amaster)
 
 Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
@@ -38,17 +38,20 @@ So here it is: a Linux application for the Logitech Spotlight.
   * Zoom (magnifier) functionality.
 * Multiple screen support
 * Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
-* Button mapping: Map any button on the device to (almost) any keyboard combination.
+* Button mapping:
+  * Map any button on the device to (almost) any keyboard combination.
+  * Switch between (cycle through) custom spotlight presets.
 
 ### Screenshots
 
 [<img src="doc/screenshot-settings.png" height="300" />](./doc/screenshot-settings.png)
 [<img src="doc/screenshot-spot.png" height="300" />](./doc/screenshot-spot.png)
+[<img src="doc/screenshot-button-mapping.png" height="300" />](./doc/screenshot-button-mapping.png)
 [<img src="doc/screenshot-traymenu.png">](./doc/screenshot-traymenu.png)
 
 ### Planned features
 
-* Support for device button mapping actions (e.g. toggle zoom, increase spot size...)
+* Support for more customizable button mapping actions.
 * Vibration (Timer) Support (Logitech Spotlight)
 
 ## Supported Environments

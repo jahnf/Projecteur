@@ -7,7 +7,6 @@
 #include <QWidget>
 
 // -------------------------------------------------------------------------------------------------
-class QKeySequenceEdit;
 class QStyleOptionFrame;
 
 // -------------------------------------------------------------------------------------------------
@@ -32,6 +31,12 @@ public:
 signals:
   void inputSequenceChanged(const KeyEventSequence& inputSequence);
   void editingFinished(InputSeqEdit*);
+
+public:
+  // Public static helpers - can be reused by other editors or delegates
+  static int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option);
+  static int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text);
+  static int drawEmptyIndicator(int startX, QPainter& p, const QStyleOption& option);
 
 protected:
   void paintEvent(QPaintEvent* e) override;
@@ -62,9 +67,6 @@ public:
   QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
-
-signals:
-  void editingStarted() const;
 
 private:
   void commitAndCloseEditor(InputSeqEdit* editor);
