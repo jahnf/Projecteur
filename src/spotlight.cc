@@ -133,6 +133,29 @@ int Spotlight::connectDevices()
         connect(im, &InputMapper::configurationChanged, this, [this, id=dev.id, im]() {
           m_settings->setDeviceInputMapConfig(id, im->configuration());
         });
+
+        static QString lastPreset;
+
+        connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
+        {
+          if (action->type() == Action::Type::CyclePresets)
+          {
+            auto it = m_settings->presets().find(lastPreset);
+            if ((it == m_settings->presets().cend()) || (++it == m_settings->presets().cend())) {
+              it = m_settings->presets().cbegin();
+            }
+
+            if (it != m_settings->presets().cend())
+            {
+              lastPreset = *it;
+              m_settings->loadPreset(lastPreset);
+            }
+          }
+        });
+
+        connect(m_settings, &Settings::presetLoaded, this, [](const QString& preset){
+          lastPreset = preset;
+        });
       }
 
       dc->addSubDevice(std::move(subDeviceConnection));

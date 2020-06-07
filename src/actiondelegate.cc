@@ -45,7 +45,7 @@ namespace cyclepresets {
   {
     const auto& fm = option.fontMetrics;
     const int xPos = (option.rect.height()-fm.height()) / 2;
-    NativeKeySeqEdit::drawText(xPos, *p, option, "Cycle Presets");
+    NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Cycle Presets"));
   }
 
   //------------------------------------------------------------------------------------------------
@@ -110,9 +110,8 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const Action* action) con
     return editor;
   }
   case Action::Type::CyclePresets:
-    const auto editor = new QLineEdit(parent);
-    connect(editor, &QLineEdit::editingFinished, this, &ActionDelegate::commitAndCloseEditor_);
-    return editor;
+    // None for now...
+    break;
   }
   return nullptr;
 }

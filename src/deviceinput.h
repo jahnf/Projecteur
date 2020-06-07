@@ -163,11 +163,11 @@ struct KeySequenceAction : public Action
 struct CyclePresetsAction : public Action
 {
   Type type() const override { return Type::CyclePresets; }
-  QDataStream& save(QDataStream& s) const override { return s; } // TODO
-  QDataStream& load(QDataStream& s) override { return s; } // TODO
-  bool empty() const override { return true; } // TODO
+  QDataStream& save(QDataStream& s) const override { return s << customSelection; }
+  QDataStream& load(QDataStream& s) override { return s >> customSelection; }
+  bool empty() const override { return false; }
   bool operator==(const CyclePresetsAction&) const { return true; }
-  // TODO...
+  bool customSelection = false;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -219,6 +219,8 @@ signals:
   void recordingStarted();
   // After key sequence interval timer timout or max sequence length reached
   void recordingFinished(bool canceled); // canceled if recordingMode was set to false instead of interval time out
+
+  void actionMapped(std::shared_ptr<Action> action);
 
 private:
   struct Impl;

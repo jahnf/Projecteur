@@ -527,6 +527,10 @@ void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, Device
     logDebug(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
     emitNativeKeySequence(keySequenceAction->keySequence);
   }
+  else
+  {
+    emit m_parent->actionMapped(action);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------

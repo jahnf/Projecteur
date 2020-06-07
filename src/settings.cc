@@ -137,7 +137,19 @@ void Settings::init()
 
   shapeSettingsInitialize();
   load();
+  loadPresets();
   initializeStringProperties();
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::loadPresets()
+{
+  m_presets.clear();
+  for (const auto& group: m_settings->childGroups()) {
+    if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
+      m_presets.emplace(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
+    }
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -391,24 +403,20 @@ void Settings::shapeSettingsInitialize()
 void Settings::loadPreset(const QString& preset)
 {
   load(preset);
+  emit presetLoaded(preset);
 }
 
 // -------------------------------------------------------------------------------------------------
 void Settings::removePreset(const QString& preset)
 {
+  m_presets.erase(preset);
   m_settings->remove(presetSection(preset, false));
 }
 
 // -------------------------------------------------------------------------------------------------
-QStringList Settings::presets() const
+const std::set<QString>& Settings::presets() const
 {
-  QStringList presetNames;
-  for (const auto& group: m_settings->childGroups()) {
-    if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
-      presetNames.push_back(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
-    }
-  }
-  return presetNames;
+  return m_presets;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -461,6 +469,8 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::zoomEnabled, m_zoomEnabled);
   m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
   shapeSettingsSavePreset(preset);
+
+  m_presets.emplace(preset);
 }
 
 // -------------------------------------------------------------------------------------------------

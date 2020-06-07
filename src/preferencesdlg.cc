@@ -148,7 +148,9 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
   hbox->addWidget(new QLabel(tr("Presets"), widget));
 
   const auto cb = new QComboBox(widget);
-  cb->addItems(settings->presets());
+  for (const auto& preset : settings->presets()) {
+    cb->addItem(preset);
+  }
   cb->setInsertPolicy(QComboBox::NoInsert);
 
   const auto loadBtn = new IconButton(Font::Icon::share_8, widget);
@@ -216,6 +218,12 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
     if (cb->currentIndex() < 0) return;
     settings->removePreset(cb->currentText());
     cb->removeItem(cb->currentIndex());
+  });
+
+  connect(settings, &Settings::presetLoaded, this, [cb](const QString& preset)
+  {
+    const auto idx = cb->findText(preset);
+    if (idx >=0) { cb->setCurrentIndex(idx); }
   });
 
   return widget;
