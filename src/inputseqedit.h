@@ -68,6 +68,8 @@ public:
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
 
+  static void drawCurrentIndicator(QPainter &p, const QStyleOption& option);
+
 private:
   void commitAndCloseEditor(InputSeqEdit* editor);
 };
