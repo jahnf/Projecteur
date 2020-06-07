@@ -1,9 +1,9 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "inputmapconfig.h"
 
+#include "actiondelegate.h"
 #include "inputseqedit.h"
 #include "logging.h"
-#include "nativekeyseqedit.h"
 
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -68,8 +68,8 @@ QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientatio
     switch(section)
     {
     case InputSeqCol: return tr("Input Sequence");
-//    case ActionTypeCol: return "Type";
-    case ActionCol: return tr("Mapped Key(s)");
+    case ActionTypeCol: return "Type";
+    case ActionCol: return tr("Mapped Action");
     }
   }
   else if (orientation == Qt::Vertical)
@@ -107,11 +107,13 @@ void InputMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
 }
 
 // -------------------------------------------------------------------------------------------------
-int InputMapConfigModel::addNewKeySequenceItem()
+int InputMapConfigModel::addNewItem(std::shared_ptr<Action> action)
 {
+  if (!action) return -1;
+
   const auto row = m_configItems.size();
   beginInsertRows(QModelIndex(), row, row);
-  m_configItems.push_back({{}, std::make_shared<KeySequenceAction>()});
+  m_configItems.push_back({{}, std::move(action)});
   endInsertRows();
 
   return row;
@@ -260,8 +262,11 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   const auto imSeqDelegate = new InputSeqDelegate(this);
   setItemDelegateForColumn(InputMapConfigModel::InputSeqCol, imSeqDelegate);
 
-  const auto keySeqDelegate = new ActionDelegate(this);
-  setItemDelegateForColumn(InputMapConfigModel::ActionCol, keySeqDelegate);
+  const auto actionTypeDelegate = new ActionTypeDelegate(this);
+  setItemDelegateForColumn(InputMapConfigModel::ActionTypeCol, actionTypeDelegate);
+
+  const auto actionDelegate = new ActionDelegate(this);
+  setItemDelegateForColumn(InputMapConfigModel::ActionCol, actionDelegate);
 
   setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
   setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
@@ -277,8 +282,8 @@ void InputMapConfigView::setModel(QAbstractItemModel* model)
 
   if(const auto m = qobject_cast<InputMapConfigModel*>(model))
   {
-//    horizontalHeader()->setSectionResizeMode(InputMapConfigModel::Columns::ActionTypeCol,
-//                                             QHeaderView::ResizeMode::ResizeToContents);
+    horizontalHeader()->setSectionResizeMode(InputMapConfigModel::Columns::ActionTypeCol,
+                                             QHeaderView::ResizeMode::ResizeToContents);
   }
 }
 

@@ -101,7 +101,7 @@ QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
     mia.action = std::make_shared<KeySequenceAction>();
     return mia.action->load(s);
   case Action::Type::CyclePresets:
-    mia.action = std::make_shared<CyclePresetAction>();
+    mia.action = std::make_shared<CyclePresetsAction>();
     return mia.action->load(s);
   default:
     mia.action.reset();
@@ -122,8 +122,8 @@ bool MappedAction::operator==(const MappedAction& o) const
     return (*static_cast<KeySequenceAction*>(action.get()))
            == (*static_cast<KeySequenceAction*>(o.action.get()));
   case Action::Type::CyclePresets:
-    return (*static_cast<CyclePresetAction*>(action.get()))
-           == (*static_cast<CyclePresetAction*>(o.action.get()));
+    return (*static_cast<CyclePresetsAction*>(action.get()))
+           == (*static_cast<CyclePresetsAction*>(o.action.get()));
   }
 
   return false;

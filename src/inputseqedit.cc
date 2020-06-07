@@ -45,38 +45,6 @@ namespace {
   }
 
   // -----------------------------------------------------------------------------------------------
-  int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
-  {
-    const auto iconSize = option.fontMetrics.height();
-    const auto marginTop = (option.rect.height() - iconSize) / 2;
-    const QRect iconRect(startX, marginTop, iconSize, iconSize);
-
-    p.save();
-    p.setPen(Qt::lightGray);
-    p.setBrush(QBrush(Qt::red));
-    p.setRenderHint(QPainter::Antialiasing);
-    p.drawEllipse(iconRect);
-    p.restore();
-
-    return iconRect.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
-  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
-  {
-    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
-                         option.rect.bottomRight());
-
-    p.save();
-    p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-    QRect br;
-    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
-    p.restore();
-
-    return br.width();
-  }
-
-  // -----------------------------------------------------------------------------------------------
   int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke,
                    bool buttonTap = false)
   {
@@ -128,19 +96,7 @@ namespace {
     if (kes.empty())
     {
       if (!drawEmptyPlaceholder) { return 0; }
-
-      p.save();
-      p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
-      if (option.state & QStyle::State_Selected)
-        p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
-      else
-        p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-
-      static const QStaticText textNone(InputSeqEdit::tr("None"));
-      const auto top = (option.rect.height() - textNone.size().height()) / 2;
-      p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
-      p.restore();
-      return textNone.size().width();
+      return InputSeqEdit::drawEmptyIndicator(startX, p, option);
     }
 
     int sequenceWidth = 0;
@@ -374,6 +330,55 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
       update();
     }
   });
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputSeqEdit::drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option)
+{
+  const auto iconSize = option.fontMetrics.height();
+  const auto marginTop = (option.rect.height() - iconSize) / 2;
+  const QRect iconRect(startX, marginTop, iconSize, iconSize);
+
+  p.save();
+  p.setPen(Qt::lightGray);
+  p.setBrush(QBrush(Qt::red));
+  p.setRenderHint(QPainter::Antialiasing);
+  p.drawEllipse(iconRect);
+  p.restore();
+
+  return iconRect.width();
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputSeqEdit::drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
+{
+  const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                       option.rect.bottomRight());
+
+  p.save();
+  p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+  QRect br;
+  p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+  p.restore();
+
+  return br.width();
+}
+
+// -------------------------------------------------------------------------------------------------
+int InputSeqEdit::drawEmptyIndicator(int startX, QPainter& p, const QStyleOption& option)
+{
+  p.save();
+  p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
+  if (option.state & QStyle::State_Selected)
+    p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
+  else
+    p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+
+  static const QStaticText textNone(InputSeqEdit::tr("None"));
+  const auto top = (option.rect.height() - textNone.size().height()) / 2;
+  p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
+  p.restore();
+  return textNone.size().width();
 }
 
 // -------------------------------------------------------------------------------------------------

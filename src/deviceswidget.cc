@@ -169,7 +169,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   });
 
   connect(addBtn, &QToolButton::clicked, this, [imModel, tblView](){
-    tblView->selectRow(imModel->addNewKeySequenceItem());
+    tblView->selectRow(imModel->addNewItem(std::make_shared<KeySequenceAction>()));
   });
 
   layout->addLayout(intervalLayout);

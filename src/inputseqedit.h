@@ -32,6 +32,12 @@ signals:
   void inputSequenceChanged(const KeyEventSequence& inputSequence);
   void editingFinished(InputSeqEdit*);
 
+public:
+  // Public static helpers - can be reused by other editors or delegates
+  static int drawRecordingSymbol(int startX, QPainter& p, const QStyleOption& option);
+  static int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text);
+  static int drawEmptyIndicator(int startX, QPainter& p, const QStyleOption& option);
+
 protected:
   void paintEvent(QPaintEvent* e) override;
   void mouseDoubleClickEvent(QMouseEvent* e) override;

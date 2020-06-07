@@ -21,7 +21,7 @@ class InputMapConfigModel : public QAbstractTableModel
 
 public:
   enum Roles { InputSeqRole = Qt::UserRole + 1, ActionTypeRole, NativeSeqRole };
-  enum Columns { InputSeqCol = 0, /*ActionTypeCol,*/ ActionCol, ColumnsCount};
+  enum Columns { InputSeqCol = 0, ActionTypeCol, ActionCol, ColumnsCount};
 
   InputMapConfigModel(QObject* parent = nullptr);
   InputMapConfigModel(InputMapper* im, QObject* parent = nullptr);
@@ -33,7 +33,7 @@ public:
   Qt::ItemFlags flags(const QModelIndex& index) const override;
 
   void removeConfigItemRows(std::vector<int> rows);
-  int addNewKeySequenceItem();
+  int addNewItem(std::shared_ptr<Action> action);
 
   const InputMapModelItem& configData(const QModelIndex& index) const;
   void setInputSequence(const QModelIndex& index, const KeyEventSequence& kes);

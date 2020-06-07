@@ -46,6 +46,7 @@ endif()
 add_executable(projecteur
   src/main.cc               src/enum-helper.h
   src/aboutdlg.cc           src/aboutdlg.h
+  src/actiondelegate.cc     src/actiondelegate.h
   src/colorselector.cc      src/colorselector.h
   src/device.cc             src/device.h
   src/deviceinput.cc        src/deviceinput.h

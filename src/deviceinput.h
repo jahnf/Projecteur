@@ -154,13 +154,13 @@ struct KeySequenceAction : public Action
 };
 
 // -------------------------------------------------------------------------------------------------
-struct CyclePresetAction : public Action
+struct CyclePresetsAction : public Action
 {
   Type type() const override { return Type::CyclePresets; }
   QDataStream& save(QDataStream& s) const override { return s; } // TODO
   QDataStream& load(QDataStream& s) override { return s; } // TODO
   bool empty() const override { return true; } // TODO
-  bool operator==(const CyclePresetAction&) const { return true; }
+  bool operator==(const CyclePresetsAction&) const { return true; }
   // TODO...
 };
 
