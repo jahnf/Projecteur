@@ -9,6 +9,7 @@
 #include <QKeySequenceEdit>
 #include <QLineEdit>
 #include <QPaintEvent>
+#include <QPainterPath>
 #include <QStaticText>
 #include <QStyleOptionFrame>
 #include <QStylePainter>
