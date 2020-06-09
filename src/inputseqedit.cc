@@ -6,8 +6,6 @@
 #include "logging.h"
 
 #include <QApplication>
-#include <QKeySequenceEdit>
-#include <QLineEdit>
 #include <QPaintEvent>
 #include <QPainterPath>
 #include <QStaticText>
@@ -15,34 +13,26 @@
 #include <QStylePainter>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 #include <linux/input.h>
 
 namespace {
   // -----------------------------------------------------------------------------------------------
-  // Returns true if the second Key event equals the first one, with the first one
-  // being the press and the second the release event.
+  // Returns true if the second Key event 'equals' the first one, with the only difference, that the
+  // first one is the key press and the second the release event.
   bool isButtonTap(const KeyEvent& first, const KeyEvent& second)
   {
-    auto it1 = first.cbegin();
-    const auto end1 = first.cend();
-    auto it2 = second.cbegin();
-    const auto end2 = second.cend();
-    for( ; it1 != end1 && it2 != end2; ++it1, ++it2)
-    {
-      if (it1->type == EV_KEY) {
-        if (it2->type != EV_KEY
-            || it1->code != it2->code
-            || it1->value != 1  // key event 1 press
-            || it2->value != 0) // key event 2 release
-        {
-          return false;
-        }
-      }
-      else if (*it1 != *it2) {
-        return false;
-      }
-    }
-    return (it1 == end1 && it2 == end2);
+    return std::equal(first.cbegin(), first.cend(), second.cbegin(), second.cend(),
+      [](const DeviceInputEvent& e1, const DeviceInputEvent& e2)
+      {
+        if (e1.type != EV_KEY) return e1 == e2; // just compare for non key events
+
+        return (e2.type == EV_KEY // special handling for key events...
+                && e1.code == e2.code
+                && e1.value == 1   // event 1 press
+                && e2.value == 0); // event 2 release
+      });
   }
 
   // -----------------------------------------------------------------------------------------------
@@ -147,14 +137,16 @@ InputSeqEdit::~InputSeqEdit()
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqEdit::initStyleOption(QStyleOptionFrame& option) const
+QStyleOptionFrame InputSeqEdit::styleOption() const
 {
+  QStyleOptionFrame option;
   option.initFrom(this);
   option.rect = contentsRect();
   option.lineWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth, &option, this);
   option.midLineWidth = 0;
   option.state |= (QStyle::State_Sunken | QStyle::State_ReadOnly);
   option.features = QStyleOptionFrame::None;
+  return option;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -172,18 +164,15 @@ QSize InputSeqEdit::sizeHint() const
     const int w = fm.width(QLatin1Char('x')) * 17 + 2 * horizontalMargin;
   #endif
 
-  QStyleOptionFrame opt;
-  initStyleOption(opt);
-
-  return (style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h).
+  const QStyleOptionFrame option = styleOption();
+  return (style()->sizeFromContents(QStyle::CT_LineEdit, &option, QSize(w, h).
                                     expandedTo(QApplication::globalStrut()), this));
 }
 
 // -------------------------------------------------------------------------------------------------
 void InputSeqEdit::paintEvent(QPaintEvent*)
 {
-  QStyleOptionFrame option;
-  initStyleOption(option);
+  const QStyleOptionFrame option = styleOption();
 
   QStylePainter p(this);
   p.drawPrimitive(QStyle::PE_PanelLineEdit, option);

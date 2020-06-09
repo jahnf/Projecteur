@@ -803,8 +803,10 @@ void Settings::setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig
 }
 
 // -------------------------------------------------------------------------------------------------
-void Settings::getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc)
+InputMapConfig Settings::getDeviceInputMapConfig(const DeviceId& dId)
 {
+  InputMapConfig cfg;
+
   const int size = m_settings->beginReadArray(settingsKey(dId, ::settings::inputMapConfig));
   for (int i = 0; i < size; ++i)
   {
@@ -813,8 +815,10 @@ void Settings::getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc)
     if (!seq.canConvert<KeyEventSequence>()) continue;
     const auto conf = m_settings->value("mappedAction");
     if (!conf.canConvert<MappedAction>()) continue;
-    imc.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedAction>(conf));
+    cfg.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedAction>(conf));
   }
   m_settings->endArray();
+
+  return cfg;
 }
 

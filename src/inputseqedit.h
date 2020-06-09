@@ -44,13 +44,14 @@ protected:
   void keyPressEvent(QKeyEvent* e) override;
   void keyReleaseEvent(QKeyEvent* e) override;
   void focusOutEvent(QFocusEvent* e) override;
-  void initStyleOption(QStyleOptionFrame&) const;
+  QStyleOptionFrame styleOption() const;
 
 private:
   InputMapper* m_inputMapper = nullptr;
   KeyEventSequence m_inputSequence;
   KeyEventSequence m_recordedSequence;
-  uint8_t m_maxRecordingLength = 8; // = 8 KeyEvents, also equals 4 Button Presses (press + release)
+  //  8 KeyEvents, also equals 4 Button Presses (press + release)
+  static constexpr uint8_t m_maxRecordingLength = 8;
 };
 
 

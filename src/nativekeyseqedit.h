@@ -58,7 +58,7 @@ protected:
   void keyPressEvent(QKeyEvent* e) override;
   void keyReleaseEvent(QKeyEvent* e) override;
   void focusOutEvent(QFocusEvent* e) override;
-  void initStyleOption(QStyleOptionFrame&) const;
+  QStyleOptionFrame styleOption() const;
 
 private:
   static int getQtModifiers(Qt::KeyboardModifiers state);

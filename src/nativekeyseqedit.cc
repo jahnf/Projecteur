@@ -66,15 +66,18 @@ void NativeKeySeqEdit::clear()
   emit keySequenceChanged(m_nativeSequence);
 }
 
+
 // -------------------------------------------------------------------------------------------------
-void NativeKeySeqEdit::initStyleOption(QStyleOptionFrame& option) const
+QStyleOptionFrame NativeKeySeqEdit::styleOption() const
 {
+  QStyleOptionFrame option;
   option.initFrom(this);
   option.rect = contentsRect();
   option.lineWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth, &option, this);
   option.midLineWidth = 0;
   option.state |= (QStyle::State_Sunken | QStyle::State_ReadOnly);
   option.features = QStyleOptionFrame::None;
+  return option;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -83,9 +86,7 @@ QSize NativeKeySeqEdit::sizeHint() const
   // Adjusted from QLineEdit::sizeHint (Qt 5.9)
   ensurePolished();
 
-  QStyleOptionFrame opt;
-  initStyleOption(opt);
-
+  const QStyleOptionFrame opt = styleOption();
   constexpr int verticalMargin = 3;
   constexpr int horizontalMargin = 3;
   const int h = opt.fontMetrics.height() + 2 * verticalMargin;
@@ -105,8 +106,7 @@ QSize NativeKeySeqEdit::sizeHint() const
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::paintEvent(QPaintEvent*)
 {
-  QStyleOptionFrame option;
-  initStyleOption(option);
+  const QStyleOptionFrame option = styleOption();
 
   QStylePainter p(this);
   p.drawPrimitive(QStyle::PE_PanelLineEdit, option);

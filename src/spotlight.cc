@@ -124,11 +124,9 @@ int Spotlight::connectDevices()
       if (dc->subDeviceCount() == 0) {
         // Load Input mapping settings when first sub-device gets added.
         const auto im = dc->inputMapper().get();
-        im->setKeyEventInterval(m_settings->deviceInputSeqInterval(dev.id));
 
-        InputMapConfig config;
-        m_settings->getDeviceInputMapConfig(dev.id, config);
-        im->setConfiguration(std::move(config));
+        im->setKeyEventInterval(m_settings->deviceInputSeqInterval(dev.id));
+        im->setConfiguration(m_settings->getDeviceInputMapConfig(dev.id));
 
         connect(im, &InputMapper::configurationChanged, this, [this, id=dev.id, im]() {
           m_settings->setDeviceInputMapConfig(id, im->configuration());

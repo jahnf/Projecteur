@@ -164,7 +164,7 @@ public:
   void setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs);
   int deviceInputSeqInterval(const DeviceId& dId) const;
   void setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc);
-  void getDeviceInputMapConfig(const DeviceId& dId, InputMapConfig& imc);
+  InputMapConfig getDeviceInputMapConfig(const DeviceId& dId);
 
 signals:
   void showSpotShadeChanged(bool show);
