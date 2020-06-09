@@ -129,22 +129,27 @@ int main(int argc, char *argv[])
         return QString();
       };
 
-      Settings settings;
-      QVector<QPair<QString, QString>> propertiesList;
-      int propertyMaxLen = 0;
+      int maxPropertyStringLength = 0;
 
-      // Fill temporary list with properties to be able to format our output better
-      for (const auto& sp : settings.stringProperties())
-      {
-        propertiesList.push_back(
-          {QString("%1=[%2]").arg(sp.first, sp.second.typeToString(sp.second.type)),
-           getValues(sp.second)});
+      const std::vector<std::pair<QString, QString>> propertiesList =
+        [getValues=std::move(getValues), &maxPropertyStringLength]()
+        {
+          std::vector<std::pair<QString, QString>> list;
+          // Fill temporary list with properties to be able to format our output better
+          Settings settings; // <-- FIXME unnecessary Settings instance
+          for (const auto& sp : settings.stringProperties())
+          {
+            list.emplace_back(
+              QString("%1=[%2]").arg(sp.first, sp.second.typeToString(sp.second.type)),
+              getValues(sp.second));
 
-        propertyMaxLen = qMax(propertyMaxLen, propertiesList.last().first.size());
-      }
+            maxPropertyStringLength = qMax(maxPropertyStringLength, list.back().first.size());
+          }
+          return list;
+        }();
 
       for (const auto& sp : propertiesList) {
-        print() << "  " << std::left << std::setw(propertyMaxLen + 3) << sp.first << sp.second;
+        print() << "  " << std::left << std::setw(maxPropertyStringLength + 3) << sp.first << sp.second;
       }
 
       return 0;

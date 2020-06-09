@@ -365,7 +365,7 @@ void Settings::shapeSettingsInitialize()
 {
   for (const auto& shape : spotShapes())
   {
-    if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
+    if (shape.shapeSettings().size() && m_shapeSettings.count(shape.name()) == 0)
     {
       auto pm = new QQmlPropertyMap(this);
       connect(pm, &QQmlPropertyMap::valueChanged, this,
@@ -393,7 +393,7 @@ void Settings::shapeSettingsInitialize()
           }
         }
       });
-      m_shapeSettings.insert(shape.name(), pm);
+      m_shapeSettings.emplace(shape.name(), pm);
     }
   }
   shapeSettingsPopulateRoot();
@@ -633,9 +633,9 @@ QObject* Settings::shapeSettingsRootObject()
 // -------------------------------------------------------------------------------------------------
 QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
 {
-  const auto it = m_shapeSettings.constFind(shapeName);
+  const auto it = m_shapeSettings.find(shapeName);
   if (it != m_shapeSettings.cend()) {
-    return it.value();
+    return it->second;
   }
   return nullptr;
 }
@@ -643,12 +643,12 @@ QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
 // -------------------------------------------------------------------------------------------------
 void Settings::shapeSettingsPopulateRoot()
 {
-  for (auto it = m_shapeSettings.cbegin(), end = m_shapeSettings.cend(); it != end; ++it)
+  for (const auto& item : m_shapeSettings)
   {
-    if (m_shapeSettingsRoot->property(it.key().toLocal8Bit()).isValid()) {
-      m_shapeSettingsRoot->setProperty(it.key().toLocal8Bit(), QVariant::fromValue(it.value()));
+    if (m_shapeSettingsRoot->property(item.first.toLocal8Bit()).isValid()) {
+      m_shapeSettingsRoot->setProperty(item.first.toLocal8Bit(), QVariant::fromValue(item.second));
     } else {
-      m_shapeSettingsRoot->insert(it.key(), QVariant::fromValue(it.value()));
+      m_shapeSettingsRoot->insert(item.first, QVariant::fromValue(item.second));
     }
   }
 }

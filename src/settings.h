@@ -2,6 +2,7 @@
 # pragma once
 
 #include <functional>
+#include <map>
 #include <set>
 
 #include <QColor>
@@ -195,7 +196,7 @@ private:
   QSettings* m_settings = nullptr;
 
   std::set<QString> m_presets;
-  QMap<QString, QQmlPropertyMap*> m_shapeSettings;
+  std::map<QString, QQmlPropertyMap*> m_shapeSettings;
   QQmlPropertyMap* m_shapeSettingsRoot = nullptr;
 
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.

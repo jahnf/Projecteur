@@ -9,7 +9,6 @@
 #include "projecteur-icons-def.h"
 
 #include <QEvent>
-#include <QLineEdit>
 #include <QMenu>
 #include <QPainter>
 

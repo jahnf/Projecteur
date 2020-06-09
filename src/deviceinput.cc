@@ -5,6 +5,7 @@
 #include "settings.h"
 #include "virtualdevice.h"
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <type_traits>
@@ -145,17 +146,19 @@ namespace  {
   using RefSet = std::set<const RefPair*>;
 
   struct Next {
-//    NativeKeySequence mappedKeys; // TODO replace with generic action
     std::shared_ptr<Action> action;
     RefSet next_events;
   };
 
   // Helper function
-  size_t maxSequenceLength(const InputMapConfig& config) {
-    size_t maxLen = 0;
-    for (const auto& item: config)
-      if (item.first.size() > maxLen) maxLen = item.first.size();
-    return maxLen;
+  size_t maxSequenceLength(const InputMapConfig& config)
+  {
+    const auto max = std::max_element(config.cbegin(), config.cend(),
+    [](const auto& a, const auto& b){
+      return a.first.size() < b.first.size();
+    });
+
+    return ((max == config.cend()) ? 0 : max->first.size());
   }
 
   // Internal data structure for keeping track of key events and checking if a configured
@@ -232,8 +235,8 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 {
   m_keymaps.resize(maxSequenceLength(config));
 
-  // -- clear maps + position
-  m_pos = nullptr;
+  // -- clear maps + state
+  resetState();
   for (auto& synKeyEventMap : m_keymaps) { synKeyEventMap.clear(); }
 
   // -- fill maps
