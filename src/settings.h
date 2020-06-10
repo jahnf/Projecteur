@@ -3,17 +3,19 @@
 
 #include <functional>
 #include <map>
-#include <set>
+#include <vector>
 
+#include <QAbstractListModel>
 #include <QColor>
-#include <QObject>
 #include <QVariant>
 
 struct DeviceId;
 class InputMapConfig;
+class PresetModel;
 class QSettings;
 class QQmlPropertyMap;
 
+// -------------------------------------------------------------------------------------------------
 class Settings : public QObject
 {
   Q_OBJECT
@@ -160,7 +162,8 @@ public:
   void savePreset(const QString& preset);
   void loadPreset(const QString& preset);
   void removePreset(const QString& preset);
-  const std::set<QString>& presets() const;
+  const std::vector<QString>& presets() const;
+  PresetModel* presetModel();
 
   void setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs);
   int deviceInputSeqInterval(const DeviceId& dId) const;
@@ -195,7 +198,7 @@ signals:
 private:
   QSettings* m_settings = nullptr;
 
-  std::set<QString> m_presets;
+  PresetModel* m_presetModel;
   std::map<QString, QQmlPropertyMap*> m_shapeSettings;
   QQmlPropertyMap* m_shapeSettingsRoot = nullptr;
 
@@ -225,7 +228,6 @@ private:
 
 private:
   void init();
-  void loadPresets();
   void load(const QString& preset = QString());
   QObject* shapeSettingsRootObject();
   void shapeSettingsPopulateRoot();
@@ -235,4 +237,27 @@ private:
   void shapeSettingsSavePreset(const QString& preset);
   void setSpotRotationAllowed(bool allowed);
   void initializeStringProperties();
+};
+
+// -------------------------------------------------------------------------------------------------
+class PresetModel : public QAbstractListModel
+{
+  Q_OBJECT
+
+public:
+  PresetModel(QObject* parent = nullptr);
+  PresetModel(std::vector<QString>&& presets, QObject* parent = nullptr);
+
+  int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+  QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+
+  const auto& presets() const { return m_presets; }
+  bool hasPreset(const QString& preset) const;
+
+private:
+  friend class Settings;
+
+  void addPreset(const QString& preset);
+  void removePreset(const QString& preset);
+  std::vector<QString> m_presets;
 };

@@ -112,7 +112,7 @@ namespace {
     static const QString hid_id("HID_ID");
     static const QString hid_name("HID_NAME");
     static const QString hid_phys("HID_PHYS");
-    static const std::array<const QString*, 3> properties = { &hid_id, &hid_name, &hid_phys };
+    static const std::array<const QString*, 3> properties = {{ &hid_id, &hid_name, &hid_phys }};
 
     if (!f.open(QIODevice::ReadOnly)) {
       return spotlightDevice;

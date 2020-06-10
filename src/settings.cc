@@ -5,10 +5,12 @@
 #include "deviceinput.h"
 #include "logging.h"
 
-#include <functional>
+#include <algorithm>
 
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QFileInfo>
+#include <QFont>
+#include <QPalette>
 #include <QQmlPropertyMap>
 #include <QSettings>
 
@@ -95,6 +97,19 @@ namespace {
       .arg(dId.productId, 4, 16, QChar('0'))
       .arg(key);
   }
+
+  // -------------------------------------------------------------------------------------------------
+  auto loadPresets(QSettings* settings)
+  {
+    std::vector<QString> presets;
+    for (const auto& group: settings->childGroups()) {
+      if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
+        presets.emplace_back(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
+      }
+    }
+    std::sort(presets.begin(), presets.end());
+    return presets;
+  }
 } // end anonymous namespace
 
 
@@ -103,6 +118,7 @@ Settings::Settings(QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(QCoreApplication::applicationName(),
                              QCoreApplication::applicationName(), this))
+  , m_presetModel(new PresetModel(loadPresets(m_settings), this))
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
 {
   init();
@@ -112,6 +128,7 @@ Settings::Settings(QObject* parent)
 Settings::Settings(const QString& configFile, QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(configFile, QSettings::NativeFormat, this))
+  , m_presetModel(new PresetModel(loadPresets(m_settings), this))
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
 {
   init();
@@ -137,19 +154,7 @@ void Settings::init()
 
   shapeSettingsInitialize();
   load();
-  loadPresets();
   initializeStringProperties();
-}
-
-// -------------------------------------------------------------------------------------------------
-void Settings::loadPresets()
-{
-  m_presets.clear();
-  for (const auto& group: m_settings->childGroups()) {
-    if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
-      m_presets.emplace(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
-    }
-  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -402,21 +407,30 @@ void Settings::shapeSettingsInitialize()
 // -------------------------------------------------------------------------------------------------
 void Settings::loadPreset(const QString& preset)
 {
-  load(preset);
-  emit presetLoaded(preset);
+  if (m_presetModel->hasPreset(preset))
+  {
+    load(preset);
+    emit presetLoaded(preset);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
 void Settings::removePreset(const QString& preset)
 {
-  m_presets.erase(preset);
+  m_presetModel->removePreset(preset);
   m_settings->remove(presetSection(preset, false));
 }
 
 // -------------------------------------------------------------------------------------------------
-const std::set<QString>& Settings::presets() const
+const std::vector<QString>& Settings::presets() const
 {
-  return m_presets;
+  return m_presetModel->presets();
+}
+
+// -------------------------------------------------------------------------------------------------
+PresetModel* Settings::presetModel()
+{
+  return m_presetModel;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -470,7 +484,8 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
   shapeSettingsSavePreset(preset);
 
-  m_presets.emplace(preset);
+  m_presetModel->addPreset(preset);
+  emit presetLoaded(preset);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -821,4 +836,85 @@ InputMapConfig Settings::getDeviceInputMapConfig(const DeviceId& dId)
 
   return cfg;
 }
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+PresetModel::PresetModel(QObject* parent)
+  : PresetModel({}, parent)
+{}
+
+// -------------------------------------------------------------------------------------------------
+PresetModel::PresetModel(std::vector<QString>&& presets, QObject* parent)
+  : QAbstractListModel(parent)
+  , m_presets(std::move(presets))
+{
+  std::sort(m_presets.begin(), m_presets.end());
+}
+
+// -------------------------------------------------------------------------------------------------
+int PresetModel::rowCount(const QModelIndex& parent) const
+{
+  return (parent == QModelIndex()) ? m_presets.size() + 1 : 0;
+}
+
+// -------------------------------------------------------------------------------------------------
+QVariant PresetModel::data(const QModelIndex& index, int role) const
+{
+  if (index.row() > static_cast<int>(m_presets.size()))
+    return QVariant();
+
+  if (role == Qt::DisplayRole)
+  {
+    if (index.row() == 0) {
+      return tr("Current Settings");
+    }
+    else {
+      return m_presets[index.row()-1];
+    }
+  }
+  else if (role == Qt::FontRole && index.row() == 0)
+  {
+    QFont f;
+    f.setItalic(true);
+    return f;
+  }
+  else if (role == Qt::ForegroundRole && index.row() == 0) {
+    return QColor(QGuiApplication::palette().color(QPalette::Disabled, QPalette::Text));
+  }
+
+  return QVariant();
+}
+
+// -------------------------------------------------------------------------------------------------
+void PresetModel::addPreset(const QString& preset)
+{
+  const auto lb = std::lower_bound(m_presets.begin(), m_presets.end(), preset);
+  if (lb != m_presets.end() && *lb == preset) return; // Already exists
+
+  const auto insertRow = std::distance(m_presets.begin(), lb) + 1;
+  beginInsertRows(QModelIndex(), insertRow, insertRow);
+  m_presets.emplace(lb, preset);
+  endInsertRows();
+}
+
+// -------------------------------------------------------------------------------------------------
+bool PresetModel::hasPreset(const QString& preset) const
+{
+  return (std::find(m_presets.cbegin(), m_presets.cend(), preset) != m_presets.cend());
+}
+
+// -------------------------------------------------------------------------------------------------
+void PresetModel::removePreset(const QString& preset)
+{
+  const auto r = std::equal_range(m_presets.begin(), m_presets.end(), preset);
+  const auto count = std::distance(r.first, r.second);
+  if (count == 0) return;
+
+  const auto startRow = std::distance(m_presets.begin(), r.first) + 1;
+
+  beginRemoveRows(QModelIndex(), startRow, startRow + count - 1);
+  m_presets.erase(r.first, r.second);
+  endRemoveRows();
+}
+
 
