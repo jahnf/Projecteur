@@ -73,10 +73,23 @@ int main(int argc, char *argv[])
                        disableUInputOption, showDlgOnStartOption, dialogMinOnlyOption,
                        disableOverlayOption, additionalDeviceOption});
 
-    QStringList args;
-    for(int i = 0; i < argc; ++i) {
-      args.push_back(argv[i]);
-    }
+    const QStringList args = [argc, &argv]()
+    {
+      const QStringList qtAppKeyValueOptions = {
+        "-platform", "-platformpluginpath", "-platformtheme", "-plugin", "-display"
+      };
+      const QStringList qtAppSingleOptions = {"-reverse"};
+      QStringList args;
+      for (int i = 0; i < argc; ++i)
+      { // Skip some default arguments supported by QtGuiApplication, we don't want to parse them
+        // but they will get passed through to the ProjecteurApp.
+        if (qtAppKeyValueOptions.contains(argv[i])) { ++i; }
+        else if (qtAppSingleOptions.contains(argv[i])) { continue; }
+        else { args.push_back(argv[i]); }
+      }
+      return args;
+    }();
+
     parser.process(args);
     if (parser.isSet(helpOption) || parser.isSet(fullHelpOption))
     {
