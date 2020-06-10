@@ -9,18 +9,19 @@
 #include <vector>
 
 #include <QCoreApplication>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QLayout>
 #include <QPushButton>
 #include <QTabWidget>
 #include <QTextBrowser>
-#include <QDialogButtonBox>
 
 namespace {
   // -------------------------------------------------------------------------------------------------
   struct Contributor
   {
-    Contributor(const QString& name = "", const QString& github_name ="", const QString& email ="", const QString& url ="")
+    explicit Contributor(const QString& name = {}, const QString& github_name = {},
+                         const QString& email = {}, const QString& url = {})
       : name(name), github_name(github_name), email(email), url(url) {}
 
     QString toHtml() const

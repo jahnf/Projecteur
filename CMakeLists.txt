@@ -19,6 +19,7 @@ endif()
 project(Projecteur LANGUAGES CXX)
 
 add_compile_options(-Wall -Wextra -Werror)
+#set(CMAKE_CXX_CLANG_TIDY "clang-tidy-9;-checks=*,-fuchsia*,-modernize-pass-by-value")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
@@ -225,4 +226,10 @@ add_dist_package_target(
   PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
   POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
 )
+
+option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
+find_program(iwyu_path NAMES include-what-you-use iwyu)
+if(ENABLE_IWYU AND iwyu_path)
+  set_property(TARGET projecteur PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+endif()
 

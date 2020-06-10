@@ -3,7 +3,7 @@
 
 #include <functional>
 #include <map>
-#include <set>
+#include <vector>
 
 #include <QAbstractListModel>
 #include <QColor>

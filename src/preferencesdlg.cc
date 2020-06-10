@@ -8,7 +8,6 @@
 #include "iconwidgets.h"
 #include "logging.h"
 #include "settings.h"
-#include "spotlight.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -806,7 +805,7 @@ void PreferencesDialog::keyPressEvent(QKeyEvent* e)
 {
   if (m_dialogMode == Mode::MinimizeOnlyDialog)
   {
-    if(e->key() == Qt::Key_Escape)
+    if (e->key() == Qt::Key_Escape)
     {
       this->showMinimized();
       return;

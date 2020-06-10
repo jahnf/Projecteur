@@ -8,7 +8,6 @@
 #include "preferencesdlg.h"
 #include "settings.h"
 #include "spotlight.h"
-#include "virtualdevice.h"
 
 #include <QDesktopWidget>
 #include <QDialog>

@@ -5,7 +5,6 @@
 #include "logging.h"
 #include "runguard.h"
 #include "settings.h"
-#include "spotlight.h"
 
 #include <QCommandLineParser>
 
@@ -249,7 +248,7 @@ int main(int argc, char *argv[])
         const QStringList subDeviceList = [&device](){
           QStringList subDeviceList;
           for (const auto& sd: device.subDevices) {
-            if( sd.deviceFile.size()) subDeviceList.push_back(sd.deviceFile);
+            if (sd.deviceFile.size()) subDeviceList.push_back(sd.deviceFile);
           }
           return subDeviceList;
         }();

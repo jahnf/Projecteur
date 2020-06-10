@@ -261,7 +261,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       }
       buf.reset();
     }
-    else if(buf.pos() >= buf.size())
+    else if (buf.pos() >= buf.size())
     { // No idea if this will ever happen, but log it to make sure we get notified.
       logWarning(device) << tr("Discarded %1 input events without EV_SYN.").arg(buf.size());
       connection.inputMapper()->resetState();

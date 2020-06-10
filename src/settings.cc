@@ -6,7 +6,6 @@
 #include "logging.h"
 
 #include <algorithm>
-#include <functional>
 
 #include <QGuiApplication>
 #include <QFileInfo>

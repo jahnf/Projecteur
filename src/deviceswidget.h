@@ -4,7 +4,7 @@
 #include <QPointer>
 #include <QWidget>
 
-class DeviceId;
+struct DeviceId;
 class InputMapper;
 class QComboBox;
 class Settings;
