@@ -408,8 +408,11 @@ void Settings::shapeSettingsInitialize()
 // -------------------------------------------------------------------------------------------------
 void Settings::loadPreset(const QString& preset)
 {
-  load(preset);
-  emit presetLoaded(preset);
+  if (m_presetModel->hasPreset(preset))
+  {
+    load(preset);
+    emit presetLoaded(preset);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -893,6 +896,12 @@ void PresetModel::addPreset(const QString& preset)
   beginInsertRows(QModelIndex(), insertRow, insertRow);
   m_presets.emplace(lb, preset);
   endInsertRows();
+}
+
+// -------------------------------------------------------------------------------------------------
+bool PresetModel::hasPreset(const QString& preset) const
+{
+  return (std::find(m_presets.cbegin(), m_presets.cend(), preset) != m_presets.cend());
 }
 
 // -------------------------------------------------------------------------------------------------

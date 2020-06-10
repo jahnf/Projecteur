@@ -100,6 +100,9 @@ int main(int argc, char *argv[])
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
+      if (parser.isSet(fullHelpOption)) {
+        print() << "  preset=NAME            " << Main::tr("Set a preset.");
+      }
       print() << "  quit                   " << Main::tr("Quit the running instance.");
 
       // Early return if the user not explicitly requested the full help

@@ -368,6 +368,11 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
     logDebug(cmdserver) << tr("Received command settings = %1").arg(show);
     showPreferences(show);
   }
+  else if (cmdKey == "preset")
+  {
+    logDebug(cmdserver) << tr("Received command preset = %1").arg(cmdValue);
+    if (!cmdValue.isEmpty()) m_settings->loadPreset(cmdValue);
+  }
   else if (cmdValue.size())
   {
     const auto& properties = m_settings->stringProperties();

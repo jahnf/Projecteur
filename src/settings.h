@@ -252,6 +252,7 @@ public:
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
   const auto& presets() const { return m_presets; }
+  bool hasPreset(const QString& preset) const;
 
 private:
   friend class Settings;
