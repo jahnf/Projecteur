@@ -2,12 +2,23 @@
 #pragma once
 
 #include <QDialog>
+#include <QProxyStyle>
 #include <QToolButton>
+
+#include <memory>
 
 class QComboBox;
 class QGroupBox;
 class Settings;
 class Spotlight;
+
+// -------------------------------------------------------------------------------------------------
+class PresetComboCustomStyle : public QProxyStyle
+{
+public:
+  void drawControl(QStyle::ControlElement element, const QStyleOption* option,
+                   QPainter* painter, const QWidget* widget = nullptr) const override;
+};
 
 // -------------------------------------------------------------------------------------------------
 class PreferencesDialog : public QDialog
@@ -41,6 +52,7 @@ protected:
 private:
   void setDialogActive(bool active);
   void setDialogMode(Mode dialogMode);
+  void resetPresetCombo();
 
   QWidget* createSettingsTabWidget(Settings* settings);
   QGroupBox* createShapeGroupBox(Settings* settings);
@@ -56,6 +68,8 @@ private:
   QWidget* createLogTabWidget();
 
 private:
+  std::unique_ptr<PresetComboCustomStyle> m_presetComboStyle;
+  QComboBox* m_presetCombo = nullptr;
   QPushButton* m_closeMinimizeBtn = nullptr;
   QPushButton* m_exitBtn = nullptr;
   bool m_active = false;

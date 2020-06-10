@@ -138,7 +138,7 @@ int Spotlight::connectDevices()
         {
           if (action->type() == Action::Type::CyclePresets)
           {
-            auto it = m_settings->presets().find(lastPreset);
+            auto it = std::find(m_settings->presets().cbegin(), m_settings->presets().cend(), lastPreset);
             if ((it == m_settings->presets().cend()) || (++it == m_settings->presets().cend())) {
               it = m_settings->presets().cbegin();
             }

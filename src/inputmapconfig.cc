@@ -48,10 +48,10 @@ Qt::ItemFlags InputMapConfigModel::flags(const QModelIndex &index) const
 }
 
 // -------------------------------------------------------------------------------------------------
-QVariant InputMapConfigModel::data(const QModelIndex& index, int /*role*/) const
+QVariant InputMapConfigModel::data(const QModelIndex& /*index*/, int /*role*/) const
 {
-  if (index.row() >= static_cast<int>(m_configItems.size()))
-    return QVariant();
+//  if (index.row() >= static_cast<int>(m_configItems.size()))
+//    return QVariant();
 
   return QVariant();
 }
