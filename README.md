@@ -58,7 +58,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 The application was mostly tested on Ubuntu 18.04 (GNOME) and OpenSuse 15 (GNOME)
 but should work on almost any Linux/X11 Desktop. In case you are building the
-application youself, make sure you have the correct udev rules installed
+application yourself, make sure you have the correct udev rules installed
 (see [pre-requisites section](#pre-requisites)).
 
 ## How it works
@@ -96,6 +96,9 @@ _Arch_ Linux are automatically built.
 
 * Latest release:
 [ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
+
+See also the [list of Linux repositories](./doc/LinuxRepositories.md) where _Projecteur_
+is available.
 
 ## Building
 
@@ -136,17 +139,17 @@ file in this repository: `55-projecteur.rules.in`
   If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
   to load the rules without a reboot.
 * After that the input devices from the Logitech USB Receiver (but also the Bluetooth device)
-  in /dev/input should be readable/writeable by you.
+  in /dev/input should be readable/writable by you.
   (See also about [device detection](#device-shows-as-not-connected))
 * When building against the Qt version that comes with your distribution's packages
   you might need to install some  additional QML module packages. For example this
   is the case for Ubuntu, where you need to install the packages
   `qml-module-qtgraphicaleffects`, `qml-module-qtquick-window2`, `qml-modules-qtquick2` and
-  `qtdeclarative5-dev` to satisfy the application's runtime dependencies.
+  `qtdeclarative5-dev` to satisfy the application's run time dependencies.
 
 ### Application Menu
 
-The application menu is accessable via the system tray icon. There you will find
+The application menu is accessible via the system tray icon. There you will find
 the preferences and the menu entry to exit the application. If the system tray icon is missing,
 see the [Troubleshooting](#missing-system-tray) section.
 
@@ -231,7 +234,7 @@ On some distributions that have a **GNOME Desktop** by default there is **no sys
 installed (_Fedora_ for example). You can install the
 [KStatusNotifierItem/AppIndicator Support](https://extensions.gnome.org/extension/615/appindicator-support/)
 or the [TopIcons Plus](https://extensions.gnome.org/extension/1031/topicons/)
-GNOME extension to have a system tray that can show the Projecteur tray icon
+GNOME extension to have a system tray that can show the _Projecteur_ tray icon
 (and also from other applications like Dropbox or Skype).
 
 #### Zoom is not updated while spotlight is shown
@@ -257,7 +260,7 @@ Using Wayland-EGL
 #### Wayland Zoom
 
 On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This is done with
-the help of their respective DBus interfaces for screen capturing. On other environemnts with
+the help of their respective DBus interfaces for screen capturing. On other environments with
 Wayland, the zoom feature is currently not supported.
 
 #### Device shows as not connected
