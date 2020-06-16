@@ -14,50 +14,50 @@
 
 namespace  {
   namespace keysequence {
-  //------------------------------------------------------------------------------------------------
-  void paint(QPainter* p, const QStyleOptionViewItem& option, const KeySequenceAction* action)
-  {
-    const auto& fm = option.fontMetrics;
-    const int xPos = (option.rect.height()-fm.height()) / 2;
-    NativeKeySeqEdit::drawSequence(xPos, *p, option, action->keySequence);
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const KeySequenceAction* action)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawSequence(xPos, *p, option, action->keySequence);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& opt, const KeySequenceAction* action)
+    {
+      constexpr int verticalMargin = 3;
+      constexpr int horizontalMargin = 3;
+      const int h = opt.fontMetrics.height() + 2 * verticalMargin;
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+      const int w = std::max(opt.fontMetrics.horizontalAdvance(ActionDelegate::tr("None")) + 2 * horizontalMargin,
+                             opt.fontMetrics.horizontalAdvance(action->keySequence.toString()));
+    #else
+      const int w = std::max(opt.fontMetrics.width(ActionDelegate::tr("None")) + 2 * horizontalMargin,
+                             opt.fontMetrics.width(action->keySequence.toString()));
+    #endif
+      return QSize(w, h);
+    }
   }
 
-  //------------------------------------------------------------------------------------------------
-  QSize sizeHint(const QStyleOptionViewItem& opt, const KeySequenceAction* action)
-  {
-    constexpr int verticalMargin = 3;
-    constexpr int horizontalMargin = 3;
-    const int h = opt.fontMetrics.height() + 2 * verticalMargin;
-  #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
-    const int w = std::max(opt.fontMetrics.horizontalAdvance(ActionDelegate::tr("None")) + 2 * horizontalMargin,
-                           opt.fontMetrics.horizontalAdvance(action->keySequence.toString()));
-  #else
-    const int w = std::max(opt.fontMetrics.width(ActionDelegate::tr("None")) + 2 * horizontalMargin,
-                           opt.fontMetrics.width(action->keySequence.toString()));
-  #endif
-    return QSize(w, h);
-  }
-}
+  namespace cyclepresets {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const CyclePresetsAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Cycle Presets"));
+    }
 
-namespace cyclepresets {
-  //------------------------------------------------------------------------------------------------
-  void paint(QPainter* p, const QStyleOptionViewItem& option, const CyclePresetsAction* /*action*/)
-  {
-    const auto& fm = option.fontMetrics;
-    const int xPos = (option.rect.height()-fm.height()) / 2;
-    NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Cycle Presets"));
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const CyclePresetsAction* /*action*/)
+    {
+      return QSize(100,16);
+    }
   }
-
-  //------------------------------------------------------------------------------------------------
-  QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const CyclePresetsAction* /*action*/)
-  {
-    return QSize(100,16);
-  }
-}
 } // end anonymous namespace
 
-//-------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                            const QModelIndex& index) const
 {
@@ -147,7 +147,6 @@ void ActionDelegate::setEditorData(QWidget* editor, const QModelIndex& index) co
       return;
     }
   }
-  // TODO check for cyclepresets editor/type
 
   QStyledItemDelegate::setEditorData(editor, index);
 }
@@ -162,7 +161,6 @@ void ActionDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
       return;
     }
   }
-  // TODO check for cyclePresets editor /type
 
   QStyledItemDelegate::setModelData(editor, model, index);
 }
@@ -172,7 +170,7 @@ bool ActionDelegate::eventFilter(QObject* obj, QEvent* ev)
 {
   if (ev->type() == QEvent::KeyPress)
   {
-    // let all key press events pass through to editor,
+    // Let all key press events pass through to the editor,
     // otherwise some keys cannot be recorded as a key sequence (e.g. [Tab] and [Esc])
     if (qobject_cast<NativeKeySeqEdit*>(obj)) return false;
   }
@@ -289,7 +287,7 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
 
   QMenu* menu = new QMenu(parent);
 
-  for (const auto item : items) {
+  for (const auto& item : items) {
     const auto qaction = menu->addAction(item.icon, item.text);
     connect(qaction, &QAction::triggered, this, [model, index, type=item.type](){
       model->setItemActionType(index, type);

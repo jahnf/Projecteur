@@ -801,7 +801,7 @@ void Settings::setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig
                                            + "/size", 0).toInt();
   m_settings->beginWriteArray(settingsKey(dId, ::settings::inputMapConfig), imc.size());
   int index = 0;
-  for (const auto& item : imc )
+  for (const auto& item : imc)
   {
     m_settings->setArrayIndex(index++);
     m_settings->setValue("deviceSequence", QVariant::fromValue(item.first));
