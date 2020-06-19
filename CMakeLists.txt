@@ -18,6 +18,9 @@ endif()
 
 project(Projecteur LANGUAGES CXX)
 
+add_compile_options(-Wall -Wextra -Werror)
+#set(CMAKE_CXX_CLANG_TIDY "clang-tidy-9;-checks=*,-fuchsia*,-modernize-pass-by-value")
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
 include(Translation)
@@ -42,12 +45,21 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
 endif()
 
 add_executable(projecteur
-  src/main.cc
+  src/main.cc               src/enum-helper.h
   src/aboutdlg.cc           src/aboutdlg.h
+  src/actiondelegate.cc     src/actiondelegate.h
   src/colorselector.cc      src/colorselector.h
+  src/device.cc             src/device.h
+  src/deviceinput.cc        src/deviceinput.h
+  src/devicescan.cc         src/devicescan.h
+  src/deviceswidget.cc      src/deviceswidget.h
   src/linuxdesktop.cc       src/linuxdesktop.h
+  src/iconwidgets.cc        src/iconwidgets.h
   src/imageitem.cc          src/imageitem.h
+  src/inputmapconfig.cc     src/inputmapconfig.h
+  src/inputseqedit.cc       src/inputseqedit.h
   src/logging.cc            src/logging.h
+  src/nativekeyseqedit.cc   src/nativekeyseqedit.h
   src/preferencesdlg.cc     src/preferencesdlg.h
   src/projecteurapp.cc      src/projecteurapp.h
   src/runguard.cc           src/runguard.h
@@ -87,12 +99,12 @@ target_compile_definitions(projecteur PRIVATE
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
 # If creating the version number via git information fails, the following target properties
-# will be used. IMPORTANT - when creating a release tag with git flow: 
+# will be used. IMPORTANT - when creating a release tag with git flow:
 #  Update this information - the version numbers and the version type.
 #  VERSION_TYPE must be either 'release' or 'develop'
-set_target_properties(projecteur PROPERTIES 
+set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
-  VERSION_MINOR 7
+  VERSION_MINOR 8
   VERSION_PATCH 0
   VERSION_TYPE release
 )
@@ -112,7 +124,7 @@ add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directo
 add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf
+add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devices.conf
                                       src/extra-devices.cc.in 55-projecteur.rules.in
                                       cmake/templates/Projecteur.desktop.in)
 
@@ -204,14 +216,20 @@ add_source_archive_target(projecteur)
 
 # Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
 add_dist_package_target(
-  PROJECT "${CMAKE_PROJECT_NAME}" 
+  PROJECT "${CMAKE_PROJECT_NAME}"
   TARGET projecteur
   DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
   DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
-  CONTACT "Jahn Fuchs <github.jahnf@wolke7.net>"
+  CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
   HOMEPAGE "${HOMEPAGE}"
   DEBIAN_SECTION "utils"
   PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
   POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
 )
+
+option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
+find_program(iwyu_path NAMES include-what-you-use iwyu)
+if(ENABLE_IWYU AND iwyu_path)
+  set_property(TARGET projecteur PROPERTY CXX_INCLUDE_WHAT_YOU_USE ${iwyu_path})
+endif()
 

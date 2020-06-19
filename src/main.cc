@@ -5,7 +5,6 @@
 #include "logging.h"
 #include "runguard.h"
 #include "settings.h"
-#include "spotlight.h"
 
 #include <QCommandLineParser>
 
@@ -60,6 +59,9 @@ int main(int argc, char *argv[])
     const QCommandLineOption deviceInfoOption(QStringList{ "d", "device-scan"}, Main::tr("Print device-scan results."));
     const QCommandLineOption logLvlOption(QStringList{ "l", "log-level" }, Main::tr("Set log level (dbg,inf,wrn,err)."), "lvl");
     const QCommandLineOption disableUInputOption(QStringList{ "disable-uinput" }, Main::tr("Disable uinput support."));
+    const QCommandLineOption showDlgOnStartOption(QStringList{ "show-dialog" }, Main::tr("Show preferences dialog on start."));
+    const QCommandLineOption dialogMinOnlyOption(QStringList{ "m", "minimize-only" }, Main::tr("Only allow minimizing the dialog."));
+    const QCommandLineOption disableOverlayOption(QStringList{ "disable-overlay" }, Main::tr("Disable spotlight overlay completely."));
     const QCommandLineOption additionalDeviceOption(QStringList{ "D", "additional-device"},
                                Main::tr("Additional accepted device; DEVICE = vendorId:productId\n"
                                         "                         "
@@ -67,12 +69,26 @@ int main(int argc, char *argv[])
 
     parser.addOptions({versionOption, helpOption, fullHelpOption, commandOption,
                        cfgFileOption, fullVersionOption, deviceInfoOption, logLvlOption,
-                       disableUInputOption, additionalDeviceOption});
+                       disableUInputOption, showDlgOnStartOption, dialogMinOnlyOption,
+                       disableOverlayOption, additionalDeviceOption});
 
-    QStringList args;
-    for(int i = 0; i < argc; ++i) {
-      args.push_back(argv[i]);
-    }
+    const QStringList args = [argc, &argv]()
+    {
+      const QStringList qtAppKeyValueOptions = {
+        "-platform", "-platformpluginpath", "-platformtheme", "-plugin", "-display"
+      };
+      const QStringList qtAppSingleOptions = {"-reverse"};
+      QStringList args;
+      for (int i = 0; i < argc; ++i)
+      { // Skip some default arguments supported by QtGuiApplication, we don't want to parse them
+        // but they will get passed through to the ProjecteurApp.
+        if (qtAppKeyValueOptions.contains(argv[i])) { ++i; }
+        else if (qtAppSingleOptions.contains(argv[i])) { continue; }
+        else { args.push_back(argv[i]); }
+      }
+      return args;
+    }();
+
     parser.process(args);
     if (parser.isSet(helpOption) || parser.isSet(fullHelpOption))
     {
@@ -89,11 +105,16 @@ int main(int argc, char *argv[])
       print() << "  -D DEVICE              " << additionalDeviceOption.description();
       if (parser.isSet(fullHelpOption)) {
         print() << "  --disable-uinput       " << disableUInputOption.description();
+        print() << "  --show-dialog          " << showDlgOnStartOption.description();
+        print() << "  -m, --minimize-only    " << dialogMinOnlyOption.description();
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
       print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
+      if (parser.isSet(fullHelpOption)) {
+        print() << "  preset=NAME            " << Main::tr("Set a preset.");
+      }
       print() << "  quit                   " << Main::tr("Quit the running instance.");
 
       // Early return if the user not explicitly requested the full help
@@ -105,7 +126,7 @@ int main(int argc, char *argv[])
       {
         if (sp.type == Settings::StringProperty::Type::Integer
             || sp.type == Settings::StringProperty::Type::Double) {
-          return QString("(%1 ... %2)").arg(sp.range[0].toString()).arg(sp.range[1].toString());
+          return QString("(%1 ... %2)").arg(sp.range[0].toString(), sp.range[1].toString());
         }
         else if (sp.type == Settings::StringProperty::Type::Bool) {
           return "(false, true)";
@@ -123,27 +144,47 @@ int main(int argc, char *argv[])
         return QString();
       };
 
-      Settings settings;
-      QList<QPair<QString, QString>> propertiesList;
-      int propertyMaxLen = 0;
+      int maxPropertyStringLength = 0;
 
-      // Fill temporary list with properties to be able to format our output better
-      for (const auto& sp : settings.stringProperties())
-      {
-        propertiesList.push_back(
-          {QString("%1=[%2]").arg(sp.first).arg(sp.second.typeToString(sp.second.type)),
-           getValues(sp.second)});
+      const std::vector<std::pair<QString, QString>> propertiesList =
+        [getValues=std::move(getValues), &maxPropertyStringLength]()
+        {
+          std::vector<std::pair<QString, QString>> list;
+          // Fill temporary list with properties to be able to format our output better
+          Settings settings; // <-- FIXME unnecessary Settings instance
+          for (const auto& sp : settings.stringProperties())
+          {
+            list.emplace_back(
+              QString("%1=[%2]").arg(sp.first, sp.second.typeToString(sp.second.type)),
+              getValues(sp.second));
 
-        propertyMaxLen = qMax(propertyMaxLen, propertiesList.last().first.size());
-      }
+            maxPropertyStringLength = qMax(maxPropertyStringLength, list.back().first.size());
+          }
+          return list;
+        }();
 
       for (const auto& sp : propertiesList) {
-        print() << "  " << std::left << std::setw(propertyMaxLen + 3) << sp.first << sp.second;
+        print() << "  " << std::left << std::setw(maxPropertyStringLength + 3) << sp.first << sp.second;
       }
 
       return 0;
     }
-    else if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))
+
+    if (parser.isSet(additionalDeviceOption)) {
+      for (auto& deviceValue : parser.values(additionalDeviceOption)) {
+        const auto devAttribs = deviceValue.split(":");
+        const auto vendorId = devAttribs[0].toUShort(nullptr, 16);
+        const auto productId = devAttribs[1].toUShort(nullptr, 16);
+        if (vendorId == 0 || productId == 0) {
+          error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
+        } else {
+          const QString name = (devAttribs.size() >= 3) ? devAttribs[2] : "";
+          options.additionalDevices.push_back({vendorId, productId, false, name});
+        }
+      }
+    }
+
+    if (parser.isSet(versionOption) || parser.isSet(fullVersionOption))
     {
       print() << QCoreApplication::applicationName().toStdString() << " "
               << projecteur::version_string();
@@ -167,7 +208,7 @@ int main(int argc, char *argv[])
                                     << XSTRINGIFY(CXX_COMPILER_VERSION);
         print() << "  - qt-version: (build: " << QT_VERSION_STR << ", runtime: " << qVersion() << ")";
 
-        const auto result = Spotlight::scanForDevices();
+        const auto result = DeviceScan::getDevices(options.additionalDevices);
         print() << "  - device-scan: "
                 << QString("(errors: %1, devices: %2 [readable: %3, writable: %4])")
                    .arg(result.errorMessages.size()).arg(result.devices.size())
@@ -176,23 +217,9 @@ int main(int argc, char *argv[])
       return 0;
     }
 
-    if (parser.isSet(additionalDeviceOption)) {
-      for (auto& deviceValue : parser.values(additionalDeviceOption)) {
-        const auto devAttribs = deviceValue.split(":");
-        const auto vendorId = devAttribs[0].toUShort(nullptr, 16);
-        const auto productId = devAttribs[1].toUShort(nullptr, 16);
-        if (vendorId == 0 || productId == 0) {
-          error() << Main::tr("Invalid vendor/productId pair: ") << deviceValue;
-        } else {
-          const QString name = (devAttribs.size() >= 3) ? devAttribs[2] : "";
-          options.additionalDevices.push_back({vendorId, productId, false, name});
-        }
-      }
-    }
-
     if (parser.isSet(deviceInfoOption))
     {
-      const auto result = Spotlight::scanForDevices(options.additionalDevices);
+      const auto result = DeviceScan::getDevices(options.additionalDevices);
       print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << "; " << Main::tr("device scan") << std::endl;
 
@@ -204,9 +231,9 @@ int main(int argc, char *argv[])
               << Main::tr(" * Found %1 supported devices. (%2 readable, %3 writable)")
                  .arg(result.devices.size()).arg(result.numDevicesReadable).arg(result.numDevicesWritable);
 
-      const auto busTypeToString = [](Spotlight::Device::BusType type) -> QString {
-        if (type == Spotlight::Device::BusType::Usb) return "USB";
-        if (type == Spotlight::Device::BusType::Bluetooth) return "Bluetooth";
+      const auto busTypeToString = [](DeviceScan::Device::BusType type) -> QString {
+        if (type == DeviceScan::Device::BusType::Usb) return "USB";
+        if (type == DeviceScan::Device::BusType::Bluetooth) return "Bluetooth";
         return "unknwon";
       };
 
@@ -217,13 +244,32 @@ int main(int argc, char *argv[])
         if (!device.userName.isEmpty()) {
           print() << "     " << "userName: '" << device.userName << "'";
         }
-        print() << "     " << "vendorId:  " << QString("%1").arg(device.vendorId, 4, 16, QChar('0'));
-        print() << "     " << "productId: " << QString("%1").arg(device.productId, 4, 16, QChar('0'));
-        print() << "     " << "phys:      " << device.phys;
+
+        const QStringList subDeviceList = [&device](){
+          QStringList subDeviceList;
+          for (const auto& sd: device.subDevices) {
+            if (sd.deviceFile.size()) subDeviceList.push_back(sd.deviceFile);
+          }
+          return subDeviceList;
+        }();
+
+        const bool allReadable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
+        [](const auto& subDevice){
+          return subDevice.deviceReadable;
+        });
+
+        const bool allWriteable = std::all_of(device.subDevices.cbegin(), device.subDevices.cend(),
+        [](const auto& subDevice){
+          return subDevice.deviceWritable;
+        });
+
+        print() << "     " << "vendorId:  " << QString("%1").arg(device.id.vendorId, 4, 16, QChar('0'));
+        print() << "     " << "productId: " << QString("%1").arg(device.id.productId, 4, 16, QChar('0'));
+        print() << "     " << "phys:      " << device.id.phys;
         print() << "     " << "busType:   " << busTypeToString(device.busType);
-        print() << "     " << "device:    " << device.inputDeviceFile;
-        print() << "     " << "readable:  " << (device.inputDeviceReadable ? "true" : "false");
-        print() << "     " << "writable:  " << (device.inputDeviceWritable ? "true" : "false");
+        print() << "     " << "devices:   " << subDeviceList.join(", ");
+        print() << "     " << "readable:  " << (allReadable ? "true" : "false");
+        print() << "     " << "writable:  " << (allWriteable ? "true" : "false");
       }
       return 0;
     }
@@ -245,9 +291,10 @@ int main(int argc, char *argv[])
       options.configFile = parser.value(cfgFileOption);
     }
 
-    if (parser.isSet(disableUInputOption)) {
-      options.enableUInput = false;
-    }
+    options.enableUInput = !parser.isSet(disableUInputOption);
+    options.showPreferencesOnStart = parser.isSet(showDlgOnStartOption);
+    options.dialogMinimizeOnly = parser.isSet(dialogMinOnlyOption);
+    options.disableOverlay = parser.isSet(disableOverlayOption);
 
     if (parser.isSet(logLvlOption)) {
       const auto lvl = logging::levelFromName(parser.value(logLvlOption));

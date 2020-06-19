@@ -1,12 +1,13 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "preferencesdlg.h"
 
-#include "projecteur-GitVersion.h"
+#include "projecteur-GitVersion.h"  // auto generated version information
 
 #include "colorselector.h"
+#include "deviceswidget.h"
+#include "iconwidgets.h"
 #include "logging.h"
 #include "settings.h"
-#include "spotlight.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -14,19 +15,18 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
-#include <QGridLayout>
+#include <QLayout>
+#include <QLineEdit>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QQmlPropertyMap>
-#include <QScreen>
 #include <QSpinBox>
 #include <QStyle>
 #include <QTabWidget>
 #include <QTimer>
-#include <QVBoxLayout>
 
 #if HAS_Qt5_X11Extras
 #include <QX11Info>
@@ -37,6 +37,7 @@
 LOGGING_CATEGORY(preferences, "preferences")
 LOGGING_CATEGORY(x11display, "x11display")
 
+// -------------------------------------------------------------------------------------------------
 namespace {
   #define CURSOR_PATH ":/icons/cursors/"
   static const std::map<const QString, const QPair<const QString, const Qt::CursorShape>> cursorMap {
@@ -51,34 +52,51 @@ namespace {
   };
 }
 
-PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight, QWidget* parent)
+// -------------------------------------------------------------------------------------------------
+PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
+                                     Mode dialogMode, QWidget* parent)
   : QDialog(parent)
+  , m_presetComboStyle(std::make_unique<PresetComboCustomStyle>())
+  , m_closeMinimizeBtn(new QPushButton(this))
+  , m_exitBtn(new QPushButton(tr("&Quit %1").arg(QCoreApplication::applicationName()),this))
 {
   setWindowTitle(QCoreApplication::applicationName() + " - " + tr("Preferences"));
   setWindowIcon(QIcon(":/icons/projecteur-tray.svg"));
 
+  setDialogMode(dialogMode);
+  connect(m_closeMinimizeBtn, &QPushButton::clicked, this, [this](){
+    if (m_dialogMode == Mode::ClosableDialog) { this->close(); }
+    else { this->showMinimized(); }
+  });
+
+  connect(m_exitBtn, &QPushButton::clicked, this, [this](){
+    emit exitApplicationRequested();
+  });
+
+  const auto settingsWidget = createSettingsTabWidget(settings);
+  settingsWidget->setDisabled(settings->overlayDisabled());
+
   const auto tabWidget = new QTabWidget(this);
-  tabWidget->addTab(createSettingsTabWidget(settings, spotlight), tr("Settings"));
+  tabWidget->addTab(settingsWidget, tr("Spotlight"));
+  tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
-  const auto closeBtn = new QPushButton(tr("&Close"), this);
-  closeBtn->setToolTip(tr("Close the preferences dialog."));
-  connect(closeBtn, &QPushButton::clicked, this, [this](){ this->close(); });
-  const auto defaultsBtn = new QPushButton(tr("&Reset Defaults"), this);
-  defaultsBtn->setToolTip(tr("Reset all settings to their default value."));
-  connect(defaultsBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
-
   const auto btnHBox = new QHBoxLayout;
-  btnHBox->addWidget(defaultsBtn);
+  btnHBox->addWidget(m_exitBtn);
   btnHBox->addStretch(1);
-  btnHBox->addWidget(closeBtn);
+  btnHBox->addWidget(m_closeMinimizeBtn);
 
   const auto mainVBox = new QVBoxLayout(this);
   mainVBox->addWidget(tabWidget);
   mainVBox->addLayout(btnHBox);
+
+  connect(settings, &Settings::overlayDisabledChanged, this, [settingsWidget](bool disabled){
+    settingsWidget->setDisabled(disabled);
+  });
 }
 
-QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotlight* spotlight)
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
 {
   const auto widget = new QWidget(this);
   const auto mainHBox = new QHBoxLayout;
@@ -93,48 +111,134 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings, Spotligh
   mainHBox->addLayout(spotScreenVBoxLeft);
   mainHBox->addLayout(spotScreenVBoxRight);
 
-  const auto testBtn = new QPushButton(tr("&Show test..."), this);
+  const auto presetSelector = createPresetSelector(settings);
+
+  const auto resetBtn = new IconButton(Font::Icon::gear_12, widget);
+  resetBtn->setToolTip(tr("Reset all settings to their default value."));
+  resetBtn->setSizePolicy(resetBtn->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
+  connect(resetBtn, &QPushButton::clicked, settings, &Settings::setDefaults);
+
+  const auto testBtn = new QPushButton(tr("&Show test..."), widget);
   connect(testBtn, &QPushButton::clicked, this, &PreferencesDialog::testButtonClicked);
+
+  const auto hbox = new QHBoxLayout;
+  hbox->addWidget(resetBtn);
+  hbox->addWidget(testBtn);
+
+  const auto invisibleBtn = new QPushButton(this);
+  invisibleBtn->setVisible(false);
+  invisibleBtn->setDefault(true);
 
   const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
+  mainVBox->addWidget(presetSelector);
 #if HAS_Qt5_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
-  mainVBox->addWidget(createConnectedStateWidget(spotlight));
-  mainVBox->addWidget(testBtn);
+  mainVBox->addLayout(hbox);
 
   return widget;
 }
 
-QWidget* PreferencesDialog::createConnectedStateWidget(Spotlight* spotlight)
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 {
-  static const auto deviceText = tr("Device connected: %1", "%1=True or False");
-  const auto group = new QGroupBox(this);
-  const auto hbox = new QHBoxLayout(group);
-  const auto lbl = new QLabel(deviceText.arg(
-                                spotlight->anySpotlightDeviceConnected() ? tr("True")
-                                                                         : tr("False")), this);
-  lbl->setToolTip(tr("Connection status of the spotlight device."));
+  const auto widget = new QFrame(this);
+  widget->setFrameStyle(QFrame::StyledPanel | QFrame::Plain);
+  const auto hbox = new QHBoxLayout(widget);
+  hbox->addWidget(new QLabel(tr("Presets"), widget));
 
-  auto icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
-  const auto iconLbl = new QLabel(this);
-  iconLbl->setPixmap(icon.pixmap(16,16));
+  m_presetCombo = new QComboBox(widget);
+  m_presetCombo->setModel(settings->presetModel());
 
-  hbox->addWidget(iconLbl);
-  hbox->addWidget(lbl);
-  hbox->setStretch(1,2);
+  const auto normalComboStyle = m_presetCombo->style();
+  m_presetCombo->setStyle(&*m_presetComboStyle); // style when no preset is selected
+  m_presetCombo->setInsertPolicy(QComboBox::NoInsert);
 
-  auto updateStatus = [this, lbl, iconLbl](bool connected) {
-    lbl->setText(deviceText.arg(connected ? tr("True") : tr("False")));
-    iconLbl->setPixmap(style()->standardIcon(connected ? QStyle::SP_DialogOkButton
-                                                       : QStyle::SP_MessageBoxWarning).pixmap(16,16));
-  };
-  updateStatus(spotlight->anySpotlightDeviceConnected());
-  connect(spotlight, &Spotlight::anySpotlightDeviceConnectedChanged, std::move(updateStatus));
-  return group;
+  const auto deleteBtn = new IconButton(Font::Icon::trash_can_1, widget);
+  deleteBtn->setToolTip(tr("Delete currently selected preset."));
+  deleteBtn->setEnabled(m_presetCombo->currentIndex() > 0);
+  const auto newBtn = new IconButton(Font::Icon::plus_5, widget);
+  newBtn->setToolTip(tr("Create new preset from current spotlight settings."));
+
+  const std::vector<QWidget*> widgets{m_presetCombo, deleteBtn, newBtn};
+  for (const auto w : widgets) {
+    w->setSizePolicy(w->sizePolicy().horizontalPolicy(), QSizePolicy::Minimum);
+    hbox->addWidget(w);
+  }
+
+  hbox->setStretch(1, 1); // stretch combobox
+
+  connect(m_presetCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), widget,
+  [deleteBtn, settings, normalComboStyle, this](int index)
+  {
+    deleteBtn->setEnabled(index > 0);
+    m_presetCombo->setStyle(index == 0 ? &*m_presetComboStyle : normalComboStyle);
+
+    if (index > 0 && !m_presetCombo->currentText().isEmpty())
+      settings->loadPreset(m_presetCombo->currentText());
+  });
+
+  connect(newBtn, &QPushButton::clicked, this, [newBtn, settings, this]()
+  {
+    newBtn->setEnabled(false);
+    m_presetCombo->setEditable(true);
+    const auto le = m_presetCombo->lineEdit();
+    le->setMaxLength(35);
+    le->setCompleter(nullptr);
+
+    connect(le, &QLineEdit::editingFinished, this, [le, settings, newBtn, this]()
+    {
+      auto text = le->text().trimmed();
+      m_presetCombo->setEditable(false);
+
+      if (text.isEmpty()) {
+        text = m_presetCombo->currentText().trimmed();
+      }
+
+      if (m_presetCombo->findText(text) >= 0) { // Item with same name alrady exists
+        text.append(" (%1)");
+        for (int i = 2; i < 1000; ++i) {
+          if (m_presetCombo->findText(text.arg(i)) < 0) {
+            text = text.arg(i);
+            break;
+          }
+        }
+      }
+
+      newBtn->setEnabled(true);
+      settings->savePreset(text);
+    });
+
+    le->setText(tr("New Preset"));
+    le->setFocus();
+    le->selectAll();
+  });
+
+  connect(deleteBtn, &QPushButton::clicked, this, [this, settings]()
+  {
+    if (m_presetCombo->currentIndex() < 0) return;
+    settings->removePreset(m_presetCombo->currentText());
+  });
+
+  connect(settings, &Settings::presetLoaded, this,
+  [normalComboStyle, deleteBtn, this](const QString& preset)
+  {
+    const auto idx = m_presetCombo->findText(preset);
+    if (idx >= 0 && idx != m_presetCombo->currentIndex())
+    {
+      m_presetCombo->blockSignals(true);
+      m_presetCombo->setCurrentIndex(idx);
+      m_presetCombo->blockSignals(false);
+      m_presetCombo->setStyle(idx == 0 ? &*m_presetComboStyle : normalComboStyle);
+      deleteBtn->setEnabled(idx > 0);
+    }
+  });
+
+  return widget;
 }
 
+// -------------------------------------------------------------------------------------------------
 #if HAS_Qt5_X11Extras
 QWidget* PreferencesDialog::createCompositorWarningWidget()
 {
@@ -192,6 +296,7 @@ QWidget* PreferencesDialog::createCompositorWarningWidget()
 }
 #endif
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
 {
   const auto shapeGroup = new QGroupBox(tr("Shape Settings"), this);
@@ -206,6 +311,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   connect(spotSizeSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
           settings, &Settings::setSpotSize);
   connect(settings, &Settings::spotSizeChanged, spotSizeSpinBox, &QSpinBox::setValue);
+  connect(settings, &Settings::spotSizeChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto spotGrid = new QGridLayout(shapeGroup);
   spotGrid->addWidget(new QLabel(tr("Spot Size"), this), 0, 0);
@@ -216,11 +322,13 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   for (const auto& shape : settings->spotShapes()) {
     shapeCombo->addItem(shape.displayName(), shape.qmlComponent());
   }
-  connect(settings, &Settings::spotShapeChanged, [shapeCombo](const QString& spotShape){
+  connect(settings, &Settings::spotShapeChanged, shapeCombo,
+  [shapeCombo, this](const QString& spotShape){
     const int idx = shapeCombo->findData(spotShape);
     if (idx != -1) {
       shapeCombo->setCurrentIndex(idx);
     }
+    resetPresetCombo();
   });
   emit settings->spotShapeChanged(settings->spotShape());
   spotGrid->addWidget(new QLabel(tr("Shape"), this), 4, 0);
@@ -236,6 +344,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   connect(shapeRotationSb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setSpotRotation);
   connect(settings, &Settings::spotRotationChanged, shapeRotationSb, &QDoubleSpinBox::setValue);
+  connect(settings, &Settings::spotRotationChanged, this, &PreferencesDialog::resetPresetCombo);
   const auto shapeRotationLabel = new QLabel(tr("Rotation"), this);
   spotGrid->addWidget(shapeRotationLabel, 5, 0);
   spotGrid->addWidget(shapeRotationSb, 5, 1);
@@ -289,14 +398,16 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
           if (pm && pm->property(s.settingsKey().toLocal8Bit()).isValid())
           {
             spinbox->setValue(pm->property(s.settingsKey().toLocal8Bit()).toInt());
-            connect(spinbox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            connect(spinbox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), pm,
             [s, pm](int newValue){
               pm->setProperty(s.settingsKey().toLocal8Bit(), newValue);
             });
-            connect(pm, &QQmlPropertyMap::valueChanged, spinbox, [s, spinbox](const QString& key, const QVariant& value)
+            connect(pm, &QQmlPropertyMap::valueChanged, spinbox,
+            [s, spinbox, this](const QString& key, const QVariant& value)
             {
               if (key != s.settingsKey() || !value.isValid()) return;
               spinbox->setValue(value.toInt());
+              resetPresetCombo();
             });
           }
         }
@@ -305,7 +416,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
     }
   };
 
-  connect(shapeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(shapeCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
   [settings, shapeCombo, updateShapeSettingsWidgets](int index)
   {
     const QString shapeQml = shapeCombo->itemData(index).toString();
@@ -322,6 +433,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   return shapeGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
 {
   const auto spotGroup = new QGroupBox(tr("Show Spotlight Shade"), this);
@@ -329,6 +441,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   spotGroup->setChecked(settings->showSpotShade());
   connect(spotGroup, &QGroupBox::toggled, settings, &Settings::setShowSpotShade);
   connect(settings, &Settings::showSpotShadeChanged, spotGroup, &QGroupBox::setChecked);
+  connect(settings, &Settings::showSpotShadeChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto spotGrid = new QGridLayout(spotGroup);
 
@@ -336,6 +449,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   const auto shadeColor = new ColorSelector(tr("Select Shade Color"), settings->shadeColor(), this);
   connect(shadeColor, &ColorSelector::colorChanged, settings, &Settings::setShadeColor);
   connect(settings, &Settings::shadeColorChanged, shadeColor, &ColorSelector::setColor);
+  connect(settings, &Settings::shadeColorChanged, this, &PreferencesDialog::resetPresetCombo);
   spotGrid->addWidget(new QLabel(tr("Shade Color"), this), 1, 0);
   spotGrid->addWidget(shadeColor, 1, 1);
 
@@ -349,6 +463,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   connect(shadeOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setShadeOpacity);
   connect(settings, &Settings::shadeOpacityChanged, shadeOpacitySb, &QDoubleSpinBox::setValue);
+  connect(settings, &Settings::shadeOpacityChanged, this, &PreferencesDialog::resetPresetCombo);
   spotGrid->addWidget(new QLabel(tr("Shade Opacity"), this), 2, 0);
   spotGrid->addWidget(shadeOpacitySb, 2, 1);
 
@@ -359,6 +474,7 @@ QGroupBox* PreferencesDialog::createSpotGroupBox(Settings* settings)
   return spotGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
 {
   const auto dotGroup = new QGroupBox(tr("Show Center Dot"), this);
@@ -366,6 +482,7 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   dotGroup->setChecked(settings->showCenterDot());
   connect(dotGroup, &QGroupBox::toggled, settings, &Settings::setShowCenterDot);
   connect(settings, &Settings::showCenterDotChanged, dotGroup, &QGroupBox::setChecked);
+  connect(settings, &Settings::showCenterDotChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto dotSizeSpinBox = new QSpinBox(this);
   dotSizeSpinBox->setMaximum(settings->dotSizeRange().max);
@@ -377,6 +494,7 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   connect(dotSizeSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
           settings, &Settings::setDotSize);
   connect(settings, &Settings::dotSizeChanged, dotSizeSpinBox, &QSpinBox::setValue);
+  connect(settings, &Settings::dotSizeChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto dotGrid = new QGridLayout(dotGroup);
   dotGrid->addWidget(new QLabel(tr("Dot Size"), this), 0, 0);
@@ -385,8 +503,24 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   const auto dotColor = new ColorSelector(tr("Select Dot Color"), settings->dotColor(), this);
   connect(dotColor, &ColorSelector::colorChanged, settings, &Settings::setDotColor);
   connect(settings, &Settings::dotColorChanged, dotColor, &ColorSelector::setColor);
+  connect(settings, &Settings::dotColorChanged, this, &PreferencesDialog::resetPresetCombo);
   dotGrid->addWidget(new QLabel(tr("Dot Color"), this), 1, 0);
   dotGrid->addWidget(dotColor, 1, 1);
+
+
+  // Spotlight dot opacity setting
+  const auto dotOpacitySb = new QDoubleSpinBox(this);
+  dotOpacitySb->setMaximum(settings->dotOpacityRange().max);
+  dotOpacitySb->setMinimum(settings->dotOpacityRange().min);
+  dotOpacitySb->setDecimals(2);
+  dotOpacitySb->setSingleStep(0.1);
+  dotOpacitySb->setValue(settings->dotOpacity());
+  connect(dotOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+          settings, &Settings::setDotOpacity);
+  connect(settings, &Settings::borderOpacityChanged, dotOpacitySb, &QDoubleSpinBox::setValue);
+  connect(settings, &Settings::borderOpacityChanged, this, &PreferencesDialog::resetPresetCombo);
+  dotGrid->addWidget(new QLabel(tr("Dot Opacity"), this), 2, 0);
+  dotGrid->addWidget(dotOpacitySb, 2, 1);
 
   dotGrid->addWidget(new QWidget(this), 100, 0);
   dotGrid->setRowStretch(100, 100);
@@ -395,6 +529,7 @@ QGroupBox* PreferencesDialog::createDotGroupBox(Settings* settings)
   return dotGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
 {
   const auto borderGroup = new QGroupBox(tr("Show Border"), this);
@@ -402,6 +537,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   borderGroup->setChecked(settings->showBorder());
   connect(borderGroup, &QGroupBox::toggled, settings, &Settings::setShowBorder);
   connect(settings, &Settings::showBorderChanged, borderGroup, &QGroupBox::setChecked);
+  connect(settings, &Settings::showBorderChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto borderSizeSpinBox = new QSpinBox(this);
   borderSizeSpinBox->setMaximum(settings->borderSizeRange().max);
@@ -413,6 +549,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   connect(borderSizeSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
           settings, &Settings::setBorderSize);
   connect(settings, &Settings::borderSizeChanged, borderSizeSpinBox, &QSpinBox::setValue);
+  connect(settings, &Settings::borderSizeChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto borderGrid = new QGridLayout(borderGroup);
   borderGrid->addWidget(new QLabel(tr("Border Size"), this), 0, 0);
@@ -421,6 +558,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   const auto borderColor = new ColorSelector(tr("Select Border Color"), settings->borderColor(), this);
   connect(borderColor, &ColorSelector::colorChanged, settings, &Settings::setBorderColor);
   connect(settings, &Settings::borderColorChanged, borderColor, &ColorSelector::setColor);
+  connect(settings, &Settings::borderColorChanged, this, &PreferencesDialog::resetPresetCombo);
   borderGrid->addWidget(new QLabel(tr("Border Color"), this), 1, 0);
   borderGrid->addWidget(borderColor, 1, 1);
 
@@ -434,6 +572,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   connect(borderOpacitySb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setBorderOpacity);
   connect(settings, &Settings::borderOpacityChanged, borderOpacitySb, &QDoubleSpinBox::setValue);
+  connect(settings, &Settings::borderOpacityChanged, this, &PreferencesDialog::resetPresetCombo);
   borderGrid->addWidget(new QLabel(tr("Border Opacity"), this), 2, 0);
   borderGrid->addWidget(borderOpacitySb, 2, 1);
 
@@ -444,6 +583,7 @@ QGroupBox* PreferencesDialog::createBorderGroupBox(Settings* settings)
   return borderGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
 {
   const auto zoomGroup = new QGroupBox(tr("Enable Zoom"), this);
@@ -451,6 +591,7 @@ QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
   zoomGroup->setChecked(settings->zoomEnabled());
   connect(zoomGroup, &QGroupBox::toggled, settings, &Settings::setZoomEnabled);
   connect(settings, &Settings::zoomEnabledChanged, zoomGroup, &QGroupBox::setChecked);
+  connect(settings, &Settings::zoomEnabledChanged, this, &PreferencesDialog::resetPresetCombo);
 
   const auto zoomGrid = new QGridLayout(zoomGroup);
 
@@ -464,12 +605,14 @@ QGroupBox* PreferencesDialog::createZoomGroupBox(Settings* settings)
   connect(zoomLevelSb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
           settings, &Settings::setZoomFactor);
   connect(settings, &Settings::zoomFactorChanged, zoomLevelSb, &QDoubleSpinBox::setValue);
+  connect(settings, &Settings::zoomFactorChanged, this, &PreferencesDialog::resetPresetCombo);
   zoomGrid->addWidget(new QLabel(tr("Zoom Level"), this), 0, 0);
   zoomGrid->addWidget(zoomLevelSb, 0, 1);
   zoomGrid->setColumnStretch(1, 1);
   return zoomGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
 {
   const auto cursorGroup = new QGroupBox(tr("Cursor Settings"), this);
@@ -480,12 +623,13 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   for (const auto& item : cursorMap) {
     cursorCb->addItem(QIcon(item.first), item.second.first, static_cast<int>(item.second.second));
   }
-  connect(settings, &Settings::cursorChanged, [cursorCb](int cursor){
+  connect(settings, &Settings::cursorChanged, cursorCb, [cursorCb, this](int cursor){
     const int idx = cursorCb->findData(cursor);
     cursorCb->setCurrentIndex((idx == -1) ? Qt::BlankCursor : idx);
+    resetPresetCombo();
   });
   emit settings->cursorChanged(settings->cursor()); // set initial value
-  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(cursorCb, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
   [settings, cursorCb](int index) {
     settings->setCursor(static_cast<Qt::CursorShape>(cursorCb->itemData(index).toInt()));
   });
@@ -496,6 +640,7 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   return cursorGroup;
 }
 
+// -------------------------------------------------------------------------------------------------
 QWidget* PreferencesDialog::createLogTabWidget()
 {
   const auto widget = new QWidget(this);
@@ -534,7 +679,7 @@ QWidget* PreferencesDialog::createLogTabWidget()
   const int idx = logLvlCombo->findData(static_cast<int>(logging::currentLevel()));
   logLvlCombo->setCurrentIndex((idx == -1) ? 0 : idx);
 
-  connect(logLvlCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+  connect(logLvlCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
   [logLvlCombo, te](int index) {
     const auto lvl = static_cast<logging::level>(logLvlCombo->itemData(index).toInt());
     te->appendPlainText(tr("--- Setting new log level: %1").arg(logging::levelToString(lvl)));
@@ -588,6 +733,44 @@ QWidget* PreferencesDialog::createLogTabWidget()
   return widget;
 }
 
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::setMode(Mode dialogMode)
+{
+  if (m_dialogMode == dialogMode)
+    return;
+
+  setDialogMode(dialogMode);
+}
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::setDialogMode(Mode dialogMode)
+{
+  m_dialogMode = dialogMode;
+
+  if (dialogMode == Mode::ClosableDialog)
+  {
+    setWindowFlags(Qt::Dialog);
+    m_closeMinimizeBtn->setText(tr("&Close"));
+    m_closeMinimizeBtn->setToolTip(tr("Close the preferences dialog."));
+  }
+  else if (dialogMode == Mode::MinimizeOnlyDialog)
+  {
+    setWindowFlags(Qt::Window);
+    setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
+    setWindowFlags(windowFlags() & ~Qt::WindowCloseButtonHint);
+
+    m_closeMinimizeBtn->setText(tr("&Minimize"));
+    m_closeMinimizeBtn->setToolTip(tr("Minimize the preferences dialog."));
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::resetPresetCombo()
+{
+  if (m_presetCombo) m_presetCombo->setCurrentIndex(0);
+}
+
+// -------------------------------------------------------------------------------------------------
 void PreferencesDialog::setDialogActive(bool active)
 {
   if (active == m_active)
@@ -597,6 +780,7 @@ void PreferencesDialog::setDialogActive(bool active)
   emit dialogActiveChanged(active);
 }
 
+// -------------------------------------------------------------------------------------------------
 bool PreferencesDialog::event(QEvent* e)
 {
   if (e->type() == QEvent::WindowActivate) {
@@ -607,3 +791,48 @@ bool PreferencesDialog::event(QEvent* e)
   }
   return QDialog::event(e);
 }
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::closeEvent(QCloseEvent*)
+{
+  if (m_dialogMode == Mode::MinimizeOnlyDialog) {
+    emit exitApplicationRequested();
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+void PreferencesDialog::keyPressEvent(QKeyEvent* e)
+{
+  if (m_dialogMode == Mode::MinimizeOnlyDialog)
+  {
+    if (e->key() == Qt::Key_Escape)
+    {
+      this->showMinimized();
+      return;
+    }
+  }
+  QDialog::keyPressEvent(e);
+}
+
+// -------------------------------------------------------------------------------------------------
+void PresetComboCustomStyle::drawControl(QStyle::ControlElement element, const QStyleOption* option,
+                                         QPainter* painter, const QWidget* widget) const
+{
+  if (element == QStyle::CE_ComboBoxLabel)
+  {
+    auto fnt = painter->font();
+    fnt.setItalic(true);
+    painter->setFont(fnt);
+
+    if (option->type == QStyleOption::SO_ComboBox)
+    {
+      auto custom = *static_cast<const QStyleOptionComboBox*>(option);
+      custom.palette.setColor(QPalette::ButtonText,
+                              option->palette.color(QPalette::Disabled, QPalette::ButtonText));
+      QProxyStyle::drawControl(element, &custom, painter, widget);
+      return;
+    }
+  }
+  QProxyStyle::drawControl(element, option, painter, widget);
+}
+

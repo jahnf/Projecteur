@@ -3,81 +3,68 @@
 
 #include <QObject>
 
-#include <memory>
 #include <map>
+#include <memory>
+#include <vector>
 
-class QSocketNotifier;
+#include "devicescan.h"
+
 class QTimer;
+class Settings;
 class VirtualDevice;
 
-/// Simple class to notify the application if the Logitech Spotlight and other supported devices
-/// are sending mouse move events. Used to turn the applications spot on or off.
+/// Class handling spotlight device connections and indicating if a device is sending
+/// sending mouse move events.
 class Spotlight : public QObject
 {
   Q_OBJECT
 
 public:
-  struct SupportedDevice {
-    quint16 vendorId;
-    quint16 productId;
-    bool isBluetooth = false;
-    QString name = {};
-  };
-
   struct Options {
     bool enableUInput = true; // enable virtual uinput device
-    QList<Spotlight::SupportedDevice> additionalDevices;
+    std::vector<SupportedDevice> additionalDevices;
   };
 
-  explicit Spotlight(QObject* parent, Options options);
+  explicit Spotlight(QObject* parent, Options options, Settings* settings);
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
-  bool anySpotlightDeviceConnected() const;
-  const VirtualDevice* virtualDevice() const;
-  QStringList connectedDevices() const;
 
-  struct Device {
-    enum class BusType { Unknown, Usb, Bluetooth };
+  struct ConnectedDeviceInfo {
+    DeviceId id;
     QString name;
-    QString userName;
-    quint16 vendorId = 0;
-    quint16 productId = 0;
-    BusType busType = BusType::Unknown;
-    QString phys;
-    QString inputDeviceFile;
-    bool inputDeviceReadable = false;
-    bool inputDeviceWritable = false;
   };
 
-  struct ScanResult {
-    QList<Device> devices;
-    quint16 numDevicesReadable = 0;
-    quint16 numDevicesWritable = 0;
-    QStringList errorMessages;
-  };
-
-  /// scan for supported devices and check if they are accessible
-  static ScanResult scanForDevices(const QList<SupportedDevice>& additionalDevices = {});
+  bool anySpotlightDeviceConnected() const;
+  uint32_t connectedDeviceCount() const;
+  std::vector<ConnectedDeviceInfo> connectedDevices() const;
+  std::shared_ptr<DeviceConnection> deviceConnection(const DeviceId& deviceId);
 
 signals:
-  void error(const QString& errMsg);
-  void connected(const QString& devicePath); //!< signal for every device connected
-  void disconnected(const QString& devicePath); //!< signal for every device disconnected
+  void deviceConnected(const DeviceId& id, const QString& name);
+  void deviceDisconnected(const DeviceId& id, const QString& name);
+  void subDeviceConnected(const DeviceId& id, const QString& name, const QString& path);
+  void subDeviceDisconnected(const DeviceId& id, const QString& name, const QString& path);
   void anySpotlightDeviceConnectedChanged(bool connected);
   void spotActiveChanged(bool isActive);
 
 private:
   enum class ConnectionResult { CouldNotOpen, NotASpotlightDevice, Connected };
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
+
+  bool addInputEventHandler(std::shared_ptr<SubEventConnection> connection);
+
   bool setupDevEventInotify();
   int connectDevices();
-  void tryConnect(const QString& devicePath, int msec, int retries);
+  void removeDeviceConnection(const QString& devicePath);
+  void onEventDataAvailable(int fd, SubEventConnection& connection);
 
-private:
   const Options m_options;
-  std::map<QString, QScopedPointer<QSocketNotifier>> m_eventNotifiers;
+  std::map<DeviceId, std::shared_ptr<DeviceConnection>> m_deviceConnections;
+
   QTimer* m_activeTimer = nullptr;
+  QTimer* m_connectionTimer = nullptr;
   bool m_spotActive = false;
-  std::unique_ptr<VirtualDevice> m_virtualDevice;
+  std::shared_ptr<VirtualDevice> m_virtualDevice;
+  Settings* m_settings = nullptr;
 };

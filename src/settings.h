@@ -2,14 +2,20 @@
 # pragma once
 
 #include <functional>
+#include <map>
+#include <vector>
 
+#include <QAbstractListModel>
 #include <QColor>
-#include <QObject>
 #include <QVariant>
 
+struct DeviceId;
+class InputMapConfig;
+class PresetModel;
 class QSettings;
 class QQmlPropertyMap;
 
+// -------------------------------------------------------------------------------------------------
 class Settings : public QObject
 {
   Q_OBJECT
@@ -18,6 +24,7 @@ class Settings : public QObject
   Q_PROPERTY(bool showCenterDot READ showCenterDot WRITE setShowCenterDot NOTIFY showCenterDotChanged)
   Q_PROPERTY(int dotSize READ dotSize WRITE setDotSize NOTIFY dotSizeChanged)
   Q_PROPERTY(QColor dotColor READ dotColor WRITE setDotColor NOTIFY dotColorChanged)
+  Q_PROPERTY(double dotOpacity READ dotOpacity WRITE setDotOpacity NOTIFY dotOpacityChanged)
   Q_PROPERTY(QColor shadeColor READ shadeColor WRITE setShadeColor NOTIFY shadeColorChanged)
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
   Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
@@ -32,7 +39,6 @@ class Settings : public QObject
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
-  Q_PROPERTY(int dblClickDuration READ dblClickDuration WRITE setDblClickDuration NOTIFY dblClickDurationChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -51,6 +57,8 @@ public:
   void setDotSize(int size);
   QColor dotColor() const { return m_dotColor; }
   void setDotColor(const QColor& color);
+  double dotOpacity() const { return m_dotOpacity; }
+  void setDotOpacity(double opacity);
   QColor shadeColor() const { return m_shadeColor; }
   void setShadeColor(const QColor& color);
   double shadeOpacity() const { return m_shadeOpacity; }
@@ -76,8 +84,8 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
-  int dblClickDuration() const { return m_dblClickDuration; }
-  void setDblClickDuration(int duration);
+  bool overlayDisabled() const { return m_overlayDisabled; }
+  void setOverlayDisabled(bool disabled);
 
   template <typename T> struct SettingRange {
     const T min;
@@ -86,11 +94,13 @@ public:
 
   static const SettingRange<int>& spotSizeRange();
   static const SettingRange<int>& dotSizeRange();
+  static const SettingRange<double>& dotOpacityRange();
   static const SettingRange<double>& shadeOpacityRange();
   static const SettingRange<double>& spotRotationRange();
   static const SettingRange<int>& borderSizeRange();
   static const SettingRange<double>& borderOpacityRange();
   static const SettingRange<double>& zoomFactorRange();
+  static const SettingRange<int>& inputSequenceIntervalRange();
 
   class SpotShapeSetting {
   public:
@@ -147,7 +157,18 @@ public:
     std::function<void(const QString&)> setFunction;
   };
 
-  const QList<QPair<QString, StringProperty>>& stringProperties() const;
+  const std::vector<std::pair<QString, StringProperty>>& stringProperties() const;
+
+  void savePreset(const QString& preset);
+  void loadPreset(const QString& preset);
+  void removePreset(const QString& preset);
+  const std::vector<QString>& presets() const;
+  PresetModel* presetModel();
+
+  void setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs);
+  int deviceInputSeqInterval(const DeviceId& dId) const;
+  void setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc);
+  InputMapConfig getDeviceInputMapConfig(const DeviceId& dId);
 
 signals:
   void showSpotShadeChanged(bool show);
@@ -155,6 +176,7 @@ signals:
   void dotSizeChanged(int size);
   void showCenterDotChanged(bool show);
   void dotColorChanged(const QColor& color);
+  void dotOpacityChanged(double opacity);
   void shadeColorChanged(const QColor& color);
   void shadeOpacityChanged(double opcacity);
   void screenChanged(int screen);
@@ -169,42 +191,73 @@ signals:
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
   void dblClickDurationChanged(int duration);
+  void overlayDisabledChanged(bool disabled);
+
+  void presetLoaded(const QString& preset);
 
 private:
   QSettings* m_settings = nullptr;
 
-  QMap<QString, QQmlPropertyMap*> m_shapeSettings;
-  QQmlPropertyMap* m_shapeSettingsRoot;
+  PresetModel* m_presetModel;
+  std::map<QString, QQmlPropertyMap*> m_shapeSettings;
+  QQmlPropertyMap* m_shapeSettingsRoot = nullptr;
 
-  bool m_showSpotShade = true;
   int m_spotSize = 30; ///< Spot size in percentage of available screen height, but at least 50 pixels.
-  bool m_showCenterDot = false;
   int m_dotSize = 5; ///< Center Dot Size (3-100 pixels)
   QColor m_dotColor;
+  double m_dotOpacity = 0.8;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
   int m_screen = -1; // inital invalid value, see #26
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;
-  bool m_spotRotationAllowed = false;
-  bool m_showBorder=false;
   QColor m_borderColor;
   int m_borderSize = 3;
   double m_borderOpacity = 0.8;
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
   int m_dblClickDuration = 300;
+  bool m_showSpotShade = true;
+  bool m_showCenterDot = false;
+  bool m_spotRotationAllowed = false;
+  bool m_showBorder=false;
+  bool m_overlayDisabled = false;
 
-  QList<QPair<QString, StringProperty>> m_stringPropertyMap;
+  std::vector<std::pair<QString, StringProperty>> m_stringPropertyMap;
 
 private:
-  void load();
+  void init();
+  void load(const QString& preset = QString());
   QObject* shapeSettingsRootObject();
   void shapeSettingsPopulateRoot();
   void shapeSettingsInitialize();
   void shapeSettingsSetDefaults();
-  void shapeSettingsLoad();
+  void shapeSettingsLoad(const QString& preset = QString());
+  void shapeSettingsSavePreset(const QString& preset);
   void setSpotRotationAllowed(bool allowed);
   void initializeStringProperties();
+};
+
+// -------------------------------------------------------------------------------------------------
+class PresetModel : public QAbstractListModel
+{
+  Q_OBJECT
+
+public:
+  PresetModel(QObject* parent = nullptr);
+  PresetModel(std::vector<QString>&& presets, QObject* parent = nullptr);
+
+  int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+  QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+
+  const auto& presets() const { return m_presets; }
+  bool hasPreset(const QString& preset) const;
+
+private:
+  friend class Settings;
+
+  void addPreset(const QString& preset);
+  void removePreset(const QString& preset);
+  std::vector<QString> m_presets;
 };

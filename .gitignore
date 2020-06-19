@@ -3,3 +3,4 @@ CMakeLists.txt.user*
 .idea
 build
 build/*
+icons/icon-font/output/

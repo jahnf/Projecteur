@@ -161,10 +161,11 @@ namespace logging {
 
   level levelFromName(const QString& name)
   {
-    if (name == "dbg" || name == "debug") return level::debug;
-    if (name == "inf" || name == "info") return level::info;
-    if (name == "wrn" || name == "warning") return level::warning;
-    if (name == "err" || name == "error") return level::error;
+    const auto lvlName = name.toLower();
+    if (lvlName == "dbg" || lvlName == "debug") return level::debug;
+    if (lvlName == "inf" || lvlName == "info") return level::info;
+    if (lvlName == "wrn" || lvlName == "warning") return level::warning;
+    if (lvlName == "err" || lvlName == "error") return level::error;
     return level::unknown;
   }
 
@@ -180,16 +181,23 @@ namespace logging {
 
   void setCurrentLevel(level lvl)
   {
+    QLoggingCategory::CategoryFilter newFilter = currentCategoryFilter;
+
     if (lvl == level::debug)
-      QLoggingCategory::installFilter(categoryFilterDebug);
+      newFilter = categoryFilterDebug;
     else if (lvl == level::info)
-      QLoggingCategory::installFilter(categoryFilterInfo);
+      newFilter = categoryFilterInfo;
     else if (lvl == level::warning)
-      QLoggingCategory::installFilter(categoryFilterWarning);
+      newFilter = categoryFilterWarning;
     else if (lvl == level::error)
-      QLoggingCategory::installFilter(categoryFilterError);
+      newFilter = categoryFilterError;
     else if (lvl == level::custom)
-      QLoggingCategory::installFilter(defaultCategoryFilter);
+      newFilter = defaultCategoryFilter;
+
+    if (newFilter != currentCategoryFilter) {
+      QLoggingCategory::installFilter(newFilter);
+      currentCategoryFilter = newFilter;
+    }
   }
 
 }

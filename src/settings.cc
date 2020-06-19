@@ -1,23 +1,30 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "settings.h"
 
+#include "device.h"
+#include "deviceinput.h"
 #include "logging.h"
 
-#include <functional>
+#include <algorithm>
 
-#include <QCoreApplication>
+#include <QGuiApplication>
+#include <QFileInfo>
+#include <QFont>
+#include <QPalette>
 #include <QQmlPropertyMap>
 #include <QSettings>
 
 LOGGING_CATEGORY(lcSettings, "settings")
 
 namespace {
+  // -----------------------------------------------------------------------------------------------
   namespace settings {
     constexpr char showSpotShade[] = "showSpotShade";
     constexpr char spotSize[] = "spotSize";
     constexpr char showCenterDot[] = "showCenterDot";
     constexpr char dotSize[] = "dotSize";
     constexpr char dotColor[] = "dotColor";
+    constexpr char dotOpacity[] = "dotOpacity";
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
     constexpr char screen[] = "screen";
@@ -30,7 +37,10 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
-    constexpr char dblClickDuration[] = "dblClickDuration";
+
+    // -- device specific
+    constexpr char inputSequenceInterval[] = "inputSequenceInterval";
+    constexpr char inputMapConfig[] = "inputMapConfig";
 
     namespace defaultValue {
       constexpr bool showSpotShade = true;
@@ -38,6 +48,7 @@ namespace {
       constexpr bool showCenterDot = false;
       constexpr int dotSize = 5;
       constexpr auto dotColor = Qt::red;
+      constexpr double dotOpacity = 0.8;
       constexpr char shadeColor[] = "#222222";
       constexpr double shadeOpacity = 0.3;
       constexpr Qt::CursorShape cursor = Qt::BlankCursor;
@@ -49,63 +60,117 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
-      constexpr int dblClickDuration = 300;
+
+      // -- device specific defaults
+      constexpr int inputSequenceInterval = 250;
     }
 
     namespace ranges {
       constexpr Settings::SettingRange<int> spotSize{ 5, 100 };
       constexpr Settings::SettingRange<int> dotSize{ 3, 100 };
+      constexpr Settings::SettingRange<double> dotOpacity{ 0.0, 1.0 };
       constexpr Settings::SettingRange<double> shadeOpacity{ 0.0, 1.0 };
       constexpr Settings::SettingRange<double> spotRotation{ 0.0, 360.0 };
       constexpr Settings::SettingRange<int> borderSize{ 0, 100 };
       constexpr Settings::SettingRange<double> borderOpacity{ 0.0, 1.0 };
       constexpr Settings::SettingRange<double> zoomFactor{ 1.5, 20.0 };
+
+      constexpr Settings::SettingRange<int> inputSequenceInterval{ 100, 950 };
     }
   }
 
+  // -----------------------------------------------------------------------------------------------
   bool toBool(const QString& value) {
     return (value.toLower() == "true" || value.toLower() == "on" || value.toInt() > 0);
   }
+
+  // -----------------------------------------------------------------------------------------------
+  #define SETTINGS_PRESET_PREFIX "Preset_"
+  QString presetSection(const QString& preset, bool withSeparator = true) {
+     return QString(SETTINGS_PRESET_PREFIX "%1%2").arg(preset).arg(withSeparator ? "/" : "");
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  QString settingsKey(const DeviceId& dId, const QString& key) {
+    return QString("Device_%1_%2/%3")
+      .arg(dId.vendorId, 4, 16, QChar('0'))
+      .arg(dId.productId, 4, 16, QChar('0'))
+      .arg(key);
+  }
+
+  // -------------------------------------------------------------------------------------------------
+  auto loadPresets(QSettings* settings)
+  {
+    std::vector<QString> presets;
+    for (const auto& group: settings->childGroups()) {
+      if (group.startsWith(SETTINGS_PRESET_PREFIX)) {
+        presets.emplace_back(group.mid(sizeof(SETTINGS_PRESET_PREFIX)-1));
+      }
+    }
+    std::sort(presets.begin(), presets.end());
+    return presets;
+  }
 } // end anonymous namespace
 
+
+// -------------------------------------------------------------------------------------------------
 Settings::Settings(QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(QCoreApplication::applicationName(),
                              QCoreApplication::applicationName(), this))
+  , m_presetModel(new PresetModel(loadPresets(m_settings), this))
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
 {
-  shapeSettingsInitialize();
-  load();
-  initializeStringProperties();
+  init();
 }
 
+// -------------------------------------------------------------------------------------------------
 Settings::Settings(const QString& configFile, QObject* parent)
   : QObject(parent)
   , m_settings(new QSettings(configFile, QSettings::NativeFormat, this))
+  , m_presetModel(new PresetModel(loadPresets(m_settings), this))
   , m_shapeSettingsRoot(new QQmlPropertyMap(this))
 {
-  shapeSettingsInitialize();
-  load();
-  initializeStringProperties();
+  init();
 }
 
+// -------------------------------------------------------------------------------------------------
 Settings::~Settings()
 {
 }
 
+// -------------------------------------------------------------------------------------------------
+void Settings::init()
+{
+  const QFileInfo fi(m_settings->fileName());
+
+  if (!fi.isReadable()) {
+    logError(lcSettings) << tr("Settings file '%1' not readable.").arg(m_settings->fileName());
+  }
+
+  if (!fi.isWritable()) {
+    logWarning(lcSettings) << tr("Settings file '%1' not writable.").arg(m_settings->fileName());
+  }
+
+  shapeSettingsInitialize();
+  load();
+  initializeStringProperties();
+}
+
+// -------------------------------------------------------------------------------------------------
 void Settings::initializeStringProperties()
 {
   auto& map = m_stringPropertyMap;
   // -- spot settings
-  map.push_back( {"spot.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "spot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::spotSize.min, ::settings::ranges::spotSize.max},
-                    [this](const QString& value){ setSpotSize(value.toInt()); } } } );
-  map.push_back( {"spot.rotation", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setSpotSize(value.toInt()); } } );
+  map.emplace_back( "spot.rotation", StringProperty{ StringProperty::Double,
                     {::settings::ranges::spotRotation.min, ::settings::ranges::spotRotation.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
+                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } );
   QVariantList shapesList;
   for (const auto& shape : spotShapes()) { shapesList.push_back(shape.name()); }
-  map.push_back( {"spot.shape", StringProperty{ StringProperty::StringEnum, shapesList,
+  map.emplace_back( "spot.shape", StringProperty{ StringProperty::StringEnum, shapesList,
     [this](const QString& value){
        for (const auto& shape : spotShapes()) {
          if (shape.name().toLower() == value.toLower()) {
@@ -114,7 +179,7 @@ void Settings::initializeStringProperties()
          }
        }
     }
-  } } );
+  } );
 
   for (const auto& shape : spotShapes())
   {
@@ -126,65 +191,72 @@ void Settings::initializeStringProperties()
 
       const auto stringProperty = QString("spot.shape.%1.%2").arg(shape.name().toLower())
                                                              .arg(shapeSetting.settingsKey().toLower());
-      map.push_back( {stringProperty, StringProperty{ StringProperty::Integer,
-                       {shapeSetting.minValue().toInt(), shapeSetting.maxValue().toInt()},
-                       [pm, shapeSetting](const QString& value) {
-                         const int newValue = qMin(qMax(shapeSetting.minValue().toInt(), value.toInt()),
-                                                   shapeSetting.maxValue().toInt());
-                         pm->setProperty(shapeSetting.settingsKey().toLocal8Bit(), newValue);
-                       }
-                     } } );
+      map.emplace_back( stringProperty, StringProperty{ StringProperty::Integer,
+                         {shapeSetting.minValue().toInt(), shapeSetting.maxValue().toInt()},
+                         [pm, shapeSetting](const QString& value) {
+                           const int newValue = qMin(qMax(shapeSetting.minValue().toInt(), value.toInt()),
+                                                     shapeSetting.maxValue().toInt());
+                           pm->setProperty(shapeSetting.settingsKey().toLocal8Bit(), newValue);
+                         } } );
     }
   }
 
   // --- shade
-  map.push_back( {"shade", StringProperty{ StringProperty::Bool, {false, true},
-                    [this](const QString& value){ setShowSpotShade(toBool(value)); } } } );
-  map.push_back( {"shade.opacity", StringProperty{ StringProperty::Double,
+  map.emplace_back( "shade", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowSpotShade(toBool(value)); } } );
+  map.emplace_back( "shade.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::shadeOpacity.min, ::settings::ranges::shadeOpacity.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
-  map.push_back( {"shade.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setShadeColor(QColor(value)); } } } );
+                    [this](const QString& value){ setShadeOpacity(value.toDouble()); } } );
+  map.emplace_back( "shade.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setShadeColor(QColor(value)); } } );
   // --- center dot
-  map.push_back( {"dot", StringProperty{ StringProperty::Bool, {false, true},
-                   [this](const QString& value){ setShowCenterDot(toBool(value)); } } } );
-  map.push_back( {"dot.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "dot", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowCenterDot(toBool(value)); } } );
+  map.emplace_back( "dot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::dotSize.min, ::settings::ranges::dotSize.max},
-                    [this](const QString& value){ setDotSize(value.toInt()); } } } );
-  map.push_back( {"dot.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setDotColor(QColor(value)); } } } );
+                    [this](const QString& value){ setDotSize(value.toInt()); } } );
+  map.emplace_back( "dot.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setDotColor(QColor(value)); } } );
+  map.emplace_back( "dot.opacity", StringProperty{ StringProperty::Double,
+                    {::settings::ranges::dotOpacity.min, ::settings::ranges::dotOpacity.max},
+                    [this](const QString& value){ setDotOpacity(value.toDouble()); } } );
   // --- border
-  map.push_back( {"border", StringProperty{ StringProperty::Bool, {false, true},
-                    [this](const QString& value){ setShowBorder(toBool(value)); } } } );
-  map.push_back( {"border.size", StringProperty{ StringProperty::Integer,
+  map.emplace_back( "border", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setShowBorder(toBool(value)); } } );
+  map.emplace_back( "border.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::borderSize.min, ::settings::ranges::borderSize.max},
-                    [this](const QString& value){ setBorderSize(value.toInt()); } } } );
-  map.push_back( {"border.color", StringProperty{ StringProperty::Color, {},
-                    [this](const QString& value){ setBorderColor(QColor(value)); } } });
-  map.push_back( {"border.opacity", StringProperty{ StringProperty::Double,
+                    [this](const QString& value){ setBorderSize(value.toInt()); } } );
+  map.emplace_back( "border.color", StringProperty{ StringProperty::Color, {},
+                    [this](const QString& value){ setBorderColor(QColor(value)); } } );
+  map.emplace_back( "border.opacity", StringProperty{ StringProperty::Double,
                     {::settings::ranges::borderOpacity.min, ::settings::ranges::borderOpacity.max},
-                    [this](const QString& value){ setSpotRotation(value.toDouble()); } } } );
+                    [this](const QString& value){ setBorderOpacity(value.toDouble()); } } );
   // --- zoom
-  map.push_back( {"zoom", StringProperty{ StringProperty::Bool, {false, true},
-                  [this](const QString& value){ setZoomEnabled(toBool(value)); } } } );
-  map.push_back( {"zoom.factor", StringProperty{ StringProperty::Double,
+  map.emplace_back( "zoom", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setZoomEnabled(toBool(value)); } } );
+  map.emplace_back( "zoom.factor", StringProperty{ StringProperty::Double,
                     {::settings::ranges::zoomFactor.min, ::settings::ranges::zoomFactor.max},
-                    [this](const QString& value){ setZoomFactor(value.toDouble()); } } } );
+                    [this](const QString& value){ setZoomFactor(value.toDouble()); } } );
 }
 
-const QList<QPair<QString, Settings::StringProperty>>& Settings::stringProperties() const
+// -------------------------------------------------------------------------------------------------
+const std::vector<std::pair<QString, Settings::StringProperty>>& Settings::stringProperties() const
 {
   return m_stringPropertyMap;
 }
 
+// -------------------------------------------------------------------------------------------------
 const Settings::SettingRange<int>& Settings::spotSizeRange() { return ::settings::ranges::spotSize; }
 const Settings::SettingRange<int>& Settings::dotSizeRange() { return ::settings::ranges::dotSize; }
+const Settings::SettingRange<double>& Settings::dotOpacityRange() { return settings::ranges::dotOpacity; }
 const Settings::SettingRange<double>& Settings::shadeOpacityRange() { return ::settings::ranges::shadeOpacity; }
 const Settings::SettingRange<double>& Settings::spotRotationRange() { return ::settings::ranges::spotRotation; }
 const Settings::SettingRange<int>& Settings::borderSizeRange() { return settings::ranges::borderSize; }
 const Settings::SettingRange<double>& Settings::borderOpacityRange() { return settings::ranges::borderOpacity; }
 const Settings::SettingRange<double>& Settings::zoomFactorRange() { return settings::ranges::zoomFactor; }
+const Settings::SettingRange<int>& Settings::inputSequenceIntervalRange() { return settings::ranges::inputSequenceInterval; }
 
+// -------------------------------------------------------------------------------------------------
 const QList<Settings::SpotShape>& Settings::spotShapes() const
 {
   static const QList<SpotShape> shapes{
@@ -199,6 +271,7 @@ const QList<Settings::SpotShape>& Settings::spotShapes() const
   return shapes;
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setDefaults()
 {
   setShowSpotShade(settings::defaultValue::showSpotShade);
@@ -206,6 +279,7 @@ void Settings::setDefaults()
   setShowCenterDot(settings::defaultValue::showCenterDot);
   setDotSize(settings::defaultValue::dotSize);
   setDotColor(QColor(settings::defaultValue::dotColor));
+  setDotOpacity(settings::defaultValue::dotOpacity);
   setShadeColor(QColor(settings::defaultValue::shadeColor));
   setShadeOpacity(settings::defaultValue::shadeOpacity);
   setCursor(settings::defaultValue::cursor);
@@ -217,10 +291,10 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
-  setDblClickDuration(settings::defaultValue::dblClickDuration);
   shapeSettingsSetDefaults();
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::shapeSettingsSetDefaults()
 {
   for (const auto& shape : spotShapes())
@@ -241,8 +315,11 @@ void Settings::shapeSettingsSetDefaults()
   shapeSettingsPopulateRoot();
 }
 
-void Settings::shapeSettingsLoad()
+// -------------------------------------------------------------------------------------------------
+void Settings::shapeSettingsLoad(const QString& preset)
 {
+  const auto section = preset.size() ? presetSection(preset) : "";
+
   for (const auto& shape : spotShapes())
   {
     for (const auto& settingDefinition : shape.shapeSettings())
@@ -250,7 +327,7 @@ void Settings::shapeSettingsLoad()
       if (auto propertyMap = shapeSettings(shape.name()))
       {
         const QString key = settingDefinition.settingsKey();
-        const QString settingsKey = QString("Shape.%1/%2").arg(shape.name()).arg(key);
+        const QString settingsKey = section + QString("Shape.%1/%2").arg(shape.name()).arg(key);
         const QVariant loadedValue = m_settings->value(settingsKey, settingDefinition.defaultValue());
 
         if (settingDefinition.defaultValue().type() == QVariant::Int // Currently only int shape settings supported
@@ -269,14 +346,35 @@ void Settings::shapeSettingsLoad()
   shapeSettingsPopulateRoot();
 }
 
+// -------------------------------------------------------------------------------------------------
+void Settings::shapeSettingsSavePreset(const QString& preset)
+{
+  const auto section = preset.size() ? presetSection(preset) : "";
+
+  for (const auto& shape : spotShapes())
+  {
+    for (const auto& settingDefinition : shape.shapeSettings())
+    {
+      if (auto propertyMap = shapeSettings(shape.name()))
+      {
+        const QString key = settingDefinition.settingsKey();
+        const QString settingsKey = section + QString("Shape.%1/%2").arg(shape.name()).arg(key);
+        m_settings->setValue(settingsKey, propertyMap->property(key.toLocal8Bit()));
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 void Settings::shapeSettingsInitialize()
 {
   for (const auto& shape : spotShapes())
   {
-    if (shape.shapeSettings().size() && !m_shapeSettings.contains(shape.name()))
+    if (shape.shapeSettings().size() && m_shapeSettings.count(shape.name()) == 0)
     {
       auto pm = new QQmlPropertyMap(this);
-      connect(pm, &QQmlPropertyMap::valueChanged, [this, shape, pm](const QString& key, const QVariant& value)
+      connect(pm, &QQmlPropertyMap::valueChanged, this,
+      [this, shape, pm](const QString& key, const QVariant& value)
       {
         const auto& s = shape.shapeSettings();
         auto it = std::find_if(s.cbegin(), s.cend(), [&key](const SpotShapeSetting& sss) {
@@ -300,35 +398,97 @@ void Settings::shapeSettingsInitialize()
           }
         }
       });
-      m_shapeSettings.insert(shape.name(), pm);
+      m_shapeSettings.emplace(shape.name(), pm);
     }
   }
   shapeSettingsPopulateRoot();
 }
 
-void Settings::load()
+// -------------------------------------------------------------------------------------------------
+void Settings::loadPreset(const QString& preset)
 {
-  logDebug(lcSettings) << tr("Loading values from config:") << m_settings->fileName();
-  setShowSpotShade(m_settings->value(::settings::showSpotShade, settings::defaultValue::showSpotShade).toBool());
-  setSpotSize(m_settings->value(::settings::spotSize, settings::defaultValue::spotSize).toInt());
-  setShowCenterDot(m_settings->value(::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
-  setDotSize(m_settings->value(::settings::dotSize, settings::defaultValue::dotSize).toInt());
-  setDotColor(m_settings->value(::settings::dotColor, QColor(settings::defaultValue::dotColor)).value<QColor>());
-  setShadeColor(m_settings->value(::settings::shadeColor, QColor(settings::defaultValue::shadeColor)).value<QColor>());
-  setShadeOpacity(m_settings->value(::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
-  setCursor(static_cast<Qt::CursorShape>(m_settings->value(::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
-  setSpotShape(m_settings->value(::settings::spotShape, settings::defaultValue::spotShape).toString());
-  setSpotRotation(m_settings->value(::settings::spotRotation, settings::defaultValue::spotRotation).toDouble());
-  setShowBorder(m_settings->value(::settings::showBorder, settings::defaultValue::showBorder).toBool());
-  setBorderColor(m_settings->value(::settings::borderColor, QColor(settings::defaultValue::borderColor)).value<QColor>());
-  setBorderSize(m_settings->value(::settings::borderSize, settings::defaultValue::borderSize).toInt());
-  setBorderOpacity(m_settings->value(::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
-  setZoomEnabled(m_settings->value(::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
-  setZoomFactor(m_settings->value(::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
-  setDblClickDuration(m_settings->value(::settings::dblClickDuration, settings::defaultValue::dblClickDuration).toInt());
-  shapeSettingsLoad();
+  if (m_presetModel->hasPreset(preset))
+  {
+    load(preset);
+    emit presetLoaded(preset);
+  }
 }
 
+// -------------------------------------------------------------------------------------------------
+void Settings::removePreset(const QString& preset)
+{
+  m_presetModel->removePreset(preset);
+  m_settings->remove(presetSection(preset, false));
+}
+
+// -------------------------------------------------------------------------------------------------
+const std::vector<QString>& Settings::presets() const
+{
+  return m_presetModel->presets();
+}
+
+// -------------------------------------------------------------------------------------------------
+PresetModel* Settings::presetModel()
+{
+  return m_presetModel;
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::load(const QString& preset)
+{
+  logDebug(lcSettings) << tr("Loading values from config:") << m_settings->fileName()
+                       << (preset.size() ? QString("(%1)").arg(preset) : "");
+
+  const auto s = preset.size() ? presetSection(preset) : "";
+  setShowSpotShade(m_settings->value(s+::settings::showSpotShade, settings::defaultValue::showSpotShade).toBool());
+  setSpotSize(m_settings->value(s+::settings::spotSize, settings::defaultValue::spotSize).toInt());
+  setShowCenterDot(m_settings->value(s+::settings::showCenterDot, settings::defaultValue::showCenterDot).toBool());
+  setDotSize(m_settings->value(s+::settings::dotSize, settings::defaultValue::dotSize).toInt());
+  setDotColor(m_settings->value(s+::settings::dotColor, QColor(settings::defaultValue::dotColor)).value<QColor>());
+  setDotOpacity(m_settings->value(s+::settings::dotOpacity, settings::defaultValue::dotOpacity).toDouble());
+  setShadeColor(m_settings->value(s+::settings::shadeColor, QColor(settings::defaultValue::shadeColor)).value<QColor>());
+  setShadeOpacity(m_settings->value(s+::settings::shadeOpacity, settings::defaultValue::shadeOpacity).toDouble());
+  setCursor(static_cast<Qt::CursorShape>(m_settings->value(s+::settings::cursor, static_cast<int>(settings::defaultValue::cursor)).toInt()));
+  setSpotShape(m_settings->value(s+::settings::spotShape, settings::defaultValue::spotShape).toString());
+  setSpotRotation(m_settings->value(s+::settings::spotRotation, settings::defaultValue::spotRotation).toDouble());
+  setShowBorder(m_settings->value(s+::settings::showBorder, settings::defaultValue::showBorder).toBool());
+  setBorderColor(m_settings->value(s+::settings::borderColor, QColor(settings::defaultValue::borderColor)).value<QColor>());
+  setBorderSize(m_settings->value(s+::settings::borderSize, settings::defaultValue::borderSize).toInt());
+  setBorderOpacity(m_settings->value(s+::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
+  setZoomEnabled(m_settings->value(s+::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
+  setZoomFactor(m_settings->value(s+::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
+  shapeSettingsLoad(preset);
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::savePreset(const QString& preset)
+{
+  const auto section = presetSection(preset);
+
+  m_settings->setValue(section+::settings::showSpotShade, m_showSpotShade);
+  m_settings->setValue(section+::settings::spotSize, m_spotSize);
+  m_settings->setValue(section+::settings::showCenterDot, m_showCenterDot);
+  m_settings->setValue(section+::settings::dotSize, m_dotSize);
+  m_settings->setValue(section+::settings::dotColor, m_dotColor);
+  m_settings->setValue(section+::settings::dotOpacity, m_dotOpacity);
+  m_settings->setValue(section+::settings::shadeColor, m_shadeColor);
+  m_settings->setValue(section+::settings::shadeOpacity, m_shadeOpacity);
+  m_settings->setValue(section+::settings::cursor, static_cast<int>(m_cursor));
+  m_settings->setValue(section+::settings::spotShape, m_spotShape);
+  m_settings->setValue(section+::settings::spotRotation, m_spotRotation);
+  m_settings->setValue(section+::settings::showBorder, m_showBorder);
+  m_settings->setValue(section+::settings::borderColor, m_borderColor);
+  m_settings->setValue(section+::settings::borderSize, m_borderSize);
+  m_settings->setValue(section+::settings::borderOpacity, m_borderOpacity);
+  m_settings->setValue(section+::settings::zoomEnabled, m_zoomEnabled);
+  m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
+  shapeSettingsSavePreset(preset);
+
+  m_presetModel->addPreset(preset);
+  emit presetLoaded(preset);
+}
+
+// -------------------------------------------------------------------------------------------------
 void Settings::setShowSpotShade(bool show)
 {
   if (show == m_showSpotShade)
@@ -340,6 +500,7 @@ void Settings::setShowSpotShade(bool show)
   emit showSpotShadeChanged(m_showSpotShade);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setSpotSize(int size)
 {
   if (size == m_spotSize)
@@ -351,6 +512,7 @@ void Settings::setSpotSize(int size)
   emit spotSizeChanged(m_spotSize);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setShowCenterDot(bool show)
 {
   if (show == m_showCenterDot)
@@ -362,6 +524,7 @@ void Settings::setShowCenterDot(bool show)
   emit showCenterDotChanged(m_showCenterDot);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setDotSize(int size)
 {
   if (size == m_dotSize)
@@ -373,6 +536,7 @@ void Settings::setDotSize(int size)
   emit dotSizeChanged(m_dotSize);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setDotColor(const QColor& color)
 {
   if (color == m_dotColor)
@@ -384,6 +548,19 @@ void Settings::setDotColor(const QColor& color)
   emit dotColorChanged(m_dotColor);
 }
 
+// -------------------------------------------------------------------------------------------------
+void Settings::setDotOpacity(double opacity)
+{
+  if (opacity > m_dotOpacity || opacity < m_dotOpacity)
+  {
+    m_dotOpacity = qMin(qMax(::settings::ranges::dotOpacity.min, opacity), ::settings::ranges::dotOpacity.max);
+    m_settings->setValue(::settings::dotOpacity, m_dotOpacity);
+    logDebug(lcSettings) << "dot.opacity = " << m_dotOpacity;
+    emit dotOpacityChanged(m_dotOpacity);
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 void Settings::setShadeColor(const QColor& color)
 {
   if (color == m_shadeColor)
@@ -395,6 +572,7 @@ void Settings::setShadeColor(const QColor& color)
   emit shadeColorChanged(m_shadeColor);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setShadeOpacity(double opacity)
 {
   if (opacity > m_shadeOpacity || opacity < m_shadeOpacity)
@@ -406,6 +584,7 @@ void Settings::setShadeOpacity(double opacity)
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setScreen(int screen)
 {
   if (screen == m_screen)
@@ -416,6 +595,7 @@ void Settings::setScreen(int screen)
   emit screenChanged(m_screen);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setCursor(Qt::CursorShape cursor)
 {
   if (cursor == m_cursor)
@@ -427,6 +607,7 @@ void Settings::setCursor(Qt::CursorShape cursor)
   emit cursorChanged(m_cursor);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setSpotShape(const QString& spotShapeQmlComponent)
 {
   if (m_spotShape == spotShapeQmlComponent)
@@ -446,6 +627,7 @@ void Settings::setSpotShape(const QString& spotShapeQmlComponent)
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setSpotRotation(double rotation)
 {
   if (rotation > m_spotRotation || rotation < m_spotRotation)
@@ -457,37 +639,42 @@ void Settings::setSpotRotation(double rotation)
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 QObject* Settings::shapeSettingsRootObject()
 {
   return m_shapeSettingsRoot;
 }
 
+// -------------------------------------------------------------------------------------------------
 QQmlPropertyMap* Settings::shapeSettings(const QString &shapeName)
 {
   const auto it = m_shapeSettings.find(shapeName);
   if (it != m_shapeSettings.cend()) {
-    return it.value();
+    return it->second;
   }
   return nullptr;
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::shapeSettingsPopulateRoot()
 {
-  for (auto it = m_shapeSettings.cbegin(), end = m_shapeSettings.cend(); it != end; ++it)
+  for (const auto& item : m_shapeSettings)
   {
-    if (m_shapeSettingsRoot->property(it.key().toLocal8Bit()).isValid()) {
-      m_shapeSettingsRoot->setProperty(it.key().toLocal8Bit(), QVariant::fromValue(it.value()));
+    if (m_shapeSettingsRoot->property(item.first.toLocal8Bit()).isValid()) {
+      m_shapeSettingsRoot->setProperty(item.first.toLocal8Bit(), QVariant::fromValue(item.second));
     } else {
-      m_shapeSettingsRoot->insert(it.key(), QVariant::fromValue(it.value()));
+      m_shapeSettingsRoot->insert(item.first, QVariant::fromValue(item.second));
     }
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 bool Settings::spotRotationAllowed() const
 {
   return m_spotRotationAllowed;
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setSpotRotationAllowed(bool allowed)
 {
   if (allowed == m_spotRotationAllowed)
@@ -497,6 +684,7 @@ void Settings::setSpotRotationAllowed(bool allowed)
   emit spotRotationAllowedChanged(allowed);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setShowBorder(bool show)
 {
   if (show == m_showBorder)
@@ -508,6 +696,7 @@ void Settings::setShowBorder(bool show)
   emit showBorderChanged(m_showBorder);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setBorderColor(const QColor& color)
 {
   if (color == m_borderColor)
@@ -519,6 +708,7 @@ void Settings::setBorderColor(const QColor& color)
   emit borderColorChanged(m_borderColor);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setBorderSize(int size)
 {
   if (size == m_borderSize)
@@ -530,6 +720,7 @@ void Settings::setBorderSize(int size)
   emit borderSizeChanged(m_borderSize);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setBorderOpacity(double opacity)
 {
   if (opacity > m_borderOpacity || opacity < m_borderOpacity)
@@ -541,6 +732,7 @@ void Settings::setBorderOpacity(double opacity)
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setZoomEnabled(bool enabled)
 {
   if (enabled == m_zoomEnabled)
@@ -552,6 +744,7 @@ void Settings::setZoomEnabled(bool enabled)
   emit zoomEnabledChanged(m_zoomEnabled);
 }
 
+// -------------------------------------------------------------------------------------------------
 void Settings::setZoomFactor(double factor)
 {
   if (factor > m_zoomFactor || factor < m_zoomFactor)
@@ -563,17 +756,15 @@ void Settings::setZoomFactor(double factor)
   }
 }
 
-void Settings::setDblClickDuration(int duration)
+// -------------------------------------------------------------------------------------------------
+void Settings::setOverlayDisabled(bool disabled)
 {
-  // duration in millisecond
-  if (m_dblClickDuration == duration)
-    return;
-
-  m_dblClickDuration = duration;
-  m_settings->setValue(::settings::dblClickDuration, m_dblClickDuration);
-  emit dblClickDurationChanged(m_dblClickDuration);
+  if (m_overlayDisabled == disabled) return;
+  m_overlayDisabled = disabled;
+  emit overlayDisabledChanged(m_overlayDisabled);
 }
 
+// -------------------------------------------------------------------------------------------------
 QString Settings::StringProperty::typeToString(Type type)
 {
   switch(type) {
@@ -585,3 +776,145 @@ QString Settings::StringProperty::typeToString(Type type)
   }
   return QString();
 }
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setDeviceInputSeqInterval(const DeviceId& dId, int intervalMs)
+{
+  const auto v = qMin(qMax(::settings::ranges::inputSequenceInterval.min, intervalMs),
+                           ::settings::ranges::inputSequenceInterval.max);
+  m_settings->setValue(settingsKey(dId, ::settings::inputSequenceInterval), v);
+}
+
+// -------------------------------------------------------------------------------------------------
+int Settings::deviceInputSeqInterval(const DeviceId& dId) const
+{
+  const auto value = m_settings->value(settingsKey(dId, ::settings::inputSequenceInterval),
+                                       ::settings::defaultValue::inputSequenceInterval).toInt();
+  return qMin(qMax(::settings::ranges::inputSequenceInterval.min, value),
+                   ::settings::ranges::inputSequenceInterval.max);
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc)
+{
+  const int sizeBefore = m_settings->value(settingsKey(dId, ::settings::inputMapConfig)
+                                           + "/size", 0).toInt();
+  m_settings->beginWriteArray(settingsKey(dId, ::settings::inputMapConfig), imc.size());
+  int index = 0;
+  for (const auto& item : imc)
+  {
+    m_settings->setArrayIndex(index++);
+    m_settings->setValue("deviceSequence", QVariant::fromValue(item.first));
+    m_settings->setValue("mappedAction", QVariant::fromValue(item.second));
+  }
+  m_settings->endArray();
+
+  // Remove old entries...
+  m_settings->beginGroup(settingsKey(dId, ::settings::inputMapConfig));
+  for (; index < sizeBefore; ++index) {
+    m_settings->remove(QString::number(index+1));
+  }
+  m_settings->endGroup();
+}
+
+// -------------------------------------------------------------------------------------------------
+InputMapConfig Settings::getDeviceInputMapConfig(const DeviceId& dId)
+{
+  InputMapConfig cfg;
+
+  const int size = m_settings->beginReadArray(settingsKey(dId, ::settings::inputMapConfig));
+  for (int i = 0; i < size; ++i)
+  {
+    m_settings->setArrayIndex(i);
+    const auto seq = m_settings->value("deviceSequence");
+    if (!seq.canConvert<KeyEventSequence>()) continue;
+    const auto conf = m_settings->value("mappedAction");
+    if (!conf.canConvert<MappedAction>()) continue;
+    cfg.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedAction>(conf));
+  }
+  m_settings->endArray();
+
+  return cfg;
+}
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+PresetModel::PresetModel(QObject* parent)
+  : PresetModel({}, parent)
+{}
+
+// -------------------------------------------------------------------------------------------------
+PresetModel::PresetModel(std::vector<QString>&& presets, QObject* parent)
+  : QAbstractListModel(parent)
+  , m_presets(std::move(presets))
+{
+  std::sort(m_presets.begin(), m_presets.end());
+}
+
+// -------------------------------------------------------------------------------------------------
+int PresetModel::rowCount(const QModelIndex& parent) const
+{
+  return (parent == QModelIndex()) ? m_presets.size() + 1 : 0;
+}
+
+// -------------------------------------------------------------------------------------------------
+QVariant PresetModel::data(const QModelIndex& index, int role) const
+{
+  if (index.row() > static_cast<int>(m_presets.size()))
+    return QVariant();
+
+  if (role == Qt::DisplayRole)
+  {
+    if (index.row() == 0) {
+      return tr("Current Settings");
+    }
+    else {
+      return m_presets[index.row()-1];
+    }
+  }
+  else if (role == Qt::FontRole && index.row() == 0)
+  {
+    QFont f;
+    f.setItalic(true);
+    return f;
+  }
+  else if (role == Qt::ForegroundRole && index.row() == 0) {
+    return QColor(QGuiApplication::palette().color(QPalette::Disabled, QPalette::Text));
+  }
+
+  return QVariant();
+}
+
+// -------------------------------------------------------------------------------------------------
+void PresetModel::addPreset(const QString& preset)
+{
+  const auto lb = std::lower_bound(m_presets.begin(), m_presets.end(), preset);
+  if (lb != m_presets.end() && *lb == preset) return; // Already exists
+
+  const auto insertRow = std::distance(m_presets.begin(), lb) + 1;
+  beginInsertRows(QModelIndex(), insertRow, insertRow);
+  m_presets.emplace(lb, preset);
+  endInsertRows();
+}
+
+// -------------------------------------------------------------------------------------------------
+bool PresetModel::hasPreset(const QString& preset) const
+{
+  return (std::find(m_presets.cbegin(), m_presets.cend(), preset) != m_presets.cend());
+}
+
+// -------------------------------------------------------------------------------------------------
+void PresetModel::removePreset(const QString& preset)
+{
+  const auto r = std::equal_range(m_presets.begin(), m_presets.end(), preset);
+  const auto count = std::distance(r.first, r.second);
+  if (count == 0) return;
+
+  const auto startRow = std::distance(m_presets.begin(), r.first) + 1;
+
+  beginRemoveRows(QModelIndex(), startRow, startRow + count - 1);
+  m_presets.erase(r.first, r.second);
+  endRemoveRows();
+}
+
+
