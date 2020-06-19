@@ -99,14 +99,14 @@ target_compile_definitions(projecteur PRIVATE
 
 # Set version project properties for builds not from a git repository (e.g. created with git archive)
 # If creating the version number via git information fails, the following target properties
-# will be used. IMPORTANT - when creating a release tag with git flow: 
+# will be used. IMPORTANT - when creating a release tag with git flow:
 #  Update this information - the version numbers and the version type.
 #  VERSION_TYPE must be either 'release' or 'develop'
-set_target_properties(projecteur PROPERTIES 
+set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
   VERSION_MINOR 8
   VERSION_PATCH 0
-  VERSION_TYPE develop
+  VERSION_TYPE release
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -124,7 +124,7 @@ add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directo
 add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
-add_custom_target(non-sources SOURCES README.md LICENSE.md devices.conf
+add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devices.conf
                                       src/extra-devices.cc.in 55-projecteur.rules.in
                                       cmake/templates/Projecteur.desktop.in)
 
@@ -216,7 +216,7 @@ add_source_archive_target(projecteur)
 
 # Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
 add_dist_package_target(
-  PROJECT "${CMAKE_PROJECT_NAME}" 
+  PROJECT "${CMAKE_PROJECT_NAME}"
   TARGET projecteur
   DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
   DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
