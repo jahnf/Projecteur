@@ -201,6 +201,9 @@ void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type
   case Action::Type::CyclePresets:
     item.action = std::make_shared<CyclePresetsAction>();
     break;
+  case Action::Type::ToggleSpotlight:
+    item.action = std::make_shared<ToggleSpotlightAction>();
+    break;
   }
 
   configureInputMapper();

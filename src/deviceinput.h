@@ -138,7 +138,12 @@ Q_DECLARE_METATYPE(NativeKeySequence)
 // -------------------------------------------------------------------------------------------------
 struct Action
 {
-  enum class Type { KeySequence = 1, CyclePresets = 2 };
+  enum class Type {
+    KeySequence = 1,
+    CyclePresets = 2,
+    ToggleSpotlight = 3,
+  };
+
   virtual Type type() const = 0;
   virtual QDataStream& save(QDataStream&) const = 0;
   virtual QDataStream& load(QDataStream&) = 0;
@@ -163,11 +168,22 @@ struct KeySequenceAction : public Action
 struct CyclePresetsAction : public Action
 {
   Type type() const override { return Type::CyclePresets; }
-  QDataStream& save(QDataStream& s) const override { return s << customSelection; }
-  QDataStream& load(QDataStream& s) override { return s >> customSelection; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
   bool operator==(const CyclePresetsAction&) const { return true; }
-  bool customSelection = false;
+  bool placeholder = false;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct ToggleSpotlightAction : public Action
+{
+  Type type() const override { return Type::ToggleSpotlight; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const ToggleSpotlightAction&) const { return true; }
+  bool placeholder = false;
 };
 
 // -------------------------------------------------------------------------------------------------

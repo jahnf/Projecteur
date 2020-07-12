@@ -54,6 +54,22 @@ namespace  {
       return QSize(100,16);
     }
   }
+
+  namespace togglespotlight {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const ToggleSpotlightAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Toggle Spotlight"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ToggleSpotlightAction* /*action*/)
+    {
+      return QSize(100,16);
+    }
+  }
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -77,6 +93,9 @@ void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option
   case Action::Type::CyclePresets:
     cyclepresets::paint(painter, option, static_cast<CyclePresetsAction*>(item.action.get()));
     break;
+  case Action::Type::ToggleSpotlight:
+    togglespotlight::paint(painter, option, static_cast<ToggleSpotlightAction*>(item.action.get()));
+    break;
   }
 
   if (option.state & QStyle::State_HasFocus) {
@@ -98,6 +117,8 @@ QSize ActionDelegate::sizeHint(const QStyleOptionViewItem& opt, const QModelInde
     return keysequence::sizeHint(opt, static_cast<KeySequenceAction*>(item.action.get()));
   case Action::Type::CyclePresets:
     return cyclepresets::sizeHint(opt, static_cast<CyclePresetsAction*>(item.action.get()));
+  case Action::Type::ToggleSpotlight:
+    return togglespotlight::sizeHint(opt, static_cast<ToggleSpotlightAction*>(item.action.get()));
   }
 
   return QStyledItemDelegate::sizeHint(opt, index);
@@ -113,8 +134,9 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const Action* action) con
     connect(editor, &NativeKeySeqEdit::editingFinished, this, &ActionDelegate::commitAndCloseEditor);
     return editor;
   }
-  case Action::Type::CyclePresets:
-    // None for now...
+  case Action::Type::CyclePresets: // None for now...
+    break;
+  case Action::Type::ToggleSpotlight: // None for now...
     break;
   }
   return nullptr;
@@ -233,6 +255,7 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     switch(item.action->type()) {
     case Action::Type::KeySequence: return Font::Icon::keyboard_4;
     case Action::Type::CyclePresets: return Font::Icon::connection_8;
+    case Action::Type::ToggleSpotlight: return Font::Icon::power_on_off_11;
     }
     return 0;
   }();
@@ -263,6 +286,7 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   static std::vector<actionEntry> items {
     {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence")},
     {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets")},
+    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toogle Spotlight")},
   };
 
   static bool initIcons = []()
