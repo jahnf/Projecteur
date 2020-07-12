@@ -149,6 +149,10 @@ int Spotlight::connectDevices()
               m_settings->loadPreset(lastPreset);
             }
           }
+          else if (action->type() == Action::Type::ToggleSpotlight)
+          {
+            m_settings->setOverlayDisabled(!m_settings->overlayDisabled());
+          }
         });
 
         connect(m_settings, &Settings::presetLoaded, this, [](const QString& preset){

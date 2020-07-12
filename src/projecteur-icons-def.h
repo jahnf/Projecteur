@@ -19,6 +19,7 @@ namespace Font
     keyboard_14 = 0xf10e, // svg/iconmonstr-keyboard-14.svg
     keyboard_4 = 0xf10f, // svg/iconmonstr-keyboard-4.svg
     plus_5 = 0xf107, // svg/iconmonstr-plus-5.svg
+    power_on_off_11 = 0xf115, // svg/iconmonstr-power-on-off-11.svg
     share_8 = 0xf108, // svg/iconmonstr-share-8.svg
     target_8 = 0xf110, // svg/iconmonstr-target-8.svg
     time_19 = 0xf109, // svg/iconmonstr-time-19.svg

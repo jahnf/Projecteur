@@ -104,9 +104,9 @@ QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
   case Action::Type::CyclePresets:
     mia.action = std::make_shared<CyclePresetsAction>();
     return mia.action->load(s);
-  default:
-    mia.action.reset();
-    break;
+  case Action::Type::ToggleSpotlight:
+    mia.action = std::make_shared<ToggleSpotlightAction>();
+    return mia.action->load(s);
   }
   return s;
 }
@@ -125,6 +125,9 @@ bool MappedAction::operator==(const MappedAction& o) const
   case Action::Type::CyclePresets:
     return (*static_cast<CyclePresetsAction*>(action.get()))
            == (*static_cast<CyclePresetsAction*>(o.action.get()));
+  case Action::Type::ToggleSpotlight:
+    return (*static_cast<ToggleSpotlightAction*>(action.get()))
+           == (*static_cast<ToggleSpotlightAction*>(o.action.get()));
   }
 
   return false;

@@ -11,6 +11,7 @@
 
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QCheckBox>
 #include <QDateTime>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -81,6 +82,10 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
   tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
+  const auto overlayCheckBox = new QCheckBox(this);
+  overlayCheckBox->setChecked(!settings->overlayDisabled());
+  tabWidget->tabBar()->setTabButton(0, QTabBar::ButtonPosition::LeftSide, overlayCheckBox);
+
   const auto btnHBox = new QHBoxLayout;
   btnHBox->addWidget(m_exitBtn);
   btnHBox->addStretch(1);
@@ -90,7 +95,14 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
   mainVBox->addWidget(tabWidget);
   mainVBox->addLayout(btnHBox);
 
-  connect(settings, &Settings::overlayDisabledChanged, this, [settingsWidget](bool disabled){
+  connect(overlayCheckBox, &QCheckBox::toggled, this, [settings](bool checked){
+    settings->setOverlayDisabled(!checked);
+
+  });
+
+  connect(settings, &Settings::overlayDisabledChanged, this,
+  [overlayCheckBox, settingsWidget](bool disabled){
+    overlayCheckBox->setChecked(!disabled);
     settingsWidget->setDisabled(disabled);
   });
 }
