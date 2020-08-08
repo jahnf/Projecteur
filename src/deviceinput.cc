@@ -679,7 +679,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   }
 
   if (input_events[num-1].type != EV_SYN) {
-    logWarning(input) << tr("Input mapper expects events seperated by SYN event.");
+    logWarning(input) << tr("Input mapper expects events separated by SYN event.");
     return;
   } else if (num == 1) {
     logWarning(input) << tr("Ignoring single SYN event received.");
