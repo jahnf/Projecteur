@@ -60,6 +60,9 @@ namespace {
       Contributor("Louie Lu", "mlouielu"),
       Contributor("fmuelle4711", "fmuelle4711"),
       Contributor("Deniz Bahadir", "Bagira80"),
+      Contributor("Tomáš Chvátal", "scarabeusiv"),
+      Contributor("Brandon Johnson", "dbrandonjohnson"),
+      Contributor("Stuart Prescott", "llimeht"),
     };
 
     static std::random_device rd;
