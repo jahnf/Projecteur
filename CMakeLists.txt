@@ -204,6 +204,7 @@ install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/256x256/
 # Set variables for file configurations
 get_target_property(VERSION_STRING projecteur VERSION_STRING)
 get_target_property(VERSION_DATE_MONTH_YEAR projecteur VERSION_DATE_MONTH_YEAR)
+set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
 configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
 install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
@@ -211,10 +212,11 @@ install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
 configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
 install(FILES "${OUTDIR}/projecteur.1" DESTINATION share/man/man1/)
 
+configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
+install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
+
 configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
 configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
-
-set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
 # --- Linux packaging ---
 include(LinuxPackaging)

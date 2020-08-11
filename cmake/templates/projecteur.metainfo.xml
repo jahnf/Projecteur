@@ -5,7 +5,7 @@
     <project_license>Expat</project_license>
     <name>Projecteur</name>
     <summary>Virtual pointer for the Logitech Spotlight device</summary>
-    <url type="homepage">https://github.com/jahnf/Projecteur/</url>
+    <url type="homepage">@HOMEPAGE@</url>
     <description>
         <p>
             Projecteur is a virtual laser pointer for use with inertial
