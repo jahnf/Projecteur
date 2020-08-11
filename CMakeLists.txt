@@ -209,8 +209,16 @@ set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
 install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
 
+# Configure man page and gzip it.
 configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
-install(FILES "${OUTDIR}/projecteur.1" DESTINATION share/man/man1/)
+find_program(GZIP_EXECUTABLE gzip)
+add_custom_command(
+  OUTPUT ${OUTDIR}/projecteur.1.gz
+  COMMAND ${GZIP_EXECUTABLE} -9f "${OUTDIR}/projecteur.1"
+  WORKING_DIRECTORY ${OUTDIR}
+)
+add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
+install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
 
 configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
 install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
