@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+    <id>projecteur</id>
+    <metadata_license>Expat</metadata_license>
+    <project_license>Expat</project_license>
+    <name>Projecteur</name>
+    <summary>Virtual pointer for the Logitech Spotlight device</summary>
+    <url type="homepage">https://github.com/jahnf/Projecteur/</url>
+    <description>
+        <p>
+            Projecteur is a virtual laser pointer for use with inertial
+            pointers such as the Logitech Spotlight. Projecteur can show
+            a colored dot, a highlighted circle or a zoom effect to act
+            as a pointer. The location of the pointer moves in response
+            to moving the handheld pointer device. The effect is much
+            like that of a traditional laser pointer, except that it is
+            captured by recording software and works across multiple screens.
+        </p>
+    </description>
+    <provides>
+        <modalias>usb:v046DpC53Ed*</modalias>
+    </provides>
+    <screenshots>
+        <screenshot type="default">
+            <caption>Highlight virtual pointer effect</caption>
+            <image type="source" width="867" height="775">https://raw.githubusercontent.com/jahnf/Projecteur/develop/doc/screenshot-spot.png</image>
+        </screenshot>
+    </screenshots>
+    <categories>
+        <category>AudioVideo</category>
+        <category>Audio</category>
+        <category>Midi</category>
+        <category>Sequencer</category>
+    </categories>
+</component>

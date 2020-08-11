@@ -1,0 +1,55 @@
+.TH PROJECTEUR "1" "February 2020" "Projecteur 0.7" "User Commands"
+.SH NAME
+Projecteur \- virtual laser pointer for presentations
+.SH SYNOPSIS
+.B projecteur
+[\fI\,option\/\fR]
+.SH DESCRIPTION
+Projecteur provides a virtual laser pointer on the screen for use when giving
+presentations. The laser pointer can be controlled using a Logitech Spotlight
+or similar device. Projecteur supports a "laser pointer" like effect that is
+a colored dot on the screen, a "highlight" effect that dims the image except
+in the highlighted region, and a "zoom" effect that enlarges part of the
+display.
+.PP
+Projecteur can be configured with a dialog box activated from the system
+tray in a supported desktop environment.
+.PP
+.SH Options
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Show command line usage.
+.TP
+\fB\-\-help\-all\fR
+Show complete command line usage with all properties.
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+Print application version.
+.TP
+\fB\-\-cfg\fR \fIFILE\fR
+Set custom config file.
+.TP
+\fB\-d\fR, \fB\-\-device\-scan\fR
+Print device\-scan results.
+.TP
+\fB\-l\fR, \fB\-\-log\-level\fR \fILEVEL\fR
+Set log level (dbg,inf,wrn,err).
+.TP
+\fB\-D\fR \fIDEVICE\fR
+Additional accepted device; DEVICE = vendorId:productId
+e.g., \fB\-D\fR 04b3:310c; e.g. \fB\-D\fR 0x0c45:0x8101
+.TP
+\fB\-c\fR \fICOMMAND\fR|\fIPROPERTY\fR
+Send command/property to a running instance. See \fBCommands\fP for
+details.
+.PP
+.SH Commands
+.TP
+spot=[on|off]
+Turn spotlight on/off.
+.TP
+settings=[show|hide]
+Show/hide preferences dialog.
+.TP
+quit
+Quit the running instance.
