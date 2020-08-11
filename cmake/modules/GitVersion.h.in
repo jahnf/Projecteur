@@ -1,5 +1,4 @@
-#ifndef @TARGET@_GITVERSION_H
-#define @TARGET@_GITVERSION_H
+#pragma once
 
 namespace @TARGET@ {
   const char* version_string();
@@ -13,5 +12,3 @@ namespace @TARGET@ {
   bool version_isdirty();
   const char* version_branch();
 }
-
-#endif
