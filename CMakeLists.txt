@@ -196,13 +196,20 @@ set_property(TARGET projecteur APPEND PROPERTY SOURCES "${CMAKE_CURRENT_BINARY_D
 configure_file("55-projecteur.rules.in" "55-projecteur.rules" @ONLY)
 install(FILES "${OUTDIR}/55-projecteur.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
 
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+
+# Set variables for file configurations
+get_target_property(VERSION_STRING projecteur VERSION_STRING)
+get_target_property(VERSION_DATE_MONTH_YEAR projecteur VERSION_DATE_MONTH_YEAR)
 
 configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
-install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION /usr/share/applications/)
+install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
+
+configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
+install(FILES "${OUTDIR}/projecteur.1" DESTINATION share/man/man1/)
 
 configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
 configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
