@@ -57,10 +57,11 @@ function(get_version_info prefix directory)
   set(${prefix}_VERSION_PATCH 0)
   set(${prefix}_VERSION_BRANCH unknown)
   set(${prefix}_VERSION_FLAG unknown)
+  set(${prefix}_VERSION_DISTANCE 0)
   set(${prefix}_VERSION_DISTANCE 0 PARENT_SCOPE)
   set(${prefix}_VERSION_STRING 0.0.0-unknown)
   set(${prefix}_VERSION_ISDIRTY 0 PARENT_SCOPE)
-  set(${prefix}_VERSION_DATE_MONTH_YEAR "Unknown date" PARENT_SCOPE)
+  set(${prefix}_VERSION_DATE_MONTH_YEAR "" PARENT_SCOPE)
 
   if("${${prefix}_OR_VERSION_MAJOR}" STREQUAL "")
     set(${prefix}_OR_VERSION_MAJOR 0)
@@ -383,8 +384,7 @@ function(add_version_info_custom_prefix target prefix directory)
          set(${prefix}_VERSION_SHORTHASH "${GIT_EXPORT_VERSION_SHORTHASH}")
          set(${prefix}_VERSION_FULLHASH "${GIT_EXPORT_VERSION_FULLHASH}")
          set(${prefix}_VERSION_BRANCH "${GIT_EXPORT_VERSION_BRANCH}")
-         set(${prefix}_VERSION_DISTANCE 0)
-         set(${prefix}_VERSION_VERSION_DATE_MONTH_YEAR "${GIT_EXPORT_VERSION_DATE_MONTH_YEAR}")
+         set(${prefix}_VERSION_DATE_MONTH_YEAR "${GIT_EXPORT_VERSION_DATE_MONTH_YEAR}")
          if("${${prefix}_VERSION_BRANCH}" MATCHES ".*[ \t]+[->]+[\t ]+(.*)([,]?.*)")
            set(${prefix}_VERSION_BRANCH "${CMAKE_MATCH_1}")
          elseif("${${prefix}_VERSION_BRANCH}" MATCHES ".*,[ \t](.*)")
@@ -449,6 +449,12 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
   set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
   set(VERSION_DATE_MONTH_YEAR ${${prefix}_VERSION_DATE_MONTH_YEAR})
+
+  # Fallback
+  if("${VERSION_DATE_MONTH_YEAR}" STREQUAL "")
+    string(TIMESTAMP VERSION_DATE_MONTH_YEAR "%b %Y")
+  endif()
+
   set_target_properties(${target} PROPERTIES
     VERSION_MAJOR "${VERSION_MAJOR}"
     VERSION_MINOR "${VERSION_MINOR}"
