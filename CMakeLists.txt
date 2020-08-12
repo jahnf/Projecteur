@@ -211,21 +211,25 @@ set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 # --- Linux packaging ---
 include(LinuxPackaging)
 
-# Add 'source-archive' target
-add_source_archive_target(projecteur)
+option(PACKAGE_TARGETS "Create packaging build targets" ON)
 
-# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
-add_dist_package_target(
-  PROJECT "${CMAKE_PROJECT_NAME}"
-  TARGET projecteur
-  DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
-  DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
-  CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
-  HOMEPAGE "${HOMEPAGE}"
-  DEBIAN_SECTION "utils"
-  PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
-  POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
-)
+if(PACKAGE_TARGETS)
+  # Add 'source-archive' target
+  add_source_archive_target(projecteur)
+
+  # Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+  add_dist_package_target(
+    PROJECT "${CMAKE_PROJECT_NAME}"
+    TARGET projecteur
+    DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
+    DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
+    CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
+    HOMEPAGE "${HOMEPAGE}"
+    DEBIAN_SECTION "utils"
+    PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
+    POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
+  )
+endif()
 
 option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
 find_program(iwyu_path NAMES include-what-you-use iwyu)
