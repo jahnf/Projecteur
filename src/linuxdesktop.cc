@@ -139,6 +139,7 @@ QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
   }
   return pm.isNull() ? pm : pm.copy(screen->geometry());
 #else
+  Q_UNUSED(screen);
   logWarning(desktop) << tr("Projecteur was compiled without Qt DBus. Currently zoom on Wayland is "
                             "only supported via DBus on KDE and GNOME.");
   return QPixmap();
