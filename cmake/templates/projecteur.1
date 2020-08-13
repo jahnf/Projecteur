@@ -26,6 +26,9 @@ Show complete command line usage with all properties.
 \fB\-v\fR, \fB\-\-version\fR
 Print application version.
 .TP
+\fB\-f\fR
+Print detailed application version information.
+.TP
 \fB\-\-cfg\fR \fIFILE\fR
 Set custom config file.
 .TP
@@ -33,15 +36,27 @@ Set custom config file.
 Print device\-scan results.
 .TP
 \fB\-l\fR, \fB\-\-log\-level\fR \fILEVEL\fR
-Set log level (dbg,inf,wrn,err).
+Set log level, where LEVEL is one of \fBdbg\fR, \fBinf\fR, \fBwrn\fR, \fBerr\fR
 .TP
 \fB\-D\fR \fIDEVICE\fR
 Additional accepted device; DEVICE = vendorId:productId
-e.g., \fB\-D\fR 04b3:310c; e.g. \fB\-D\fR 0x0c45:0x8101
+e.g., \fB\-D\fR 04b3:310c; e.g. \fB\-D\fR 0x0c45:0x8101;
+This option can be used multiple times and works in connection with the
+\fB\-\-device\-scan\fP option.
 .TP
 \fB\-c\fR \fICOMMAND\fR|\fIPROPERTY\fR
-Send command/property to a running instance. See \fBCommands\fP for
-details.
+Send command/property to a running instance. See \fBCommands\fP and
+\fBProperties\fP for details. This option can be use multiple times.
+.TP
+\fB\-\-disable-uinput\fR
+Disable uinput support.
+.TP
+\fB\-\-show-dialog\fR
+Show preferences dialog on application start.
+.TP
+\fB\-m\fR, \fB\-\-minimize-only\fR
+Only allow minimizing the dialog. Useful for desktop environments that do not
+have a system tray.
 .PP
 .SH Commands
 .TP
@@ -51,5 +66,50 @@ Turn spotlight on/off.
 settings=[show|hide]
 Show/hide preferences dialog.
 .TP
+preset=NAME
+Set a preset.
+.TP
 quit
 Quit the running instance.
+.PP
+.SH Properties
+.TP
+spot.size=[Integer]                     (5 ... 100)
+.TP
+spot.rotation=[Double]                  (0 ... 360)
+.TP
+spot.shape=[Value]                      (Circle, Square, Star, Ngon)
+.TP
+spot.shape.square.radius=[Integer]      (0 ... 100)
+.TP
+spot.shape.star.points=[Integer]        (3 ... 100)
+.TP
+spot.shape.star.innerradius=[Integer]   (5 ... 100)
+.TP
+spot.shape.ngon.sides=[Integer]         (3 ... 100)
+.TP
+shade=[Bool]                            (false, true)
+.TP
+shade.opacity=[Double]                  (0 ... 1)
+.TP
+shade.color=[Color]                     (HTML-color; #RRGGBB)
+.TP
+dot=[Bool]                              (false, true)
+.TP
+dot.size=[Integer]                      (3 ... 100)
+.TP
+dot.color=[Color]                       (HTML-color; #RRGGBB)
+.TP
+dot.opacity=[Double]                    (0 ... 1)
+.TP
+border=[Bool]                           (false, true)
+.TP
+border.size=[Integer]                   (0 ... 100)
+.TP
+border.color=[Color]                    (HTML-color; #RRGGBB)
+.TP
+border.opacity=[Double]                 (0 ... 1)
+.TP
+zoom=[Bool]                             (false, true)
+.TP
+zoom.factor=[Double]                    (1.5 ... 20)
