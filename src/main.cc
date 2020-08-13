@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     {
       print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << std::endl;
-      print() << "Usage: projecteur [option]" << std::endl;
+      print() << "Usage: projecteur [OPTION]..." << std::endl;
       print() << "<Options>";
       print() << "  -h, --help             " << helpOption.description();
       print() << "  --help-all             " << fullHelpOption.description();
