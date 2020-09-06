@@ -11,7 +11,7 @@ See **[Download](#download)** section for binary packages.
 I saw the Logitech Spotlight device in action at a conference and liked it immediately.
 Unfortunately as in a lot of cases, software is only provided for Windows and Mac.
 The device itself works just fine on Linux, but the cool spotlight feature is
-done by additional software.
+only available using additional software.
 
 So here it is: a Linux application for the Logitech Spotlight.
 
