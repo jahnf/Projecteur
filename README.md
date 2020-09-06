@@ -34,10 +34,10 @@ So here it is: a Linux application for the Logitech Spotlight.
 ## Features
 
 * Configurable desktop spotlight
-  * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_.
-  * Zoom (magnifier) functionality.
+  * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_
+  * Zoom (magnifier) functionality
 * Multiple screen support
-* Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
+* Support of devices besyond the Logitech Spotlight (see [Device Support](#device-support))
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
@@ -65,11 +65,11 @@ application yourself, make sure you have the correct udev rules installed
 
 With a connection via the USB Dongle Receiver or via Bluetooth, the Logitech Spotlight
 device will be detected by Linux as a HID device with mouse and keyboard events.
-As mouse events the device sends relative cursor movements and left button presses.
+As mouse events, the device sends relative cursor movements and left button presses.
 Acting as a keyboard, the device basically just sends left and right arrow key press
-events when forward or back on the device is pressed.
+events when forward or back is pressed on the device.
 
-The mouse move events of device is what we are mainly interested in. Since the device is
+The mouse move events of the device is what we are mainly interested in. Since the device is
 already detected as a mouse input device and able to move the cursor, we simply detect
 if the Spotlight device is sending mouse move events. If it is sending mouse events,
 we will 'turn on' the desktop spot (virtual laser).
@@ -138,10 +138,10 @@ file in this repository: `55-projecteur.rules.in`
 * Most recent systems (using systemd) will automatically pick up the rule.
   If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
   to load the rules without a reboot.
-* After that the input devices from the Logitech USB Receiver (but also the Bluetooth device)
+* After that, the input devices from the Logitech USB Receiver (but also the Bluetooth device)
   in /dev/input should be readable/writable by you.
   (See also about [device detection](#device-shows-as-not-connected))
-* When building against the Qt version that comes with your distribution's packages
+* When building against the Qt version that comes with your distribution's packages,
   you might need to install some  additional QML module packages. For example this
   is the case for Ubuntu, where you need to install the packages
   `qml-module-qtgraphicaleffects`, `qml-module-qtquick-window2`, `qml-modules-qtquick2` and
@@ -193,7 +193,7 @@ Besides the _Logitech Spotlight_, the following devices are currently supported 
 #### Compile Time
 
 Besides the Logitech Spotlight, similar devices can be used and are supported.
-Additional devices can be added to `devices.conf`. At CMake configuration time
+Additional devices can be added to `devices.conf`. At CMake configuration time,
 the project will be configured to support these devices and also create entries
 for them in the generated udev-rule file.
 
@@ -212,7 +212,7 @@ sure the device is accessible (via udev rules).
 
 #### Opaque Spotlight / No Transparency
 
-To be able to show transparent windows a **compositing manager** is necessary. If there is no
+To be able to show transparent windows, a **compositing manager** is necessary. If there is no
 compositing manager running you will see the spotlight overlay as an opaque window.
 
 * On **KDE** it might be necessary to turn on Desktop effects to allow transparent windows.
@@ -239,11 +239,11 @@ GNOME extension to have a system tray that can show the _Projecteur_ tray icon
 
 #### Zoom is not updated while spotlight is shown
 
-That is due to the fact how the zoom currently works. A screenshot is taken shortly before the
+Zoom does not update while spotlight is shown due to how the zoom currently works. A screenshot is taken shortly before the
 overlay window is shown, and then a magnified section is shown wherever the mouse/spotlight is.
 If the zoom would be updated while the overlay window is shown, the overlay window it self would
-show up in the magnified section. That is a general problem, that also other magnifier tools face,
-although they can get around the problem by showing the magnified content rectangle always in the
+show up in the magnified section. That is a general problem that other magnifier tools also face,
+although they get around the problem by showing the magnified content rectangle always in the
 same position on the screen.
 
 #### Wayland
@@ -261,7 +261,7 @@ Using Wayland-EGL
 
 On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This is done with
 the help of their respective DBus interfaces for screen capturing. On other environments with
-Wayland, the zoom feature is currently not supported.
+Wayland, the zoom feature is not currently supported.
 
 #### Device shows as not connected
 
@@ -274,7 +274,7 @@ If the device shows as not connected, there are some things you can do:
 * Manually on the shell: Check if the device is detected by the Linux system: Run
   `cat /proc/bus/input/devices | grep -A 5 "Vendor=046d"` \
   This should show one or multiple spotlight devices (among other Logitech devices)
-  * Check you the corresponding `/dev/input/event??` device file is readable by you. \
+  * Check that the corresponding `/dev/input/event??` device file is readable by you. \
     Example: `test -r /dev/input/event19 && echo "SUCCESS" || echo "NOT readable"`
 * Make sure you don't have conflicting udev rules installed, e.g. first you installed
   the udev rule yourself and later you used the automatically built Linux packages to
