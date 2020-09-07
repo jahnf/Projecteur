@@ -27,6 +27,7 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Pre-requisites](#pre-requisites)
       * [Application Menu](#application-menu)
       * [Command Line Interface](#command-line-interface)
+      * [Scriptability](#scriptability)
       * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
   * [License](#license)
@@ -184,7 +185,7 @@ A complete list the properties that can be set via the command line, can be list
 `--help-all` option or can also be found on the man pagers with newer versions of
 _Projecteur_ (`man projecteur`).
 
-#### Scriptability
+### Scriptability
 
 _Projecteur_ allows you to set almost all aspects of the spotlight via the command line
 for a running instance.
@@ -197,11 +198,11 @@ projecteur -c border=true
 projecteur -c border.color=#ff0000
 ```
 
-While _Projecteur_ does not provide global keyboard shortcuts, the command line options
+While _Projecteur_ does not provide global keyboard shortcuts, command line options
 can but utilized for that. For instance, if you like to use _Projecteur_ as a tool while sharing
-your screen in a video call without additional presenter hardware , you can assign global
-shortcuts in your window manager (e.g. GNOME) to run the commands
-`projecteur -c spot=on` and `projecteur -c spot=off`.
+your screen in a video call without additional presenter hardware, you can assign global
+shortcuts in your window manager (e.g. GNOME) to run the commands `projecteur -c spot=on`
+and `projecteur -c spot=off`, and therefore turning the spot on and off with a keyboard shortcut.
 
 ### Device Support
 
@@ -260,8 +261,9 @@ GNOME extension to have a system tray that can show the _Projecteur_ tray icon
 
 #### Zoom is not updated while spotlight is shown
 
-Zoom does not update while spotlight is shown due to how the zoom currently works. A screenshot is taken shortly before the
-overlay window is shown, and then a magnified section is shown wherever the mouse/spotlight is.
+Zoom does not update while spotlight is shown due to how the zoom currently works. A screenshot is
+taken shortly before the overlay window is shown, and then a magnified section is shown wherever
+the mouse/spotlight is.
 If the zoom would be updated while the overlay window is shown, the overlay window it self would
 show up in the magnified section. That is a general problem that other magnifier tools also face,
 although they get around the problem by showing the magnified content rectangle always in the
