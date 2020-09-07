@@ -37,7 +37,7 @@ So here it is: a Linux application for the Logitech Spotlight.
   * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_
   * Zoom (magnifier) functionality
 * Multiple screen support
-* Support of devices besyond the Logitech Spotlight (see [Device Support](#device-support))
+* Support of devices beyond the Logitech Spotlight (see [Device Support](#device-support))
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
@@ -69,7 +69,7 @@ As mouse events, the device sends relative cursor movements and left button pres
 Acting as a keyboard, the device basically just sends left and right arrow key press
 events when forward or back is pressed on the device.
 
-The mouse move events of the device is what we are mainly interested in. Since the device is
+The mouse move events of the device are what we are mainly interested in. Since the device is
 already detected as a mouse input device and able to move the cursor, we simply detect
 if the Spotlight device is sending mouse move events. If it is sending mouse events,
 we will 'turn on' the desktop spot (virtual laser).
@@ -205,7 +205,7 @@ command line option.
 Example: `projecteur -D 04b3:310c`
 
 This will enable devices within _Projecteur_ and the application will try to
-connect to that device if it is detected. It is up to the user though to make
+connect to that device if it is detected. It is, however, up to the user to make
 sure the device is accessible (via udev rules).
 
 ### Troubleshooting
@@ -269,7 +269,7 @@ If the device shows as not connected, there are some things you can do:
 
 * Check for devices with _Projecteur_'s command line option `-d` or `--device-scan` option.
   This will show you a list of all supported and detected devices and also if
-  they are readable/writable. If a detected device is not readable/writable it is an indicator,
+  they are readable/writable. If a detected device is not readable/writable, it is an indicator
   that there is something wrong with the installed _udev_ rules.
 * Manually on the shell: Check if the device is detected by the Linux system: Run
   `cat /proc/bus/input/devices | grep -A 5 "Vendor=046d"` \
