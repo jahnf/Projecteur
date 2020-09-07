@@ -180,7 +180,28 @@ Usage: projecteur [option]
   quit                   Quit the running instance.
 ```
 
-All the properties that can be set via the command line, are listed with the `--help-all` option.
+A complete list the properties that can be set via the command line, can be listed with the
+`--help-all` option or can also be found on the man pagers with newer versions of
+_Projecteur_ (`man projecteur`).
+
+#### Scriptability
+
+_Projecteur_ allows you to set almost all aspects of the spotlight via the command line
+for a running instance.
+
+Example:
+```bash
+# Set showing the border to true
+projecteur -c border=true
+# Set the border color to red
+projecteur -c border.color=#ff0000
+```
+
+While _Projecteur_ does not provide global keyboard shortcuts, the command line options
+can but utilized for that. For instance, if you like to use _Projecteur_ as a tool while sharing
+your screen in a video call without additional presenter hardware , you can assign global
+shortcuts in your window manager (e.g. GNOME) to run the commands
+`projecteur -c spot=on` and `projecteur -c spot=off`.
 
 ### Device Support
 

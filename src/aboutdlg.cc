@@ -63,10 +63,10 @@ namespace {
       Contributor("Tomáš Chvátal", "scarabeusiv"),
       Contributor("Brandon Johnson", "dbrandonjohnson"),
       Contributor("Stuart Prescott", "llimeht"),
+      Contributor("Crista Renouard", "Lumnicence"),
     };
 
-    static std::random_device rd;
-    static std::mt19937 g(rd());
+    static std::mt19937 g(std::random_device{}());
     std::shuffle(contributors.begin(), contributors.end(), g);
 
     QStringList contributorsHtml;
