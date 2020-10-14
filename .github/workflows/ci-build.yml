@@ -22,6 +22,7 @@ jobs:
         - debian-buster
         - ubuntu-18.04
         - ubuntu-20.04
+        - ubuntu-20.10
         - opensuse-15.0
         - opensuse-15.1
         - centos-8
