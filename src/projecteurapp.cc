@@ -63,7 +63,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
                                        : PreferencesDialog::Mode::ClosableDialog));
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, this, [this](){
-    emit m_spotlight->spotActiveChanged(true);
+    setSpotlightActive(true, true);
   });
 
   const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
@@ -162,8 +162,19 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   window->setFlags(window->flags() | Qt::WindowTransparentForInput | Qt::Tool);
   connect(this, &ProjecteurApplication::aboutToQuit, window, [window](){ if (window) window->close(); });
 
+  // Set correct spotlight active state if window is hidden by a mouse click.
+  connect(window, &QWindow::visibleChanged, this, [this](bool visible){
+    if (!visible && visible != spotlightActive()) {
+      setSpotlightActive(visible);
+    }
+  });
+
   // Handling of spotlight window when mouse move events from spotlight device are detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, this,
+  connect(m_spotlight, &Spotlight::spotActiveChanged, this, [this](bool active){
+    setSpotlightActive(active, true);
+  });
+
+  connect(this, &ProjecteurApplication::spotlightActiveChanged, this,
   [window, desktopImageProvider, xcbOnWayland, this](bool active)
   {
     if (active && !m_settings->overlayDisabled())
@@ -240,7 +251,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
     if (wasVisible) {
       QTimer::singleShot(0, this, [this](){
-        emit m_spotlight->spotActiveChanged(true);
+        setSpotlightActive(true, true);
       });
     }
   });
@@ -357,13 +368,20 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
   }
   else if (cmdKey == "spot")
   {
-    const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
-    logDebug(cmdserver) << tr("Received command spot = %1").arg(active);
-    emit m_spotlight->spotActiveChanged(active);
+    if (cmdValue.toLower() == "toggle")
+    {
+      setSpotlightActive(!spotlightActive());
+    }
+    else
+    {
+      const bool active = (cmdValue.toLower() == "on" || cmdValue == "1" || cmdValue.toLower() == "true");
+      logDebug(cmdserver) << tr("Received command spot = %1").arg(active);
+      setSpotlightActive(active, true);
+    }
   }
   else if (cmdKey == "settings" || cmdKey == "preferences")
   {
-    const bool show = !(cmdValue == "hide" || cmdValue == "0");
+    const bool show = !(cmdValue.toLower() == "hide" || cmdValue == "0");
     logDebug(cmdserver) << tr("Received command settings = %1").arg(show);
     showPreferences(show);
   }
@@ -407,6 +425,19 @@ void ProjecteurApplication::showPreferences(bool show)
     else 
       m_dialog->hide();
   }
+}
+
+bool ProjecteurApplication::spotlightActive() const
+{
+  return m_spotlightActive;
+}
+
+void ProjecteurApplication::setSpotlightActive(bool active, bool alwaysEmitChange)
+{
+  if (!alwaysEmitChange && active == m_spotlightActive) return;
+
+  m_spotlightActive = active;
+  emit spotlightActiveChanged(m_spotlightActive);
 }
 
 ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCommands, int &argc, char **argv)

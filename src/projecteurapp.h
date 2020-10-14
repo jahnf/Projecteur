@@ -39,6 +39,7 @@ public:
 
 signals:
   void overlayVisibleChanged(bool visible);
+  void spotlightActiveChanged(bool active);
 
 public slots:
   void cursorExitedWindow();
@@ -49,6 +50,8 @@ private slots:
 private:
   void showPreferences(bool show = true);
   void setScreenForCursorPos();
+  bool spotlightActive() const;
+  void setSpotlightActive(bool active, bool alwaysEmitChange = false);
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -61,6 +64,7 @@ private:
   LinuxDesktop* m_linuxDesktop = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
   bool m_overlayVisible = false;
+  bool m_spotlightActive = false;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication
