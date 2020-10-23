@@ -42,6 +42,7 @@ signals:
 
 public slots:
   void cursorExitedWindow();
+  void spotlightWindowClicked();
 
 private slots:
   void readCommand(QLocalSocket* client);

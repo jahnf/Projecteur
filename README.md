@@ -176,7 +176,7 @@ Usage: projecteur [option]
   -c COMMAND|PROPERTY    Send command/property to a running instance.
 
 <Commands>
-  spot=[on|off]          Turn spotlight on/off.
+  spot=[on|off|toggle]   Turn spotlight on/off or toggle.
   settings=[show|hide]   Show/hide preferences dialog.
   quit                   Quit the running instance.
 ```
@@ -202,7 +202,8 @@ While _Projecteur_ does not provide global keyboard shortcuts, command line opti
 can but utilized for that. For instance, if you like to use _Projecteur_ as a tool while sharing
 your screen in a video call without additional presenter hardware, you can assign global
 shortcuts in your window manager (e.g. GNOME) to run the commands `projecteur -c spot=on`
-and `projecteur -c spot=off`, and therefore turning the spot on and off with a keyboard shortcut.
+and `projecteur -c spot=off` or `projecteur -c spot=toggle`, and therefore
+turning the spot on and off with a keyboard shortcut.
 
 ### Device Support
 
