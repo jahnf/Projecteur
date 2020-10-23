@@ -63,7 +63,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
                                        : PreferencesDialog::Mode::ClosableDialog));
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, this, [this](){
-    emit m_spotlight->spotActiveChanged(true);
+    m_spotlight->setSpotActive(true);
   });
 
   const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
@@ -123,7 +123,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   const auto actionQuit = m_trayMenu->addAction(tr("&Quit"));
   connect(actionQuit, &QAction::triggered, this, [this, engine](){
     engine->deleteLater(); // see: https://bugreports.qt.io/browse/QTBUG-81247
-    this->quit(); 
+    this->quit();
   });
   m_trayIcon->setContextMenu(&*m_trayMenu);
 
@@ -223,7 +223,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   // Handling if the screen in the settings was changed
-  connect(m_settings, &Settings::screenChanged, this, [this, window](int screenIdx)
+  connect(m_settings, &Settings::screenChanged, this, [this, window, xcbOnWayland](int screenIdx)
   {
     if (screenIdx >= screens().size())
       return;
@@ -231,16 +231,33 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     const auto screen = screens()[screenIdx];
     const bool wasVisible = window->isVisible();
 
-    window->setFlags(window->flags() | Qt::SplashScreen | Qt::WindowStaysOnTopHint);
+    m_overlayVisible = false;
+    emit overlayVisibleChanged(false);
+
+    window->setFlags(window->flags() | Qt::WindowTransparentForInput);
+    window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
     window->hide();
 
     window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
     window->setScreen(screen);
     window->setGeometry(screen->geometry());
 
+    if (xcbOnWayland && !wasVisible)
+    {
+      if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
+          && m_dialog->isMinimized()) { // keep Window minimized...
+        //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
+        m_dialog->showNormal();
+        m_dialog->setWindowState(Qt::WindowMinimized);
+      }
+    }
+
     if (wasVisible) {
       QTimer::singleShot(0, this, [this](){
-        emit m_spotlight->spotActiveChanged(true);
+        if (m_spotlight->spotActive())
+          emit m_spotlight->spotActiveChanged(true);
+        else
+          m_spotlight->setSpotActive(true);
       });
     }
   });
@@ -292,6 +309,11 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 ProjecteurApplication::~ProjecteurApplication()
 {
   if (m_localServer) m_localServer->close();
+}
+
+void ProjecteurApplication::spotlightWindowClicked()
+{
+  m_spotlight->setSpotActive(false);
 }
 
 void ProjecteurApplication::cursorExitedWindow()
@@ -357,13 +379,18 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
   }
   else if (cmdKey == "spot")
   {
-    const bool active = (cmdValue == "on" || cmdValue == "1" || cmdValue == "true");
-    logDebug(cmdserver) << tr("Received command spot = %1").arg(active);
-    emit m_spotlight->spotActiveChanged(active);
+    if (cmdValue.toLower() == "toggle") {
+      m_spotlight->setSpotActive(!m_spotlight->spotActive());
+    }
+    else {
+      const bool active = (cmdValue.toLower() == "on" || cmdValue == "1" || cmdValue.toLower() == "true");
+      logDebug(cmdserver) << tr("Received command spot = %1").arg(active);
+      m_spotlight->setSpotActive(active);
+    }
   }
   else if (cmdKey == "settings" || cmdKey == "preferences")
   {
-    const bool show = !(cmdValue == "hide" || cmdValue == "0");
+    const bool show = !(cmdValue.toLower() == "hide" || cmdValue == "0");
     logDebug(cmdserver) << tr("Received command settings = %1").arg(show);
     showPreferences(show);
   }
@@ -404,7 +431,7 @@ void ProjecteurApplication::showPreferences(bool show)
   else {
     if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog)
       m_dialog->showMinimized();
-    else 
+    else
       m_dialog->hide();
   }
 }

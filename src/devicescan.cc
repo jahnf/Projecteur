@@ -136,7 +136,7 @@ namespace {
             switch (busType)
             {
               case BUS_USB: spotlightDevice.busType = DeviceScan::Device::BusType::Usb; break;
-            case BUS_BLUETOOTH: spotlightDevice.busType = DeviceScan::Device::BusType::Bluetooth; break;
+              case BUS_BLUETOOTH: spotlightDevice.busType = DeviceScan::Device::BusType::Bluetooth; break;
             }
             spotlightDevice.id.vendorId = ids.size() > 1 ? ids[1].toUShort(nullptr, 16) : 0;
             spotlightDevice.id.productId = ids.size() > 2 ? ids[2].toUShort(nullptr, 16) : 0;

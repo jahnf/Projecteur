@@ -61,7 +61,7 @@ Window {
                 cursorShape: Settings.cursor
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: { mainWindow.hide() }
+                onClicked: { ProjecteurApp.spotlightWindowClicked() }
                 onExited: { ProjecteurApp.cursorExitedWindow() }
             }
         }
