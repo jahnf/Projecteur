@@ -31,7 +31,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-      DOCKER_IMG: jahnf/projecteur
+      DOCKER_IMG: docker.pkg.github.com/jahnf/projecteur/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
       MAKEFLAGS: -j2
       CLOUDSMITH_USER: jahnf
@@ -52,9 +52,16 @@ jobs:
         export BRANCH=${GITHUB_REF/refs\/heads\//}
         echo Deteted branch: ${BRANCH}
         echo "::set-env name=BRANCH::${BRANCH}"
+        
+    - name: Login to github docker registry	
+      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin	
+      env:	
+        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}	
 
     - name: Pull ${{ matrix.docker_tag }} docker image
-      run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
+      run: |
+        docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}	
+        docker logout docker.pkg.github.com
     - name: docker create build container
       run: |
         docker run --name build --env MAKEFLAGS=${MAKEFLAGS} \
