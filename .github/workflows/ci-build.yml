@@ -126,13 +126,13 @@ jobs:
         echo "upload_bin_pkg=${{ false }}" >> $GITHUB_ENV
         echo "upload_src_pkg=${{ false }}" >> $GITHUB_ENV
         echo "cloudsmith_upload_repo=projecteur-develop" >> $GITHUB_ENV
+        echo "bintray_upload_repo=projecteur-develop" >> $GITHUB_ENV
         echo "REPO_UPLOAD=${{ false }}" >> $GITHUB_ENV
 
     - name: Check for binary-pkg upload conditions
       if: env.BRANCH == 'develop' || env.BRANCH == 'master'
       run: |
         echo "upload_bin_pkg=${{ true }}" >> $GITHUB_ENV
-        echo "bintray_upload_pkg=${{ env.BRANCH }}" >> $GITHUB_ENV
         pip install --upgrade wheel
         pip install --upgrade cloudsmith-cli
 
@@ -142,7 +142,9 @@ jobs:
         echo "upload_src_pkg=${{ true }}" >> $GITHUB_ENV
 
     - if: env.BRANCH == 'master'
-      run: echo "cloudsmith_upload_repo=projecteur-stable" >> $GITHUB_ENV
+      run: |
+        echo "cloudsmith_upload_repo=projecteur-stable" >> $GITHUB_ENV
+        echo "bintray_upload_repo=projecteur-master" >> $GITHUB_ENV
 
     # ===================================================================================
     # ---------- Upload artifacts to cloudsmith ----------
@@ -206,7 +208,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: ${{ env.bintray_upload_pkg }}
+        package: ${{ env.bintray_upload_repo }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
@@ -221,7 +223,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: ${{ env.bintray_upload_pkg }}
+        package: ${{ env.bintray_upload_repo }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
