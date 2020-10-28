@@ -26,6 +26,7 @@ jobs:
         - ubuntu-20.10
         - opensuse-15.0
         - opensuse-15.1
+        - opensuse-15.2
         - centos-8
         os:
         - ubuntu-latest
