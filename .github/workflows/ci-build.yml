@@ -18,6 +18,7 @@ jobs:
         - fedora-30
         - fedora-31
         - fedora-32
+        - fedora-33
         - debian-stretch
         - debian-buster
         - ubuntu-18.04
@@ -52,15 +53,15 @@ jobs:
         export BRANCH=${GITHUB_REF/refs\/heads\//}
         echo Detected branch: ${BRANCH}
         echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
-        
-    - name: Login to github docker registry	
-      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin	
-      env:	
-        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}	
+
+    - name: Login to github docker registry
+      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin
+      env:
+        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: |
-        docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}	
+        docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
         docker logout docker.pkg.github.com
     - name: docker create build container
       run: |
@@ -177,7 +178,7 @@ jobs:
           ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
           ["ubuntu-20.04"]="ubuntu/focal" ["opensuse-15.1"]="opensuse/15.1" \
           ["centos-8"]="el/8" ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
-          ["fedora-32"]="fedora/32" )
+          ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" )
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
         echo DISTRO=$DISTRO
