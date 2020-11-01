@@ -223,6 +223,11 @@ install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
 configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
 install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
 
+configure_file("${TMPLDIR}/projecteur.bash-completion" "projecteur.bash-completion" @ONLY)
+install(FILES "${OUTDIR}/projecteur.bash-completion"
+        DESTINATION share/bash-completion/completions/
+        RENAME projecteur)
+
 configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
 configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
 
