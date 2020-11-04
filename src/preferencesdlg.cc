@@ -659,6 +659,8 @@ QWidget* PreferencesDialog::createMultiScreenWidget(Settings* settings)
     const auto cb = new QCheckBox(tr("Enable multi-screen overlay"), this);
     cb->setChecked(settings->multiScreenOverlayEnabled());
     connect(cb, &QCheckBox::toggled, settings, &Settings::setMultiScreenOverlayEnabled);
+    connect(settings, &Settings::multiScreenOverlayEnabledChanged, cb, &QCheckBox::setChecked);
+    connect(settings, &Settings::multiScreenOverlayEnabledChanged, this, &PreferencesDialog::resetPresetCombo);
     return cb;
 }
 
