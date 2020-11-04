@@ -56,6 +56,7 @@ private:
   QScreen* screenAtCursorPos() const;
   QWindow* createOverlayWindow();
   void updateOverlayWindow(QWindow* window, QScreen* screen);
+  void setupScreenOverlays();
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -73,6 +74,7 @@ private:
   const bool m_xcbOnWayland = false;
 
   QList<QWindow*> m_overlayWindows;
+  std::map<QScreen*, QWindow*> m_screenWindowMap;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication
