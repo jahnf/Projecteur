@@ -111,7 +111,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     return;
   }
 
-  const auto window = createOverlayWindow();
+  m_overlayWindows.push_back(createOverlayWindow());
+  const auto window = m_overlayWindows.front();
 
   const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
   connect(actionPref, &QAction::triggered, this, [this](){
@@ -240,46 +241,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     }
   });
 
-  // Handling if the screen in the settings was changed
-  connect(m_settings, &Settings::screenChanged, this, [this, window](int screenIdx)
-  {
-    if (screenIdx >= screens().size())
-      return;
-
-    const auto screen = screens()[screenIdx];
-    const bool wasVisible = window->isVisible();
-
-    m_overlayVisible = false;
-    emit overlayVisibleChanged(false);
-
-    window->setFlags(window->flags() | Qt::WindowTransparentForInput);
-    window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
-    window->hide();
-
-    window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
-    window->setScreen(screen);
-    window->setGeometry(screen->geometry());
-
-    if (m_xcbOnWayland && !wasVisible)
-    {
-      if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
-          && m_dialog->isMinimized()) { // keep Window minimized...
-        //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
-        m_dialog->showNormal();
-        m_dialog->setWindowState(Qt::WindowMinimized);
-      }
-    }
-
-    if (wasVisible) {
-      QTimer::singleShot(0, this, [this](){
-        if (m_spotlight->spotActive())
-          emit m_spotlight->spotActiveChanged(true);
-        else
-          m_spotlight->setSpotActive(true);
-      });
-    }
-  });
-
   // Open local server for local IPC commands, e.g. from other command line instances
   QLocalServer::removeServer(localServerName());
   if (m_localServer->listen(localServerName()))
@@ -333,9 +294,9 @@ ProjecteurApplication::~ProjecteurApplication()
 // -------------------------------------------------------------------------------------------------
 QWindow* ProjecteurApplication::createOverlayWindow()
 {
-    QObject *object = m_windowQmlComponent->create();
-    object->setParent(m_qmlEngine);
-    return qobject_cast<QWindow*>(object);
+  QObject *object = m_windowQmlComponent->create();
+  object->setParent(m_qmlEngine);
+  return qobject_cast<QWindow*>(object);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -347,7 +308,7 @@ void ProjecteurApplication::spotlightWindowClicked()
 // -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::cursorExitedWindow()
 {
-  setScreenForCursorPos();
+  if (m_spotlight->spotActive()) { setScreenForCursorPos(); }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -357,24 +318,71 @@ void ProjecteurApplication::cursorEntered(quint64 /*screen*/)
 }
 
 // -------------------------------------------------------------------------------------------------
-void ProjecteurApplication::setScreenForCursorPos()
+void ProjecteurApplication::updateOverlayWindow(QWindow* window, QScreen* screen)
 {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
-  int screenNumber = 0;
-  const auto screen_cursor = this->screenAt(QCursor::pos());
+  if (screen == nullptr)
+    return;
 
-  for (const auto& screen : screens()) {
-    if (screen_cursor == screen) {
-      m_settings->setScreen(screenNumber);
-      break;
-    }
-    ++screenNumber;
+  if (window->screen() == screen && screen->geometry() == window->geometry()) {
+    return;
   }
-#else
-  m_settings->setScreen(this->desktop()->screenNumber(QCursor::pos()));
-#endif
+
+  window->setProperty("screenId", quint64(screen));
+
+  const bool wasVisible = window->isVisible();
+  const bool wasSpotActive = m_spotlight->spotActive();
+
+  m_overlayVisible = false;
+  emit overlayVisibleChanged(false);
+
+  window->setFlags(window->flags() | Qt::WindowTransparentForInput);
+  window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
+  window->hide();
+
+  window->setGeometry(QRect(screen->geometry().topLeft(), QSize(300,200)));
+  window->setScreen(screen);
+  window->setGeometry(screen->geometry());
+
+  if (m_xcbOnWayland && !wasVisible)
+  {
+    if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
+        && m_dialog->isMinimized()) { // keep Window minimized...
+      //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
+      m_dialog->showNormal();
+      m_dialog->setWindowState(Qt::WindowMinimized);
+    }
+  }
+
+  if (wasVisible && wasSpotActive) {
+    QTimer::singleShot(0, this, [this](){
+      if (m_spotlight->spotActive())
+        emit m_spotlight->spotActiveChanged(true);
+      else
+        m_spotlight->setSpotActive(true);
+    });
+  }
 }
 
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::setScreenForCursorPos()
+{
+  updateOverlayWindow(m_overlayWindows.first(), screenAtCursorPos());
+}
+
+// -------------------------------------------------------------------------------------------------
+QScreen* ProjecteurApplication::screenAtCursorPos() const
+{
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
+  return this->screenAt(QCursor::pos());
+#else
+  const int screenNumber = this->desktop()->screenNumber(QCursor::pos());
+  const auto screenList = screens();
+  if (screenNumber >= 0 && screenNumber < screenList.size()) {
+    return screenList[screenNumber];
+  }
+  return nullptr;
+#endif
+}
 // -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
 {

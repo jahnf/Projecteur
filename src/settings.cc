@@ -27,7 +27,6 @@ namespace {
     constexpr char dotOpacity[] = "dotOpacity";
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
-    constexpr char screen[] = "screen";
     constexpr char cursor[] = "cursor";
     constexpr char spotShape[] = "spotShape";
     constexpr char spotRotation[] ="spotRotation";
@@ -584,17 +583,6 @@ void Settings::setShadeOpacity(double opacity)
     logDebug(lcSettings) << "shade.opacity = " << m_shadeOpacity;
     emit shadeOpacityChanged(m_shadeOpacity);
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-void Settings::setScreen(int screen)
-{
-  if (screen == m_screen)
-    return;
-
-  m_screen = qMin(qMax(0, screen), 100);
-  m_settings->setValue(::settings::screen, m_screen);
-  emit screenChanged(m_screen);
 }
 
 // -------------------------------------------------------------------------------------------------

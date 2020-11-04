@@ -27,7 +27,6 @@ class Settings : public QObject
   Q_PROPERTY(double dotOpacity READ dotOpacity WRITE setDotOpacity NOTIFY dotOpacityChanged)
   Q_PROPERTY(QColor shadeColor READ shadeColor WRITE setShadeColor NOTIFY shadeColorChanged)
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
-  Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
   Q_PROPERTY(Qt::CursorShape cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
   Q_PROPERTY(QString spotShape READ spotShape WRITE setSpotShape NOTIFY spotShapeChanged)
   Q_PROPERTY(double spotRotation READ spotRotation WRITE setSpotRotation NOTIFY spotRotationChanged)
@@ -65,8 +64,6 @@ public:
   void setShadeColor(const QColor& color);
   double shadeOpacity() const { return m_shadeOpacity; }
   void setShadeOpacity(double opacity);
-  int screen() const { return m_screen; }
-  void setScreen(int screen);
   Qt::CursorShape cursor() const { return m_cursor; }
   void setCursor(Qt::CursorShape cursor);
   QString spotShape() const { return m_spotShape; }
@@ -183,7 +180,6 @@ signals:
   void dotOpacityChanged(double opacity);
   void shadeColorChanged(const QColor& color);
   void shadeOpacityChanged(double opcacity);
-  void screenChanged(int screen);
   void cursorChanged(Qt::CursorShape cursor);
   void spotShapeChanged(const QString& spotShapeQmlComponent);
   void spotRotationChanged(double rotation);
@@ -212,7 +208,6 @@ private:
   double m_dotOpacity = 0.8;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
-  int m_screen = -1; // inital invalid value, see #26
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;

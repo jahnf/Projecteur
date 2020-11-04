@@ -53,7 +53,9 @@ private slots:
 private:
   void showPreferences(bool show = true);
   void setScreenForCursorPos();
+  QScreen* screenAtCursorPos() const;
   QWindow* createOverlayWindow();
+  void updateOverlayWindow(QWindow* window, QScreen* screen);
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -69,6 +71,8 @@ private:
   std::map<QLocalSocket*, quint32> m_commandConnections;
   bool m_overlayVisible = false;
   const bool m_xcbOnWayland = false;
+
+  QList<QWindow*> m_overlayWindows;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication
