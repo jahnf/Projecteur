@@ -162,6 +162,8 @@ void Settings::initializeStringProperties()
 {
   auto& map = m_stringPropertyMap;
   // -- spot settings
+  map.emplace_back( "spot.overlay", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setOverlayDisabled(!toBool(value)); } } );
   map.emplace_back( "spot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::spotSize.min, ::settings::ranges::spotSize.max},
                     [this](const QString& value){ setSpotSize(value.toInt()); } } );
@@ -754,6 +756,15 @@ void Settings::setZoomFactor(double factor)
     logDebug(lcSettings) << "zoom.factor = " << m_zoomFactor;
     emit zoomFactorChanged(m_zoomFactor);
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setMultiScreenOverlayEnabled(bool enabled)
+{
+    if (m_multiScreenOverlayEnabled == enabled) return;
+    m_multiScreenOverlayEnabled = enabled;
+    logDebug(lcSettings) << "multi-screen-overlay = " << m_multiScreenOverlayEnabled;
+    emit multiScreenOverlayEnabledChanged(m_multiScreenOverlayEnabled);
 }
 
 // -------------------------------------------------------------------------------------------------

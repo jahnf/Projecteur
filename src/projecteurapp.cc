@@ -19,6 +19,8 @@
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlProperty>
+#include <QQuickWindow>
 #include <QScreen>
 #include <QSystemTrayIcon>
 #include <QTimer>
@@ -34,16 +36,21 @@ namespace {
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Options& options)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon())
   , m_trayMenu(new QMenu())
   , m_localServer(new QLocalServer(this))
   , m_linuxDesktop(new LinuxDesktop(this))
+  , m_xcbOnWayland(QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland())
 {
   if (screens().size() < 1)
   {
-    QMessageBox::critical(nullptr, tr("No Screens detected"), tr("screens().size() returned a size < 1.\nExiting."));
+    const auto title = tr("No Screens detected");
+    const auto text = tr("screens().size() returned a size < 1. Exiting.");
+    logError(mainapp) << title << ";" << text;
+    QMessageBox::critical(nullptr, title, text);
     QTimer::singleShot(0, this, [this](){ this->exit(2); });
     return;
   }
@@ -74,8 +81,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
                     << tr("Desktop Environment: %1;").arg(desktopEnv)
                     << tr("Wayland: %1").arg(m_linuxDesktop->isWayland() ? "true" : "false");
 
-  const bool xcbOnWayland = QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland();
-  if (xcbOnWayland) {
+  if (m_xcbOnWayland) {
     logWarning(mainapp) << tr("Qt 'xcb' platform and Wayland session detected.");
   }
 
@@ -86,14 +92,26 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     QTimer::singleShot(0, this, [this](){ m_dialog->show(); m_dialog->showMinimized(); });
   }
 
+  // Create qml engine and register context properties
   const auto desktopImageProvider = new PixmapProvider(this);
-  const auto engine = new QQmlApplicationEngine(this);
-  engine->rootContext()->setContextProperty("Settings", m_settings);
-  engine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
-  engine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
-  engine->rootContext()->setContextProperty("ProjecteurApp", this);
-  engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
-  const auto window = topLevelWindows().first();
+  m_qmlEngine = new QQmlApplicationEngine(this);
+  m_qmlEngine->rootContext()->setContextProperty("Settings", m_settings);
+  m_qmlEngine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
+  m_qmlEngine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
+  m_qmlEngine->rootContext()->setContextProperty("ProjecteurApp", this);
+
+  // Create qml overlay window component
+  m_windowQmlComponent = new QQmlComponent(m_qmlEngine, QUrl(QStringLiteral("qrc:/main.qml")), m_qmlEngine);
+  if (m_windowQmlComponent->status() != QQmlComponent::Status::Ready) {
+    const auto title = tr("Overlay window error.");
+    const auto text = tr("Qml component has status '%1'. Exiting.").arg(m_windowQmlComponent->status());
+    logError(mainapp) << title << ";" << text;
+    QMessageBox::critical(nullptr, title, text);
+    QTimer::singleShot(0, this, [this](){ this->exit(2); });
+    return;
+  }
+
+  const auto window = createOverlayWindow();
 
   const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
   connect(actionPref, &QAction::triggered, this, [this](){
@@ -121,8 +139,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   m_trayMenu->addSeparator();
   const auto actionQuit = m_trayMenu->addAction(tr("&Quit"));
-  connect(actionQuit, &QAction::triggered, this, [this, engine](){
-    engine->deleteLater(); // see: https://bugreports.qt.io/browse/QTBUG-81247
+  connect(actionQuit, &QAction::triggered, this, [this](){
+    m_qmlEngine->deleteLater(); // see: https://bugreports.qt.io/browse/QTBUG-81247
     this->quit();
   });
   m_trayIcon->setContextMenu(&*m_trayMenu);
@@ -164,7 +182,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   // Handling of spotlight window when mouse move events from spotlight device are detected
   connect(m_spotlight, &Spotlight::spotActiveChanged, this,
-  [window, desktopImageProvider, xcbOnWayland, this](bool active)
+  [window, desktopImageProvider, this](bool active)
   {
     if (active && !m_settings->overlayDisabled())
     {
@@ -201,7 +219,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       // Workaround for 'xcb' on Wayland session (default on Ubuntu)
       // .. the window in that case is not transparent for inputs and cannot be clicked through.
       // --> hide the window, although animations will not be visible
-      if (xcbOnWayland)
+      if (m_xcbOnWayland)
       {
         window->hide();
         if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
@@ -223,7 +241,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   // Handling if the screen in the settings was changed
-  connect(m_settings, &Settings::screenChanged, this, [this, window, xcbOnWayland](int screenIdx)
+  connect(m_settings, &Settings::screenChanged, this, [this, window](int screenIdx)
   {
     if (screenIdx >= screens().size())
       return;
@@ -242,7 +260,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     window->setScreen(screen);
     window->setGeometry(screen->geometry());
 
-    if (xcbOnWayland && !wasVisible)
+    if (m_xcbOnWayland && !wasVisible)
     {
       if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
           && m_dialog->isMinimized()) { // keep Window minimized...
@@ -306,21 +324,39 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 ProjecteurApplication::~ProjecteurApplication()
 {
   if (m_localServer) m_localServer->close();
 }
 
+// -------------------------------------------------------------------------------------------------
+QWindow* ProjecteurApplication::createOverlayWindow()
+{
+    QObject *object = m_windowQmlComponent->create();
+    object->setParent(m_qmlEngine);
+    return qobject_cast<QWindow*>(object);
+}
+
+// -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::spotlightWindowClicked()
 {
   m_spotlight->setSpotActive(false);
 }
 
+// -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::cursorExitedWindow()
 {
   setScreenForCursorPos();
 }
 
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::cursorEntered(quint64 /*screen*/)
+{
+  // TODO
+}
+
+// -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::setScreenForCursorPos()
 {
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
@@ -339,6 +375,7 @@ void ProjecteurApplication::setScreenForCursorPos()
 #endif
 }
 
+// -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
 {
   auto it = m_commandConnections.find(clientConnection);
@@ -419,6 +456,7 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
   commandSize = 0;
 }
 
+// -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::showPreferences(bool show)
 {
   if (show)
@@ -436,6 +474,7 @@ void ProjecteurApplication::showPreferences(bool show)
   }
 }
 
+// =================================================================================================
 ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCommands, int &argc, char **argv)
   : QCoreApplication(argc, argv)
 {

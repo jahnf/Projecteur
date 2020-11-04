@@ -7,6 +7,8 @@ import Projecteur.Utils 1.0 as Utils
 
 Window {
     id: mainWindow
+    property var screenId: -1
+
     width: 300; height: 200
 
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.SplashScreen
@@ -63,6 +65,7 @@ Window {
                 hoverEnabled: true
                 onClicked: { ProjecteurApp.spotlightWindowClicked() }
                 onExited: { ProjecteurApp.cursorExitedWindow() }
+                onEntered: { ProjecteurApp.cursorEntered(screenId) }
             }
         }
 
@@ -77,6 +80,7 @@ Window {
             color: Settings.shadeColor
             visible: false
             enabled: false
+
         }
 
         Loader {
@@ -191,4 +195,4 @@ Window {
             enabled: false
         }
     }
-}
+} // Window

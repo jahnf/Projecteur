@@ -39,6 +39,8 @@ class Settings : public QObject
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
+  Q_PROPERTY(bool multiScreenOverlayEnabled READ multiScreenOverlayEnabled
+                 WRITE setMultiScreenOverlayEnabled NOTIFY multiScreenOverlayEnabledChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -84,6 +86,8 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
+  bool multiScreenOverlayEnabled() const { return m_multiScreenOverlayEnabled; }
+  void setMultiScreenOverlayEnabled(bool enabled);
   bool overlayDisabled() const { return m_overlayDisabled; }
   void setOverlayDisabled(bool disabled);
 
@@ -190,7 +194,7 @@ signals:
   void borderOpacityChanged(double opacity);
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
-  void dblClickDurationChanged(int duration);
+  void multiScreenOverlayEnabledChanged(bool enabled);
   void overlayDisabledChanged(bool disabled);
 
   void presetLoaded(const QString& preset);
@@ -217,11 +221,11 @@ private:
   double m_borderOpacity = 0.8;
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
-  int m_dblClickDuration = 300;
   bool m_showSpotShade = true;
   bool m_showCenterDot = false;
   bool m_spotRotationAllowed = false;
   bool m_showBorder=false;
+  bool m_multiScreenOverlayEnabled = false;
   bool m_overlayDisabled = false;
 
   std::vector<std::pair<QString, StringProperty>> m_stringPropertyMap;

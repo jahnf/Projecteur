@@ -13,6 +13,8 @@ class PreferencesDialog;
 class QLocalServer;
 class QLocalSocket;
 class QMenu;
+class QQmlApplicationEngine;
+class QQmlComponent;
 class QSystemTrayIcon;
 class Settings;
 class Settings;
@@ -42,6 +44,7 @@ signals:
 
 public slots:
   void cursorExitedWindow();
+  void cursorEntered(quint64 screen);
   void spotlightWindowClicked();
 
 private slots:
@@ -50,6 +53,7 @@ private slots:
 private:
   void showPreferences(bool show = true);
   void setScreenForCursorPos();
+  QWindow* createOverlayWindow();
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -60,8 +64,11 @@ private:
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;
   LinuxDesktop* m_linuxDesktop = nullptr;
+  QQmlApplicationEngine* m_qmlEngine = nullptr;
+  QQmlComponent* m_windowQmlComponent = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
   bool m_overlayVisible = false;
+  const bool m_xcbOnWayland = false;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication
