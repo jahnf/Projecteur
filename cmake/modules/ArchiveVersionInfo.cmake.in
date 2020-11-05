@@ -1,5 +1,5 @@
-# Auto generated archive version information 
-# Included in created source archives 
+# Auto generated archive version information
+# Included in created source archives
 
 set(@prefix@_VERSION_MAJOR "@VERSION_MAJOR@")
 set(@prefix@_VERSION_MINOR "@VERSION_MINOR@")
@@ -11,4 +11,5 @@ set(@prefix@_VERSION_FULLHASH "@VERSION_FULLHASH@")
 set(@prefix@_VERSION_STRING "@VERSION_STRING@")
 set(@prefix@_VERSION_ISDIRTY "@VERSION_ISDIRTY@")
 set(@prefix@_VERSION_BRANCH "@VERSION_BRANCH@")
+set(@prefix@_VERSION_DATE_MONTH_YEAR "@VERSION_DATE_MONTH_YEAR@")
 set(@prefix@_VERSION_SUCCESS 1)

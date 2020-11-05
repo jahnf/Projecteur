@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     {
       print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << std::endl;
-      print() << "Usage: projecteur [option]" << std::endl;
+      print() << "Usage: projecteur [OPTION]..." << std::endl;
       print() << "<Options>";
       print() << "  -h, --help             " << helpOption.description();
       print() << "  --help-all             " << fullHelpOption.description();
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
-      print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
+      print() << "  spot=[on|off|toggle]   " << Main::tr("Turn spotlight on/off or toggle.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       if (parser.isSet(fullHelpOption)) {
         print() << "  preset=NAME            " << Main::tr("Set a preset.");

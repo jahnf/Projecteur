@@ -34,8 +34,7 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   m_activeTimer->setInterval(600);
 
   connect(m_activeTimer, &QTimer::timeout, this, [this](){
-    m_spotActive = false;
-    emit spotActiveChanged(false);
+    setSpotActive(false);
   });
 
   if (m_options.enableUInput) {
@@ -80,6 +79,15 @@ uint32_t Spotlight::connectedDeviceCount() const
     if (dc.second->subDeviceCount()) ++count;
   }
   return count;
+}
+
+// -------------------------------------------------------------------------------------------------
+void Spotlight::setSpotActive(bool active)
+{
+  if (m_spotActive == active) return;
+  m_spotActive = active;
+  if (!m_spotActive) m_activeTimer->stop();
+  emit spotActiveChanged(m_spotActive);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -253,8 +261,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       if (isMouseMoveEvent)
       { // Skip input mapping for mouse move events completely
         if (!m_activeTimer->isActive()) {
-          m_spotActive = true;
-          emit spotActiveChanged(true);
+          setSpotActive(true);
         }
         m_activeTimer->start();
         if (m_virtualDevice) m_virtualDevice->emitEvents(buf.data(), buf.pos());

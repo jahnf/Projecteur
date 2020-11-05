@@ -13,14 +13,11 @@ RUN apt-get install -y --no-install-recommends \
   cmake \
   udev \
   git \
-  pkg-config
-
-RUN apt-get install -y --no-install-recommends \
+  pkg-config \
   qtdeclarative5-dev \
   qttools5-dev-tools \
-  qt5-default
-
-RUN apt-get install -y --no-install-recommends \
+  qttools5-dev \
+  qt5-default \
   libqt5x11extras5-dev \
-  libusb-1.0-0-dev
-
+  libusb-1.0-0-dev \
+  && rm -rf /var/lib/apt/lists/*

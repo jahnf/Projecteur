@@ -13,8 +13,9 @@ endif()
 if( NOT CMAKE_BUILD_TYPE )
   message(STATUS "Setting build type to 'Release' as none was specified.")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
+
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 
 project(Projecteur LANGUAGES CXX)
 
@@ -195,37 +196,63 @@ set_property(TARGET projecteur APPEND PROPERTY SOURCES "${CMAKE_CURRENT_BINARY_D
 configure_file("55-projecteur.rules.in" "55-projecteur.rules" @ONLY)
 install(FILES "${OUTDIR}/55-projecteur.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
 
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+
+# Set variables for file configurations
+get_target_property(VERSION_STRING projecteur VERSION_STRING)
+get_target_property(VERSION_DATE_MONTH_YEAR projecteur VERSION_DATE_MONTH_YEAR)
+set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
 configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
-install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION /usr/share/applications/)
+install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
+
+# Configure man page and gzip it.
+configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
+find_program(GZIP_EXECUTABLE gzip)
+add_custom_command(
+  OUTPUT ${OUTDIR}/projecteur.1.gz
+  COMMAND ${GZIP_EXECUTABLE} -9f "${OUTDIR}/projecteur.1"
+  WORKING_DIRECTORY ${OUTDIR}
+)
+add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
+install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
+
+configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
+install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
+
+configure_file("${TMPLDIR}/projecteur.bash-completion" "projecteur.bash-completion" @ONLY)
+install(FILES "${OUTDIR}/projecteur.bash-completion"
+        DESTINATION share/bash-completion/completions/
+        RENAME projecteur)
 
 configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
 configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
 
-set(HOMEPAGE "https://github.com/jahnf/Projecteur")
-
 # --- Linux packaging ---
 include(LinuxPackaging)
 
-# Add 'source-archive' target
-add_source_archive_target(projecteur)
+option(PACKAGE_TARGETS "Create packaging build targets" ON)
 
-# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
-add_dist_package_target(
-  PROJECT "${CMAKE_PROJECT_NAME}"
-  TARGET projecteur
-  DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
-  DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
-  CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
-  HOMEPAGE "${HOMEPAGE}"
-  DEBIAN_SECTION "utils"
-  PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
-  POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
-)
+if(PACKAGE_TARGETS)
+  # Add 'source-archive' target
+  add_source_archive_target(projecteur)
+
+  # Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+  add_dist_package_target(
+    PROJECT "${CMAKE_PROJECT_NAME}"
+    TARGET projecteur
+    DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
+    DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
+    CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
+    HOMEPAGE "${HOMEPAGE}"
+    DEBIAN_SECTION "utils"
+    PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
+    POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
+  )
+endif()
 
 option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
 find_program(iwyu_path NAMES include-what-you-use iwyu)

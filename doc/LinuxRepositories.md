@@ -103,6 +103,16 @@ dnf config-manager --add-repo '/tmp/jahnf-projecteur-develop.repo'
 dnf -q makecache -y --disablerepo='*' --enablerepo='jahnf-projecteur-develop' --enablerepo='jahnf-projecteur-develop-source'
 ```
 
+#### Fedora 33
+
+```
+dnf install yum-utils pygpgme
+rpm --import 'https://dl.cloudsmith.io/public/jahnf/projecteur-develop/cfg/gpg/gpg.544E6934C0570750.key'
+curl -1sLf 'https://dl.cloudsmith.io/public/jahnf/projecteur-develop/cfg/setup/config.rpm.txt?distro=fedora&codename=33' > /tmp/jahnf-projecteur-develop.repo
+dnf config-manager --add-repo '/tmp/jahnf-projecteur-develop.repo'
+dnf -q makecache -y --disablerepo='*' --enablerepo='jahnf-projecteur-develop' --enablerepo='jahnf-projecteur-develop-source'
+```
+
 #### CentOS 8
 
 ```
