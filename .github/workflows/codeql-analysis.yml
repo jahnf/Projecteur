@@ -37,10 +37,11 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
 
-    - run: |
+    - name: Configure and build project
+      run: |
        mkdir build && cd build
        cmake ..
-       make
+       make -j2
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
