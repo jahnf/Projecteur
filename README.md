@@ -27,7 +27,7 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Pre-requisites](#pre-requisites)
       * [Application Menu](#application-menu)
       * [Command Line Interface](#command-line-interface)
-      * [Scriptability](#scriptability)
+      * [Scriptability / Keyboard shortcuts](#scriptability)
       * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
   * [License](#license)
@@ -160,7 +160,7 @@ Additional to the standard `--help` and `--version` options, there is an option 
 commands to a running instance of _Projecteur_ and the ability to set properties.
 
 ```
-Usage: projecteur [option]
+Usage: projecteur [OPTION]...
 
 <Options>
   -h, --help             Show command line usage.
