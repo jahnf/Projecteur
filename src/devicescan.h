@@ -6,7 +6,6 @@
 #include <QString>
 #include <QMetaType>
 
-#include <tuple>
 #include <vector>
 
 // -------------------------------------------------------------------------------------------------
