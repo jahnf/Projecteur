@@ -15,6 +15,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Install dependencies
+      run: |       
+        sudo apt-get install pkg-config qtdeclarative5-dev \
+          qttools5-dev-tools qttools5-dev \
+          qt5-default libqt5x11extras5-dev
+        
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
