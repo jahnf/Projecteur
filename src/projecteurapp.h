@@ -23,6 +23,7 @@ class ProjecteurApplication : public QApplication
 {
   Q_OBJECT
   Q_PROPERTY(bool overlayVisible READ overlayVisible NOTIFY overlayVisibleChanged)
+  Q_PROPERTY(quint64 currentSpotScreen READ currentSpotScreen NOTIFY currentSpotScreenChanged)
 
 public:
   struct Options {
@@ -41,6 +42,7 @@ public:
 
 signals:
   void overlayVisibleChanged(bool visible);
+  void currentSpotScreenChanged(quint64 screen);
 
 public slots:
   void cursorExitedWindow();
@@ -57,6 +59,8 @@ private:
   QWindow* createOverlayWindow();
   void updateOverlayWindow(QWindow* window, QScreen* screen);
   void setupScreenOverlays();
+  quint64 currentSpotScreen() const;
+  void setCurrentSpotScreen(quint64 screen);
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -75,6 +79,7 @@ private:
 
   QList<QWindow*> m_overlayWindows;
   std::map<QScreen*, QWindow*> m_screenWindowMap;
+  quint64 m_currentSpotScreen = 0;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication

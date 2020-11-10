@@ -111,8 +111,25 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     return;
   }
 
+  // Setup screen overlay windows
   setupScreenOverlays();
+
+  // React to multi-screen and overlay disabled changes in settings.
   connect(m_settings, &Settings::multiScreenOverlayEnabledChanged, this, [this](){ setupScreenOverlays(); });
+  connect(m_settings, &Settings::overlayDisabledChanged, this, [this](bool disabled){
+    if (disabled) {
+      if (m_spotlight->spotActive()) m_spotlight->setSpotActive(false);
+      else emit m_spotlight->spotActiveChanged(false);
+    }
+    else {
+      QTimer::singleShot(0, this, [this](){
+        if (m_spotlight->spotActive())
+          emit m_spotlight->spotActiveChanged(true);
+        else
+          m_spotlight->setSpotActive(true);
+      });
+    }
+  });
 
   const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
   connect(actionPref, &QAction::triggered, this, [this](){
@@ -318,9 +335,9 @@ void ProjecteurApplication::cursorExitedWindow()
 }
 
 // -------------------------------------------------------------------------------------------------
-void ProjecteurApplication::cursorEntered(quint64 /*screen*/)
+void ProjecteurApplication::cursorEntered(quint64 screen)
 {
-  // TODO
+  setCurrentSpotScreen(screen);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -442,6 +459,20 @@ void ProjecteurApplication::setupScreenOverlays()
         m_spotlight->setSpotActive(true);
     });
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+quint64 ProjecteurApplication::currentSpotScreen() const
+{
+  return m_currentSpotScreen;
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::setCurrentSpotScreen(quint64 screen)
+{
+  if (m_currentSpotScreen == screen) return;
+  m_currentSpotScreen = screen;
+  emit currentSpotScreenChanged(m_currentSpotScreen);
 }
 
 // -------------------------------------------------------------------------------------------------

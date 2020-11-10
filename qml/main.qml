@@ -8,6 +8,7 @@ import Projecteur.Utils 1.0 as Utils
 Window {
     id: mainWindow
     property var screenId: -1
+    readonly property bool showSpot: ProjecteurApp.currentSpotScreen === screenId
 
     width: 300; height: 200
 
@@ -72,8 +73,11 @@ Window {
         Rectangle {
             property int spotSize: (mainWindow.height / 100.0) * Settings.spotSize
             id: centerRect
+            readonly property int dynamicHeight:
+                mainWindow.showSpot ? spotSize > 50
+                                    ? Math.min(spotSize, mainWindow.height) : 50 : 0;
             opacity: Settings.shadeOpacity
-            height: spotSize > 50 ? Math.min(spotSize, mainWindow.height) : 50;
+            height: dynamicHeight
             width: height
             x: ma.mouseX - width/2
             y: ma.mouseY - height/2
