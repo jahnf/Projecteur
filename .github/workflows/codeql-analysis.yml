@@ -38,6 +38,7 @@ jobs:
       uses: github/codeql-action/init@v1
       with: 
         queries: +security-and-quality
+        config-file: ./.github/codeql/codeql-config.yml
 
     - name: Configure and build project
       run: |
