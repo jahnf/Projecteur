@@ -8,7 +8,7 @@ import Projecteur.Utils 1.0 as Utils
 Window {
     id: mainWindow
     property var screenId: -1
-    readonly property bool showSpot: ProjecteurApp.currentSpotScreen === screenId
+    readonly property bool spotOnCurrentWindow: ProjecteurApp.currentSpotScreen === screenId
 
     width: 300; height: 200
 
@@ -49,7 +49,7 @@ Window {
         }
 
         OpacityMask {
-            visible: Settings.zoomEnabled
+            visible: Settings.zoomEnabled && mainWindow.spotOnCurrentWindow
             cached: true
             anchors.fill: centerRect
             source: desktopItem
@@ -61,30 +61,39 @@ Window {
             anchors.fill: parent
             MouseArea {
                 id: ma
+
+                readonly property bool calculateMapping: Settings.multiScreenOverlayEnabled && !mainWindow.spotOnCurrentWindow
+                readonly property point globalPos: calculateMapping ? ProjecteurApp.currentCursorPos : Qt.point(0,0)
+                readonly property point mappedPos: calculateMapping ? mainWindow.contentItem.mapFromGlobal(globalPos.x, globalPos.y) : globalPos
+                readonly property int posX: spotOnCurrentWindow ? mouseX : mappedPos.x
+                readonly property int posY: spotOnCurrentWindow ? mouseY : mappedPos.y
+
                 cursorShape: Settings.cursor
                 anchors.fill: parent
                 hoverEnabled: true
                 onClicked: { ProjecteurApp.spotlightWindowClicked() }
                 onExited: { ProjecteurApp.cursorExitedWindow() }
                 onEntered: { ProjecteurApp.cursorEntered(screenId) }
+                onPositionChanged: {
+                    if (Settings.multiScreenOverlayEnabled) {
+                        ProjecteurApp.cursorPositionChanged(
+                            mainWindow.contentItem.mapToGlobal(mouse.x, mouse.y))
+                    }
+                }
             }
         }
 
         Rectangle {
             property int spotSize: (mainWindow.height / 100.0) * Settings.spotSize
             id: centerRect
-            readonly property int dynamicHeight:
-                mainWindow.showSpot ? spotSize > 50
-                                    ? Math.min(spotSize, mainWindow.height) : 50 : 0;
             opacity: Settings.shadeOpacity
-            height: dynamicHeight
+            height: spotSize > 50 ? Math.min(spotSize, mainWindow.height) : 50
             width: height
-            x: ma.mouseX - width/2
-            y: ma.mouseY - height/2
+            x: ma.posX - width/2
+            y: ma.posY - height/2
             color: Settings.shadeColor
             visible: false
             enabled: false
-
         }
 
         Loader {

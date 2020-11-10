@@ -39,7 +39,7 @@ class Settings : public QObject
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
   Q_PROPERTY(bool multiScreenOverlayEnabled READ multiScreenOverlayEnabled
-                 WRITE setMultiScreenOverlayEnabled NOTIFY multiScreenOverlayEnabledChanged)
+                  WRITE setMultiScreenOverlayEnabled NOTIFY multiScreenOverlayEnabledChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);

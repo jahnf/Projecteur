@@ -341,6 +341,12 @@ void ProjecteurApplication::cursorEntered(quint64 screen)
 }
 
 // -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::cursorPositionChanged(const QPoint& pos)
+{
+  setCurrentCursorPos(pos);
+}
+
+// -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::updateOverlayWindow(QWindow* window, QScreen* screen)
 {
   if (screen == nullptr)
@@ -473,6 +479,20 @@ void ProjecteurApplication::setCurrentSpotScreen(quint64 screen)
   if (m_currentSpotScreen == screen) return;
   m_currentSpotScreen = screen;
   emit currentSpotScreenChanged(m_currentSpotScreen);
+}
+
+// -------------------------------------------------------------------------------------------------
+QPoint ProjecteurApplication::currentCursorPos() const
+{
+  return m_currentCursorPos;
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::setCurrentCursorPos(const QPoint& pos)
+{
+  if (pos == m_currentCursorPos) return;
+  m_currentCursorPos = pos;
+  emit currentCursorPosChanged(m_currentCursorPos);
 }
 
 // -------------------------------------------------------------------------------------------------
