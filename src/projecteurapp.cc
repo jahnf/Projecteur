@@ -131,11 +131,17 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     }
   });
 
+  // Re-setup screen overlay(s) when a screen is added or removed
+  connect(this, &ProjecteurApplication::screenAdded, this, [this](){ setupScreenOverlays(); });
+  connect(this, &ProjecteurApplication::screenRemoved, this, [this](){ setupScreenOverlays(); });
+
+  // add and connect 'Preferences' tray menu action
   const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
   connect(actionPref, &QAction::triggered, this, [this](){
     this->showPreferences(true);
   });
 
+  // add and and connect 'About' tray menu action
   const auto actionAbout = m_trayMenu->addAction(tr("&About"));
   connect(actionAbout, &QAction::triggered, this, [this]()
   {
@@ -416,18 +422,36 @@ QScreen* ProjecteurApplication::screenAtCursorPos() const
 // -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::setupScreenOverlays()
 {
-  // Adapt number of overlay windows depending on multiScreenOverlayEnabled() and
-  // the number of screens
+  m_screenWindowMap.clear();
+
   const auto currentScreens = screens();
   if (currentScreens.size() == 0)
   {
-    m_screenWindowMap.clear();
     for (const auto window : m_overlayWindows) { window->deleteLater(); }
     m_overlayWindows.clear();
     return;
   }
 
-  m_screenWindowMap.clear();
+  // disconnect any connected screen signals previously connected to `this`
+  // and connect to geometryChanged signal to update overlay windows on screen geometry changes
+  for (const auto screen : currentScreens) {
+    disconnect(screen, nullptr, this, nullptr);
+    connect(screen, &QScreen::geometryChanged, this, [this, screen]()
+    {
+      if (m_settings->multiScreenOverlayEnabled())
+      {
+        const auto it = m_screenWindowMap.find(screen);
+        if (it == m_screenWindowMap.cend()) return;
+        updateOverlayWindow(it->second, it->first);
+      }
+      else {
+        setScreenForCursorPos();
+      }
+    });
+  }
+
+  // Adapt number of overlay windows depending on multiScreenOverlayEnabled() and
+  // the number of screens
   const int numOverlayWindows = m_settings->multiScreenOverlayEnabled() ? currentScreens.size() : 1;
   const bool wasSpotActive = m_spotlight->spotActive();
 
@@ -448,7 +472,7 @@ void ProjecteurApplication::setupScreenOverlays()
     }
   }
   else
-  {
+  { // multi-screen overlays enabled: assign overlay windows to screens
     auto wit = m_overlayWindows.cbegin();
     for (const auto screen : currentScreens) {
       m_screenWindowMap[screen] = (*wit);
@@ -457,6 +481,8 @@ void ProjecteurApplication::setupScreenOverlays()
     }
   }
 
+  // If the spotlight was active was active when calling the setup function,
+  // make sure it will be activated again.
   if (wasSpotActive) {
     QTimer::singleShot(0, this, [this](){
       if (m_spotlight->spotActive())
