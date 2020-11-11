@@ -115,7 +115,7 @@ void NativeKeySeqEdit::paintEvent(QPaintEvent*)
   int xPos = (option.rect.height()-fm.height()) / 2;
   if (recording())
   {
-    const int spacingX = QStaticText(" ").size().width();
+    const int spacingX = static_cast<int>(QStaticText(" ").size().width());
     xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedQtKeys.empty()) {
       xPos += drawPlaceHolderText(xPos, p, option, tr("Press shortcut..."));

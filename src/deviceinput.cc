@@ -471,7 +471,6 @@ const NativeKeySequence& NativeKeySequence::predefined::meta()
 {
   static const NativeKeySequence ks = [](){
     NativeKeySequence ks;
-    //ks.m_keySequence = QKeySequence::fromString("Meta");
     ks.m_nativeModifiers.push_back(NativeKeySequence::LeftMeta);
     KeyEvent pressed; KeyEvent released;
     pressed.emplace_back(EV_KEY, KEY_LEFTMETA, 1);

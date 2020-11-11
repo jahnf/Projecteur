@@ -28,8 +28,6 @@ public:
   explicit VirtualDevice(Token, int fd);
   ~VirtualDevice();
 
-  void emitEvent(uint16_t type, uint16_t code, int val);
-  void emitEvent(struct input_event ie);
   void emitEvents(const struct input_event[], size_t num);
   void emitEvents(const std::vector<struct input_event>& events);
 };

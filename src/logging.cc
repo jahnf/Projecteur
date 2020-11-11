@@ -108,8 +108,6 @@ namespace {
   // - if that changes and multiple threads will log, this needs a serious overhaul - NOT thread safe
   void projecteurLogHandler(QtMsgType type, const QMessageLogContext &context, const QString &msgQString)
   {
-    // const char *file = context.file ? context.file : "";
-    // const char *function = context.function ? context.function : "";
     const char *category = context.category ? context.category : "";
 
     #if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))

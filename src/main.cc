@@ -324,7 +324,6 @@ int main(int argc, char *argv[])
     return 43;
   }
 
-  //QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   ProjecteurApplication app(argc, argv, options);
   return app.exec();
 }

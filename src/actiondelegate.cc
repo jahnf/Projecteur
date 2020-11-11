@@ -309,9 +309,9 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
 
   QMenu* menu = new QMenu(parent);
 
-  for (const auto& item : items) {
-    const auto qaction = menu->addAction(item.icon, item.text);
-    connect(qaction, &QAction::triggered, this, [model, index, type=item.type](){
+  for (const auto& entry : items) {
+    const auto qaction = menu->addAction(entry.icon, entry.text);
+    connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
       model->setItemActionType(index, type);
     });
   }

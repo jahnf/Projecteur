@@ -174,7 +174,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   [this](QSystemTrayIcon::ActivationReason reason) {
     if (reason == QSystemTrayIcon::Trigger)
     {
-      //static const bool isKDE = (qgetenv("XDG_CURRENT_DESKTOP") == QByteArray("KDE"));
       const auto trayGeometry = m_trayIcon->geometry();
       // This usually won't give us a valid geometry, since Qt isn't drawing the tray icon itself
       if (trayGeometry.isValid()) {
