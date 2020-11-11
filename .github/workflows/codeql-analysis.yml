@@ -48,6 +48,7 @@ jobs:
 
     - name: Build project
       run: |
+       cd build
        make -j2
 
     - name: Perform CodeQL Analysis
