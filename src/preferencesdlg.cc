@@ -362,6 +362,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   spotGrid->addWidget(shapeRotationLabel, 5, 0);
   spotGrid->addWidget(shapeRotationSb, 5, 1);
 
+  // Function for updating all spotlight shape related widgets
   auto updateShapeSettingsWidgets = [settings, shapeCombo, shapeRotationSb, shapeRotationLabel, spotGrid, this]()
   {
     if (shapeCombo->currentIndex() == -1) return;
