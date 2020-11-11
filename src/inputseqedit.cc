@@ -91,7 +91,7 @@ namespace {
     }
 
     int sequenceWidth = 0;
-    const int paddingX = QStaticText(" ").size().width();
+    const int paddingX = static_cast<int>(QStaticText(" ").size().width());
     for (auto it = kes.cbegin(); it!=kes.cend(); ++it)
     {
       if (it != kes.cbegin()) sequenceWidth += paddingX;
@@ -368,7 +368,7 @@ int InputSeqEdit::drawEmptyIndicator(int startX, QPainter& p, const QStyleOption
   const auto top = (option.rect.height() - textNone.size().height()) / 2;
   p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
   p.restore();
-  return textNone.size().width();
+  return static_cast<int>(textNone.size().width());
 }
 
 // -------------------------------------------------------------------------------------------------

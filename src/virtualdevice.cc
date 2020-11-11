@@ -45,7 +45,7 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
     return std::unique_ptr<VirtualDevice>();
   }
 
-  int fd = ::open(location, O_WRONLY | O_NDELAY);
+  const int fd = ::open(location, O_WRONLY | O_NDELAY);
   if (fd < 0) {
     logWarn(virtualdevice) << VirtualDevice_::tr("Unable to open: %1").arg(location);
     logWarn(virtualdevice) << VirtualDevice_::tr("Please check if current user has write access");
@@ -93,7 +93,6 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
   return std::make_shared<VirtualDevice>(Token{}, fd);
 }
 
-// lgtm[cpp/array-in-interface]
 void VirtualDevice::emitEvents(const struct input_event input_events[], size_t num)
 {
   if (const ssize_t sz = sizeof(input_event) * num) {

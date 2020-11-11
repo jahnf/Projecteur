@@ -59,8 +59,8 @@ namespace {
   QPixmap grabScreenVirtualDesktop(QScreen* screen)
   {
     QRect g;
-    for (const auto screen : QGuiApplication::screens()) {
-      g = g.united(screen->geometry());
+    for (const auto s : QGuiApplication::screens()) {
+      g = g.united(s->geometry());
     }
 
     QPixmap pm(QApplication::primaryScreen()->grabWindow(

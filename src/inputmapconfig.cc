@@ -278,7 +278,6 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   : QTableView(parent)
     , m_actionTypeDelegate(new ActionTypeDelegate(this))
 {
-  // verticalHeader()->setHidden(true);
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
 
   const auto imSeqDelegate = new InputSeqDelegate(this);
