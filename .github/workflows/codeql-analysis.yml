@@ -33,16 +33,21 @@ jobs:
     - run: git checkout HEAD^2
       if: ${{ github.event_name == 'pull_request' }}
 
+    - name: Configure and build Qt moc cpps
+      run: |
+       mkdir build && cd build
+       cmake ..
+       make projecteur_autogen
+       make projecteur_autogen/mocs_compilation.cpp.o
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
       with: 
-        queries: +security-extended
+        queries: +security-and-quality
 
-    - name: Configure and build project
+    - name: Build project
       run: |
-       mkdir build && cd build
-       cmake ..
        make -j2
 
     - name: Perform CodeQL Analysis
