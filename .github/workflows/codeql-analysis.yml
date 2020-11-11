@@ -2,12 +2,10 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [develop, master, "feature/workflow-codescan"]
+    branches:
+      - "**"
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [develop]
-  #schedule:
-  #  - cron: '0 20 * * 3'
+    branches: [develop, master]
 
 jobs:
   analyse:
