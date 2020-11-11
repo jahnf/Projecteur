@@ -93,11 +93,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   }
 
   // Create qml engine and register context properties
-  const auto desktopImageProvider = new PixmapProvider(this);
   m_qmlEngine = new QQmlApplicationEngine(this);
   m_qmlEngine->rootContext()->setContextProperty("Settings", m_settings);
   m_qmlEngine->rootContext()->setContextProperty("PreferencesDialog", &*m_dialog);
-  m_qmlEngine->rootContext()->setContextProperty("DesktopImage", desktopImageProvider);
   m_qmlEngine->rootContext()->setContextProperty("ProjecteurApp", this);
 
   // Create qml overlay window component
@@ -208,7 +206,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   // Handling of spotlight window when mouse move events from spotlight device are detected
   connect(m_spotlight, &Spotlight::spotActiveChanged, this,
-  [desktopImageProvider, this](bool active)
+  [this](bool active)
   {
     if (active && !m_settings->overlayDisabled())
     {
@@ -224,7 +222,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
         if (window->screen())
         {
           if (m_settings->zoomEnabled()) {
-            desktopImageProvider->setPixmap(m_linuxDesktop->grabScreen(window->screen()));
+            window->setProperty("desktopPixmap", m_linuxDesktop->grabScreen(window->screen()));
           }
 
           const auto screenGeometry = window->screen()->geometry();

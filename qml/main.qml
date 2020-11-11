@@ -9,6 +9,7 @@ Window {
     id: mainWindow
     property var screenId: -1
     readonly property bool spotOnCurrentWindow: ProjecteurApp.currentSpotScreen === screenId
+    property alias desktopPixmap: desktopImage.pixmap
 
     width: 300; height: 200
 
@@ -37,7 +38,6 @@ Window {
 
             Utils.Image {
                 id: desktopImage
-                pixmap: DesktopImage.pixmap
                 smooth: rotation == 0 ? false : true
                 rotation: -rotationItem.rotation
                 readonly property real xOffset: Math.floor(parent.width/2.0 + ((rotationItem.width-mainWindow.width)/2))

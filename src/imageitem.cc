@@ -10,16 +10,6 @@ namespace {
   }();
 }
 
-PixmapProvider::PixmapProvider(QObject* parent)
-  : QObject(parent)
-{}
-
-void PixmapProvider::setPixmap(QPixmap pm)
-{
-  m_pixmap = pm;
-  emit pixmapChanged();
-}
-
 ProjecteurImage::ProjecteurImage(QQuickItem *parent)
   : QQuickPaintedItem(parent)
 {
