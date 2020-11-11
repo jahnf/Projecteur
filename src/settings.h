@@ -27,7 +27,6 @@ class Settings : public QObject
   Q_PROPERTY(double dotOpacity READ dotOpacity WRITE setDotOpacity NOTIFY dotOpacityChanged)
   Q_PROPERTY(QColor shadeColor READ shadeColor WRITE setShadeColor NOTIFY shadeColorChanged)
   Q_PROPERTY(double shadeOpacity READ shadeOpacity WRITE setShadeOpacity NOTIFY shadeOpacityChanged)
-  Q_PROPERTY(int screen READ screen WRITE setScreen NOTIFY screenChanged)
   Q_PROPERTY(Qt::CursorShape cursor READ cursor WRITE setCursor NOTIFY cursorChanged)
   Q_PROPERTY(QString spotShape READ spotShape WRITE setSpotShape NOTIFY spotShapeChanged)
   Q_PROPERTY(double spotRotation READ spotRotation WRITE setSpotRotation NOTIFY spotRotationChanged)
@@ -39,6 +38,8 @@ class Settings : public QObject
   Q_PROPERTY(double borderOpacity READ borderOpacity WRITE setBorderOpacity NOTIFY borderOpacityChanged)
   Q_PROPERTY(bool zoomEnabled READ zoomEnabled WRITE setZoomEnabled NOTIFY zoomEnabledChanged)
   Q_PROPERTY(double zoomFactor READ zoomFactor WRITE setZoomFactor NOTIFY zoomFactorChanged)
+  Q_PROPERTY(bool multiScreenOverlayEnabled READ multiScreenOverlayEnabled
+                  WRITE setMultiScreenOverlayEnabled NOTIFY multiScreenOverlayEnabledChanged)
 
 public:
   explicit Settings(QObject* parent = nullptr);
@@ -63,8 +64,6 @@ public:
   void setShadeColor(const QColor& color);
   double shadeOpacity() const { return m_shadeOpacity; }
   void setShadeOpacity(double opacity);
-  int screen() const { return m_screen; }
-  void setScreen(int screen);
   Qt::CursorShape cursor() const { return m_cursor; }
   void setCursor(Qt::CursorShape cursor);
   QString spotShape() const { return m_spotShape; }
@@ -84,6 +83,8 @@ public:
   void setZoomEnabled(bool enabled);
   double zoomFactor() const { return m_zoomFactor; }
   void setZoomFactor(double factor);
+  bool multiScreenOverlayEnabled() const { return m_multiScreenOverlayEnabled; }
+  void setMultiScreenOverlayEnabled(bool enabled);
   bool overlayDisabled() const { return m_overlayDisabled; }
   void setOverlayDisabled(bool disabled);
 
@@ -179,7 +180,6 @@ signals:
   void dotOpacityChanged(double opacity);
   void shadeColorChanged(const QColor& color);
   void shadeOpacityChanged(double opcacity);
-  void screenChanged(int screen);
   void cursorChanged(Qt::CursorShape cursor);
   void spotShapeChanged(const QString& spotShapeQmlComponent);
   void spotRotationChanged(double rotation);
@@ -190,7 +190,7 @@ signals:
   void borderOpacityChanged(double opacity);
   void zoomEnabledChanged(bool enabled);
   void zoomFactorChanged(double zoomFactor);
-  void dblClickDurationChanged(int duration);
+  void multiScreenOverlayEnabledChanged(bool enabled);
   void overlayDisabledChanged(bool disabled);
 
   void presetLoaded(const QString& preset);
@@ -208,7 +208,6 @@ private:
   double m_dotOpacity = 0.8;
   QColor m_shadeColor;
   double m_shadeOpacity = 0.3;
-  int m_screen = -1; // inital invalid value, see #26
   Qt::CursorShape m_cursor = Qt::BlankCursor;
   QString m_spotShape;
   double m_spotRotation = 0.0;
@@ -217,11 +216,11 @@ private:
   double m_borderOpacity = 0.8;
   bool m_zoomEnabled = false;
   double m_zoomFactor = 2.0;
-  int m_dblClickDuration = 300;
   bool m_showSpotShade = true;
   bool m_showCenterDot = false;
   bool m_spotRotationAllowed = false;
   bool m_showBorder=false;
+  bool m_multiScreenOverlayEnabled = false;
   bool m_overlayDisabled = false;
 
   std::vector<std::pair<QString, StringProperty>> m_stringPropertyMap;

@@ -1,10 +1,8 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "actiondelegate.h"
 
-#include "deviceinput.h"
 #include "inputmapconfig.h"
 #include "inputseqedit.h"
-#include "logging.h"
 #include "nativekeyseqedit.h"
 #include "projecteur-icons-def.h"
 
