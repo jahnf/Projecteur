@@ -27,7 +27,6 @@ namespace {
     constexpr char dotOpacity[] = "dotOpacity";
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
-    constexpr char screen[] = "screen";
     constexpr char cursor[] = "cursor";
     constexpr char spotShape[] = "spotShape";
     constexpr char spotRotation[] ="spotRotation";
@@ -37,6 +36,7 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
+    constexpr char multiScreenOverlay[] = "multiScreenOverlay";
 
     // -- device specific
     constexpr char inputSequenceInterval[] = "inputSequenceInterval";
@@ -60,6 +60,7 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
+      constexpr bool multiScreenOverlay = false;
 
       // -- device specific defaults
       constexpr int inputSequenceInterval = 250;
@@ -162,6 +163,10 @@ void Settings::initializeStringProperties()
 {
   auto& map = m_stringPropertyMap;
   // -- spot settings
+  map.emplace_back( "spot.overlay", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setOverlayDisabled(!toBool(value)); } } );
+  map.emplace_back( "spot.multi-screen", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setMultiScreenOverlayEnabled(toBool(value)); } } );
   map.emplace_back( "spot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::spotSize.min, ::settings::ranges::spotSize.max},
                     [this](const QString& value){ setSpotSize(value.toInt()); } } );
@@ -291,6 +296,7 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
+  setMultiScreenOverlayEnabled(settings::defaultValue::multiScreenOverlay);
   shapeSettingsSetDefaults();
 }
 
@@ -457,6 +463,7 @@ void Settings::load(const QString& preset)
   setBorderOpacity(m_settings->value(s+::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   setZoomEnabled(m_settings->value(s+::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
   setZoomFactor(m_settings->value(s+::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
+  setMultiScreenOverlayEnabled(m_settings->value(s+::settings::multiScreenOverlay, settings::defaultValue::multiScreenOverlay).toBool());
   shapeSettingsLoad(preset);
 }
 
@@ -482,6 +489,7 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::borderOpacity, m_borderOpacity);
   m_settings->setValue(section+::settings::zoomEnabled, m_zoomEnabled);
   m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
+  m_settings->setValue(section+::settings::multiScreenOverlay, m_multiScreenOverlayEnabled);
   shapeSettingsSavePreset(preset);
 
   m_presetModel->addPreset(preset);
@@ -582,17 +590,6 @@ void Settings::setShadeOpacity(double opacity)
     logDebug(lcSettings) << "shade.opacity = " << m_shadeOpacity;
     emit shadeOpacityChanged(m_shadeOpacity);
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-void Settings::setScreen(int screen)
-{
-  if (screen == m_screen)
-    return;
-
-  m_screen = qMin(qMax(0, screen), 100);
-  m_settings->setValue(::settings::screen, m_screen);
-  emit screenChanged(m_screen);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -754,6 +751,16 @@ void Settings::setZoomFactor(double factor)
     logDebug(lcSettings) << "zoom.factor = " << m_zoomFactor;
     emit zoomFactorChanged(m_zoomFactor);
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setMultiScreenOverlayEnabled(bool enabled)
+{
+    if (m_multiScreenOverlayEnabled == enabled) return;
+    m_multiScreenOverlayEnabled = enabled;
+    m_settings->setValue(::settings::multiScreenOverlay, m_multiScreenOverlayEnabled);
+    logDebug(lcSettings) << "multi-screen-overlay = " << m_multiScreenOverlayEnabled;
+    emit multiScreenOverlayEnabledChanged(m_multiScreenOverlayEnabled);
 }
 
 // -------------------------------------------------------------------------------------------------
