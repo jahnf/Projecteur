@@ -13,6 +13,8 @@ class PreferencesDialog;
 class QLocalServer;
 class QLocalSocket;
 class QMenu;
+class QQmlApplicationEngine;
+class QQmlComponent;
 class QSystemTrayIcon;
 class Settings;
 class Settings;
@@ -21,6 +23,8 @@ class ProjecteurApplication : public QApplication
 {
   Q_OBJECT
   Q_PROPERTY(bool overlayVisible READ overlayVisible NOTIFY overlayVisibleChanged)
+  Q_PROPERTY(quint64 currentSpotScreen READ currentSpotScreen NOTIFY currentSpotScreenChanged)
+  Q_PROPERTY(QPoint currentCursorPos READ currentCursorPos NOTIFY currentCursorPosChanged)
 
 public:
   struct Options {
@@ -39,10 +43,14 @@ public:
 
 signals:
   void overlayVisibleChanged(bool visible);
+  void currentSpotScreenChanged(quint64 screen);
+  void currentCursorPosChanged(const QPoint& pos);
 
 public slots:
   void cursorExitedWindow();
+  void cursorEntered(quint64 screen);
   void spotlightWindowClicked();
+  void cursorPositionChanged(const QPoint& pos);
 
 private slots:
   void readCommand(QLocalSocket* client);
@@ -50,6 +58,14 @@ private slots:
 private:
   void showPreferences(bool show = true);
   void setScreenForCursorPos();
+  QScreen* screenAtCursorPos() const;
+  QWindow* createOverlayWindow();
+  void updateOverlayWindow(QWindow* window, QScreen* screen);
+  void setupScreenOverlays();
+  quint64 currentSpotScreen() const;
+  void setCurrentSpotScreen(quint64 screen);
+  QPoint currentCursorPos() const;
+  void setCurrentCursorPos(const QPoint& pos);
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
@@ -60,8 +76,16 @@ private:
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;
   LinuxDesktop* m_linuxDesktop = nullptr;
+  QQmlApplicationEngine* m_qmlEngine = nullptr;
+  QQmlComponent* m_windowQmlComponent = nullptr;
   std::map<QLocalSocket*, quint32> m_commandConnections;
   bool m_overlayVisible = false;
+  const bool m_xcbOnWayland = false;
+
+  QList<QWindow*> m_overlayWindows;
+  std::map<QScreen*, QWindow*> m_screenWindowMap;
+  quint64 m_currentSpotScreen = 0;
+  QPoint m_currentCursorPos;
 };
 
 class ProjecteurCommandClientApp : public QCoreApplication

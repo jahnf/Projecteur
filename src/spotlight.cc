@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <linux/input.h>
 #include <unistd.h>
-#include <vector>
 
 DECLARE_LOGGING_CATEGORY(device)
 

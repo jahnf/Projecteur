@@ -116,6 +116,7 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
   spotScreenVBoxLeft->addWidget(createShapeGroupBox(settings));
   spotScreenVBoxLeft->addWidget(createZoomGroupBox(settings));
   spotScreenVBoxLeft->addWidget(createCursorGroupBox(settings));
+  spotScreenVBoxLeft->addWidget(createMultiScreenWidget(settings));
   const auto spotScreenVBoxRight = new QVBoxLayout();
   spotScreenVBoxRight->addWidget(createSpotGroupBox(settings));
   spotScreenVBoxRight->addWidget(createDotGroupBox(settings));
@@ -361,6 +362,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   spotGrid->addWidget(shapeRotationLabel, 5, 0);
   spotGrid->addWidget(shapeRotationSb, 5, 1);
 
+  // Function for updating all spotlight shape related widgets
   auto updateShapeSettingsWidgets = [settings, shapeCombo, shapeRotationSb, shapeRotationLabel, spotGrid, this]()
   {
     if (shapeCombo->currentIndex() == -1) return;
@@ -650,6 +652,17 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   grid->addWidget(cursorCb, 0, 1);
   grid->setColumnStretch(1, 1);
   return cursorGroup;
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createMultiScreenWidget(Settings* settings)
+{
+  const auto cb = new QCheckBox(tr("Enable multi-screen overlay"), this);
+  cb->setChecked(settings->multiScreenOverlayEnabled());
+  connect(cb, &QCheckBox::toggled, settings, &Settings::setMultiScreenOverlayEnabled);
+  connect(settings, &Settings::multiScreenOverlayEnabledChanged, cb, &QCheckBox::setChecked);
+  connect(settings, &Settings::multiScreenOverlayEnabledChanged, this, &PreferencesDialog::resetPresetCombo);
+  return cb;
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ _projecteur()
       # Auto completion for commands and properties
       local commands="quit spot= settings= preset="
       commands="${commands} spot.size= spot.rotation= spot.shape= spot.shape.square.radius="
+      commands="${commands} spot.multi-screen= spot.overlay="
       commands="${commands} spot.shape.star.points= spot.shape.star.innerradius= spot.shape.ngon.sides="
       commands="${commands} shade= shade.opacity= shade.color= dot= dot.size= dot.color= dot.opacity="
       commands="${commands} border= border.size= border.color= border.opacity= zoom= zoom.factor="
@@ -34,6 +35,18 @@ _projecteur()
       if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
         [ "${cur}" = "=" ] && cur=""
         COMPREPLY=( $(compgen -W "on off toggle" -- $cur) )
+      fi
+      ;;
+    "spot.overlay")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "spot.multi-screen")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
       fi
       ;;
     "settings")

@@ -92,6 +92,14 @@ zypper ar -f '/tmp/jahnf-projecteur-develop.repo'
 zypper --gpg-auto-import-keys refresh jahnf-projecteur-develop jahnf-projecteur-develop-source
 ```
 
+#### OpenSuse 15.2
+
+```
+curl -1sLf 'https://dl.cloudsmith.io/public/jahnf/projecteur-develop/cfg/setup/config.rpm.txt?distro=opensuse&codename=15.2' > /tmp/jahnf-projecteur-develop.repo
+zypper ar -f '/tmp/jahnf-projecteur-develop.repo'
+zypper --gpg-auto-import-keys refresh jahnf-projecteur-develop jahnf-projecteur-develop-source
+```
+
 #### Fedora 31
 
  ```

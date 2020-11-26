@@ -77,7 +77,6 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
   vLayout->addWidget(tabWidget);
 
   tabWidget->addTab(createInputMapperWidget(settings, spotlight), tr("Input Mapping"));
-//  tabWidget->addTab(createDeviceInfoWidget(spotlight), tr("Device Info"));
 
   return dw;
 }

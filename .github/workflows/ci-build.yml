@@ -26,6 +26,7 @@ jobs:
         - ubuntu-20.10
         - opensuse-15.0
         - opensuse-15.1
+        - opensuse-15.2
         - centos-8
         os:
         - ubuntu-latest
@@ -177,7 +178,8 @@ jobs:
         declare -A distromap=( ["debian-stretch"]="debian/stretch" ["debian-buster"]="debian/buster" \
           ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
           ["ubuntu-20.04"]="ubuntu/focal" ["opensuse-15.1"]="opensuse/15.1" \
-          ["centos-8"]="el/8" ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
+          ["opensuse-15.2"]="opensuse/15.2" ["centos-8"]="el/8" \
+          ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
           ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" )
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
