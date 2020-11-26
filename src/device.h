@@ -81,6 +81,7 @@ enum class DeviceFlag : uint32_t {
   SynEvents      = 1 << 1,
   RepEvents      = 1 << 2,
   RelativeEvents = 1 << 3,
+  KeyEvents      = 1 << 4,
 };
 ENUM(DeviceFlag, DeviceFlags)
 
@@ -165,4 +166,14 @@ protected:
 };
 
 // -------------------------------------------------------------------------------------------------
-// TODO SubHidrawConnection
+class SubHidrawConnection : public SubDeviceConnection
+{
+  Q_OBJECT
+  class Token{};
+
+public:
+  static std::shared_ptr<SubHidrawConnection> create(const DeviceScan::SubDevice& sd,
+                                                     const DeviceConnection& dc);
+
+  SubHidrawConnection(Token, const QString& path);
+};

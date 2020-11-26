@@ -111,6 +111,7 @@ std::vector<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 int Spotlight::connectDevices()
 {
   const auto scanResult = DeviceScan::getDevices(m_options.additionalDevices);
+
   for (const auto& dev : scanResult.devices)
   {
     auto& dc = m_deviceConnections[dev.id];
@@ -121,12 +122,21 @@ int Spotlight::connectDevices()
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
     for (const auto& scanSubDevice : dev.subDevices)
     {
-      if (scanSubDevice.type != DeviceScan::SubDevice::Type::Event) continue;
       if (!scanSubDevice.deviceReadable) continue;
       if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
 
-      auto subDeviceConnection = SubEventConnection::create(scanSubDevice, *dc);
-      if (!addInputEventHandler(subDeviceConnection)) continue;
+      std::shared_ptr<SubDeviceConnection> subDeviceConnection =
+      [&scanSubDevice, &dc, this]() -> std::shared_ptr<SubDeviceConnection> {
+        if (scanSubDevice.type == DeviceScan::SubDevice::Type::Event) {
+          auto devCon = SubEventConnection::create(scanSubDevice, *dc);
+          if (addInputEventHandler(devCon)) return devCon;
+        } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
+          return SubHidrawConnection::create(scanSubDevice, *dc);
+        }
+        return std::shared_ptr<SubDeviceConnection>();
+      }();
+
+      if (!subDeviceConnection) continue;
 
       if (dc->subDeviceCount() == 0) {
         // Load Input mapping settings when first sub-device gets added.
@@ -208,7 +218,6 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 
     auto& dc = dc_it->second;
     if (dc->removeSubDevice(devicePath)) {
-
       emit subDeviceDisconnected(dc_it->first, dc->deviceName(), devicePath);
     }
 
