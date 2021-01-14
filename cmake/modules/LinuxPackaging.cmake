@@ -17,7 +17,7 @@ list(APPEND _LinuxPackaging_MAP_dist_pkgtype
 )
 set(_LinuxPackaging_default_pkgtype "TGZ")
 
-# Funtion that adds 'dist-package' target
+# Function that adds 'dist-package' target
 # Arguments:
 #  PROJECT            : Project name to package
 #  TARGET             : Main executable target with version information
