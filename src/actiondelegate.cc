@@ -284,7 +284,7 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   static std::vector<actionEntry> items {
     {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence")},
     {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets")},
-    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toogle Spotlight")},
+    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight")},
   };
 
   static bool initIcons = []()

@@ -433,7 +433,7 @@ function(add_version_info_custom_prefix target prefix directory)
   endif()
 
   if(${${prefix}_VERSION_SUCCESS})
-    # All informations gathered via git
+    # All information gathered via git
   else()
     message(STATUS "Version-Info: Failure during version retrieval. Possible incomplete version information!")
   endif()

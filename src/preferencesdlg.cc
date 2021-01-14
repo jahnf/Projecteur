@@ -209,7 +209,7 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
         text = m_presetCombo->currentText().trimmed();
       }
 
-      if (m_presetCombo->findText(text) >= 0) { // Item with same name alrady exists
+      if (m_presetCombo->findText(text) >= 0) { // Item with same name already exists
         text.append(" (%1)");
         for (int i = 2; i < 1000; ++i) {
           if (m_presetCombo->findText(text.arg(i)) < 0) {
