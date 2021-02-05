@@ -111,7 +111,7 @@ if(NOT TARGET qm_files)
 endif()
 
 # Main function to be used in the main build configuration scripts.
-# Will add a target 'translations' that will create/copy all the neccessary
+# Will add a target 'translations' that will create/copy all the necessary
 # .qm files to the given _target_dir for the given _languages.
 # This includes also the translations from qt itself.
 function(add_translations_target _prefix _target_dir _ts_dirs _languages)
