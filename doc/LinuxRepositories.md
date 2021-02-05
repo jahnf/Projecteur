@@ -43,6 +43,8 @@ and are accessible as a Linux repository for different distributions.
 See also:
  * https://cloudsmith.io/~jahnf/repos/projecteur-develop/setup/#formats-deb
  * https://cloudsmith.io/~jahnf/repos/projecteur-develop/setup/#formats-rpm
+ 
+[![Cloudsmith OSS Hosting](https://img.shields.io/badge/OSS%20hosting%20by-cloudsmith-blue?logo=cloudsmith&style=for-the-badge)](https://cloudsmith.com)
 
 #### Debian Stretch
 
