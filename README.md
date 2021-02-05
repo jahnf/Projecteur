@@ -27,7 +27,7 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Pre-requisites](#pre-requisites)
       * [Application Menu](#application-menu)
       * [Command Line Interface](#command-line-interface)
-      * [Scriptability](#scriptability)
+      * [Scriptability / Keyboard shortcuts](#scriptability)
       * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
   * [License](#license)
@@ -57,10 +57,10 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Supported Environments
 
-The application was mostly tested on Ubuntu 18.04 (GNOME) and OpenSuse 15 (GNOME)
-but should work on almost any Linux/X11 Desktop. In case you are building the
-application yourself, make sure you have the correct udev rules installed
-(see [pre-requisites section](#pre-requisites)).
+The application was mostly tested on Ubuntu 18.04, Ubuntu 20.04 (GNOME) and
+OpenSuse 15 (GNOME) but should work on almost any Linux/X11 Desktop. In case
+you are building the application yourself, make sure you have the correct udev
+rules installed (see [pre-requisites section](#pre-requisites)).
 
 ## How it works
 
@@ -160,7 +160,7 @@ Additional to the standard `--help` and `--version` options, there is an option 
 commands to a running instance of _Projecteur_ and the ability to set properties.
 
 ```
-Usage: projecteur [option]
+Usage: projecteur [OPTION]...
 
 <Options>
   -h, --help             Show command line usage.
@@ -306,7 +306,7 @@ If the device shows as not connected, there are some things you can do:
 
 ## License
 
-Copyright 2018-2020 Jahn Fuchs
+Copyright 2018-2021 Jahn Fuchs
 
 This project is distributed under the [MIT License](https://opensource.org/licenses/MIT),
 see [LICENSE.md](./LICENSE.md) for more information.
