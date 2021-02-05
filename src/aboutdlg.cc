@@ -147,7 +147,7 @@ QWidget* AboutDialog::createVersionInfoWidget()
   }
   vbox->addWidget(new QLabel(qtVerText, this));
   vbox->addSpacing(15);
-  vbox->addWidget(new QLabel("Copyright 2018-2020 Jahn Fuchs", this));
+  vbox->addWidget(new QLabel("Copyright 2018-2021 Jahn Fuchs", this));
   auto licenseText = new QLabel(tr("This project is distributed under the <br>"
                                    "<a href=\"https://github.com/jahnf/Projecteur/blob/develop/LICENSE.md\">"
                                    "MIT License</a>"), this);
