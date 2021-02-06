@@ -8,7 +8,9 @@ list(APPEND _PkgDeps_Projecteur_opensuse
 )
 
 list(APPEND _PkgDeps_Projecteur_fedora
-  "qt5 >= 5.7"
+  "qt5-qtbase >= 5.7"
+  "qt5-qtdeclarative >= 5.7"
+  "qt5-qtgraphicaleffects >= 5.7"
   "qt5-qtx11extras >= 5.7"
   "passwd"
   "udev"

@@ -232,9 +232,9 @@ signals:
   void configurationChanged();
   void recordingModeChanged(bool recording);
   void keyEventRecorded(const KeyEvent&);
-  // Right befor first key event recorded:
+  // Right before first key event recorded:
   void recordingStarted();
-  // After key sequence interval timer timout or max sequence length reached
+  // After key sequence interval timer timeout or max sequence length reached
   void recordingFinished(bool canceled); // canceled if recordingMode was set to false instead of interval time out
 
   void actionMapped(std::shared_ptr<Action> action);

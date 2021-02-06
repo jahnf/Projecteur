@@ -7,7 +7,7 @@
 
 #include <linux/input.h>
 
-// Function declaration to check for extra devices, defintion in generated source
+// Function declaration to check for extra devices, definition in generated source
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
 QString getExtraDeviceName(quint16 vendorId, quint16 productId);
 

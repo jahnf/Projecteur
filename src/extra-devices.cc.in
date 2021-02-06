@@ -13,7 +13,7 @@ namespace {
   };
 }
 
-// Function declaration to check for extra devices, defintion in generated source
+// Function declaration to check for extra devices, definition in generated source
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId)
 {
   const auto it = std::find_if(supportedExtraDevices.cbegin(), supportedExtraDevices.cend(),
