@@ -51,6 +51,7 @@ add_executable(projecteur
   src/actiondelegate.cc     src/actiondelegate.h
   src/colorselector.cc      src/colorselector.h
   src/device.cc             src/device.h
+  src/device-vibration.cc   src/device-vibration.h
   src/deviceinput.cc        src/deviceinput.h
   src/devicescan.cc         src/devicescan.h
   src/deviceswidget.cc      src/deviceswidget.h

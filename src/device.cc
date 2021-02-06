@@ -12,12 +12,13 @@
 #include <linux/input.h>
 #include <unistd.h>
 
-
 LOGGING_CATEGORY(device, "device")
 
 namespace  {
   // -----------------------------------------------------------------------------------------------
-  static auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
+  static const auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
+
+  const auto hexId = logging::hexId;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -53,8 +54,8 @@ bool DeviceConnection::removeSubDevice(const QString& path)
   {
     if (find_it->second) { find_it->second->disconnect(); } // Important
     logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
-                        .arg(m_deviceName).arg(m_deviceId.vendorId, 4, 16, QChar('0'))
-                        .arg(m_deviceId.productId, 4, 16, QChar('0')).arg(path);
+                        .arg(m_deviceName, hexId(m_deviceId.vendorId),
+                             hexId(m_deviceId.productId), path);
     emit subDeviceDisconnected(m_deviceId, path);
     m_subDeviceConnections.erase(find_it);
     return true;
@@ -112,9 +113,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   {
     ::close(evfd);
     logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
-                        .arg(sd.deviceFile)
-                        .arg(id.vendor, 4, 16, QChar('0'))
-                        .arg(id.product, 4, 16, QChar('0'));
+                        .arg(sd.deviceFile, hexId(id.vendor), hexId(id.product));
     return std::shared_ptr<SubEventConnection>();
   }
 
@@ -123,9 +122,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   {
     ::close(evfd);
     logWarn(device) << tr("Cannot get device properties: %1 (%2:%3)")
-                        .arg(sd.deviceFile)
-                        .arg(id.vendor, 4, 16, QChar('0'))
-                        .arg(id.product, 4, 16, QChar('0'));
+                       .arg(sd.deviceFile, hexId(id.vendor), hexId(id.product));
     return std::shared_ptr<SubEventConnection>();
   }
 
@@ -224,9 +221,7 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   {
     ::close(devfd);
     logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
-                          .arg(sd.deviceFile)
-                          .arg(static_cast<unsigned short>(devinfo.vendor), 4, 16, QChar('0'))
-                          .arg(static_cast<unsigned short>(devinfo.product), 4, 16, QChar('0'));
+                        .arg(sd.deviceFile, hexId(devinfo.vendor), hexId(devinfo.product));
     return std::shared_ptr<SubHidrawConnection>();
   }
 
@@ -246,12 +241,5 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   });
 
   connection->m_details.phys = sd.phys;
-
-  // TODO add vibration support for Logitech Spotlight and
-  // TODO generalize features and protocol for proprietary device features like vibration
-  //      for not only the Spotlight device.
-  //                                                    len         intensity
-  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
-
   return connection;
 }

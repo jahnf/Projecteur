@@ -21,9 +21,10 @@ DECLARE_LOGGING_CATEGORY(preferences)
 
 // -------------------------------------------------------------------------------------------------
 namespace {
+  const auto hexId = logging::hexId;
+
   QString descriptionString(const QString& name, const DeviceId& id) {
-    return QString("%1 (%2:%3) [%4]").arg(name).arg(id.vendorId, 4, 16, QChar('0'))
-                                     .arg(id.productId, 4, 16, QChar('0')).arg(id.phys);
+    return QString("%1 (%2:%3) [%4]").arg(name, hexId(id.vendorId), hexId(id.productId), id.phys);
   }
 
   const auto invalidDeviceId = DeviceId(); // vendorId = 0, productId = 0
@@ -228,6 +229,7 @@ void DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
     const auto devId = qvariant_cast<DeviceId>(m_devicesCombo->itemData(index));
     const auto currentConn = spotlight->deviceConnection(devId);
     m_inputMapper = currentConn ? currentConn->inputMapper().get() : nullptr;
+
     emit currentDeviceChanged(devId);
   });
 

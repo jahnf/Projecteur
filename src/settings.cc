@@ -94,9 +94,7 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   QString settingsKey(const DeviceId& dId, const QString& key) {
     return QString("Device_%1_%2/%3")
-      .arg(dId.vendorId, 4, 16, QChar('0'))
-      .arg(dId.productId, 4, 16, QChar('0'))
-      .arg(key);
+      .arg(logging::hexId(dId.vendorId), logging::hexId(dId.productId), key);
   }
 
   // -------------------------------------------------------------------------------------------------
@@ -262,7 +260,7 @@ const Settings::SettingRange<double>& Settings::zoomFactorRange() { return setti
 const Settings::SettingRange<int>& Settings::inputSequenceIntervalRange() { return settings::ranges::inputSequenceInterval; }
 
 // -------------------------------------------------------------------------------------------------
-const QList<Settings::SpotShape>& Settings::spotShapes() const
+const QList<Settings::SpotShape>& Settings::spotShapes()
 {
   static const QList<SpotShape> shapes{
     SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),

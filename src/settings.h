@@ -145,7 +145,7 @@ public:
     friend class Settings;
   };
 
-  const QList<SpotShape>& spotShapes() const;
+  static const QList<SpotShape>& spotShapes();
   QQmlPropertyMap* shapeSettings(const QString& shapeName);
 
   struct StringProperty

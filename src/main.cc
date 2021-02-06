@@ -263,8 +263,8 @@ int main(int argc, char *argv[])
           return subDevice.deviceWritable;
         });
 
-        print() << "     " << "vendorId:  " << QString("%1").arg(device.id.vendorId, 4, 16, QChar('0'));
-        print() << "     " << "productId: " << QString("%1").arg(device.id.productId, 4, 16, QChar('0'));
+        print() << "     " << "vendorId:  " << logging::hexId(device.id.vendorId);
+        print() << "     " << "productId: " << logging::hexId(device.id.productId);
         print() << "     " << "phys:      " << device.id.phys;
         print() << "     " << "busType:   " << busTypeToString(device.busType);
         print() << "     " << "devices:   " << subDeviceList.join(", ");

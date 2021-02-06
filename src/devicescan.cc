@@ -257,6 +257,9 @@ namespace DeviceScan {
         }
       }
 
+      // For now: only check for hidraw sub-devices that have support for custom "proprietary"
+      // functionality/protocol with Projecteur built in.
+      // TODO check if _Projecteur_ supports additional "proprietary" device protocol features..
       if (eventSubDeviceCount > 0) continue;
 
       // Iterate over 'hidraw' sub-dircectory, check for hidraw device node

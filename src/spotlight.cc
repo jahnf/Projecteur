@@ -19,6 +19,7 @@
 DECLARE_LOGGING_CATEGORY(device)
 
 namespace {
+  const auto hexId = logging::hexId;
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -183,19 +184,15 @@ int Spotlight::connectDevices()
         QTimer::singleShot(0, this,
         [this, id = dev.id, devName = dc->deviceName(), anyConnectedBefore](){
           logInfo(device) << tr("Connected device: %1 (%2:%3)")
-                             .arg(devName)
-                             .arg(id.vendorId, 4, 16, QChar('0'))
-                             .arg(id.productId, 4, 16, QChar('0'));
+                             .arg(devName, hexId(id.vendorId), hexId(id.productId));
           emit deviceConnected(id, devName);
           if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
         });
       }
 
       logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
-                          .arg(dc->deviceName())
-                          .arg(dev.id.vendorId, 4, 16, QChar('0'))
-                          .arg(dev.id.productId, 4, 16, QChar('0'))
-                          .arg(scanSubDevice.deviceFile);
+                          .arg(dc->deviceName(), hexId(dev.id.vendorId),
+                               hexId(dev.id.productId), scanSubDevice.deviceFile);
       emit subDeviceConnected(dev.id, dc->deviceName(), scanSubDevice.deviceFile);
     }
 
@@ -224,8 +221,8 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
     if (dc->subDeviceCount() == 0)
     {
       logInfo(device) << tr("Disconnected device: %1 (%2:%3)")
-                         .arg(dc->deviceName()).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
-                         .arg(dc_it->first.productId, 4, 16, QChar('0'));
+                         .arg(dc->deviceName(), hexId(dc_it->first.vendorId),
+                              hexId(dc_it->first.productId));
       emit deviceDisconnected(dc_it->first, dc->deviceName());
       dc_it = m_deviceConnections.erase(dc_it);
     }
