@@ -4,6 +4,7 @@
 #include "projecteur-icons-def.h"
 
 #include <QToolButton>
+#include <QLabel>
 
 // -------------------------------------------------------------------------------------------------
 class IconButton : public QToolButton
@@ -14,3 +15,13 @@ public:
   IconButton(Font::Icon symbol, QWidget* parent = nullptr);
 };
 
+// -------------------------------------------------------------------------------------------------
+class IconLabel : public QLabel
+{
+  Q_OBJECT
+
+public:
+  IconLabel(Font::Icon symbol, QWidget* parent = nullptr);
+
+  void setPixelSize(int pixelSize);
+};

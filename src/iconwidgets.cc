@@ -26,3 +26,20 @@ IconButton::IconButton(Font::Icon symbol, QWidget* parent)
                                                    : QColor(Qt::lightGray).lighter());
   setPalette(p);
 }
+
+// -------------------------------------------------------------------------------------------------
+IconLabel::IconLabel(Font::Icon symbol, QWidget* parent)
+  : QLabel(QChar(symbol), parent)
+{
+  QFont iconFont("projecteur-icons");
+  iconFont.setPixelSize(32);
+  setFont(iconFont);
+}
+
+// -------------------------------------------------------------------------------------------------
+void IconLabel::setPixelSize(int pixelSize)
+{
+  auto font = this->font();
+  font.setPixelSize(pixelSize);
+  setFont(font);
+}
