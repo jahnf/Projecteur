@@ -8,6 +8,8 @@ namespace  {
   }
 
   bool isDark(const QColor& c) { return !isLight(c); }
+
+  constexpr int defaultIconLabelSize = 32;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -32,7 +34,7 @@ IconLabel::IconLabel(Font::Icon symbol, QWidget* parent)
   : QLabel(QChar(symbol), parent)
 {
   QFont iconFont("projecteur-icons");
-  iconFont.setPixelSize(32);
+  iconFont.setPixelSize(defaultIconLabelSize);
   setFont(iconFont);
 }
 
