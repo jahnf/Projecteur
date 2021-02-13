@@ -42,6 +42,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
+* Vibration (Timer) Support for the Logitech Spotlight (USB)
 
 ### Screenshots
 
@@ -53,7 +54,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 ### Planned features
 
 * Support for more customizable button mapping actions.
-* Vibration (Timer) Support (Logitech Spotlight)
+* Support of more proprietary features of the Logitech Spotlight and other devices.
 
 ## Supported Environments
 

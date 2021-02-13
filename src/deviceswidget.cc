@@ -155,7 +155,7 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
 
   if (const auto conn = vibrateConn(currentDeviceId())) {
     m_timerTabWidget = createTimerTabWidget(settings, spotlight);
-    tabWidget->addTab(m_timerTabWidget, tr("Timer"));
+    tabWidget->addTab(m_timerTabWidget, tr("Vibration Timer"));
     m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
   }
 
@@ -167,7 +167,7 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
         m_timerTabWidget = createTimerTabWidget(settings, spotlight);
       }
       if (tabWidget->indexOf(m_timerTabWidget) < 0) {
-        tabWidget->addTab(m_timerTabWidget, tr("Timer"));
+        tabWidget->addTab(m_timerTabWidget, tr("Vibration Timer"));
       }
       m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
     }
