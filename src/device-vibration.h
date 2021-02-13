@@ -29,6 +29,8 @@ public:
 
 signals:
   void timeout();
+  void valueSecondsChanged(int);
+  void enabledChanged(bool);
 
 private:
   struct Impl;
@@ -62,6 +64,7 @@ signals:
   /// Emitted when a timer times out.
   void timeout(int timerId);
   void timerEnabledChanged(int timerId, bool enabled);
+  void timerValueChanged(int timerId, int seconds);
 
 private:
   struct Impl;
@@ -83,14 +86,13 @@ public:
   void setIntensity(uint8_t intensity);
 
   void setSubDeviceConnection(SubDeviceConnection* sdc);
+  void sendVibrateCommand();
 
 signals:
   void intensityChanged(uint8_t intensity);
   void lengthChanged(uint8_t length);
 
 private:
-  void sendVibrateCommand();
-
   QPointer<SubDeviceConnection> m_subDeviceConnection;
   QSpinBox* m_sbLength = nullptr;
   QSpinBox* m_sbIntensity = nullptr;

@@ -74,6 +74,53 @@ QWidget* DevicesWidget::createTimerTabWidget(Settings* settings, Spotlight* spot
 
   layout->addWidget(timerWidget);
   layout->addWidget(m_vibrationSettingsWidget);
+
+  auto loadSettings = [this, settings, timerWidget](const DeviceId& dId) {
+    for (int i = 0; i < timerWidget->timerCount(); ++i) {
+      const auto ts = settings->timerSettings(dId, i);
+      timerWidget->setTimerEnabled(i, ts.first);
+      timerWidget->setTimerValue(i, ts.second);
+    }
+    const auto vs = settings->vibrationSettings(dId);
+    m_vibrationSettingsWidget->setLength(vs.first);
+    m_vibrationSettingsWidget->setIntensity(vs.second);
+  };
+
+  loadSettings(currentDeviceId());
+
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [loadSettings=std::move(loadSettings), timerWidget, this](const DeviceId& dId) {
+    timerWidget->stopAllTimers();
+    timerWidget->blockSignals(true);
+    m_vibrationSettingsWidget->blockSignals(true);
+    loadSettings(dId);
+    m_vibrationSettingsWidget->blockSignals(false);
+    timerWidget->blockSignals(false);
+  });
+
+  connect(timerWidget, &MultiTimerWidget::timerValueChanged, this,
+  [timerWidget, settings, this](int id, int secs) {
+    settings->setTimerSettings(currentDeviceId(), id, timerWidget->timerEnabled(id), secs);
+  });
+
+  connect(timerWidget, &MultiTimerWidget::timerEnabledChanged, this,
+  [timerWidget, settings, this](int id, bool enabled) {
+    settings->setTimerSettings(currentDeviceId(), id, enabled, timerWidget->timerValue(id));
+  });
+
+  connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::intensityChanged, this,
+  [settings, this](uint8_t intensity) {
+    settings->setVibrationSettings(currentDeviceId(), m_vibrationSettingsWidget->length(), intensity);
+  });
+
+  connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::lengthChanged, this,
+  [settings, this](uint8_t len) {
+    settings->setVibrationSettings(currentDeviceId(), len, m_vibrationSettingsWidget->intensity());
+  });
+
+  connect(timerWidget, &MultiTimerWidget::timeout,
+          m_vibrationSettingsWidget, &VibrationSettingsWidget::sendVibrateCommand);
+
   return w;
 }
 

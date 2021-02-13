@@ -28,7 +28,7 @@ namespace {
 struct TimerWidget::Impl
 {
   // -----------------------------------------------------------------------------------------------
-  Impl(QWidget* parent)
+  Impl(TimerWidget* parent)
     : stack(new QStackedWidget(parent))
     , editor(new QWidget(parent))
     , overlay(new QWidget(parent))
@@ -87,19 +87,29 @@ struct TimerWidget::Impl
 
     editor->setEnabled(checkbox->isChecked());
     btnStartStop->setEnabled(checkbox->isChecked());
-    QObject::connect(checkbox, &QCheckBox::toggled, parent, [this](bool checked) {
+    QObject::connect(checkbox, &QCheckBox::toggled, parent, [this, parent](bool checked) {
       editor->setEnabled(checked);
       if (!checked) btnStartStop->setChecked(false);
       btnStartStop->setEnabled(checked);
+      emit parent->enabledChanged(checked);
     });
 
     QObject::connect(timer, &QTimer::timeout, parent, [this](){ btnStartStop->setChecked(false); });
-    QObject::connect(sbHours, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-                     parent, [this](){ updateTimerInterval(); });
-    QObject::connect(sbMinutes, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-                     parent, [this](){ updateTimerInterval(); });
-    QObject::connect(sbSeconds, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
-                     parent, [this](){ updateTimerInterval(); });
+    QObject::connect(sbHours, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), parent,
+    [this, parent]() {
+      updateTimerInterval();
+      emit parent->valueSecondsChanged(valueSeconds());
+    });
+    QObject::connect(sbMinutes, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), parent,
+    [this, parent]() {
+      updateTimerInterval();
+      emit parent->valueSecondsChanged(valueSeconds());
+    });
+    QObject::connect(sbSeconds, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), parent,
+    [this, parent]() {
+     updateTimerInterval();
+     emit parent->valueSecondsChanged(valueSeconds());
+    });
 
     timer->setSingleShot(true);
     countdownTimer->setInterval(1000);
@@ -239,6 +249,15 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
   for (size_t i = 0; i < numTimers; ++i) {
     timerLayout->addWidget(m_impl->timers.at(i));
     m_impl->timers.at(i)->setValueMinutes(15 + i * 15);
+    connect(m_impl->timers.at(i), &TimerWidget::valueSecondsChanged, this, [this, i](int secs) {
+      emit timerValueChanged(i, secs);
+    });
+    connect(m_impl->timers.at(i), &TimerWidget::enabledChanged, this, [this, i](bool enabled) {
+      emit timerEnabledChanged(i, enabled);
+    });
+    connect(m_impl->timers.at(i), &TimerWidget::timeout, this, [this, i](){
+      emit timeout(i);
+    });
   }
 
   layout->setStretch(1, 1);

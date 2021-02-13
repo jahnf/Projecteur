@@ -171,6 +171,12 @@ public:
   void setDeviceInputMapConfig(const DeviceId& dId, const InputMapConfig& imc);
   InputMapConfig getDeviceInputMapConfig(const DeviceId& dId);
 
+  void setTimerSettings(const DeviceId& dId, int timerId, bool enabled, int seconds);
+  std::pair<bool, int> timerSettings(const DeviceId& dId, int timerId) const;
+
+  void setVibrationSettings(const DeviceId& dId, uint8_t len, uint8_t intensity);
+  std::pair<uint8_t, uint8_t> vibrationSettings(const DeviceId& dId) const;
+
 signals:
   void showSpotShadeChanged(bool show);
   void spotSizeChanged(int size);
@@ -219,7 +225,7 @@ private:
   bool m_showSpotShade = true;
   bool m_showCenterDot = false;
   bool m_spotRotationAllowed = false;
-  bool m_showBorder=false;
+  bool m_showBorder = false;
   bool m_multiScreenOverlayEnabled = false;
   bool m_overlayDisabled = false;
 
