@@ -1,12 +1,15 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "device-vibration.h"
 
+#include "device.h"
 #include "iconwidgets.h"
 
 #include <QCheckBox>
 #include <QFontDatabase>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QPushButton>
+#include <QSocketNotifier>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QTimer>
@@ -14,13 +17,7 @@
 
 #include <array>
 #include <chrono>
-
-// TODO add vibration support for Logitech Spotlight and
-// TODO generalize features and protocol for proprietary device features like vibration
-//      for not only the Spotlight device.
-//                                                    len         intensity
-// unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
-// ::write(notifier->socket(), vibrate, 7);
+#include <unistd.h>
 
 // -------------------------------------------------------------------------------------------------
 namespace {
@@ -178,7 +175,8 @@ bool TimerWidget::timerRunning() const {
 
 // -------------------------------------------------------------------------------------------------
 void TimerWidget::start() {
-  m_impl->btnStartStop->setChecked(true);
+  if (timerEnabled())
+    m_impl->btnStartStop->setChecked(true);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -243,7 +241,6 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
     m_impl->timers.at(i)->setValueMinutes(15 + i * 15);
   }
 
-  layout->setStretch(0, 0);
   layout->setStretch(1, 1);
 }
 
@@ -310,4 +307,107 @@ int MultiTimerWidget::timerValue(int timerId) const
 {
   if (timerId < 0 || timerId >= numTimers) return -1;
   return m_impl->timers.at(timerId)->valueSeconds();
+}
+
+// -------------------------------------------------------------------------------------------------
+VibrationSettingsWidget::VibrationSettingsWidget(QWidget* parent)
+  : QWidget(parent)
+  , m_sbLength(new QSpinBox(this))
+  , m_sbIntensity(new QSpinBox(this))
+{
+  m_sbLength->setRange(0, 10);
+  m_sbIntensity->setRange(25, 255);
+
+  const auto layout = new QHBoxLayout(this);
+  const auto iconLabel = new IconLabel(Font::control_panel_9, this);
+  layout->addWidget(iconLabel);
+  layout->setAlignment(iconLabel, Qt::AlignTop);
+
+  const auto groupBox = new QGroupBox(tr("Vibration Settings"), this);
+  groupBox->setSizePolicy(groupBox->sizePolicy().horizontalPolicy(),
+                          QSizePolicy::Maximum);
+  layout->addWidget(groupBox);
+  layout->setAlignment(groupBox, Qt::AlignTop);
+
+  const auto grid = new QGridLayout(groupBox);
+  grid->addWidget(new QLabel(tr("Length"), this), 0, 0);
+  grid->addWidget(new QLabel(tr("Intensity"), this), 1, 0);
+  grid->addWidget(m_sbLength, 0, 1);
+  grid->addWidget(m_sbIntensity, 1, 1);
+  grid->setColumnStretch(0, 1);
+  grid->setColumnStretch(1, 2);
+
+  const auto testBtn = new QPushButton(tr("Test"), this);
+  grid->addWidget(testBtn, 2, 0, 1, 2);
+
+  m_sbLength->setValue(0x00);
+  m_sbIntensity->setValue(0x80);
+
+  connect(m_sbLength, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
+  [this](int value){
+    emit lengthChanged(value);
+  });
+
+  connect(m_sbIntensity, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
+  [this](int value){
+    emit intensityChanged(value);
+  });
+
+  connect(testBtn, &QPushButton::clicked, this, &VibrationSettingsWidget::sendVibrateCommand);
+
+  layout->setStretch(1, 1);
+}
+
+// -------------------------------------------------------------------------------------------------
+uint8_t VibrationSettingsWidget::length() const {
+  return m_sbLength->value();
+}
+
+// -------------------------------------------------------------------------------------------------
+uint8_t VibrationSettingsWidget::intensity() const {
+  return m_sbIntensity->value();
+}
+
+// -------------------------------------------------------------------------------------------------
+void VibrationSettingsWidget::setLength(uint8_t len)
+{
+  if (m_sbLength->value() == len) return;
+  m_sbLength->setValue(len);
+}
+
+// -------------------------------------------------------------------------------------------------
+void VibrationSettingsWidget::setIntensity(uint8_t intensity)
+{
+  if (m_sbIntensity->value() == intensity) return;
+  m_sbIntensity->setValue(intensity);
+}
+
+// -------------------------------------------------------------------------------------------------
+void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
+{
+  m_subDeviceConnection = sdc;
+}
+
+// -------------------------------------------------------------------------------------------------
+void VibrationSettingsWidget::sendVibrateCommand()
+{
+  if (!m_subDeviceConnection) return;
+  if ((m_subDeviceConnection->flags() & DeviceFlag::Vibrate) != DeviceFlag::Vibrate) return;
+  if (!m_subDeviceConnection->isConnected()) return;
+
+  // TODO generalize features and protocol for proprietary device features like vibration
+  //      for not only the Spotlight device.
+  //
+  // Spotlight:
+  //                                                    len         intensity
+  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
+  const uint8_t vlen = m_sbLength->value();
+  const uint8_t vint = m_sbIntensity->value();
+  const uint8_t vibrateCmd[] = {0x10, 0x01, 0x09, 0x1a, vlen, 0xe8, vint};
+  // ::write(notifier->socket(), vibrate, 7);
+  const auto notifier = m_subDeviceConnection->socketNotifier();
+  const auto res = ::write(notifier->socket(), &vibrateCmd[0], sizeof(vibrateCmd));
+  if (res != sizeof(vibrateCmd)) {
+    // TODO logging...
+  }
 }

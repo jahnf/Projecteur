@@ -235,7 +235,6 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   // For now vibration is only supported for the Logitech Spotlight (USB)
   // TODO A more generic approach
   if (dc.deviceId().vendorId == 0x46d && dc.deviceId().productId == 0xc53e) {
-    qDebug() << "hello";
     connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
   }
 

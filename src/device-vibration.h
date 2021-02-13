@@ -1,8 +1,12 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
+#include <QPointer>
 #include <QWidget>
 #include <memory>
+
+class QSpinBox;
+class SubDeviceConnection;
 
 // -------------------------------------------------------------------------------------------------
 class TimerWidget : public QWidget
@@ -62,4 +66,32 @@ signals:
 private:
   struct Impl;
   std::unique_ptr<Impl> m_impl;
+};
+
+// -------------------------------------------------------------------------------------------------
+class VibrationSettingsWidget : public QWidget
+{
+  Q_OBJECT
+
+public:
+  explicit VibrationSettingsWidget(QWidget* parent = nullptr);
+
+  uint8_t length() const;
+  void setLength(uint8_t len);
+
+  uint8_t intensity() const;
+  void setIntensity(uint8_t intensity);
+
+  void setSubDeviceConnection(SubDeviceConnection* sdc);
+
+signals:
+  void intensityChanged(uint8_t intensity);
+  void lengthChanged(uint8_t length);
+
+private:
+  void sendVibrateCommand();
+
+  QPointer<SubDeviceConnection> m_subDeviceConnection;
+  QSpinBox* m_sbLength = nullptr;
+  QSpinBox* m_sbIntensity = nullptr;
 };

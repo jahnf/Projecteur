@@ -62,6 +62,22 @@ const DeviceId DevicesWidget::currentDeviceId() const
 }
 
 // -------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createTimerTabWidget(Settings* settings, Spotlight* spotlight)
+{
+  Q_UNUSED(settings);
+  Q_UNUSED(spotlight);
+
+  const auto w = new QWidget(this);
+  const auto layout = new QVBoxLayout(w);
+  const auto timerWidget = new MultiTimerWidget(this);
+  m_vibrationSettingsWidget = new VibrationSettingsWidget(this);
+
+  layout->addWidget(timerWidget);
+  layout->addWidget(m_vibrationSettingsWidget);
+  return w;
+}
+
+// -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotlight)
 {
   const auto dw = new QWidget(this);
@@ -80,35 +96,38 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
 
   tabWidget->addTab(createInputMapperWidget(settings, spotlight), tr("Input Mapping"));
 
-  auto hasVibrateSupport = [spotlight](const DeviceId& devId) {
+  auto vibrateConn = [spotlight](const DeviceId& devId) {
     const auto currentConn = spotlight->deviceConnection(devId);
     if (currentConn) {
       for (const auto& item : currentConn->subDevices()) {
-        if ((item.second->flags() & DeviceFlag::Vibrate) == DeviceFlag::Vibrate) return true;
+        if ((item.second->flags() & DeviceFlag::Vibrate) == DeviceFlag::Vibrate) return item.second;
       }
     }
-    return false;
+    return std::shared_ptr<SubDeviceConnection>{};
   };
 
-  if (hasVibrateSupport(currentDeviceId())) {
-    m_vibrationTimerWidget = new MultiTimerWidget(this);
-    tabWidget->addTab(m_vibrationTimerWidget, tr("Timer"));
+  if (const auto conn = vibrateConn(currentDeviceId())) {
+    m_timerTabWidget = createTimerTabWidget(settings, spotlight);
+    tabWidget->addTab(m_timerTabWidget, tr("Timer"));
+    m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
   }
 
   connect(this, &DevicesWidget::currentDeviceChanged, this,
-  [hasVibrateSupport=std::move(hasVibrateSupport), tabWidget, this](const DeviceId& devId) {
-    const bool vibrateSupport = hasVibrateSupport(devId);
-    if (vibrateSupport) {
-      if (m_vibrationTimerWidget == nullptr) {
-        m_vibrationTimerWidget = new MultiTimerWidget(this);
+  [vibrateConn=std::move(vibrateConn), tabWidget, settings, spotlight, this]
+  (const DeviceId& devId) {
+    if (const auto conn = vibrateConn(devId)) {
+      if (m_timerTabWidget == nullptr) {
+        m_timerTabWidget = createTimerTabWidget(settings, spotlight);
       }
-      if (tabWidget->indexOf(m_vibrationTimerWidget) < 0) {
-        tabWidget->addTab(m_vibrationTimerWidget, tr("Timer"));
+      if (tabWidget->indexOf(m_timerTabWidget) < 0) {
+        tabWidget->addTab(m_timerTabWidget, tr("Timer"));
       }
+      m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
     }
-    else if (m_vibrationTimerWidget) {
-      const auto idx = tabWidget->indexOf(m_vibrationTimerWidget);
+    else if (m_timerTabWidget) {
+      const auto idx = tabWidget->indexOf(m_timerTabWidget);
       if (idx >= 0) tabWidget->removeTab(idx);
+      m_vibrationSettingsWidget->setSubDeviceConnection(nullptr);
     }
   });
 
