@@ -6,6 +6,7 @@
 #include "logging.h"
 
 #include <algorithm>
+#include <utility>
 
 #include <QGuiApplication>
 #include <QFileInfo>
@@ -41,6 +42,10 @@ namespace {
     // -- device specific
     constexpr char inputSequenceInterval[] = "inputSequenceInterval";
     constexpr char inputMapConfig[] = "inputMapConfig";
+    constexpr char timerEnabled[] = "timer%1enabled";
+    constexpr char timerSeconds[] = "timer%1seconds";
+    constexpr char vibrationLength[] = "vibrationLength";
+    constexpr char vibrationIntensity[] = "vibrationIntensity";
 
     namespace defaultValue {
       constexpr bool showSpotShade = true;
@@ -64,6 +69,8 @@ namespace {
 
       // -- device specific defaults
       constexpr int inputSequenceInterval = 250;
+      constexpr uint8_t vibrationLength = 0;
+      constexpr uint8_t vibrationIntensity = 128;
     }
 
     namespace ranges {
@@ -94,9 +101,7 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   QString settingsKey(const DeviceId& dId, const QString& key) {
     return QString("Device_%1_%2/%3")
-      .arg(dId.vendorId, 4, 16, QChar('0'))
-      .arg(dId.productId, 4, 16, QChar('0'))
-      .arg(key);
+      .arg(logging::hexId(dId.vendorId), logging::hexId(dId.productId), key);
   }
 
   // -------------------------------------------------------------------------------------------------
@@ -262,7 +267,7 @@ const Settings::SettingRange<double>& Settings::zoomFactorRange() { return setti
 const Settings::SettingRange<int>& Settings::inputSequenceIntervalRange() { return settings::ranges::inputSequenceInterval; }
 
 // -------------------------------------------------------------------------------------------------
-const QList<Settings::SpotShape>& Settings::spotShapes() const
+const QList<Settings::SpotShape>& Settings::spotShapes()
 {
   static const QList<SpotShape> shapes{
     SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
@@ -842,6 +847,42 @@ InputMapConfig Settings::getDeviceInputMapConfig(const DeviceId& dId)
   m_settings->endArray();
 
   return cfg;
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setTimerSettings(const DeviceId& dId, int timerId, bool enabled, int seconds)
+{
+  m_settings->setValue(settingsKey(dId, QString(::settings::timerEnabled).arg(timerId)), enabled);
+  m_settings->setValue(settingsKey(dId, QString(::settings::timerSeconds).arg(timerId)), seconds);
+}
+
+// -------------------------------------------------------------------------------------------------
+std::pair<bool, int> Settings::timerSettings(const DeviceId& dId, int timerId) const
+{
+  const auto enabled = m_settings->value(
+    settingsKey(dId, QString(::settings::timerEnabled).arg(timerId)), false).toBool();
+  const auto seconds = m_settings->value(
+    settingsKey(dId, QString(::settings::timerSeconds).arg(timerId)), 900 + 900 * timerId).toInt();
+  return std::make_pair(enabled, seconds);
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setVibrationSettings(const DeviceId& dId, uint8_t len, uint8_t intensity)
+{
+  m_settings->setValue(settingsKey(dId, ::settings::vibrationLength), len);
+  m_settings->setValue(settingsKey(dId, ::settings::vibrationIntensity), intensity);
+}
+
+// -------------------------------------------------------------------------------------------------
+std::pair<uint8_t, uint8_t> Settings::vibrationSettings(const DeviceId& dId) const
+{
+  const auto len = m_settings->value(
+    settingsKey(dId, ::settings::vibrationLength),
+    ::settings::defaultValue::vibrationLength).toUInt();
+  const auto intensity = m_settings->value(
+    settingsKey(dId, ::settings::vibrationIntensity),
+    ::settings::defaultValue::vibrationIntensity).toUInt();
+  return std::make_pair(len, intensity);
 }
 
 // -------------------------------------------------------------------------------------------------

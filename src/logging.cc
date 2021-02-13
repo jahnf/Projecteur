@@ -198,4 +198,7 @@ namespace logging {
     }
   }
 
+  QString hexId(unsigned short id) {
+    return QString("%1").arg(id, 4, 16, QChar('0'));
+  }
 }

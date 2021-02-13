@@ -209,6 +209,8 @@ namespace DeviceScan {
         return *find_it;
       }();
 
+      int eventSubDeviceCount = 0;
+
       // Iterate over 'input' sub-dircectory, check for input-hid device nodes
       const QFileInfo inputSubdir(QDir(hidIt.filePath()).filePath("input"));
       if (inputSubdir.exists() || inputSubdir.isExecutable())
@@ -234,6 +236,7 @@ namespace DeviceScan {
 
           if (subDevice.deviceFile.isEmpty()) continue;
           subDevice.phys = readStringFromDeviceFile(QDir(inputIt.filePath()).filePath("phys"));
+          ++eventSubDeviceCount;
 
           // Check if device supports relative events
           const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));
@@ -254,13 +257,10 @@ namespace DeviceScan {
         }
       }
 
-      // For the Logitech Spotlight we are only interested in the hidraw sub device that has no event
-      // device, if there is already an event device we skip hidraw detection for this sub-device.
-      const bool hasInputEventDevices
-          = std::any_of(rootDevice.subDevices.cbegin(), rootDevice.subDevices.cend(),
-            [](const SubDevice& sd) { return sd.type == SubDevice::Type::Event; });
-
-      if (hasInputEventDevices) continue;
+      // For now: only check for hidraw sub-devices that have support for custom "proprietary"
+      // functionality/protocol with Projecteur built in.
+      // TODO check if _Projecteur_ supports additional "proprietary" device protocol features..
+      if (eventSubDeviceCount > 0) continue;
 
       // Iterate over 'hidraw' sub-dircectory, check for hidraw device node
       const QFileInfo hidrawSubdir(QDir(hidIt.filePath()).filePath("hidraw"));

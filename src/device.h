@@ -59,6 +59,7 @@ public:
   bool hasSubDevice(const QString& path) const;
   void addSubDevice(std::shared_ptr<SubDeviceConnection>);
   bool removeSubDevice(const QString& path);
+  const auto& subDevices() { return m_subDeviceConnections; }
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -81,6 +82,9 @@ enum class DeviceFlag : uint32_t {
   SynEvents      = 1 << 1,
   RepEvents      = 1 << 2,
   RelativeEvents = 1 << 3,
+  KeyEvents      = 1 << 4,
+
+  Vibrate        = 1 << 16,
 };
 ENUM(DeviceFlag, DeviceFlags)
 
@@ -165,4 +169,14 @@ protected:
 };
 
 // -------------------------------------------------------------------------------------------------
-// TODO SubHidrawConnection
+class SubHidrawConnection : public SubDeviceConnection
+{
+  Q_OBJECT
+  class Token{};
+
+public:
+  static std::shared_ptr<SubHidrawConnection> create(const DeviceScan::SubDevice& sd,
+                                                     const DeviceConnection& dc);
+
+  SubHidrawConnection(Token, const QString& path);
+};

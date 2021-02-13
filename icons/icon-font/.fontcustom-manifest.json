@@ -1,14 +1,14 @@
 {
   "checksum": {
-    "previous": "d4f6bb1053795e614d87b855da33da2b7ee5eefaaf01d5bc4d3976114651c9d5",
-    "current": "d4f6bb1053795e614d87b855da33da2b7ee5eefaaf01d5bc4d3976114651c9d5"
+    "previous": "a9504014a04ad54718a75911f452551882ad71440ff3fac45f0dad3a5042a9ef",
+    "current": "a9504014a04ad54718a75911f452551882ad71440ff3fac45f0dad3a5042a9ef"
   },
   "fonts": [
-    "output/fonts/projecteur-icons_d4f6bb1053795e614d87b855da33da2b.ttf",
-    "output/fonts/projecteur-icons_d4f6bb1053795e614d87b855da33da2b.svg",
-    "output/fonts/projecteur-icons_d4f6bb1053795e614d87b855da33da2b.woff",
-    "output/fonts/projecteur-icons_d4f6bb1053795e614d87b855da33da2b.eot",
-    "output/fonts/projecteur-icons_d4f6bb1053795e614d87b855da33da2b.woff2"
+    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.ttf",
+    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.svg",
+    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.woff",
+    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.eot",
+    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.woff2"
   ],
   "glyphs": {
     "iconmonstr-arrow-73": {
@@ -58,6 +58,14 @@
     "iconmonstr-keyboard-4": {
       "codepoint": 61711,
       "source": "svg/iconmonstr-keyboard-4.svg"
+    },
+    "iconmonstr-media-control-48": {
+      "codepoint": 61719,
+      "source": "svg/iconmonstr-media-control-48.svg"
+    },
+    "iconmonstr-media-control-50": {
+      "codepoint": 61720,
+      "source": "svg/iconmonstr-media-control-50.svg"
     },
     "iconmonstr-plus-5": {
       "codepoint": 61703,

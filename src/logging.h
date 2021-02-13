@@ -68,6 +68,8 @@ namespace logging {
   void setCurrentLevel(level lvl);
 
   void registerTextEdit(QPlainTextEdit* textEdit);
+
+  QString hexId(unsigned short id);
 }
 
 

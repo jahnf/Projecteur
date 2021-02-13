@@ -8,6 +8,8 @@ namespace  {
   }
 
   bool isDark(const QColor& c) { return !isLight(c); }
+
+  constexpr int defaultIconLabelSize = 32;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -25,4 +27,21 @@ IconButton::IconButton(Font::Icon symbol, QWidget* parent)
              isDark(p.color(QPalette::ButtonText)) ? QColor(Qt::darkGray).darker()
                                                    : QColor(Qt::lightGray).lighter());
   setPalette(p);
+}
+
+// -------------------------------------------------------------------------------------------------
+IconLabel::IconLabel(Font::Icon symbol, QWidget* parent)
+  : QLabel(QChar(symbol), parent)
+{
+  QFont iconFont("projecteur-icons");
+  iconFont.setPixelSize(defaultIconLabelSize);
+  setFont(iconFont);
+}
+
+// -------------------------------------------------------------------------------------------------
+void IconLabel::setPixelSize(int pixelSize)
+{
+  auto font = this->font();
+  font.setPixelSize(pixelSize);
+  setFont(font);
 }

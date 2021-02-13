@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "deviceswidget.h"
 
+#include "device-vibration.h"
 #include "deviceinput.h"
 #include "iconwidgets.h"
 #include "inputmapconfig.h"
@@ -21,9 +22,10 @@ DECLARE_LOGGING_CATEGORY(preferences)
 
 // -------------------------------------------------------------------------------------------------
 namespace {
+  const auto hexId = logging::hexId;
+
   QString descriptionString(const QString& name, const DeviceId& id) {
-    return QString("%1 (%2:%3) [%4]").arg(name).arg(id.vendorId, 4, 16, QChar('0'))
-                                     .arg(id.productId, 4, 16, QChar('0')).arg(id.phys);
+    return QString("%1 (%2:%3) [%4]").arg(name, hexId(id.vendorId), hexId(id.productId), id.phys);
   }
 
   const auto invalidDeviceId = DeviceId(); // vendorId = 0, productId = 0
@@ -60,6 +62,69 @@ const DeviceId DevicesWidget::currentDeviceId() const
 }
 
 // -------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createTimerTabWidget(Settings* settings, Spotlight* spotlight)
+{
+  Q_UNUSED(settings);
+  Q_UNUSED(spotlight);
+
+  const auto w = new QWidget(this);
+  const auto layout = new QVBoxLayout(w);
+  const auto timerWidget = new MultiTimerWidget(this);
+  m_vibrationSettingsWidget = new VibrationSettingsWidget(this);
+
+  layout->addWidget(timerWidget);
+  layout->addWidget(m_vibrationSettingsWidget);
+
+  auto loadSettings = [this, settings, timerWidget](const DeviceId& dId) {
+    for (int i = 0; i < timerWidget->timerCount(); ++i) {
+      const auto ts = settings->timerSettings(dId, i);
+      timerWidget->setTimerEnabled(i, ts.first);
+      timerWidget->setTimerValue(i, ts.second);
+    }
+    const auto vs = settings->vibrationSettings(dId);
+    m_vibrationSettingsWidget->setLength(vs.first);
+    m_vibrationSettingsWidget->setIntensity(vs.second);
+  };
+
+  loadSettings(currentDeviceId());
+
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [loadSettings=std::move(loadSettings), timerWidget, this](const DeviceId& dId) {
+    timerWidget->stopAllTimers();
+    timerWidget->blockSignals(true);
+    m_vibrationSettingsWidget->blockSignals(true);
+    loadSettings(dId);
+    m_vibrationSettingsWidget->blockSignals(false);
+    timerWidget->blockSignals(false);
+  });
+
+  connect(timerWidget, &MultiTimerWidget::timerValueChanged, this,
+  [timerWidget, settings, this](int id, int secs) {
+    settings->setTimerSettings(currentDeviceId(), id, timerWidget->timerEnabled(id), secs);
+  });
+
+  connect(timerWidget, &MultiTimerWidget::timerEnabledChanged, this,
+  [timerWidget, settings, this](int id, bool enabled) {
+    settings->setTimerSettings(currentDeviceId(), id, enabled, timerWidget->timerValue(id));
+  });
+
+  connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::intensityChanged, this,
+  [settings, this](uint8_t intensity) {
+    settings->setVibrationSettings(currentDeviceId(), m_vibrationSettingsWidget->length(), intensity);
+  });
+
+  connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::lengthChanged, this,
+  [settings, this](uint8_t len) {
+    settings->setVibrationSettings(currentDeviceId(), len, m_vibrationSettingsWidget->intensity());
+  });
+
+  connect(timerWidget, &MultiTimerWidget::timeout,
+          m_vibrationSettingsWidget, &VibrationSettingsWidget::sendVibrateCommand);
+
+  return w;
+}
+
+// -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotlight)
 {
   const auto dw = new QWidget(this);
@@ -77,6 +142,41 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
   vLayout->addWidget(tabWidget);
 
   tabWidget->addTab(createInputMapperWidget(settings, spotlight), tr("Input Mapping"));
+
+  auto vibrateConn = [spotlight](const DeviceId& devId) {
+    const auto currentConn = spotlight->deviceConnection(devId);
+    if (currentConn) {
+      for (const auto& item : currentConn->subDevices()) {
+        if ((item.second->flags() & DeviceFlag::Vibrate) == DeviceFlag::Vibrate) return item.second;
+      }
+    }
+    return std::shared_ptr<SubDeviceConnection>{};
+  };
+
+  if (const auto conn = vibrateConn(currentDeviceId())) {
+    m_timerTabWidget = createTimerTabWidget(settings, spotlight);
+    tabWidget->addTab(m_timerTabWidget, tr("Vibration Timer"));
+    m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
+  }
+
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [vibrateConn=std::move(vibrateConn), tabWidget, settings, spotlight, this]
+  (const DeviceId& devId) {
+    if (const auto conn = vibrateConn(devId)) {
+      if (m_timerTabWidget == nullptr) {
+        m_timerTabWidget = createTimerTabWidget(settings, spotlight);
+      }
+      if (tabWidget->indexOf(m_timerTabWidget) < 0) {
+        tabWidget->addTab(m_timerTabWidget, tr("Vibration Timer"));
+      }
+      m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
+    }
+    else if (m_timerTabWidget) {
+      const auto idx = tabWidget->indexOf(m_timerTabWidget);
+      if (idx >= 0) tabWidget->removeTab(idx);
+      m_vibrationSettingsWidget->setSubDeviceConnection(nullptr);
+    }
+  });
 
   return dw;
 }
@@ -128,7 +228,6 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   const auto tblView = new InputMapConfigView(imWidget);
   const auto imModel = new InputMapConfigModel(m_inputMapper, imWidget);
   if (m_inputMapper) imModel->setConfiguration(m_inputMapper->configuration());
-
 
   tblView->setModel(imModel);
   const auto selectionModel = tblView->selectionModel();
@@ -228,6 +327,7 @@ void DevicesWidget::createDeviceComboBox(Spotlight* spotlight)
     const auto devId = qvariant_cast<DeviceId>(m_devicesCombo->itemData(index));
     const auto currentConn = spotlight->deviceConnection(devId);
     m_inputMapper = currentConn ? currentConn->inputMapper().get() : nullptr;
+
     emit currentDeviceChanged(devId);
   });
 
