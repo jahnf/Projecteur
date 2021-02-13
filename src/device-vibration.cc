@@ -3,6 +3,7 @@
 
 #include "device.h"
 #include "iconwidgets.h"
+#include "logging.h"
 
 #include <QCheckBox>
 #include <QFontDatabase>
@@ -18,6 +19,8 @@
 #include <array>
 #include <chrono>
 #include <unistd.h>
+
+DECLARE_LOGGING_CATEGORY(device)
 
 // -------------------------------------------------------------------------------------------------
 namespace {
@@ -423,10 +426,10 @@ void VibrationSettingsWidget::sendVibrateCommand()
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
   const uint8_t vibrateCmd[] = {0x10, 0x01, 0x09, 0x1a, vlen, 0xe8, vint};
-  // ::write(notifier->socket(), vibrate, 7);
+
   const auto notifier = m_subDeviceConnection->socketNotifier();
   const auto res = ::write(notifier->socket(), &vibrateCmd[0], sizeof(vibrateCmd));
   if (res != sizeof(vibrateCmd)) {
-    // TODO logging...
+    logWarn(device) << "Could not write vibrate command to device socket.";
   }
 }
