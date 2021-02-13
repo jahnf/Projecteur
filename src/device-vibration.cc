@@ -204,6 +204,11 @@ void TimerWidget::setValueMinutes(int minutes) {
 }
 
 // -------------------------------------------------------------------------------------------------
+int TimerWidget::valueSeconds() const {
+  return m_impl->valueSeconds();
+}
+
+// -------------------------------------------------------------------------------------------------
 struct MultiTimerWidget::Impl
 {
   Impl(QWidget* parent)
@@ -234,7 +239,7 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
   const auto timerLayout = new QVBoxLayout(groupBox);
 
   for (size_t i = 0; i < numTimers; ++i) {
-    timerLayout->addWidget(m_impl->timers.at(i), i, 0);
+    timerLayout->addWidget(m_impl->timers.at(i));
     m_impl->timers.at(i)->setValueMinutes(15 + i * 15);
   }
 
@@ -246,7 +251,63 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
 MultiTimerWidget::~MultiTimerWidget() = default;
 
 // -------------------------------------------------------------------------------------------------
-int MultiTimerWidget::timerCount() const
-{
+int MultiTimerWidget::timerCount() const {
   return numTimers;
+}
+
+// -------------------------------------------------------------------------------------------------
+void MultiTimerWidget::setTimerEnabled(int timerId, bool enabled)
+{
+  if (timerId < 0 || timerId >= numTimers) return;
+  m_impl->timers.at(timerId)->setTimerEnabled(enabled);
+}
+
+// -------------------------------------------------------------------------------------------------
+bool MultiTimerWidget::timerEnabled(int timerId) const
+{
+  if (timerId < 0 || timerId >= numTimers) return false;
+  return m_impl->timers.at(timerId)->timerEnabled();
+}
+
+// -------------------------------------------------------------------------------------------------
+void MultiTimerWidget::startTimer(int timerId)
+{
+  if (timerId < 0 || timerId >= numTimers) return;
+  m_impl->timers.at(timerId)->start();
+}
+
+// -------------------------------------------------------------------------------------------------
+void MultiTimerWidget::stopTimer(int timerId)
+{
+  if (timerId < 0 || timerId >= numTimers) return;
+  m_impl->timers.at(timerId)->stop();
+}
+
+// -------------------------------------------------------------------------------------------------
+void MultiTimerWidget::stopAllTimers()
+{
+  for (size_t i = 0; i < numTimers; ++i) {
+    m_impl->timers.at(i)->stop();
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+bool MultiTimerWidget::timerRunning(int timerId) const
+{
+  if (timerId < 0 || timerId >= numTimers) return false;
+  return m_impl->timers.at(timerId)->timerRunning();
+}
+
+// -------------------------------------------------------------------------------------------------
+void MultiTimerWidget::setTimerValue(int timerId, int seconds)
+{
+  if (timerId < 0 || timerId >= numTimers) return;
+  m_impl->timers.at(timerId)->setValueSeconds(seconds);
+}
+
+// -------------------------------------------------------------------------------------------------
+int MultiTimerWidget::timerValue(int timerId) const
+{
+  if (timerId < 0 || timerId >= numTimers) return -1;
+  return m_impl->timers.at(timerId)->valueSeconds();
 }

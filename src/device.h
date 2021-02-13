@@ -59,6 +59,7 @@ public:
   bool hasSubDevice(const QString& path) const;
   void addSubDevice(std::shared_ptr<SubDeviceConnection>);
   bool removeSubDevice(const QString& path);
+  const auto& subDevices() { return m_subDeviceConnections; }
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -82,6 +83,8 @@ enum class DeviceFlag : uint32_t {
   RepEvents      = 1 << 2,
   RelativeEvents = 1 << 3,
   KeyEvents      = 1 << 4,
+
+  Vibrate        = 1 << 16,
 };
 ENUM(DeviceFlag, DeviceFlags)
 

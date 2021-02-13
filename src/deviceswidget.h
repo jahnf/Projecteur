@@ -30,5 +30,6 @@ private:
   QWidget* createDeviceInfoWidget(Spotlight* spotlight);
 
   QComboBox* m_devicesCombo = nullptr;
+  QWidget* m_vibrationTimerWidget = nullptr;
   QPointer<InputMapper> m_inputMapper;
 };

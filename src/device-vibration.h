@@ -46,11 +46,10 @@ public:
   void setTimerEnabled(int timerId, bool enabled);
   bool timerEnabled(int timerId) const;
 
-  void restartTimer(int timerId);
+  void startTimer(int timerId);
   void stopTimer(int timerId);
+  void stopAllTimers();
   bool timerRunning(int timerId) const;
-  /// Returns remaining time of a timer or -1 if timer is not running.
-  int remainingTime(int timerId) const;
 
   void setTimerValue(int timerId, int seconds);
   int timerValue(int timerId) const;

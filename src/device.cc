@@ -232,6 +232,13 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
     connection->m_details.deviceFlags |= DeviceFlag::NonBlocking;
   }
 
+  // For now vibration is only supported for the Logitech Spotlight (USB)
+  // TODO A more generic approach
+  if (dc.deviceId().vendorId == 0x46d && dc.deviceId().productId == 0xc53e) {
+    qDebug() << "hello";
+    connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
+  }
+
   // Create socket notifier
   connection->m_notifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Read);
   QSocketNotifier* const notifier = connection->m_notifier.get();

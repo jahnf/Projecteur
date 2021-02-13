@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "deviceswidget.h"
 
+#include "device-vibration.h"
 #include "deviceinput.h"
 #include "iconwidgets.h"
 #include "inputmapconfig.h"
@@ -79,6 +80,38 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
 
   tabWidget->addTab(createInputMapperWidget(settings, spotlight), tr("Input Mapping"));
 
+  auto hasVibrateSupport = [spotlight](const DeviceId& devId) {
+    const auto currentConn = spotlight->deviceConnection(devId);
+    if (currentConn) {
+      for (const auto& item : currentConn->subDevices()) {
+        if ((item.second->flags() & DeviceFlag::Vibrate) == DeviceFlag::Vibrate) return true;
+      }
+    }
+    return false;
+  };
+
+  if (hasVibrateSupport(currentDeviceId())) {
+    m_vibrationTimerWidget = new MultiTimerWidget(this);
+    tabWidget->addTab(m_vibrationTimerWidget, tr("Timer"));
+  }
+
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [hasVibrateSupport=std::move(hasVibrateSupport), tabWidget, this](const DeviceId& devId) {
+    const bool vibrateSupport = hasVibrateSupport(devId);
+    if (vibrateSupport) {
+      if (m_vibrationTimerWidget == nullptr) {
+        m_vibrationTimerWidget = new MultiTimerWidget(this);
+      }
+      if (tabWidget->indexOf(m_vibrationTimerWidget) < 0) {
+        tabWidget->addTab(m_vibrationTimerWidget, tr("Timer"));
+      }
+    }
+    else if (m_vibrationTimerWidget) {
+      const auto idx = tabWidget->indexOf(m_vibrationTimerWidget);
+      if (idx >= 0) tabWidget->removeTab(idx);
+    }
+  });
+
   return dw;
 }
 
@@ -129,7 +162,6 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   const auto tblView = new InputMapConfigView(imWidget);
   const auto imModel = new InputMapConfigModel(m_inputMapper, imWidget);
   if (m_inputMapper) imModel->setConfiguration(m_inputMapper->configuration());
-
 
   tblView->setModel(imModel);
   const auto selectionModel = tblView->selectionModel();
