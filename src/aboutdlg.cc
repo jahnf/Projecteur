@@ -64,6 +64,7 @@ namespace {
       Contributor("Brandon Johnson", "dbrandonjohnson"),
       Contributor("Stuart Prescott", "llimeht"),
       Contributor("Crista Renouard", "Lumnicence"),
+      Contributor("freddii", "freddii"),
     };
 
     static std::mt19937 g(std::random_device{}());

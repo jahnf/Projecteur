@@ -1,10 +1,15 @@
 # Projecteur
 
-develop: [ ![Build Status develop](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop) ](https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Adevelop)
-master: [ ![Build Status master](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master) ](https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Amaster)
+develop: [ ![Build Status develop][gh-badge-dev] ][gh-link-dev]
+master: [ ![Build Status master][gh-badge-rel] ][gh-link-rel]
 
 Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
+
+[gh-badge-dev]: https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop
+[gh-badge-rel]: https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master
+[gh-link-dev]: https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Adevelop
+[gh-link-rel]: https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Amaster
 
 ## Motivation
 
@@ -30,6 +35,7 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Scriptability / Keyboard shortcuts](#scriptability)
       * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
+  * [Changelog](#changelog)
   * [License](#license)
 
 ## Features
@@ -93,14 +99,16 @@ The latest binary packages for some Linux distributions are available for downlo
 Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_, _CentOS_ and
 _Arch_ Linux are automatically built.
 
-* Latest develop:
-[ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)
-
-* Latest release:
-[ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
+* Latest develop: [ ![Download][bintray-dev-img] ][dl-dev-bintray]
+* Latest release: [ ![Download][bintray-rel-img] ][dl-rel-bintray]
 
 See also the [list of Linux repositories](./doc/LinuxRepositories.md) where _Projecteur_
 is available.
+
+[dl-dev-bintray]: https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files
+[dl-rel-bintray]: https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files
+[bintray-dev-img]: https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg
+[bintray-rel-img]: https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg
 
 ## Building
 
@@ -254,12 +262,14 @@ See [Command Line Interface](#command-line-interface). There is also a command
 line option (`-m`) to prevent the preferences dialog from hiding, allowing it
 only to minimize - behaving more like a regular application window.
 
-On some distributions that have a **GNOME Desktop** by default there is **no system tray extensions**
-installed (_Fedora_ for example). You can install the
-[KStatusNotifierItem/AppIndicator Support](https://extensions.gnome.org/extension/615/appindicator-support/)
-or the [TopIcons Plus](https://extensions.gnome.org/extension/1031/topicons/)
+On some distributions that have a **GNOME Desktop** by default there is
+**no system tray extensions** installed (_Fedora_ for example). You can install the
+[KStatusNotifierItem/AppIndicator Support][appind-ext] or the [TopIcons Plus][topicon-ext]
 GNOME extension to have a system tray that can show the _Projecteur_ tray icon
 (and also from other applications like Dropbox or Skype).
+
+[appind-ext]: https://extensions.gnome.org/extension/615/appindicator-support/
+[topicon-ext]: https://extensions.gnome.org/extension/1031/topicons/
 
 #### Zoom is not updated while spotlight is shown
 
@@ -304,6 +314,10 @@ If the device shows as not connected, there are some things you can do:
 * Make sure you don't have conflicting udev rules installed, e.g. first you installed
   the udev rule yourself and later you used the automatically built Linux packages to
   install _Projecteur_.
+
+## Changelog
+
+See [CHANGELOG.md](./doc/CHANGELOG.md) for a detailed changelog.
 
 ## License
 
