@@ -28,13 +28,13 @@ set(_LinuxPackaging_default_pkgtype "TGZ")
 #  DEBIAN_SECTION.....: A valid debian package section (default=devel)
 
 function(add_dist_package_target)
-  set(oneValueArgs 
+  set(oneValueArgs
     PROJECT # project name to package
     TARGET  # main executable build target that has version information attached to it
-    DESCRIPTION_BRIEF 
+    DESCRIPTION_BRIEF
     DESCRIPTION_FULL
     CONTACT # Maintainer / contact person
-    HOMEPAGE 
+    HOMEPAGE
     DEBIAN_SECTION
     PREINST_SCRIPT
     POSTINST_SCRIPT
@@ -130,7 +130,7 @@ function(add_dist_package_target)
       endif()
     endforeach()
   endif()
-  
+
   if(INCLUDED_PROJECT_DEPENDENCIES AND PkgDependenciesMake_MAP_${PKG_PROJECT})
     set(PKG_BUILD_DEPENDENCY_FOUND 0)
     # Find dependencies for Linux distribution (and version)
@@ -168,10 +168,14 @@ function(add_dist_package_target)
   endif()
 
   configure_file(
-    "${_LinuxPackaging_DIRECTORY}/travis-ci-bintray-deploy.json.in" 
+    "${_LinuxPackaging_DIRECTORY}/travis-ci-bintray-deploy.json.in"
     "${CMAKE_CURRENT_BINARY_DIR}/travis-ci-bintray-deploy.json" @ONLY)
 
   message(STATUS "Configured target 'dist-package' with Linux '${PKG_DIST}' and package type '${PKG_TYPE}'")
+
+  # Make some information available to parent scope
+  set(PKG_DIST "${PKG_DIST}" PARENT_SCOPE)
+  set(PKG_TYPE "${PKG_TYPE}" PARENT_SCOPE)
 endfunction()
 
 # makepg packaging (arch linux/pacman)
@@ -186,7 +190,7 @@ function(_makepkg_packaging)
   set(PKG_PKGBUILD_INSTALL_FILE_PATH "${PKG_SOURCE_ARCHIVE_DIR}/${PKG_PKGBUILD_INSTALL_FILE}")
   file(MAKE_DIRECTORY "${PKG_SOURCE_ARCHIVE_DIR}")
   file(WRITE "${PKG_PKGBUILD_INSTALL_FILE_PATH}" "# generated install file\n\n")
-  
+
   if(PKG_PREINST_SCRIPT)
     file(READ "${PKG_PREINST_SCRIPT}" _pkg_preinst_script_content)
     file(APPEND "${PKG_PKGBUILD_INSTALL_FILE_PATH}"
@@ -237,7 +241,7 @@ function(_makepkg_packaging)
 
   # makepkg: '-' is not allowed in version number
   string(REPLACE "-" "" PKG_PKGBUILD_VER "${PKG_VERSION_STRING_FULL}")
-  
+
   set(PKG_CONFIG_TEMPLATE "${_LinuxPackaging_DIRECTORY}/PKGBUILD.in")
   set(PKG_CONFIG_FILE "${PKG_SOURCE_ARCHIVE_DIR}/PKGBUILD")
   configure_file("${PKG_CONFIG_TEMPLATE}" "${PKG_CONFIG_FILE}" @ONLY)

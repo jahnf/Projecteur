@@ -132,12 +132,20 @@ add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devi
 
 # Install
 #---------------------------------------------------------------------------------------------------
-# Set default directory permissions with CMake >= 3.11, avoids lintian errors for deb packages.
+# Set default directory permissions with CMake >= 3.11, avoids some
+# lintian 'non-standard-dir-perm' errors for deb packages.
 set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
   OWNER_READ OWNER_WRITE OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE
 )
+
+## -- prevent additional lintian warnings 'non-standard-dir-perm' for the cmake install prefix
+set(DIR_TO_INSTALL "${CMAKE_INSTALL_PREFIX}")
+while(NOT "${DIR_TO_INSTALL}" STREQUAL "/" AND NOT "${DIR_TO_INSTALL}" STREQUAL "")
+  install(DIRECTORY DESTINATION "${DIR_TO_INSTALL}")
+  get_filename_component(DIR_TO_INSTALL "${DIR_TO_INSTALL}" PATH)
+endwhile()
 
 install(TARGETS projecteur DESTINATION bin)
 set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur") #used in desktop file template
@@ -269,9 +277,18 @@ if(PACKAGE_TARGETS)
     # PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
     POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
   )
-endif()
+  add_dependencies(dist-package gzip-manpage projecteur)
 
-add_dependencies(dist-package gzip-manpage projecteur)
+  # Additional files for debian packages, adhering to some debian rules,
+  # see https://manpages.debian.org/buster/lintian/lintian.1.en.html
+  if ("${PKG_TYPE}" STREQUAL "DEB")
+    # TODO Lintian expects the the copyright file in /usr/share/doc/projecteur
+    #      This clashes with the default CMAKE_INSTALL_PREFIX /usr/local
+    #      Need to check if this would clash with packages from the debian/ubuntu repos.
+    #configure_file("${TMPLDIR}/copyright.in" "pkg/copyright" @ONLY)
+    #install(FILES "${OUTDIR}/pkg/copyright" DESTINATION /usr/share/doc/projecteur/)
+  endif()
+endif()
 
 option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
 find_program(iwyu_path NAMES include-what-you-use iwyu)
