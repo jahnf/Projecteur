@@ -131,6 +131,14 @@ add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devi
                                       cmake/templates/Projecteur.desktop.in)
 
 # Install
+#---------------------------------------------------------------------------------------------------
+# Set default directory permissions with CMake >= 3.11, avoids lintian errors for deb packages.
+set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
+  OWNER_READ OWNER_WRITE OWNER_EXECUTE
+  GROUP_READ GROUP_EXECUTE
+  WORLD_READ WORLD_EXECUTE
+)
+
 install(TARGETS projecteur DESTINATION bin)
 set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur") #used in desktop file template
 
@@ -217,7 +225,7 @@ configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
 find_program(GZIP_EXECUTABLE gzip)
 add_custom_command(
   OUTPUT ${OUTDIR}/projecteur.1.gz
-  COMMAND ${GZIP_EXECUTABLE} -9f "${OUTDIR}/projecteur.1"
+  COMMAND ${GZIP_EXECUTABLE} -9f -n "${OUTDIR}/projecteur.1"
   WORKING_DIRECTORY ${OUTDIR}
 )
 add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
@@ -248,14 +256,22 @@ if(PACKAGE_TARGETS)
     PROJECT "${CMAKE_PROJECT_NAME}"
     TARGET projecteur
     DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
-    DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
+    DESCRIPTION_FULL
+"Projecteur is a virtual laser pointer for use with inertial pointers such as
+ the Logitech Spotlight. Projecteur can show a colored dot, a highlighted
+ circle or a zoom effect to act as a pointer. The location of the pointer
+ moves in response to moving the handheld pointer device. The effect is much
+ like that of a traditional laser pointer, except that it is captured by
+ recording software and works across multiple screens."
     CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
     HOMEPAGE "${HOMEPAGE}"
     DEBIAN_SECTION "utils"
-    PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
+    # PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
     POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
   )
 endif()
+
+add_dependencies(dist-package gzip-manpage projecteur)
 
 option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
 find_program(iwyu_path NAMES include-what-you-use iwyu)

@@ -31,6 +31,7 @@ list(APPEND _PkgDeps_Projecteur_debian
   "libqt5x11extras5 (>= 5.7)"
   "passwd"
   "udev"
+  "libc6"
 )
 
 list(APPEND _PkgDeps_Projecteur_archlinux
