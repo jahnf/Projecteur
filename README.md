@@ -33,6 +33,7 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Application Menu](#application-menu)
       * [Command Line Interface](#command-line-interface)
       * [Scriptability / Keyboard shortcuts](#scriptability)
+      * [Using Projecteur without a device](#using-projecteur-without-a-device)
       * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
   * [Changelog](#changelog)
@@ -49,6 +50,7 @@ So here it is: a Linux application for the Logitech Spotlight.
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
 * Vibration (Timer) Support for the Logitech Spotlight (USB)
+* Usable without a presenter device (e.g. for online presentations)
 
 ### Screenshots
 
@@ -213,6 +215,14 @@ your screen in a video call without additional presenter hardware, you can assig
 shortcuts in your window manager (e.g. GNOME) to run the commands `projecteur -c spot=on`
 and `projecteur -c spot=off` or `projecteur -c spot=toggle`, and therefore
 turning the spot on and off with a keyboard shortcut.
+
+### Using Projecteur without a device
+
+You can use _Projecteur_ for your online presentations and video conferences without a presenter
+device. For this you can assign a global keyboard shortcut in your window manager
+(e.g. KDE, GNOME...) to run the command `projecteur -c spot=toggle`. You will then be able to
+turn the digital spot on and off with the assigned keyboard shortcut while sharing
+your screen in an online presentation or call.
 
 ### Device Support
 
