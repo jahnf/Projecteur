@@ -58,8 +58,10 @@ function(get_version_info prefix directory)
   set(${prefix}_VERSION_BRANCH unknown)
   set(${prefix}_VERSION_FLAG unknown)
   set(${prefix}_VERSION_DISTANCE 0)
+  set(${prefix}_VERSION_DISTANCE 0 PARENT_SCOPE)
   set(${prefix}_VERSION_STRING 0.0.0-unknown)
   set(${prefix}_VERSION_ISDIRTY 0 PARENT_SCOPE)
+  set(${prefix}_VERSION_DATE_MONTH_YEAR "" PARENT_SCOPE)
 
   if("${${prefix}_OR_VERSION_MAJOR}" STREQUAL "")
     set(${prefix}_OR_VERSION_MAJOR 0)
@@ -119,6 +121,21 @@ function(get_version_info prefix directory)
       endif()
     endif()
 
+    # Get committer date
+    set(ENV_LC_TIME ENV{LC_TIME})
+    set(ENV{LC_TIME} C) # we want to enforce C locale for date formatting
+    execute_process(COMMAND ${GIT_EXECUTABLE} show -s --format=%cd "--date=format:%B %Y"
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE GIT_DATE_MONTH_YEAR
+      ERROR_VARIABLE error_out
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      WORKING_DIRECTORY ${directory}
+    )
+    set(ENV{LC_TIME} ENV_LC_TIME) # Reset environment variable to previous value
+    if(result EQUAL 0)
+      set(${prefix}_VERSION_DATE_MONTH_YEAR "${GIT_DATE_MONTH_YEAR}" PARENT_SCOPE)
+    endif()
+
     # Check the branch we are on
     execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
       RESULT_VARIABLE result
@@ -129,7 +146,7 @@ function(get_version_info prefix directory)
     )
 
     if(result EQUAL 0)
-      if("${GIT_BRANCH}" STREQUAL "HEAD"  
+      if("${GIT_BRANCH}" STREQUAL "HEAD"
          AND NOT "$ENV{TRAVIS_BRANCH}" STREQUAL "")
          set(GIT_BRANCH "$ENV{TRAVIS_BRANCH}")
       endif()
@@ -267,6 +284,8 @@ function(get_version_info prefix directory)
       set(ON_MASTER ON)
       set(${prefix}_VERSION_FLAG "")
       set(${prefix}_VERSION_FLAG "" PARENT_SCOPE)
+      set(${prefix}_VERSION_DISTANCE 0)
+      set(${prefix}_VERSION_DISTANCE 0 PARENT_SCOPE)
     endif()
     set(${prefix}_VERSION_BRANCH "not-within-git-repo" PARENT_SCOPE)
   endif()
@@ -365,6 +384,7 @@ function(add_version_info_custom_prefix target prefix directory)
          set(${prefix}_VERSION_SHORTHASH "${GIT_EXPORT_VERSION_SHORTHASH}")
          set(${prefix}_VERSION_FULLHASH "${GIT_EXPORT_VERSION_FULLHASH}")
          set(${prefix}_VERSION_BRANCH "${GIT_EXPORT_VERSION_BRANCH}")
+         set(${prefix}_VERSION_DATE_MONTH_YEAR "${GIT_EXPORT_VERSION_DATE_MONTH_YEAR}")
          if("${${prefix}_VERSION_BRANCH}" MATCHES ".*[ \t]+[->]+[\t ]+(.*)([,]?.*)")
            set(${prefix}_VERSION_BRANCH "${CMAKE_MATCH_1}")
          elseif("${${prefix}_VERSION_BRANCH}" MATCHES ".*,[ \t](.*)")
@@ -413,7 +433,7 @@ function(add_version_info_custom_prefix target prefix directory)
   endif()
 
   if(${${prefix}_VERSION_SUCCESS})
-    # All informations gathered via git
+    # All information gathered via git
   else()
     message(STATUS "Version-Info: Failure during version retrieval. Possible incomplete version information!")
   endif()
@@ -428,7 +448,14 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_STRING ${${prefix}_VERSION_STRING})
   set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
   set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
-  set_target_properties(${target} PROPERTIES 
+  set(VERSION_DATE_MONTH_YEAR ${${prefix}_VERSION_DATE_MONTH_YEAR})
+
+  # Fallback
+  if("${VERSION_DATE_MONTH_YEAR}" STREQUAL "")
+    string(TIMESTAMP VERSION_DATE_MONTH_YEAR "%b %Y")
+  endif()
+
+  set_target_properties(${target} PROPERTIES
     VERSION_MAJOR "${VERSION_MAJOR}"
     VERSION_MINOR "${VERSION_MINOR}"
     VERSION_PATCH "${VERSION_PATCH}"
@@ -439,6 +466,7 @@ function(add_version_info_custom_prefix target prefix directory)
     VERSION_STRING "${VERSION_STRING}"
     VERSION_ISDIRTY "${VERSION_ISDIRTY}"
     VERSION_BRANCH "${VERSION_BRANCH}"
+    VERSION_DATE_MONTH_YEAR "${VERSION_DATE_MONTH_YEAR}"
   )
 
   set(TARGET ${prefix})

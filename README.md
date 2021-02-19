@@ -1,17 +1,22 @@
 # Projecteur
 
-develop: [ ![Build Status develop](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop) ](https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Adevelop)
-master: [ ![Build Status master](https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master) ](https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Amaster)
+develop: [ ![Build Status develop][gh-badge-dev] ][gh-link-dev]
+master: [ ![Build Status master][gh-badge-rel] ][gh-link-rel]
 
 Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
+
+[gh-badge-dev]: https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=develop
+[gh-badge-rel]: https://github.com/jahnf/Projecteur/workflows/ci-build/badge.svg?branch=master
+[gh-link-dev]: https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Adevelop
+[gh-link-rel]: https://github.com/jahnf/Projecteur/actions?query=workflow%3Aci-build+branch%3Amaster
 
 ## Motivation
 
 I saw the Logitech Spotlight device in action at a conference and liked it immediately.
 Unfortunately as in a lot of cases, software is only provided for Windows and Mac.
 The device itself works just fine on Linux, but the cool spotlight feature is
-done by additional software.
+only available using additional software.
 
 So here it is: a Linux application for the Logitech Spotlight.
 
@@ -27,20 +32,25 @@ So here it is: a Linux application for the Logitech Spotlight.
       * [Pre-requisites](#pre-requisites)
       * [Application Menu](#application-menu)
       * [Command Line Interface](#command-line-interface)
+      * [Scriptability / Keyboard shortcuts](#scriptability)
+      * [Using Projecteur without a device](#using-projecteur-without-a-device)
       * [Device Support](#device-support)
       * [Troubleshooting](#troubleshooting)
+  * [Changelog](#changelog)
   * [License](#license)
 
 ## Features
 
 * Configurable desktop spotlight
-  * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_.
-  * Zoom (magnifier) functionality.
+  * _shade color_, _opacity_, _cursor_, _border_, _center dot_ and different _shapes_
+  * Zoom (magnifier) functionality
 * Multiple screen support
-* Support of devices besides the Logitech Spotlight (see [Device Support](#device-support))
+* Support of devices beyond the Logitech Spotlight (see [Device Support](#device-support))
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
+* Vibration (Timer) Support for the Logitech Spotlight (USB)
+* Usable without a presenter device (e.g. for online presentations)
 
 ### Screenshots
 
@@ -52,24 +62,24 @@ So here it is: a Linux application for the Logitech Spotlight.
 ### Planned features
 
 * Support for more customizable button mapping actions.
-* Vibration (Timer) Support (Logitech Spotlight)
+* Support of more proprietary features of the Logitech Spotlight and other devices.
 
 ## Supported Environments
 
-The application was mostly tested on Ubuntu 18.04 (GNOME) and OpenSuse 15 (GNOME)
-but should work on almost any Linux/X11 Desktop. In case you are building the
-application yourself, make sure you have the correct udev rules installed
-(see [pre-requisites section](#pre-requisites)).
+The application was mostly tested on Ubuntu 18.04, Ubuntu 20.04 (GNOME) and
+OpenSuse 15 (GNOME) but should work on almost any Linux/X11 Desktop. In case
+you are building the application yourself, make sure you have the correct udev
+rules installed (see [pre-requisites section](#pre-requisites)).
 
 ## How it works
 
 With a connection via the USB Dongle Receiver or via Bluetooth, the Logitech Spotlight
 device will be detected by Linux as a HID device with mouse and keyboard events.
-As mouse events the device sends relative cursor movements and left button presses.
+As mouse events, the device sends relative cursor movements and left button presses.
 Acting as a keyboard, the device basically just sends left and right arrow key press
-events when forward or back on the device is pressed.
+events when forward or back is pressed on the device.
 
-The mouse move events of device is what we are mainly interested in. Since the device is
+The mouse move events of the device are what we are mainly interested in. Since the device is
 already detected as a mouse input device and able to move the cursor, we simply detect
 if the Spotlight device is sending mouse move events. If it is sending mouse events,
 we will 'turn on' the desktop spot (virtual laser).
@@ -91,14 +101,16 @@ The latest binary packages for some Linux distributions are available for downlo
 Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_, _CentOS_ and
 _Arch_ Linux are automatically built.
 
-* Latest develop:
-[ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files)
-
-* Latest release:
-[ ![Download](https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg) ](https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files)
+* Latest develop: [ ![Download][bintray-dev-img] ][dl-dev-bintray]
+* Latest release: [ ![Download][bintray-rel-img] ][dl-rel-bintray]
 
 See also the [list of Linux repositories](./doc/LinuxRepositories.md) where _Projecteur_
 is available.
+
+[dl-dev-bintray]: https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files
+[dl-rel-bintray]: https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files
+[bintray-dev-img]: https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg
+[bintray-rel-img]: https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg
 
 ## Building
 
@@ -138,10 +150,10 @@ file in this repository: `55-projecteur.rules.in`
 * Most recent systems (using systemd) will automatically pick up the rule.
   If not, run `sudo udevadm control --reload-rules` and `sudo udevadm trigger`
   to load the rules without a reboot.
-* After that the input devices from the Logitech USB Receiver (but also the Bluetooth device)
+* After that, the input devices from the Logitech USB Receiver (but also the Bluetooth device)
   in /dev/input should be readable/writable by you.
   (See also about [device detection](#device-shows-as-not-connected))
-* When building against the Qt version that comes with your distribution's packages
+* When building against the Qt version that comes with your distribution's packages,
   you might need to install some  additional QML module packages. For example this
   is the case for Ubuntu, where you need to install the packages
   `qml-module-qtgraphicaleffects`, `qml-module-qtquick-window2`, `qml-modules-qtquick2` and
@@ -159,7 +171,7 @@ Additional to the standard `--help` and `--version` options, there is an option 
 commands to a running instance of _Projecteur_ and the ability to set properties.
 
 ```
-Usage: projecteur [option]
+Usage: projecteur [OPTION]...
 
 <Options>
   -h, --help             Show command line usage.
@@ -175,12 +187,42 @@ Usage: projecteur [option]
   -c COMMAND|PROPERTY    Send command/property to a running instance.
 
 <Commands>
-  spot=[on|off]          Turn spotlight on/off.
+  spot=[on|off|toggle]   Turn spotlight on/off or toggle.
   settings=[show|hide]   Show/hide preferences dialog.
   quit                   Quit the running instance.
 ```
 
-All the properties that can be set via the command line, are listed with the `--help-all` option.
+A complete list the properties that can be set via the command line, can be listed with the
+`--help-all` option or can also be found on the man pagers with newer versions of
+_Projecteur_ (`man projecteur`).
+
+### Scriptability
+
+_Projecteur_ allows you to set almost all aspects of the spotlight via the command line
+for a running instance.
+
+Example:
+```bash
+# Set showing the border to true
+projecteur -c border=true
+# Set the border color to red
+projecteur -c border.color=#ff0000
+```
+
+While _Projecteur_ does not provide global keyboard shortcuts, command line options
+can but utilized for that. For instance, if you like to use _Projecteur_ as a tool while sharing
+your screen in a video call without additional presenter hardware, you can assign global
+shortcuts in your window manager (e.g. GNOME) to run the commands `projecteur -c spot=on`
+and `projecteur -c spot=off` or `projecteur -c spot=toggle`, and therefore
+turning the spot on and off with a keyboard shortcut.
+
+### Using Projecteur without a device
+
+You can use _Projecteur_ for your online presentations and video conferences without a presenter
+device. For this you can assign a global keyboard shortcut in your window manager
+(e.g. KDE, GNOME...) to run the command `projecteur -c spot=toggle`. You will then be able to
+turn the digital spot on and off with the assigned keyboard shortcut while sharing
+your screen in an online presentation or call.
 
 ### Device Support
 
@@ -193,7 +235,7 @@ Besides the _Logitech Spotlight_, the following devices are currently supported 
 #### Compile Time
 
 Besides the Logitech Spotlight, similar devices can be used and are supported.
-Additional devices can be added to `devices.conf`. At CMake configuration time
+Additional devices can be added to `devices.conf`. At CMake configuration time,
 the project will be configured to support these devices and also create entries
 for them in the generated udev-rule file.
 
@@ -205,14 +247,14 @@ command line option.
 Example: `projecteur -D 04b3:310c`
 
 This will enable devices within _Projecteur_ and the application will try to
-connect to that device if it is detected. It is up to the user though to make
+connect to that device if it is detected. It is, however, up to the user to make
 sure the device is accessible (via udev rules).
 
 ### Troubleshooting
 
 #### Opaque Spotlight / No Transparency
 
-To be able to show transparent windows a **compositing manager** is necessary. If there is no
+To be able to show transparent windows, a **compositing manager** is necessary. If there is no
 compositing manager running you will see the spotlight overlay as an opaque window.
 
 * On **KDE** it might be necessary to turn on Desktop effects to allow transparent windows.
@@ -230,20 +272,23 @@ See [Command Line Interface](#command-line-interface). There is also a command
 line option (`-m`) to prevent the preferences dialog from hiding, allowing it
 only to minimize - behaving more like a regular application window.
 
-On some distributions that have a **GNOME Desktop** by default there is **no system tray extensions**
-installed (_Fedora_ for example). You can install the
-[KStatusNotifierItem/AppIndicator Support](https://extensions.gnome.org/extension/615/appindicator-support/)
-or the [TopIcons Plus](https://extensions.gnome.org/extension/1031/topicons/)
+On some distributions that have a **GNOME Desktop** by default there is
+**no system tray extensions** installed (_Fedora_ for example). You can install the
+[KStatusNotifierItem/AppIndicator Support][appind-ext] or the [TopIcons Plus][topicon-ext]
 GNOME extension to have a system tray that can show the _Projecteur_ tray icon
 (and also from other applications like Dropbox or Skype).
 
+[appind-ext]: https://extensions.gnome.org/extension/615/appindicator-support/
+[topicon-ext]: https://extensions.gnome.org/extension/1031/topicons/
+
 #### Zoom is not updated while spotlight is shown
 
-That is due to the fact how the zoom currently works. A screenshot is taken shortly before the
-overlay window is shown, and then a magnified section is shown wherever the mouse/spotlight is.
+Zoom does not update while spotlight is shown due to how the zoom currently works. A screenshot is
+taken shortly before the overlay window is shown, and then a magnified section is shown wherever
+the mouse/spotlight is.
 If the zoom would be updated while the overlay window is shown, the overlay window it self would
-show up in the magnified section. That is a general problem, that also other magnifier tools face,
-although they can get around the problem by showing the magnified content rectangle always in the
+show up in the magnified section. That is a general problem that other magnifier tools also face,
+although they get around the problem by showing the magnified content rectangle always in the
 same position on the screen.
 
 #### Wayland
@@ -261,7 +306,7 @@ Using Wayland-EGL
 
 On Wayland the Zoom feature is currently only implemented on KDE and GNOME. This is done with
 the help of their respective DBus interfaces for screen capturing. On other environments with
-Wayland, the zoom feature is currently not supported.
+Wayland, the zoom feature is not currently supported.
 
 #### Device shows as not connected
 
@@ -269,20 +314,24 @@ If the device shows as not connected, there are some things you can do:
 
 * Check for devices with _Projecteur_'s command line option `-d` or `--device-scan` option.
   This will show you a list of all supported and detected devices and also if
-  they are readable/writable. If a detected device is not readable/writable it is an indicator,
+  they are readable/writable. If a detected device is not readable/writable, it is an indicator
   that there is something wrong with the installed _udev_ rules.
 * Manually on the shell: Check if the device is detected by the Linux system: Run
   `cat /proc/bus/input/devices | grep -A 5 "Vendor=046d"` \
   This should show one or multiple spotlight devices (among other Logitech devices)
-  * Check you the corresponding `/dev/input/event??` device file is readable by you. \
+  * Check that the corresponding `/dev/input/event??` device file is readable by you. \
     Example: `test -r /dev/input/event19 && echo "SUCCESS" || echo "NOT readable"`
 * Make sure you don't have conflicting udev rules installed, e.g. first you installed
   the udev rule yourself and later you used the automatically built Linux packages to
   install _Projecteur_.
 
+## Changelog
+
+See [CHANGELOG.md](./doc/CHANGELOG.md) for a detailed changelog.
+
 ## License
 
-Copyright 2018-2020 Jahn Fuchs
+Copyright 2018-2021 Jahn Fuchs
 
 This project is distributed under the [MIT License](https://opensource.org/licenses/MIT),
 see [LICENSE.md](./LICENSE.md) for more information.

@@ -18,19 +18,22 @@ jobs:
         - fedora-30
         - fedora-31
         - fedora-32
+        - fedora-33
         - debian-stretch
         - debian-buster
         - ubuntu-18.04
         - ubuntu-20.04
+        - ubuntu-20.10
         - opensuse-15.0
         - opensuse-15.1
+        - opensuse-15.2
         - centos-8
         os:
         - ubuntu-latest
 
     runs-on: ${{ matrix.os }}
     env:
-      DOCKER_IMG: jahnf/projecteur
+      DOCKER_IMG: docker.pkg.github.com/jahnf/projecteur/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
       MAKEFLAGS: -j2
       CLOUDSMITH_USER: jahnf
@@ -42,18 +45,25 @@ jobs:
     # ---------- Add ~/.local/bin to PATH ----------
     - run: |
         export LOCAL_BIN=~/.local/bin
-        echo "::set-env name=PATH::${PATH}:${LOCAL_BIN}"
+        echo "${LOCAL_BIN}" >> $GITHUB_PATH
 
     # ===================================================================================
     # ---------- Checkout and build inside docker container ----------
     - uses: actions/checkout@v1
     - run: |
         export BRANCH=${GITHUB_REF/refs\/heads\//}
-        echo Deteted branch: ${BRANCH}
-        echo "::set-env name=BRANCH::${BRANCH}"
+        echo Detected branch: ${BRANCH}
+        echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
+
+    - name: Login to github docker registry
+      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin
+      env:
+        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Pull ${{ matrix.docker_tag }} docker image
-      run: docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
+      run: |
+        docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
+        docker logout docker.pkg.github.com
     - name: docker create build container
       run: |
         docker run --name build --env MAKEFLAGS=${MAKEFLAGS} \
@@ -80,7 +90,7 @@ jobs:
     - name: Set version environment variable
       run: |
         projecteur_version=`cat version-string`
-        echo "::set-env name=projecteur_version::${projecteur_version}"
+        echo "projecteur_version=${projecteur_version}" >> $GITHUB_ENV
 
     - name: Move source package
       if:  startsWith(matrix.docker_tag, 'archlinux')
@@ -89,12 +99,12 @@ jobs:
     - name: Get source package filename for artifact uploads
       run: |
         src_pkg_artifact=`ls -1 source-pkg/* | head -n 1`
-        echo "::set-env name=src_pkg_artifact::${src_pkg_artifact}"
+        echo "src_pkg_artifact=${src_pkg_artifact}" >> $GITHUB_ENV
 
     - name: Get binary package filename for artifact uploads
       run: |
         dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
-        echo "::set-env name=dist_pkg_artifact::${dist_pkg_artifact}"
+        echo "dist_pkg_artifact=${dist_pkg_artifact}" >> $GITHUB_ENV
 
     # ===================================================================================
     # ---------- Upload artifacts to github ----------
@@ -115,26 +125,28 @@ jobs:
     # ---------- Set environment variables depending on branch ----------
     - name: Set environment variable defaults
       run: |
-        echo "::set-env name=upload_bin_pkg::${{ false }}"
-        echo "::set-env name=upload_src_pkg::${{ false }}"
-        echo "::set-env name=cloudsmith_upload_repo::projecteur-develop"
-        echo "::set-env name=REPO_UPLOAD::${{ false }}"
+        echo "upload_bin_pkg=${{ false }}" >> $GITHUB_ENV
+        echo "upload_src_pkg=${{ false }}" >> $GITHUB_ENV
+        echo "cloudsmith_upload_repo=projecteur-develop" >> $GITHUB_ENV
+        echo "bintray_upload_repo=projecteur-develop" >> $GITHUB_ENV
+        echo "REPO_UPLOAD=${{ false }}" >> $GITHUB_ENV
 
     - name: Check for binary-pkg upload conditions
       if: env.BRANCH == 'develop' || env.BRANCH == 'master'
       run: |
-        echo "::set-env name=upload_bin_pkg::${{ true }}"
-        echo "::set-env name=bintray_upload_pkg::projecteur-${{ env.BRANCH }}"
+        echo "upload_bin_pkg=${{ true }}" >> $GITHUB_ENV
         pip install --upgrade wheel
         pip install --upgrade cloudsmith-cli
 
     - name: Check for source-pkg upload conditions
       if: env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux')
       run: |
-        echo "::set-env name=upload_src_pkg::${{ true }}"
+        echo "upload_src_pkg=${{ true }}" >> $GITHUB_ENV
 
     - if: env.BRANCH == 'master'
-      run: echo "::set-env name=cloudsmith_upload_repo::projecteur-stable"
+      run: |
+        echo "cloudsmith_upload_repo=projecteur-stable" >> $GITHUB_ENV
+        echo "bintray_upload_repo=projecteur-master" >> $GITHUB_ENV
 
     # ===================================================================================
     # ---------- Upload artifacts to cloudsmith ----------
@@ -166,16 +178,17 @@ jobs:
         declare -A distromap=( ["debian-stretch"]="debian/stretch" ["debian-buster"]="debian/buster" \
           ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
           ["ubuntu-20.04"]="ubuntu/focal" ["opensuse-15.1"]="opensuse/15.1" \
-          ["centos-8"]="el/8" ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
-          ["fedora-32"]="fedora/32" )
+          ["opensuse-15.2"]="opensuse/15.2" ["centos-8"]="el/8" \
+          ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
+          ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" )
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
         echo DISTRO=$DISTRO
-        echo "::set-env name=PKG_TYPE::${PKG_TYPE}"
-        echo "::set-env name=DISTRO::${DISTRO}"
+        echo "PKG_TYPE=${PKG_TYPE}" >> $GITHUB_ENV
+        echo "DISTRO=${DISTRO}" >> $GITHUB_ENV
         if [ -z ${DISTRO} ] || [ -z ${PKG_TYPE} ]; then \
           export REPO_UPLOAD=false; else export REPO_UPLOAD=true; fi;
-        echo "::set-env name=REPO_UPLOAD::${REPO_UPLOAD}"
+        echo "REPO_UPLOAD=${REPO_UPLOAD}" >> $GITHUB_ENV
 
     - name: Linux repo upload on cloudsmith for ${{ env.DISTRO }}
       if: env.REPO_UPLOAD == 'true'
@@ -198,7 +211,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: ${{ env.bintray_upload_pkg }}
+        package: ${{ env.bintray_upload_repo }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false
@@ -213,7 +226,7 @@ jobs:
         api_key: ${{ secrets.BINTRAY_API_KEY }}
         repository_user: jahnf
         repository: Projecteur
-        package: ${{ env.bintray_upload_pkg }}
+        package: ${{ env.bintray_upload_repo }}
         version: ${{ env.projecteur_version }}
         upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
         calculate_metadata: false

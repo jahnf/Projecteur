@@ -201,6 +201,9 @@ void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type
   case Action::Type::CyclePresets:
     item.action = std::make_shared<CyclePresetsAction>();
     break;
+  case Action::Type::ToggleSpotlight:
+    item.action = std::make_shared<ToggleSpotlightAction>();
+    break;
   }
 
   configureInputMapper();
@@ -275,7 +278,6 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   : QTableView(parent)
     , m_actionTypeDelegate(new ActionTypeDelegate(this))
 {
-  // verticalHeader()->setHidden(true);
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
 
   const auto imSeqDelegate = new InputSeqDelegate(this);

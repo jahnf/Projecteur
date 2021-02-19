@@ -104,9 +104,9 @@ QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
   case Action::Type::CyclePresets:
     mia.action = std::make_shared<CyclePresetsAction>();
     return mia.action->load(s);
-  default:
-    mia.action.reset();
-    break;
+  case Action::Type::ToggleSpotlight:
+    mia.action = std::make_shared<ToggleSpotlightAction>();
+    return mia.action->load(s);
   }
   return s;
 }
@@ -125,6 +125,9 @@ bool MappedAction::operator==(const MappedAction& o) const
   case Action::Type::CyclePresets:
     return (*static_cast<CyclePresetsAction*>(action.get()))
            == (*static_cast<CyclePresetsAction*>(o.action.get()));
+  case Action::Type::ToggleSpotlight:
+    return (*static_cast<ToggleSpotlightAction*>(action.get()))
+           == (*static_cast<ToggleSpotlightAction*>(o.action.get()));
   }
 
   return false;
@@ -468,7 +471,6 @@ const NativeKeySequence& NativeKeySequence::predefined::meta()
 {
   static const NativeKeySequence ks = [](){
     NativeKeySequence ks;
-    //ks.m_keySequence = QKeySequence::fromString("Meta");
     ks.m_nativeModifiers.push_back(NativeKeySequence::LeftMeta);
     KeyEvent pressed; KeyEvent released;
     pressed.emplace_back(EV_KEY, KEY_LEFTMETA, 1);
@@ -679,7 +681,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   }
 
   if (input_events[num-1].type != EV_SYN) {
-    logWarning(input) << tr("Input mapper expects events seperated by SYN event.");
+    logWarning(input) << tr("Input mapper expects events separated by SYN event.");
     return;
   } else if (num == 1) {
     logWarning(input) << tr("Ignoring single SYN event received.");

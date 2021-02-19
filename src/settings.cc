@@ -6,6 +6,7 @@
 #include "logging.h"
 
 #include <algorithm>
+#include <utility>
 
 #include <QGuiApplication>
 #include <QFileInfo>
@@ -27,7 +28,6 @@ namespace {
     constexpr char dotOpacity[] = "dotOpacity";
     constexpr char shadeColor[] = "shadeColor";
     constexpr char shadeOpacity[] = "shadeOpacity";
-    constexpr char screen[] = "screen";
     constexpr char cursor[] = "cursor";
     constexpr char spotShape[] = "spotShape";
     constexpr char spotRotation[] ="spotRotation";
@@ -37,10 +37,15 @@ namespace {
     constexpr char borderOpacity[] = "borderOpacity";
     constexpr char zoomEnabled[] = "enableZoom";
     constexpr char zoomFactor[] = "zoomFactor";
+    constexpr char multiScreenOverlay[] = "multiScreenOverlay";
 
     // -- device specific
     constexpr char inputSequenceInterval[] = "inputSequenceInterval";
     constexpr char inputMapConfig[] = "inputMapConfig";
+    constexpr char timerEnabled[] = "timer%1enabled";
+    constexpr char timerSeconds[] = "timer%1seconds";
+    constexpr char vibrationLength[] = "vibrationLength";
+    constexpr char vibrationIntensity[] = "vibrationIntensity";
 
     namespace defaultValue {
       constexpr bool showSpotShade = true;
@@ -60,9 +65,12 @@ namespace {
       constexpr double borderOpacity = 0.8;
       constexpr bool zoomEnabled = false;
       constexpr double zoomFactor = 2.0;
+      constexpr bool multiScreenOverlay = false;
 
       // -- device specific defaults
       constexpr int inputSequenceInterval = 250;
+      constexpr uint8_t vibrationLength = 0;
+      constexpr uint8_t vibrationIntensity = 128;
     }
 
     namespace ranges {
@@ -93,9 +101,7 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   QString settingsKey(const DeviceId& dId, const QString& key) {
     return QString("Device_%1_%2/%3")
-      .arg(dId.vendorId, 4, 16, QChar('0'))
-      .arg(dId.productId, 4, 16, QChar('0'))
-      .arg(key);
+      .arg(logging::hexId(dId.vendorId), logging::hexId(dId.productId), key);
   }
 
   // -------------------------------------------------------------------------------------------------
@@ -162,6 +168,10 @@ void Settings::initializeStringProperties()
 {
   auto& map = m_stringPropertyMap;
   // -- spot settings
+  map.emplace_back( "spot.overlay", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setOverlayDisabled(!toBool(value)); } } );
+  map.emplace_back( "spot.multi-screen", StringProperty{ StringProperty::Bool, {false, true},
+                    [this](const QString& value){ setMultiScreenOverlayEnabled(toBool(value)); } } );
   map.emplace_back( "spot.size", StringProperty{ StringProperty::Integer,
                     {::settings::ranges::spotSize.min, ::settings::ranges::spotSize.max},
                     [this](const QString& value){ setSpotSize(value.toInt()); } } );
@@ -257,7 +267,7 @@ const Settings::SettingRange<double>& Settings::zoomFactorRange() { return setti
 const Settings::SettingRange<int>& Settings::inputSequenceIntervalRange() { return settings::ranges::inputSequenceInterval; }
 
 // -------------------------------------------------------------------------------------------------
-const QList<Settings::SpotShape>& Settings::spotShapes() const
+const QList<Settings::SpotShape>& Settings::spotShapes()
 {
   static const QList<SpotShape> shapes{
     SpotShape(::settings::defaultValue::spotShape, "Circle", tr("Circle"), false),
@@ -291,6 +301,7 @@ void Settings::setDefaults()
   setBorderOpacity(settings::defaultValue::borderOpacity);
   setZoomEnabled(settings::defaultValue::zoomEnabled);
   setZoomFactor(settings::defaultValue::zoomFactor);
+  setMultiScreenOverlayEnabled(settings::defaultValue::multiScreenOverlay);
   shapeSettingsSetDefaults();
 }
 
@@ -457,6 +468,7 @@ void Settings::load(const QString& preset)
   setBorderOpacity(m_settings->value(s+::settings::borderOpacity, settings::defaultValue::borderOpacity).toDouble());
   setZoomEnabled(m_settings->value(s+::settings::zoomEnabled, settings::defaultValue::zoomEnabled).toBool());
   setZoomFactor(m_settings->value(s+::settings::zoomFactor, settings::defaultValue::zoomFactor).toDouble());
+  setMultiScreenOverlayEnabled(m_settings->value(s+::settings::multiScreenOverlay, settings::defaultValue::multiScreenOverlay).toBool());
   shapeSettingsLoad(preset);
 }
 
@@ -482,6 +494,7 @@ void Settings::savePreset(const QString& preset)
   m_settings->setValue(section+::settings::borderOpacity, m_borderOpacity);
   m_settings->setValue(section+::settings::zoomEnabled, m_zoomEnabled);
   m_settings->setValue(section+::settings::zoomFactor, m_zoomFactor);
+  m_settings->setValue(section+::settings::multiScreenOverlay, m_multiScreenOverlayEnabled);
   shapeSettingsSavePreset(preset);
 
   m_presetModel->addPreset(preset);
@@ -582,17 +595,6 @@ void Settings::setShadeOpacity(double opacity)
     logDebug(lcSettings) << "shade.opacity = " << m_shadeOpacity;
     emit shadeOpacityChanged(m_shadeOpacity);
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-void Settings::setScreen(int screen)
-{
-  if (screen == m_screen)
-    return;
-
-  m_screen = qMin(qMax(0, screen), 100);
-  m_settings->setValue(::settings::screen, m_screen);
-  emit screenChanged(m_screen);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -757,6 +759,16 @@ void Settings::setZoomFactor(double factor)
 }
 
 // -------------------------------------------------------------------------------------------------
+void Settings::setMultiScreenOverlayEnabled(bool enabled)
+{
+    if (m_multiScreenOverlayEnabled == enabled) return;
+    m_multiScreenOverlayEnabled = enabled;
+    m_settings->setValue(::settings::multiScreenOverlay, m_multiScreenOverlayEnabled);
+    logDebug(lcSettings) << "multi-screen-overlay = " << m_multiScreenOverlayEnabled;
+    emit multiScreenOverlayEnabledChanged(m_multiScreenOverlayEnabled);
+}
+
+// -------------------------------------------------------------------------------------------------
 void Settings::setOverlayDisabled(bool disabled)
 {
   if (m_overlayDisabled == disabled) return;
@@ -835,6 +847,42 @@ InputMapConfig Settings::getDeviceInputMapConfig(const DeviceId& dId)
   m_settings->endArray();
 
   return cfg;
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setTimerSettings(const DeviceId& dId, int timerId, bool enabled, int seconds)
+{
+  m_settings->setValue(settingsKey(dId, QString(::settings::timerEnabled).arg(timerId)), enabled);
+  m_settings->setValue(settingsKey(dId, QString(::settings::timerSeconds).arg(timerId)), seconds);
+}
+
+// -------------------------------------------------------------------------------------------------
+std::pair<bool, int> Settings::timerSettings(const DeviceId& dId, int timerId) const
+{
+  const auto enabled = m_settings->value(
+    settingsKey(dId, QString(::settings::timerEnabled).arg(timerId)), false).toBool();
+  const auto seconds = m_settings->value(
+    settingsKey(dId, QString(::settings::timerSeconds).arg(timerId)), 900 + 900 * timerId).toInt();
+  return std::make_pair(enabled, seconds);
+}
+
+// -------------------------------------------------------------------------------------------------
+void Settings::setVibrationSettings(const DeviceId& dId, uint8_t len, uint8_t intensity)
+{
+  m_settings->setValue(settingsKey(dId, ::settings::vibrationLength), len);
+  m_settings->setValue(settingsKey(dId, ::settings::vibrationIntensity), intensity);
+}
+
+// -------------------------------------------------------------------------------------------------
+std::pair<uint8_t, uint8_t> Settings::vibrationSettings(const DeviceId& dId) const
+{
+  const auto len = m_settings->value(
+    settingsKey(dId, ::settings::vibrationLength),
+    ::settings::defaultValue::vibrationLength).toUInt();
+  const auto intensity = m_settings->value(
+    settingsKey(dId, ::settings::vibrationIntensity),
+    ::settings::defaultValue::vibrationIntensity).toUInt();
+  return std::make_pair(len, intensity);
 }
 
 // -------------------------------------------------------------------------------------------------

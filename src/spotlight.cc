@@ -15,11 +15,11 @@
 #include <sys/ioctl.h>
 #include <linux/input.h>
 #include <unistd.h>
-#include <vector>
 
 DECLARE_LOGGING_CATEGORY(device)
 
 namespace {
+  const auto hexId = logging::hexId;
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -34,8 +34,7 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   m_activeTimer->setInterval(600);
 
   connect(m_activeTimer, &QTimer::timeout, this, [this](){
-    m_spotActive = false;
-    emit spotActiveChanged(false);
+    setSpotActive(false);
   });
 
   if (m_options.enableUInput) {
@@ -83,6 +82,15 @@ uint32_t Spotlight::connectedDeviceCount() const
 }
 
 // -------------------------------------------------------------------------------------------------
+void Spotlight::setSpotActive(bool active)
+{
+  if (m_spotActive == active) return;
+  m_spotActive = active;
+  if (!m_spotActive) m_activeTimer->stop();
+  emit spotActiveChanged(m_spotActive);
+}
+
+// -------------------------------------------------------------------------------------------------
 std::shared_ptr<DeviceConnection> Spotlight::deviceConnection(const DeviceId& deviceId)
 {
   const auto find_it = m_deviceConnections.find(deviceId);
@@ -104,6 +112,7 @@ std::vector<Spotlight::ConnectedDeviceInfo> Spotlight::connectedDevices() const
 int Spotlight::connectDevices()
 {
   const auto scanResult = DeviceScan::getDevices(m_options.additionalDevices);
+
   for (const auto& dev : scanResult.devices)
   {
     auto& dc = m_deviceConnections[dev.id];
@@ -114,12 +123,21 @@ int Spotlight::connectDevices()
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
     for (const auto& scanSubDevice : dev.subDevices)
     {
-      if (scanSubDevice.type != DeviceScan::SubDevice::Type::Event) continue;
       if (!scanSubDevice.deviceReadable) continue;
       if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
 
-      auto subDeviceConnection = SubEventConnection::create(scanSubDevice, *dc);
-      if (!addInputEventHandler(subDeviceConnection)) continue;
+      std::shared_ptr<SubDeviceConnection> subDeviceConnection =
+      [&scanSubDevice, &dc, this]() -> std::shared_ptr<SubDeviceConnection> {
+        if (scanSubDevice.type == DeviceScan::SubDevice::Type::Event) {
+          auto devCon = SubEventConnection::create(scanSubDevice, *dc);
+          if (addInputEventHandler(devCon)) return devCon;
+        } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
+          return SubHidrawConnection::create(scanSubDevice, *dc);
+        }
+        return std::shared_ptr<SubDeviceConnection>();
+      }();
+
+      if (!subDeviceConnection) continue;
 
       if (dc->subDeviceCount() == 0) {
         // Load Input mapping settings when first sub-device gets added.
@@ -149,6 +167,10 @@ int Spotlight::connectDevices()
               m_settings->loadPreset(lastPreset);
             }
           }
+          else if (action->type() == Action::Type::ToggleSpotlight)
+          {
+            m_settings->setOverlayDisabled(!m_settings->overlayDisabled());
+          }
         });
 
         connect(m_settings, &Settings::presetLoaded, this, [](const QString& preset){
@@ -162,19 +184,15 @@ int Spotlight::connectDevices()
         QTimer::singleShot(0, this,
         [this, id = dev.id, devName = dc->deviceName(), anyConnectedBefore](){
           logInfo(device) << tr("Connected device: %1 (%2:%3)")
-                             .arg(devName)
-                             .arg(id.vendorId, 4, 16, QChar('0'))
-                             .arg(id.productId, 4, 16, QChar('0'));
+                             .arg(devName, hexId(id.vendorId), hexId(id.productId));
           emit deviceConnected(id, devName);
           if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
         });
       }
 
       logDebug(device) << tr("Connected sub-device: %1 (%2:%3) %4")
-                          .arg(dc->deviceName())
-                          .arg(dev.id.vendorId, 4, 16, QChar('0'))
-                          .arg(dev.id.productId, 4, 16, QChar('0'))
-                          .arg(scanSubDevice.deviceFile);
+                          .arg(dc->deviceName(), hexId(dev.id.vendorId),
+                               hexId(dev.id.productId), scanSubDevice.deviceFile);
       emit subDeviceConnected(dev.id, dc->deviceName(), scanSubDevice.deviceFile);
     }
 
@@ -197,15 +215,14 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 
     auto& dc = dc_it->second;
     if (dc->removeSubDevice(devicePath)) {
-
       emit subDeviceDisconnected(dc_it->first, dc->deviceName(), devicePath);
     }
 
     if (dc->subDeviceCount() == 0)
     {
       logInfo(device) << tr("Disconnected device: %1 (%2:%3)")
-                         .arg(dc->deviceName()).arg(dc_it->first.vendorId, 4, 16, QChar('0'))
-                         .arg(dc_it->first.productId, 4, 16, QChar('0'));
+                         .arg(dc->deviceName(), hexId(dc_it->first.vendorId),
+                              hexId(dc_it->first.productId));
       emit deviceDisconnected(dc_it->first, dc->deviceName());
       dc_it = m_deviceConnections.erase(dc_it);
     }
@@ -249,8 +266,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       if (isMouseMoveEvent)
       { // Skip input mapping for mouse move events completely
         if (!m_activeTimer->isActive()) {
-          m_spotActive = true;
-          emit spotActiveChanged(true);
+          setSpotActive(true);
         }
         m_activeTimer->start();
         if (m_virtualDevice) m_virtualDevice->emitEvents(buf.data(), buf.pos());

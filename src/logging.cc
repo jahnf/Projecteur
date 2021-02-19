@@ -108,8 +108,6 @@ namespace {
   // - if that changes and multiple threads will log, this needs a serious overhaul - NOT thread safe
   void projecteurLogHandler(QtMsgType type, const QMessageLogContext &context, const QString &msgQString)
   {
-    // const char *file = context.file ? context.file : "";
-    // const char *function = context.function ? context.function : "";
     const char *category = context.category ? context.category : "";
 
     #if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))
@@ -154,7 +152,7 @@ namespace logging {
       case level::warning: return "warning";
       case level::error: return "error";
       case level::custom: return "default/custom";
-      case level::unknown: return "unknwon";
+      case level::unknown: return "unknown";
     }
     return "";
   }
@@ -200,4 +198,7 @@ namespace logging {
     }
   }
 
+  QString hexId(unsigned short id) {
+    return QString("%1").arg(id, 4, 16, QChar('0'));
+  }
 }

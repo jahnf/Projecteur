@@ -13,8 +13,9 @@ endif()
 if( NOT CMAKE_BUILD_TYPE )
   message(STATUS "Setting build type to 'Release' as none was specified.")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
+
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 
 project(Projecteur LANGUAGES CXX)
 
@@ -50,6 +51,7 @@ add_executable(projecteur
   src/actiondelegate.cc     src/actiondelegate.h
   src/colorselector.cc      src/colorselector.h
   src/device.cc             src/device.h
+  src/device-vibration.cc   src/device-vibration.h
   src/deviceinput.cc        src/deviceinput.h
   src/devicescan.cc         src/devicescan.h
   src/deviceswidget.cc      src/deviceswidget.h
@@ -104,7 +106,7 @@ target_compile_definitions(projecteur PRIVATE
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
-  VERSION_MINOR 8
+  VERSION_MINOR 9
   VERSION_PATCH 0
   VERSION_TYPE release
 )
@@ -129,6 +131,22 @@ add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devi
                                       cmake/templates/Projecteur.desktop.in)
 
 # Install
+#---------------------------------------------------------------------------------------------------
+# Set default directory permissions with CMake >= 3.11, avoids some
+# lintian 'non-standard-dir-perm' errors for deb packages.
+set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
+  OWNER_READ OWNER_WRITE OWNER_EXECUTE
+  GROUP_READ GROUP_EXECUTE
+  WORLD_READ WORLD_EXECUTE
+)
+
+## -- prevent additional lintian warnings 'non-standard-dir-perm' for the cmake install prefix
+set(DIR_TO_INSTALL "${CMAKE_INSTALL_PREFIX}")
+while(NOT "${DIR_TO_INSTALL}" STREQUAL "/" AND NOT "${DIR_TO_INSTALL}" STREQUAL "")
+  install(DIRECTORY DESTINATION "${DIR_TO_INSTALL}")
+  get_filename_component(DIR_TO_INSTALL "${DIR_TO_INSTALL}" PATH)
+endwhile()
+
 install(TARGETS projecteur DESTINATION bin)
 set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur") #used in desktop file template
 
@@ -150,6 +168,8 @@ if (NOT CMAKE_INSTALL_UDEVRULESDIR)
     endif(PKGCONFIG_UDEV_FOUND)
   endif(PKG_CONFIG_FOUND)
 endif(NOT CMAKE_INSTALL_UDEVRULESDIR)
+set (CMAKE_INSTALL_UDEVDIR ${UDEVDIR} CACHE PATH "Udev base dir.")
+mark_as_advanced(CMAKE_INSTALL_UDEVDIR)
 set (CMAKE_INSTALL_UDEVRULESDIR ${UDEVDIR}/rules.d CACHE PATH "Where to install udev rules")
 mark_as_advanced(CMAKE_INSTALL_UDEVRULESDIR)
 
@@ -195,37 +215,80 @@ set_property(TARGET projecteur APPEND PROPERTY SOURCES "${CMAKE_CURRENT_BINARY_D
 configure_file("55-projecteur.rules.in" "55-projecteur.rules" @ONLY)
 install(FILES "${OUTDIR}/55-projecteur.rules" DESTINATION ${CMAKE_INSTALL_UDEVRULESDIR}/)
 
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
-install(FILES icons/projecteur-tray.svg DESTINATION /usr/share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/48x48/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/64x64/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/128x128/apps/ RENAME projecteur.svg)
+install(FILES icons/projecteur-tray.svg DESTINATION share/icons/hicolor/256x256/apps/ RENAME projecteur.svg)
+
+# Set variables for file configurations
+get_target_property(VERSION_STRING projecteur VERSION_STRING)
+get_target_property(VERSION_DATE_MONTH_YEAR projecteur VERSION_DATE_MONTH_YEAR)
+set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
 configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
-install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION /usr/share/applications/)
+install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
+
+# Configure man page and gzip it.
+configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
+find_program(GZIP_EXECUTABLE gzip)
+add_custom_command(
+  OUTPUT ${OUTDIR}/projecteur.1.gz
+  COMMAND ${GZIP_EXECUTABLE} -9f -n "${OUTDIR}/projecteur.1"
+  WORKING_DIRECTORY ${OUTDIR}
+)
+add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
+install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
+
+configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
+install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
+
+configure_file("${TMPLDIR}/projecteur.bash-completion" "projecteur.bash-completion" @ONLY)
+install(FILES "${OUTDIR}/projecteur.bash-completion"
+        DESTINATION share/bash-completion/completions/
+        RENAME projecteur)
 
 configure_file("${TMPLDIR}/preinst.in" "pkg/scripts/preinst" @ONLY)
 configure_file("${TMPLDIR}/postinst.in" "pkg/scripts/postinst" @ONLY)
 
-set(HOMEPAGE "https://github.com/jahnf/Projecteur")
-
 # --- Linux packaging ---
 include(LinuxPackaging)
 
-# Add 'source-archive' target
-add_source_archive_target(projecteur)
+option(PACKAGE_TARGETS "Create packaging build targets" ON)
 
-# Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
-add_dist_package_target(
-  PROJECT "${CMAKE_PROJECT_NAME}"
-  TARGET projecteur
-  DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
-  DESCRIPTION_FULL "Linux/X11 application for the Logitech Spotlight device.\nHomepage: ${HOMEPAGE}"
-  CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
-  HOMEPAGE "${HOMEPAGE}"
-  DEBIAN_SECTION "utils"
-  PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
-  POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
-)
+if(PACKAGE_TARGETS)
+  # Add 'source-archive' target
+  add_source_archive_target(projecteur)
+
+  # Add 'dist-package' target: Creates a deb/rpm/tgz package depending on the current Linux distribution
+  add_dist_package_target(
+    PROJECT "${CMAKE_PROJECT_NAME}"
+    TARGET projecteur
+    DESCRIPTION_BRIEF "Linux/X11 application for the Logitech Spotlight device."
+    DESCRIPTION_FULL
+"Projecteur is a virtual laser pointer for use with inertial pointers such as
+ the Logitech Spotlight. Projecteur can show a colored dot, a highlighted
+ circle or a zoom effect to act as a pointer. The location of the pointer
+ moves in response to moving the handheld pointer device. The effect is much
+ like that of a traditional laser pointer, except that it is captured by
+ recording software and works across multiple screens."
+    CONTACT "Jahn Fuchs <projecteur@jahn.textmo.de>"
+    HOMEPAGE "${HOMEPAGE}"
+    DEBIAN_SECTION "utils"
+    # PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
+    POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
+  )
+  add_dependencies(dist-package gzip-manpage projecteur)
+
+  # Additional files for debian packages, adhering to some debian rules,
+  # see https://manpages.debian.org/buster/lintian/lintian.1.en.html
+  if ("${PKG_TYPE}" STREQUAL "DEB")
+    # TODO Lintian expects the the copyright file in /usr/share/doc/projecteur
+    #      This clashes with the default CMAKE_INSTALL_PREFIX /usr/local
+    #      Need to check if this would clash with packages from the debian/ubuntu repos.
+    #configure_file("${TMPLDIR}/copyright.in" "pkg/copyright" @ONLY)
+    #install(FILES "${OUTDIR}/pkg/copyright" DESTINATION /usr/share/doc/projecteur/)
+  endif()
+endif()
 
 option(ENABLE_IWYU "Enable Include-What-You-Use" OFF)
 find_program(iwyu_path NAMES include-what-you-use iwyu)

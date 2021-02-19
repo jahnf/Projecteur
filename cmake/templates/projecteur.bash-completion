@@ -1,0 +1,124 @@
+# projecteur(1) completion                                 -*- shell-script -*-
+
+_projecteur()
+{
+  COMPREPLY=()
+  local cur=${COMP_WORDS[COMP_CWORD]}
+  local prev=${COMP_WORDS[COMP_CWORD-1]}
+  local prev_prev=${COMP_WORDS[COMP_CWORD-2]}
+  local first_level=0
+
+  # Handling of '='
+  if [ "${prev}" = "=" ]; then
+    prev="${prev_prev}"
+    prev_prev="="
+  fi
+
+  local options="-h --help --help-all --version -v --cfg --device-scan -m --minimize-only"
+  options="${options} --log-level -l --show-dialog --disable-uinput -D -c"
+
+  case "$prev" in
+    "-c")
+      # Auto completion for commands and properties
+      local commands="quit spot= settings= preset="
+      commands="${commands} spot.size= spot.rotation= spot.shape= spot.shape.square.radius="
+      commands="${commands} spot.multi-screen= spot.overlay="
+      commands="${commands} spot.shape.star.points= spot.shape.star.innerradius= spot.shape.ngon.sides="
+      commands="${commands} shade= shade.opacity= shade.color= dot= dot.size= dot.color= dot.opacity="
+      commands="${commands} border= border.size= border.color= border.opacity= zoom= zoom.factor="
+
+      local fl=$(printf '%.1s' "$cur")
+      [ ! "$fl" = "q" ] && compopt -o nospace
+      COMPREPLY=( $(compgen -W "${commands}" -- $cur) )
+      ;;
+    "spot")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "on off toggle" -- $cur) )
+      fi
+      ;;
+    "spot.overlay")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "spot.multi-screen")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "settings")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "show hide" -- $cur) )
+      fi
+      ;;
+    "spot.shape")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "circle square star ngon" -- $cur) )
+      fi
+      ;;
+    "shade")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "dot")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "border")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "zoom")
+      if [ "${prev_prev}" = "=" ] || [ "${cur}" = "=" ]; then
+        [ "${cur}" = "=" ] && cur=""
+        COMPREPLY=( $(compgen -W "false true" -- $cur) )
+      fi
+      ;;
+    "-D")
+      # TODO: Auto completion for devices (vendorId:productId)
+      COMPREPLY=( $(compgen -W "0123:4567" -- $cur) )
+      ;;
+    "-l")
+      COMPREPLY=( $(compgen -W "dbg inf wrn err" -- $cur) )
+      ;;
+    "--log-level")
+      COMPREPLY=( $(compgen -W "dbg inf wrn err" -- $cur) )
+      ;;
+    "--cfg")
+      # Auto completion for files
+      local IFS=$'\n'
+      local LASTCHAR=' '
+      compopt -o nospace
+      COMPREPLY=( $(compgen -f -- ${cur}) )
+
+      if [ ${#COMPREPLY[@]} = 1 ]; then
+          [ -d "$COMPREPLY" ] && LASTCHAR=/
+        COMPREPLY=$(printf %q%s "$COMPREPLY" "$LASTCHAR")
+      else
+        for ((i=0; i < ${#COMPREPLY[@]}; i++)); do
+          [ -d "${COMPREPLY[$i]}" ] && COMPREPLY[$i]=${COMPREPLY[$i]}/
+        done
+      fi
+      ;;
+    *)
+      first_level=1
+      ;;
+  esac
+
+  if [ $first_level -eq 1 ]; then
+    COMPREPLY=( $(compgen -W "${options}" -- $cur) )
+  fi
+}
+
+complete -F _projecteur projecteur

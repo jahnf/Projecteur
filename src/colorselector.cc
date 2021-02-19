@@ -4,7 +4,7 @@
 #include <QColorDialog>
 #include <QPainterPath>
 #include <QStyleOption>
-#include <QStylePainter>
+#include <QPainter>
 
 #include <memory>
 

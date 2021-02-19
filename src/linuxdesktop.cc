@@ -59,8 +59,8 @@ namespace {
   QPixmap grabScreenVirtualDesktop(QScreen* screen)
   {
     QRect g;
-    for (const auto screen : QGuiApplication::screens()) {
-      g = g.united(screen->geometry());
+    for (const auto s : QGuiApplication::screens()) {
+      g = g.united(s->geometry());
     }
 
     QPixmap pm(QApplication::primaryScreen()->grabWindow(
@@ -139,6 +139,7 @@ QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
   }
   return pm.isNull() ? pm : pm.copy(screen->geometry());
 #else
+  Q_UNUSED(screen);
   logWarning(desktop) << tr("Projecteur was compiled without Qt DBus. Currently zoom on Wayland is "
                             "only supported via DBus on KDE and GNOME.");
   return QPixmap();

@@ -60,10 +60,14 @@ namespace {
       Contributor("Louie Lu", "mlouielu"),
       Contributor("fmuelle4711", "fmuelle4711"),
       Contributor("Deniz Bahadir", "Bagira80"),
+      Contributor("Tomáš Chvátal", "scarabeusiv"),
+      Contributor("Brandon Johnson", "dbrandonjohnson"),
+      Contributor("Stuart Prescott", "llimeht"),
+      Contributor("Crista Renouard", "Lumnicence"),
+      Contributor("freddii", "freddii"),
     };
 
-    static std::random_device rd;
-    static std::mt19937 g(rd());
+    static std::mt19937 g(std::random_device{}());
     std::shuffle(contributors.begin(), contributors.end(), g);
 
     QStringList contributorsHtml;
@@ -144,7 +148,7 @@ QWidget* AboutDialog::createVersionInfoWidget()
   }
   vbox->addWidget(new QLabel(qtVerText, this));
   vbox->addSpacing(15);
-  vbox->addWidget(new QLabel("Copyright 2018-2020 Jahn Fuchs", this));
+  vbox->addWidget(new QLabel("Copyright 2018-2021 Jahn Fuchs", this));
   auto licenseText = new QLabel(tr("This project is distributed under the <br>"
                                    "<a href=\"https://github.com/jahnf/Projecteur/blob/develop/LICENSE.md\">"
                                    "MIT License</a>"), this);

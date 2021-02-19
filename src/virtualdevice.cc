@@ -7,6 +7,8 @@
 #include <linux/uinput.h>
 #include <unistd.h>
 
+#include <QFileInfo>
+
 LOGGING_CATEGORY(virtualdevice, "virtualdevice")
 
 namespace  {
@@ -36,14 +38,14 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
                                                      uint16_t virtualVersionId,
                                                      const char* location)
 {
-  // Open the input device
-  if (access(location, F_OK) == -1) {
+  const QFileInfo fi(location);
+  if (!fi.exists()) {
     logWarn(virtualdevice) << VirtualDevice_::tr("File not found: %1").arg(location);
     logWarn(virtualdevice) << VirtualDevice_::tr("Please check if uinput kernel module is loaded");
     return std::unique_ptr<VirtualDevice>();
   }
 
-  int fd = ::open(location, O_WRONLY | O_NDELAY);
+  const int fd = ::open(location, O_WRONLY | O_NDELAY);
   if (fd < 0) {
     logWarn(virtualdevice) << VirtualDevice_::tr("Unable to open: %1").arg(location);
     logWarn(virtualdevice) << VirtualDevice_::tr("Please check if current user has write access");
@@ -89,23 +91,6 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
                             .arg(QString("/sys/devices/virtual/input/%1").arg(sysfs_device_name));
 
   return std::make_shared<VirtualDevice>(Token{}, fd);
-}
-
-
-// Public methods to emit event from the device
-void VirtualDevice::emitEvent(uint16_t type, uint16_t code, int val)
-{
-  // TODO fill in timestamp
-  input_event ie {{}, type, code, val};
-  emitEvent(std::move(ie));
-}
-
-void VirtualDevice::emitEvent(struct input_event ie)
-{
-  const auto bytesWritten = write(m_uinpFd, &ie, sizeof(ie));
-  if (bytesWritten != sizeof(ie)) {
-    logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
-  }
 }
 
 void VirtualDevice::emitEvents(const struct input_event input_events[], size_t num)

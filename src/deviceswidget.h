@@ -9,6 +9,7 @@ class InputMapper;
 class QComboBox;
 class Settings;
 class Spotlight;
+class VibrationSettingsWidget;
 
 // -------------------------------------------------------------------------------------------------
 class DevicesWidget : public QWidget
@@ -28,7 +29,10 @@ private:
   QWidget* createDevicesWidget(Settings* settings, Spotlight* spotlight);
   QWidget* createInputMapperWidget(Settings* settings, Spotlight* spotlight);
   QWidget* createDeviceInfoWidget(Spotlight* spotlight);
+  QWidget* createTimerTabWidget(Settings* settings, Spotlight* spotlight);
 
   QComboBox* m_devicesCombo = nullptr;
+  QWidget* m_timerTabWidget = nullptr;
+  VibrationSettingsWidget* m_vibrationSettingsWidget = nullptr;
   QPointer<InputMapper> m_inputMapper;
 };

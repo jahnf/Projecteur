@@ -18,7 +18,10 @@ namespace Font
     gear_12 = 0xf106, // svg/iconmonstr-gear-12.svg
     keyboard_14 = 0xf10e, // svg/iconmonstr-keyboard-14.svg
     keyboard_4 = 0xf10f, // svg/iconmonstr-keyboard-4.svg
+    media_control_48 = 0xf117, // svg/iconmonstr-media-control-48.svg
+    media_control_50 = 0xf118, // svg/iconmonstr-media-control-50.svg
     plus_5 = 0xf107, // svg/iconmonstr-plus-5.svg
+    power_on_off_11 = 0xf115, // svg/iconmonstr-power-on-off-11.svg
     share_8 = 0xf108, // svg/iconmonstr-share-8.svg
     target_8 = 0xf110, // svg/iconmonstr-target-8.svg
     time_19 = 0xf109, // svg/iconmonstr-time-19.svg

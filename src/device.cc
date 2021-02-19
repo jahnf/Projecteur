@@ -8,15 +8,17 @@
 #include <QSocketNotifier>
 
 #include <fcntl.h>
+#include <linux/hidraw.h>
 #include <linux/input.h>
 #include <unistd.h>
-
 
 LOGGING_CATEGORY(device, "device")
 
 namespace  {
   // -----------------------------------------------------------------------------------------------
-  static auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
+  static const auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
+
+  const auto hexId = logging::hexId;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -52,8 +54,8 @@ bool DeviceConnection::removeSubDevice(const QString& path)
   {
     if (find_it->second) { find_it->second->disconnect(); } // Important
     logDebug(device) << tr("Disconnected sub-device: %1 (%2:%3) %4")
-                        .arg(m_deviceName).arg(m_deviceId.vendorId, 4, 16, QChar('0'))
-                        .arg(m_deviceId.productId, 4, 16, QChar('0')).arg(path);
+                        .arg(m_deviceName, hexId(m_deviceId.vendorId),
+                             hexId(m_deviceId.productId), path);
     emit subDeviceDisconnected(m_deviceId, path);
     m_subDeviceConnections.erase(find_it);
     return true;
@@ -107,13 +109,11 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   ioctl(evfd, EVIOCGID, &id); // get the event sub-device id
 
   // Check against given device id
-  if ( id.vendor != dc.deviceId().vendorId || id.product != dc.deviceId().productId)
+  if (id.vendor != dc.deviceId().vendorId || id.product != dc.deviceId().productId)
   {
     ::close(evfd);
     logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
-                        .arg(sd.deviceFile)
-                        .arg(id.vendor, 4, 16, QChar('0'))
-                        .arg(id.product, 4, 16, QChar('0'));
+                        .arg(sd.deviceFile, hexId(id.vendor), hexId(id.product));
     return std::shared_ptr<SubEventConnection>();
   }
 
@@ -122,13 +122,25 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   {
     ::close(evfd);
     logWarn(device) << tr("Cannot get device properties: %1 (%2:%3)")
-                        .arg(sd.deviceFile)
-                        .arg(id.vendor, 4, 16, QChar('0'))
-                        .arg(id.product, 4, 16, QChar('0'));
+                       .arg(sd.deviceFile, hexId(id.vendor), hexId(id.product));
     return std::shared_ptr<SubEventConnection>();
   }
 
   auto connection = std::make_shared<SubEventConnection>(Token{}, sd.deviceFile);
+
+  if (!!(bitmask & (1 << EV_SYN))) connection->m_details.deviceFlags |= DeviceFlag::SynEvents;
+  if (!!(bitmask & (1 << EV_REP))) connection->m_details.deviceFlags |= DeviceFlag::RepEvents;
+  if (!!(bitmask & (1 << EV_KEY))) connection->m_details.deviceFlags |= DeviceFlag::KeyEvents;
+  if (!!(bitmask & (1 << EV_REL)))
+  {
+    unsigned long relEvents = 0;
+    ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
+    const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
+    const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
+    if (hasRelXEvents && hasRelYEvents) {
+      connection->m_details.deviceFlags |= DeviceFlag::RelativeEvents;
+    }
+  }
 
   connection->m_details.grabbed = [&dc, evfd, &sd]()
   {
@@ -144,19 +156,6 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
     }
     return false;
   }();
-
-  if (!!(bitmask & (1 << EV_SYN))) connection->m_details.deviceFlags |= DeviceFlag::SynEvents;
-  if (!!(bitmask & (1 << EV_REP))) connection->m_details.deviceFlags |= DeviceFlag::RepEvents;
-  if (!!(bitmask & (1 << EV_REL)))
-  {
-    unsigned long relEvents = 0;
-    ioctl(evfd, EVIOCGBIT(EV_REL, sizeof(relEvents)), &relEvents);
-    const bool hasRelXEvents = !!(relEvents & (1 << REL_X));
-    const bool hasRelYEvents = !!(relEvents & (1 << REL_Y));
-    if (hasRelXEvents && hasRelYEvents) {
-      connection->m_details.deviceFlags |= DeviceFlag::RelativeEvents;
-    }
-  }
 
   fcntl(evfd, F_SETFL, fcntl(evfd, F_GETFL, 0) | O_NONBLOCK);
   if ((fcntl(evfd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
@@ -177,5 +176,76 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   connection->m_inputMapper = dc.inputMapper();
   connection->m_details.phys = sd.phys;
 
+  return connection;
+}
+
+// -------------------------------------------------------------------------------------------------
+SubHidrawConnection::SubHidrawConnection(Token, const QString& path)
+  : SubDeviceConnection(path, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceScan::SubDevice& sd,
+                                                                 const DeviceConnection& dc)
+{
+  const int devfd = ::open(sd.deviceFile.toLocal8Bit().constData(), O_RDWR|O_NONBLOCK , 0);
+
+  if (devfd == -1) {
+    logWarn(device) << tr("Could not open hidraw device '%1' for read/write.").arg(sd.deviceFile);
+    return std::shared_ptr<SubHidrawConnection>();
+  }
+
+  int descriptorSize = 0;
+  // Get Report Descriptor Size
+  if (ioctl(devfd, HIDIOCGRDESCSIZE, &descriptorSize) < 0) {
+    logWarn(device) << tr("Could retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
+    return std::shared_ptr<SubHidrawConnection>();
+  }
+
+  struct hidraw_report_descriptor reportDescriptor{};
+  reportDescriptor.size = descriptorSize;
+  if (ioctl(devfd, HIDIOCGRDESC, &reportDescriptor) < 0) {
+    logWarn(device) << tr("Could retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
+    return std::shared_ptr<SubHidrawConnection>();
+  }
+
+  struct hidraw_devinfo devinfo{};
+  // get the hidraw sub-device id info
+  if (ioctl(devfd, HIDIOCGRAWINFO, &devinfo) < 0) {
+    logWarn(device) << tr("Could get info from hidraw device '%1'.").arg(sd.deviceFile);
+    return std::shared_ptr<SubHidrawConnection>();
+  };
+
+  // Check against given device id
+  if (static_cast<unsigned short>(devinfo.vendor) != dc.deviceId().vendorId
+      || static_cast<unsigned short>(devinfo.product) != dc.deviceId().productId)
+  {
+    ::close(devfd);
+    logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
+                        .arg(sd.deviceFile, hexId(devinfo.vendor), hexId(devinfo.product));
+    return std::shared_ptr<SubHidrawConnection>();
+  }
+
+  auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd.deviceFile);
+
+  fcntl(devfd, F_SETFL, fcntl(devfd, F_GETFL, 0) | O_NONBLOCK);
+  if ((fcntl(devfd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
+    connection->m_details.deviceFlags |= DeviceFlag::NonBlocking;
+  }
+
+  // For now vibration is only supported for the Logitech Spotlight (USB)
+  // TODO A more generic approach
+  if (dc.deviceId().vendorId == 0x46d && dc.deviceId().productId == 0xc53e) {
+    connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
+  }
+
+  // Create socket notifier
+  connection->m_notifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Read);
+  QSocketNotifier* const notifier = connection->m_notifier.get();
+  // Auto clean up and close descriptor on destruction of notifier
+  connect(notifier, &QSocketNotifier::destroyed, [notifier]() {
+    ::close(static_cast<int>(notifier->socket()));
+  });
+
+  connection->m_details.phys = sd.phys;
   return connection;
 }

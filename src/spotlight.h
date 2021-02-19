@@ -29,6 +29,7 @@ public:
   virtual ~Spotlight();
 
   bool spotActive() const { return m_spotActive; }
+  void setSpotActive(bool active);
 
   struct ConnectedDeviceInfo {
     DeviceId id;

@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     {
       print() << QCoreApplication::applicationName() << " "
               << projecteur::version_string() << std::endl;
-      print() << "Usage: projecteur [option]" << std::endl;
+      print() << "Usage: projecteur [OPTION]..." << std::endl;
       print() << "<Options>";
       print() << "  -h, --help             " << helpOption.description();
       print() << "  --help-all             " << fullHelpOption.description();
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption.description() << std::endl;
       print() << "<Commands>";
-      print() << "  spot=[on|off]          " << Main::tr("Turn spotlight on/off.");
+      print() << "  spot=[on|off|toggle]   " << Main::tr("Turn spotlight on/off or toggle.");
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       if (parser.isSet(fullHelpOption)) {
         print() << "  preset=NAME            " << Main::tr("Set a preset.");
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
       const auto busTypeToString = [](DeviceScan::Device::BusType type) -> QString {
         if (type == DeviceScan::Device::BusType::Usb) return "USB";
         if (type == DeviceScan::Device::BusType::Bluetooth) return "Bluetooth";
-        return "unknwon";
+        return "unknown";
       };
 
       for (const auto& device : result.devices)
@@ -263,8 +263,8 @@ int main(int argc, char *argv[])
           return subDevice.deviceWritable;
         });
 
-        print() << "     " << "vendorId:  " << QString("%1").arg(device.id.vendorId, 4, 16, QChar('0'));
-        print() << "     " << "productId: " << QString("%1").arg(device.id.productId, 4, 16, QChar('0'));
+        print() << "     " << "vendorId:  " << logging::hexId(device.id.vendorId);
+        print() << "     " << "productId: " << logging::hexId(device.id.productId);
         print() << "     " << "phys:      " << device.id.phys;
         print() << "     " << "busType:   " << busTypeToString(device.busType);
         print() << "     " << "devices:   " << subDeviceList.join(", ");
@@ -324,7 +324,6 @@ int main(int argc, char *argv[])
     return 43;
   }
 
-  //QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   ProjecteurApplication app(argc, argv, options);
   return app.exec();
 }

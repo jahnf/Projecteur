@@ -7,7 +7,7 @@
 
 #include <linux/input.h>
 
-// Function declaration to check for extra devices, defintion in generated source
+// Function declaration to check for extra devices, definition in generated source
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
 QString getExtraDeviceName(quint16 vendorId, quint16 productId);
 
@@ -136,7 +136,7 @@ namespace {
             switch (busType)
             {
               case BUS_USB: spotlightDevice.busType = DeviceScan::Device::BusType::Usb; break;
-            case BUS_BLUETOOTH: spotlightDevice.busType = DeviceScan::Device::BusType::Bluetooth; break;
+              case BUS_BLUETOOTH: spotlightDevice.busType = DeviceScan::Device::BusType::Bluetooth; break;
             }
             spotlightDevice.id.vendorId = ids.size() > 1 ? ids[1].toUShort(nullptr, 16) : 0;
             spotlightDevice.id.productId = ids.size() > 2 ? ids[2].toUShort(nullptr, 16) : 0;
@@ -209,6 +209,8 @@ namespace DeviceScan {
         return *find_it;
       }();
 
+      int eventSubDeviceCount = 0;
+
       // Iterate over 'input' sub-dircectory, check for input-hid device nodes
       const QFileInfo inputSubdir(QDir(hidIt.filePath()).filePath("input"));
       if (inputSubdir.exists() || inputSubdir.isExecutable())
@@ -234,6 +236,7 @@ namespace DeviceScan {
 
           if (subDevice.deviceFile.isEmpty()) continue;
           subDevice.phys = readStringFromDeviceFile(QDir(inputIt.filePath()).filePath("phys"));
+          ++eventSubDeviceCount;
 
           // Check if device supports relative events
           const auto supportedEvents = readULongLongFromDeviceFile(QDir(inputIt.filePath()).filePath("capabilities/ev"));
@@ -254,13 +257,10 @@ namespace DeviceScan {
         }
       }
 
-      // For the Logitech Spotlight we are only interested in the hidraw sub device that has no event
-      // device, if there is already an event device we skip hidraw detection for this sub-device.
-      const bool hasInputEventDevices
-          = std::any_of(rootDevice.subDevices.cbegin(), rootDevice.subDevices.cend(),
-            [](const SubDevice& sd) { return sd.type == SubDevice::Type::Event; });
-
-      if (hasInputEventDevices) continue;
+      // For now: only check for hidraw sub-devices that have support for custom "proprietary"
+      // functionality/protocol with Projecteur built in.
+      // TODO check if _Projecteur_ supports additional "proprietary" device protocol features..
+      if (eventSubDeviceCount > 0) continue;
 
       // Iterate over 'hidraw' sub-dircectory, check for hidraw device node
       const QFileInfo hidrawSubdir(QDir(hidIt.filePath()).filePath("hidraw"));

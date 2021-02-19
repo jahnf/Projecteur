@@ -11,6 +11,7 @@
 
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QCheckBox>
 #include <QDateTime>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -81,6 +82,10 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
   tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
+  const auto overlayCheckBox = new QCheckBox(this);
+  overlayCheckBox->setChecked(!settings->overlayDisabled());
+  tabWidget->tabBar()->setTabButton(0, QTabBar::ButtonPosition::LeftSide, overlayCheckBox);
+
   const auto btnHBox = new QHBoxLayout;
   btnHBox->addWidget(m_exitBtn);
   btnHBox->addStretch(1);
@@ -90,7 +95,14 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
   mainVBox->addWidget(tabWidget);
   mainVBox->addLayout(btnHBox);
 
-  connect(settings, &Settings::overlayDisabledChanged, this, [settingsWidget](bool disabled){
+  connect(overlayCheckBox, &QCheckBox::toggled, this, [settings](bool checked){
+    settings->setOverlayDisabled(!checked);
+
+  });
+
+  connect(settings, &Settings::overlayDisabledChanged, this,
+  [overlayCheckBox, settingsWidget](bool disabled){
+    overlayCheckBox->setChecked(!disabled);
     settingsWidget->setDisabled(disabled);
   });
 }
@@ -104,6 +116,7 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
   spotScreenVBoxLeft->addWidget(createShapeGroupBox(settings));
   spotScreenVBoxLeft->addWidget(createZoomGroupBox(settings));
   spotScreenVBoxLeft->addWidget(createCursorGroupBox(settings));
+  spotScreenVBoxLeft->addWidget(createMultiScreenWidget(settings));
   const auto spotScreenVBoxRight = new QVBoxLayout();
   spotScreenVBoxRight->addWidget(createSpotGroupBox(settings));
   spotScreenVBoxRight->addWidget(createDotGroupBox(settings));
@@ -196,7 +209,7 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
         text = m_presetCombo->currentText().trimmed();
       }
 
-      if (m_presetCombo->findText(text) >= 0) { // Item with same name alrady exists
+      if (m_presetCombo->findText(text) >= 0) { // Item with same name already exists
         text.append(" (%1)");
         for (int i = 2; i < 1000; ++i) {
           if (m_presetCombo->findText(text.arg(i)) < 0) {
@@ -349,6 +362,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   spotGrid->addWidget(shapeRotationLabel, 5, 0);
   spotGrid->addWidget(shapeRotationSb, 5, 1);
 
+  // Function for updating all spotlight shape related widgets
   auto updateShapeSettingsWidgets = [settings, shapeCombo, shapeRotationSb, shapeRotationLabel, spotGrid, this]()
   {
     if (shapeCombo->currentIndex() == -1) return;
@@ -638,6 +652,17 @@ QGroupBox* PreferencesDialog::createCursorGroupBox(Settings* settings)
   grid->addWidget(cursorCb, 0, 1);
   grid->setColumnStretch(1, 1);
   return cursorGroup;
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* PreferencesDialog::createMultiScreenWidget(Settings* settings)
+{
+  const auto cb = new QCheckBox(tr("Enable multi-screen overlay"), this);
+  cb->setChecked(settings->multiScreenOverlayEnabled());
+  connect(cb, &QCheckBox::toggled, settings, &Settings::setMultiScreenOverlayEnabled);
+  connect(settings, &Settings::multiScreenOverlayEnabledChanged, cb, &QCheckBox::setChecked);
+  connect(settings, &Settings::multiScreenOverlayEnabledChanged, this, &PreferencesDialog::resetPresetCombo);
+  return cb;
 }
 
 // -------------------------------------------------------------------------------------------------
