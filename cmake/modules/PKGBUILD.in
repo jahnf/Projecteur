@@ -16,7 +16,7 @@ build() {
   cd $srcdir
   mkdir -p builddir
   cd builddir
-  cmake $srcdir/@PKG_NAME@-@PKG_VERSION_STRING_FULL@
+  cmake $srcdir/@PKG_NAME@-@PKG_VERSION_STRING@
   make -j2
 }
 
