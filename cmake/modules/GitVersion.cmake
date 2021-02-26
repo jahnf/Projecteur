@@ -28,6 +28,8 @@ set(VERSION_RC_START_TAG_PREFIX "rc-") # If available tags with the given prefix
 set(RC_BRANCH_PREFIX release) # e.g. release/0.2
 set(HOTFIX_BRANCH_PREFIX hotfix) # e.g. hotfix/2.0.3
 
+set(MAIN_BRANCH master)
+
 set(_GitVersion_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
 
 # Get the version information for a directory, sets the following variables
@@ -60,6 +62,7 @@ function(get_version_info prefix directory)
   set(${prefix}_VERSION_DISTANCE 0)
   set(${prefix}_VERSION_DISTANCE 0 PARENT_SCOPE)
   set(${prefix}_VERSION_STRING 0.0.0-unknown)
+  set(${prefix}_VERSION_STRING_FULL 0.0.0-unknown)
   set(${prefix}_VERSION_ISDIRTY 0 PARENT_SCOPE)
   set(${prefix}_VERSION_DATE_MONTH_YEAR "" PARENT_SCOPE)
 
@@ -163,7 +166,7 @@ function(get_version_info prefix directory)
       string(SUBSTRING ${GIT_BRANCH} 0 ${PREFIX_LEN} COMPARE_PREFIX)
       string(COMPARE EQUAL ${HOTFIX_BRANCH_PREFIX} ${COMPARE_PREFIX} ON_HOTFIX_BRANCH)
       # Check for master branch
-      string(COMPARE EQUAL "master" ${GIT_BRANCH} ON_MASTER)
+      string(COMPARE EQUAL "${MAIN_BRANCH}" "${GIT_BRANCH}" ON_MASTER)
 
       if(ON_RELEASE_BRANCH)
         set(${prefix}_VERSION_FLAG ${VERSION_RC_FLAG})
@@ -305,19 +308,24 @@ function(get_version_info prefix directory)
 
   # Build version string...
   set(VERSION_STRING "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}")
+  set(VERSION_STRING_FULL "${VERSION_STRING}.${${prefix}_VERSION_PATCH}")
   if(NOT ${${prefix}_VERSION_PATCH} EQUAL 0)
     set(VERSION_STRING "${VERSION_STRING}.${${prefix}_VERSION_PATCH}")
   endif()
   if(NOT ON_MASTER OR NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0)
     set(VERSION_STRING "${VERSION_STRING}-${${prefix}_VERSION_FLAG}")
-  endif()
+    set(VERSION_STRING_FULL "${VERSION_STRING_FULL}-${${prefix}_VERSION_FLAG}")
+    endif()
   if(NOT ${${prefix}_VERSION_FLAG} STREQUAL "")
     set(VERSION_STRING "${VERSION_STRING}.")
+    set(VERSION_STRING_FULL "${VERSION_STRING_FULL}.")
   endif()
   if(NOT ON_MASTER OR (NOT ON_MASTER AND NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0))
     set(VERSION_STRING "${VERSION_STRING}${${prefix}_VERSION_DISTANCE}")
+    set(VERSION_STRING_FULL "${VERSION_STRING_FULL}${${prefix}_VERSION_DISTANCE}")
   endif()
   set(${prefix}_VERSION_STRING "${VERSION_STRING}" PARENT_SCOPE)
+  set(${prefix}_VERSION_STRING_FULL "${VERSION_STRING_FULL}" PARENT_SCOPE)
 endfunction()
 
 # Add version information to a target, header and source file are configured from templates.
@@ -344,6 +352,7 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_SHORTHASH unknown)
   set(VERSION_FULLHASH unknown)
   set(VERSION_STRING "0.0-unknown.0")
+  set(VERSION_STRING_FULL "0.0.0-unknown.0")
   set(VERSION_ISDIRTY 0)
   set(VERSION_BRANCH unknown)
   set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/version/${targetid}")
@@ -388,7 +397,7 @@ function(add_version_info_custom_prefix target prefix directory)
          if("${${prefix}_VERSION_BRANCH}" MATCHES ".*[ \t]+[->]+[\t ]+(.*)([,]?.*)")
            set(${prefix}_VERSION_BRANCH "${CMAKE_MATCH_1}")
          elseif("${${prefix}_VERSION_BRANCH}" MATCHES ".*,[ \t](.*)")
-           if("${CMAKE_MATCH_1}" STREQUAL "master")
+           if("${CMAKE_MATCH_1}" STREQUAL "${MAIN_BRANCH}")
              set(ON_MASTER ON)
            endif()
          endif()
@@ -402,7 +411,7 @@ function(add_version_info_custom_prefix target prefix directory)
          string(COMPARE EQUAL ${HOTFIX_BRANCH_PREFIX} ${COMPARE_PREFIX} ON_HOTFIX_BRANCH)
          # Check for master branch
          if(NOT ON_MASTER)
-           string(COMPARE EQUAL "master" ${${prefix}_VERSION_BRANCH} ON_MASTER)
+           string(COMPARE EQUAL "${MAIN_BRANCH}" "${${prefix}_VERSION_BRANCH}" ON_MASTER)
          endif()
          if(ON_MASTER)
            set(${prefix}_VERSION_FLAG "")
@@ -415,19 +424,24 @@ function(add_version_info_custom_prefix target prefix directory)
          endif()
          # Build version string...
          set(VERSION_STRING "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}")
+         set(VERSION_STRING_FULL "${VERSION_STRING}.${${prefix}_VERSION_PATCH}")
          if(NOT ${${prefix}_VERSION_PATCH} EQUAL 0)
            set(VERSION_STRING "${VERSION_STRING}.${${prefix}_VERSION_PATCH}")
          endif()
          if(NOT ON_MASTER OR NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0)
            set(VERSION_STRING "${VERSION_STRING}-${${prefix}_VERSION_FLAG}")
+           set(VERSION_STRING_FULL "${VERSION_STRING_FULL}-${${prefix}_VERSION_FLAG}")
          endif()
          if(NOT ${${prefix}_VERSION_FLAG} STREQUAL "")
            set(VERSION_STRING "${VERSION_STRING}.")
+           set(VERSION_STRING_FULL "${VERSION_STRING_FULL}.")
          endif()
          if(NOT ON_MASTER OR (NOT ON_MASTER AND NOT ${${prefix}_VERSION_DISTANCE} EQUAL 0))
            set(VERSION_STRING "${VERSION_STRING}${${prefix}_VERSION_DISTANCE}")
+           set(VERSION_STRING_FULL "${VERSION_STRING_FULL}${${prefix}_VERSION_DISTANCE}")
          endif()
          set(${prefix}_VERSION_STRING "${VERSION_STRING}")
+         set(${prefix}_VERSION_STRING_FULL "${VERSION_STRING_FULL}")
       endif()
     endif()
   endif()
@@ -446,6 +460,7 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_SHORTHASH ${${prefix}_VERSION_SHORTHASH})
   set(VERSION_FULLHASH ${${prefix}_VERSION_FULLHASH})
   set(VERSION_STRING ${${prefix}_VERSION_STRING})
+  set(VERSION_STRING_FULL ${${prefix}_VERSION_STRING_FULL})
   set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
   set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
   set(VERSION_DATE_MONTH_YEAR ${${prefix}_VERSION_DATE_MONTH_YEAR})
@@ -464,6 +479,7 @@ function(add_version_info_custom_prefix target prefix directory)
     VERSION_SHORTHASH "${VERSION_SHORTHASH}"
     VERSION_FULLHASH "${VERSION_FULLHASH}"
     VERSION_STRING "${VERSION_STRING}"
+    VERSION_STRING_FULL "${VERSION_STRING_FULL}"
     VERSION_ISDIRTY "${VERSION_ISDIRTY}"
     VERSION_BRANCH "${VERSION_BRANCH}"
     VERSION_DATE_MONTH_YEAR "${VERSION_DATE_MONTH_YEAR}"
