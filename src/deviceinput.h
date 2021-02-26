@@ -93,7 +93,7 @@ public:
   NativeKeySequence(NativeKeySequence&&) = default;
   NativeKeySequence(const NativeKeySequence&) = default;
 
-  NativeKeySequence(const std::vector<int>& qtKeys, 
+  NativeKeySequence(const std::vector<int>& qtKeys,
                     std::vector<uint16_t>&& nativeModifiers,
                     KeyEventSequence&& kes);
 
@@ -144,6 +144,8 @@ struct Action
     CyclePresets = 2,
     ToggleSpotlight = 3,
   };
+
+  virtual ~Action() = default;
 
   virtual Type type() const = 0;
   virtual QDataStream& save(QDataStream&) const = 0;
