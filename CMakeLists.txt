@@ -107,7 +107,7 @@ target_compile_definitions(projecteur PRIVATE
 set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
   VERSION_MINOR 9
-  VERSION_PATCH 0
+  VERSION_PATCH 1
   VERSION_TYPE release
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -139,13 +139,6 @@ set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
   GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE
 )
-
-## -- prevent additional lintian warnings 'non-standard-dir-perm' for the cmake install prefix
-set(DIR_TO_INSTALL "${CMAKE_INSTALL_PREFIX}")
-while(NOT "${DIR_TO_INSTALL}" STREQUAL "/" AND NOT "${DIR_TO_INSTALL}" STREQUAL "")
-  install(DIRECTORY DESTINATION "${DIR_TO_INSTALL}")
-  get_filename_component(DIR_TO_INSTALL "${DIR_TO_INSTALL}" PATH)
-endwhile()
 
 install(TARGETS projecteur DESTINATION bin)
 set(PROJECTEUR_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/bin/projecteur") #used in desktop file template
@@ -287,6 +280,13 @@ if(PACKAGE_TARGETS)
     #      Need to check if this would clash with packages from the debian/ubuntu repos.
     #configure_file("${TMPLDIR}/copyright.in" "pkg/copyright" @ONLY)
     #install(FILES "${OUTDIR}/pkg/copyright" DESTINATION /usr/share/doc/projecteur/)
+
+    ## -- prevent additional lintian warnings 'non-standard-dir-perm' for the cmake install prefix
+    set(DIR_TO_INSTALL "${CMAKE_INSTALL_PREFIX}")
+    while(NOT "${DIR_TO_INSTALL}" STREQUAL "/" AND NOT "${DIR_TO_INSTALL}" STREQUAL "")
+      install(DIRECTORY DESTINATION "${DIR_TO_INSTALL}")
+      get_filename_component(DIR_TO_INSTALL "${DIR_TO_INSTALL}" PATH)
+    endwhile()
   endif()
 endif()
 
