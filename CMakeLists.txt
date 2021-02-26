@@ -107,7 +107,7 @@ target_compile_definitions(projecteur PRIVATE
 set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
   VERSION_MINOR 9
-  VERSION_PATCH 0
+  VERSION_PATCH 1
   VERSION_TYPE release
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
