@@ -222,15 +222,21 @@ configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
 install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
 
 # Configure man page and gzip it.
-configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
-find_program(GZIP_EXECUTABLE gzip)
-add_custom_command(
-  OUTPUT ${OUTDIR}/projecteur.1.gz
-  COMMAND ${GZIP_EXECUTABLE} -9f -n "${OUTDIR}/projecteur.1"
-  WORKING_DIRECTORY ${OUTDIR}
-)
-add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
-install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
+option(COMPRESS_MAN_PAGE "Compress the man page" ON)
+configure_file("${TMPLDIR}/projecteur.1" "${OUTDIR}/projecteur.1" @ONLY)
+
+if(COMPRESS_MAN_PAGE)
+  find_program(GZIP_EXECUTABLE gzip)
+  add_custom_command(
+    OUTPUT ${OUTDIR}/projecteur.1.gz
+    COMMAND ${GZIP_EXECUTABLE} -9f -n "${OUTDIR}/projecteur.1"
+    WORKING_DIRECTORY ${OUTDIR}
+  )
+  add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
+  install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
+else()
+  install(FILES "${OUTDIR}/projecteur.1" DESTINATION share/man/man1/)
+endif()
 
 configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
 install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
@@ -270,7 +276,10 @@ if(PACKAGE_TARGETS)
     # PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
     POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
   )
-  add_dependencies(dist-package gzip-manpage projecteur)
+  add_dependencies(dist-package projecteur)
+  if(TARGET gzip-manpage)
+    add_dependencies(dist-package gzip-manpage)
+  endif()
 
   # Additional files for debian packages, adhering to some debian rules,
   # see https://manpages.debian.org/buster/lintian/lintian.1.en.html
