@@ -128,7 +128,6 @@ jobs:
         echo "upload_bin_pkg=${{ false }}" >> $GITHUB_ENV
         echo "upload_src_pkg=${{ false }}" >> $GITHUB_ENV
         echo "cloudsmith_upload_repo=projecteur-develop" >> $GITHUB_ENV
-        echo "bintray_upload_repo=projecteur-develop" >> $GITHUB_ENV
         echo "REPO_UPLOAD=${{ false }}" >> $GITHUB_ENV
 
     - name: Check for binary-pkg upload conditions
@@ -146,7 +145,6 @@ jobs:
     - if: env.BRANCH == 'master'
       run: |
         echo "cloudsmith_upload_repo=projecteur-stable" >> $GITHUB_ENV
-        echo "bintray_upload_repo=projecteur-master" >> $GITHUB_ENV
 
     # ===================================================================================
     # ---------- Upload artifacts to cloudsmith ----------
@@ -199,36 +197,3 @@ jobs:
         echo Uploading for ${DISTRO} - ${PKG_TYPE}: ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO}
         cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
           ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.dist_pkg_artifact }}
-
-    # ===================================================================================
-    # ---------- Upload artifacts to bintray ----------
-    - name: Upload source-pkg to Bintray
-      if: env.upload_src_pkg == 'true'
-      uses: bpicode/github-action-upload-bintray@master
-      with:
-        file: ${{ env.src_pkg_artifact }}
-        api_user: jahnf
-        api_key: ${{ secrets.BINTRAY_API_KEY }}
-        repository_user: jahnf
-        repository: Projecteur
-        package: ${{ env.bintray_upload_repo }}
-        version: ${{ env.projecteur_version }}
-        upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
-        calculate_metadata: false
-        publish: 1
-
-    - name: Upload binary package to Bintray
-      if: env.upload_bin_pkg == 'true'
-      uses: bpicode/github-action-upload-bintray@master
-      with:
-        file: ${{ env.dist_pkg_artifact }}
-        api_user: jahnf
-        api_key: ${{ secrets.BINTRAY_API_KEY }}
-        repository_user: jahnf
-        repository: Projecteur
-        package: ${{ env.bintray_upload_repo }}
-        version: ${{ env.projecteur_version }}
-        upload_path: packages/branches/${{ env.BRANCH }}/${{ env.projecteur_version }}
-        calculate_metadata: false
-        publish: 1
-
