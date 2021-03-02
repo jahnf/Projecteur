@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.9.1
+
+### Changes/Updates:
+
+- Fixes for automatically generated RPM Packages (especially Fedora)
+- Fixes for version numbers in generated packages (DEB and RPM)
+
 ## v0.9
 
 ### Changes/Updates:
