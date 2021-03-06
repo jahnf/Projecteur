@@ -251,6 +251,8 @@ jobs:
         echo '{ "version": "${{ env.VERSION}}" }' >> upload/$BRANCH_FILENAME
         echo "BRANCHNAME=${BRANCHNAME}" >> $GITHUB_ENV
         find . -iname "projecteur*"
+        cd upload/$BRANCHDIR/$VERSION
+        sha1sum * > sha1sums.txt
 
     - name: 📂 Upload files
       if: env.DO_UPLOAD == 'true'

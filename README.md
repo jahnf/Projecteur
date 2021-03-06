@@ -102,8 +102,12 @@ Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_, _CentOS_
 _Arch_ Linux are automatically built. For release version downloads see alse the project
 [github releases page](https://github.com/jahnf/Projecteur/releases).
 
-* [**Latest release:** ![cloudsmith-rel-badge]][cloudsmith-rel-latest]
-* [Latest development version: ![cloudsmith-dev-badge]][cloudsmith-dev-latest]
+* **Latest release:**
+  * on cloudsmith: [![cloudsmith-rel-badge]][cloudsmith-rel-latest]
+  * on secondery server: [![projecteur-rel-badge]][projecteur-rel-dl]
+* Latest development version:
+  * on cloudsmith: [![cloudsmith-dev-badge]][cloudsmith-dev-latest]
+  * on secondary server: [![projecteur-dev-badge]][projecteur-dev-dl]
 
 See also the **[list of Linux repositories](./doc/LinuxRepositories.md)** where _Projecteur_
 is available.
@@ -114,6 +118,8 @@ is available.
 [cloudsmith-dev-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-develop/packages/?q=format%3Araw+tag%3Alatest
 [projecteur-rel-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fstable-latest.json
 [projecteur-dev-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fdevelop-latest.json
+[projecteur-dev-dl]: https://projecteur.de/downloads/develop/latest
+[projecteur-rel-dl]: https://projecteur.de/downloads/stable/latest
 
 ## Building
 
