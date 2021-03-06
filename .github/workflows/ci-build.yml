@@ -260,6 +260,7 @@ jobs:
         --reverse --upload-older --dereference -x ^\.git/$ ./ ./; quit"
 
     - name: Update latest symlink
+      if: env.DO_UPLOAD == 'true'
       run: |
         curl --fail -i -X POST -F "token=${{ secrets.PROJECTEUR_UPDATE_TOKEN }}" \
         ${{ secrets.PROJECTEUR_UPDATE_URL }}?branch=${{ env.BRANCHNAME }}
