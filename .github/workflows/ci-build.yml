@@ -46,7 +46,7 @@ jobs:
     - run: |
         export LOCAL_BIN=~/.local/bin
         echo "${LOCAL_BIN}" >> $GITHUB_PATH
-        
+
     # ===================================================================================
     # ---------- Checkout and build inside docker container ----------
     - uses: actions/checkout@v1
@@ -209,19 +209,19 @@ jobs:
         echo Uploading for ${DISTRO} - ${PKG_TYPE}: ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO}
         cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
           ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.dist_pkg_artifact }}
-  
+
   # =====================================================================================
   # ---------- Upload artifacts to projecteur server ------------
   projecteur-bin-upload:
     needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Get version-info
       uses: actions/download-artifact@v2
       with:
         name: version-info
-        
+
     - name: Extract version info
       run: |
         BRANCH=`cat version-branch`
@@ -230,7 +230,7 @@ jobs:
         echo "VERSION=${VERSION}" >> $GITHUB_ENV
         DO_UPLOAD=$(( [ "master" = "$BRANCH" ] || [ "develop" = "$BRANCH" ] ) && echo true || echo false)
         echo "DO_UPLOAD=${DO_UPLOAD}" >> $GITHUB_ENV
-        
+
     - uses: actions/download-artifact@v2
       if: env.DO_UPLOAD == 'true'
       with:
@@ -244,11 +244,13 @@ jobs:
         VERSION=${{ env.VERSION }}
         mkdir -p upload/$BRANCHDIR/$VERSION
         find ./artifacts -iname "projecteur*" -exec mv -t upload/$BRANCHDIR/$VERSION {} +
-        BRANCH_FILENAME=${BRANCHDIR/\//_}-latest.json
+        BRANCHNAME=${BRANCHDIR/\//_}
+        BRANCH_FILENAME=${BRANCHNAME}-latest.json
         echo '{ "version": "${{ env.VERSION}}" }' >> upload/$BRANCH_FILENAME
+        echo "BRANCHNAME=${BRANCHNAME}" >> $GITHUB_ENV
         find . -iname "projecteur*"
 
-    - name: 📂 Upload files 
+    - name: 📂 Upload files
       if: env.DO_UPLOAD == 'true'
       run: |
         cd upload && sudo apt-get install lftp --no-install-recommends
@@ -257,4 +259,7 @@ jobs:
         -e "set ftp:ssl-force true; set ssl:verify-certificate true; mirror \
         --reverse --upload-older --dereference -x ^\.git/$ ./ ./; quit"
 
-  
+    - name: Update latest symlink
+      run: |
+        curl --fail -i -X POST -F "token=${{ secrets.PROJECTEUR_UPDATE_TOKEN }}" \
+        ${{ secrets.PROJECTEUR_UPDATE_URL }}?branch=${{ env.BRANCHNAME }}
