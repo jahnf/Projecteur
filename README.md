@@ -107,10 +107,12 @@ _Arch_ Linux are automatically built.
 See also the [list of Linux repositories](./doc/LinuxRepositories.md) where _Projecteur_
 is available.
 
-[dl-dev-bintray]: https://bintray.com/jahnf/Projecteur/projecteur-develop/_latestVersion#files
-[dl-rel-bintray]: https://bintray.com/jahnf/Projecteur/projecteur-master/_latestVersion#files
-[bintray-dev-img]: https://api.bintray.com/packages/jahnf/Projecteur/projecteur-develop/images/download.svg
-[bintray-rel-img]: https://api.bintray.com/packages/jahnf/Projecteur/projecteur-master/images/download.svg
+[cloudsmith-rel-badge]: https://api-prd.cloudsmith.io/v1/badges/version/jahnf/projecteur-stable/raw/sources/latest/x/?render=true&badge_token=gAAAAABgPebvngKb3w0EsZUr_IHIIzlfYCipDOGxcJdzMRGI3BLdVsLf62Na7Cg6q11ps7yNgv3kR9KXyxJyjFFbPs2eTAGzvL-UXTonyqSY5D1fwva_o_g%3D
+[cloudsmith-rel-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-stable/packages/?q=format%3Araw+tag%3Alatest
+[cloudsmith-dev-badge]: https://api-prd.cloudsmith.io/v1/badges/version/jahnf/projecteur-develop/raw/sources/latest/x/?render=true&badge_token=gAAAAABgPd_g3txb3xWrIHsaUrhBB7hOamTwfPVpR7xGUELEaQ0pGnxFnXO1cqTPAMDcTjRsHM2zAjx00OXU_5ARSQDofAUe6lIqKrKNykiMhVT_jlZAy-4%3D
+[cloudsmith-dev-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-develop/packages/?q=format%3Araw+tag%3Alatest
+[projecteur-rel-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fstable-latest.json
+[projecteur-dev-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fdevelop-latest.json
 
 ## Building
 
