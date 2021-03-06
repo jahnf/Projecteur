@@ -106,14 +106,26 @@ jobs:
         dist_pkg_artifact=`ls -1 dist-pkg/* | head -n 1`
         echo "dist_pkg_artifact=${dist_pkg_artifact}" >> $GITHUB_ENV
 
+    - if:  startsWith(matrix.docker_tag, 'archlinux')
+      run: echo "${{ env.BRANCH }}" >> version-branch
+
     # ===================================================================================
     # ---------- Upload artifacts to github ----------
     - name: Upload source-pkg artifact to github
       if:  startsWith(matrix.docker_tag, 'archlinux')
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: source-package
         path: ${{ env.src_pkg_artifact }}
+
+    - name: Upload version-info to github
+      if:  startsWith(matrix.docker_tag, 'archlinux')
+      uses: actions/upload-artifact@v2
+      with:
+        name: version-info
+        path: |
+          ./version-string
+          ./version-branch
 
     - name: Upload binary package artifact to github
       uses: actions/upload-artifact@v2
@@ -197,3 +209,60 @@ jobs:
         echo Uploading for ${DISTRO} - ${PKG_TYPE}: ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO}
         cloudsmith push ${PKG_TYPE} -W -k ${CLOUDSMITH_API_KEY} --republish \
           ${CLOUDSMITH_USER}/${CLOUDSMITH_REPO}/${DISTRO} ${{ env.dist_pkg_artifact }}
+
+  # =====================================================================================
+  # ---------- Upload artifacts to projecteur server ------------
+  projecteur-bin-upload:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Get version-info
+      uses: actions/download-artifact@v2
+      with:
+        name: version-info
+
+    - name: Extract version info
+      run: |
+        BRANCH=`cat version-branch`
+        echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
+        VERSION=`cat version-string`
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        DO_UPLOAD=$(( [ "master" = "$BRANCH" ] || [ "develop" = "$BRANCH" ] ) && echo true || echo false)
+        echo "DO_UPLOAD=${DO_UPLOAD}" >> $GITHUB_ENV
+
+    - uses: actions/download-artifact@v2
+      if: env.DO_UPLOAD == 'true'
+      with:
+        path: artifacts
+
+    - name: Create upload directory
+      if: env.DO_UPLOAD == 'true'
+      run: |
+        BRANCHDIR=${{ env.BRANCH }}
+        [ "master" = "$BRANCHDIR" ] && BRANCHDIR=stable
+        VERSION=${{ env.VERSION }}
+        mkdir -p upload/$BRANCHDIR/$VERSION
+        find ./artifacts -iname "projecteur*" -exec mv -t upload/$BRANCHDIR/$VERSION {} +
+        BRANCHNAME=${BRANCHDIR/\//_}
+        BRANCH_FILENAME=${BRANCHNAME}-latest.json
+        echo '{ "version": "${{ env.VERSION}}" }' >> upload/$BRANCH_FILENAME
+        echo "BRANCHNAME=${BRANCHNAME}" >> $GITHUB_ENV
+        find . -iname "projecteur*"
+        cd upload/$BRANCHDIR/$VERSION
+        sha1sum * > sha1sums.txt
+
+    - name: 📂 Upload files
+      if: env.DO_UPLOAD == 'true'
+      run: |
+        cd upload && sudo apt-get install lftp --no-install-recommends
+        lftp ${{ secrets.PROJECTEUR_UPLOAD_HOSTNAME }} \
+        -u "${{ secrets.PROJECTEUR_UPLOAD_USER }},${{ secrets.PROJECTEUR_UPLOAD_TOKEN }}" \
+        -e "set ftp:ssl-force true; set ssl:verify-certificate true; mirror \
+        --reverse --upload-older --dereference -x ^\.git/$ ./ ./; quit"
+
+    - name: Update latest symlink
+      if: env.DO_UPLOAD == 'true'
+      run: |
+        curl --fail -i -X POST -F "token=${{ secrets.PROJECTEUR_UPDATE_TOKEN }}" \
+        ${{ secrets.PROJECTEUR_UPDATE_URL }}?branch=${{ env.BRANCHNAME }}
