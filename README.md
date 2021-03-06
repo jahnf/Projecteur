@@ -112,6 +112,8 @@ is available.
 [cloudsmith-rel-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-stable/packages/?q=format%3Araw+tag%3Alatest
 [cloudsmith-dev-badge]: https://api-prd.cloudsmith.io/v1/badges/version/jahnf/projecteur-develop/raw/sources/latest/x/?render=true&badge_token=gAAAAABgPd_g3txb3xWrIHsaUrhBB7hOamTwfPVpR7xGUELEaQ0pGnxFnXO1cqTPAMDcTjRsHM2zAjx00OXU_5ARSQDofAUe6lIqKrKNykiMhVT_jlZAy-4%3D
 [cloudsmith-dev-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-develop/packages/?q=format%3Araw+tag%3Alatest
+[projecteur-rel-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fstable-latest.json
+[projecteur-dev-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fdevelop-latest.json
 
 ## Building
 
