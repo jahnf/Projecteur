@@ -99,8 +99,8 @@ line option - button mapping will be disabled then.)
 
 The latest binary packages for some Linux distributions are available for download on cloudsmith.
 Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_, _CentOS_ and
-_Arch_ Linux are automatically built. For release version downloads see alse the project
-[github releases page](https://github.com/jahnf/Projecteur/releases).
+_Arch_ Linux are automatically built. For release version downloads you can also visit
+the project's [github releases page](https://github.com/jahnf/Projecteur/releases).
 
 * **Latest release:**
   * on cloudsmith: [![cloudsmith-rel-badge]][cloudsmith-rel-latest]
