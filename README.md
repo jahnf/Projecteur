@@ -1,7 +1,7 @@
 # Projecteur
 
-develop: [ ![Build Status develop][gh-badge-dev] ][gh-link-dev]
-master: [ ![Build Status master][gh-badge-rel] ][gh-link-rel]
+develop: [![Build Status develop][gh-badge-dev]][gh-link-dev]
+master: [![Build Status master][gh-badge-rel]][gh-link-rel]
 
 Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
@@ -123,7 +123,7 @@ is available.
 
 ### Build Example
 
-```
+```sh
     git clone https://github.com/jahnf/Projecteur
     cd Projecteur
     mkdir build && cd build
@@ -171,7 +171,7 @@ see the [Troubleshooting](#missing-system-tray) section.
 Additional to the standard `--help` and `--version` options, there is an option to send
 commands to a running instance of _Projecteur_ and the ability to set properties.
 
-```
+```txt
 Usage: projecteur [OPTION]...
 
 <Options>
@@ -203,6 +203,7 @@ _Projecteur_ allows you to set almost all aspects of the spotlight via the comma
 for a running instance.
 
 Example:
+
 ```bash
 # Set showing the border to true
 projecteur -c border=true
@@ -298,7 +299,7 @@ While not developed with Wayland in mind, users reported _Projecteur_ works with
 Wayland. If you experience problems, you can try to set the `QT_QPA_PLATFORM` environment
 variable to `wayland`, example:
 
-```
+```bash
 user@ubuntu1904:~/Projecteur/build$ QT_QPA_PLATFORM=wayland ./projecteur
 Using Wayland-EGL
 ```
