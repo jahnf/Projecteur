@@ -24,6 +24,7 @@ jobs:
         - ubuntu-18.04
         - ubuntu-20.04
         - ubuntu-20.10
+        - ubuntu-21.04
         - opensuse-15.0
         - opensuse-15.1
         - opensuse-15.2
@@ -187,7 +188,8 @@ jobs:
         export PKG_TYPE="${filename##*.}"
         declare -A distromap=( ["debian-stretch"]="debian/stretch" ["debian-buster"]="debian/buster" \
           ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
-          ["ubuntu-20.04"]="ubuntu/focal" ["opensuse-15.1"]="opensuse/15.1" \
+          ["ubuntu-20.04"]="ubuntu/focal" ["ubuntu-21.04"]="ubuntu/hirsute" \
+          ["opensuse-15.1"]="opensuse/15.1" \
           ["opensuse-15.2"]="opensuse/15.2" ["centos-8"]="el/8" \
           ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
           ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" )
