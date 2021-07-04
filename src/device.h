@@ -128,7 +128,9 @@ enum class DeviceFlag : uint32_t {
 
   Hidpp          = 1 << 15, ///< Device supports hidpp requests
   Vibrate        = 1 << 16, ///< Device supports vibrate commands
-  ReportBattery  = 1 << 17,
+  ReportBattery  = 1 << 17, ///< Device can report battery status
+  NextHold       = 1 << 18, ///< Device can be configured to send 'Next Hold' event.
+  BackHold       = 1 << 19, ///< Device can be configured to send 'Back Hold' event.
 };
 ENUM(DeviceFlag, DeviceFlags)
 
@@ -144,7 +146,7 @@ struct SubDeviceConnectionDetails {
   DeviceFlags deviceFlags = DeviceFlags::NoFlags;
   QString phys;
   QString devicePath;
-  float hidProtocolVer = -1;   // set after ping to HID sub-device; If positive then Hidraw device is online.
+  float HIDppProtocolVer = -1;   // set after ping to HID sub-device; If positive then Hidraw device is online.
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -178,9 +180,9 @@ public:
 
   // HID++ specific functions
   void pingSubDevice();
-  bool isOnline() const { return (m_details.hidProtocolVer > 0); };
-  void setHIDProtocol(float version);
-  float getHIDProtocol() const { return m_details.hidProtocolVer; };
+  bool isOnline() const { return (m_details.HIDppProtocolVer > 0); };
+  void setHIDppProtocol(float version);
+  float getHIDppProtocol() const { return m_details.HIDppProtocolVer; };
 
   // Base implementation of generic write methods to the device does nothing.
   virtual ssize_t sendData(const QByteArray& msg);

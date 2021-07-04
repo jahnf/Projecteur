@@ -10,6 +10,7 @@
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QVarLengthArray>
+#include <QCursor>
 
 #include <fcntl.h>
 #include <sys/inotify.h>
@@ -347,7 +348,7 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
     if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {    // wireless notification from USB dongle
       auto connection_status = readVal.at(4) & (1<<6);  // should be zero for successful connection
       if (connection_status) {    // connection between USB dongle and spotlight device broke
-        connection.setHIDProtocol(-1);
+        connection.setHIDppProtocol(-1);
       } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
         if (!connection.isOnline()) connection.initialize();
       }
@@ -360,7 +361,7 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
     if (readVal.at(2) == rootID) {
       if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) { // response to ping
         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
-        connection.setHIDProtocol(protocolVer);
+        connection.setHIDppProtocol(protocolVer);
         if (connection.isOnline()) emit connection.receivedPingResponse();
       }
     }
@@ -377,7 +378,53 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
       emit connection.receivedBatteryInfo(batteryData);
     }
 
-    // TODO: Process other packets
+    // Process reprogrammed keys : Next Hold and Back Hold
+    auto reprogrammedControlID = connection.getFeatureSet()->getFeatureID(FeatureCode::ReprogramControlsV4);
+    if (reprogrammedControlID && readVal.at(2) == reprogrammedControlID)     // Button (for which hold events are on) related message.
+    {
+      auto eventCode = static_cast<uint8_t>(readVal.at(3));
+      auto buttonCode = static_cast<uint8_t>(readVal.at(5));
+      if (eventCode == 0x00) {  // hold start events
+        switch (buttonCode) {
+          case 0xda:
+            logDebug(hid) << "Next Hold Event ";
+            m_holdButtonStatus.setButton(ActiveHoldButton::Next);
+            break;
+          case 0xdc:
+            logDebug(hid) << "Back Hold Event ";
+            m_holdButtonStatus.setButton(ActiveHoldButton::Back);
+            break;
+          case 0x00:
+            // hold event over.
+            logDebug(hid) << "Hold Event over.";
+            m_holdButtonStatus.reset();
+        }
+      }
+      else if (eventCode == 0x10) {   // mouse move event
+        // Mouse data is sent as 4 byte information starting at 4th index and ending at 7th.
+        // out of these 5th byte and 7th byte are x and y relative change, respectively.
+        // the forth byte show horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
+        // the sixth byte show vertical scroll towards up if rel value is -1 otherwise down scroll (0)
+        auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
+        int x = byteToRel(readVal.at(5));
+        int y = byteToRel(readVal.at(7));
+        //logInfo(device) << byteToRel(readVal.at(4)) <<", "<< x<<", "<< byteToRel(readVal.at(6)) <<", "<<y;
+
+        // Demonstration with cursor movement
+        QCursor cursor;
+        auto point = cursor.pos();
+        cursor.setPos(point.x()+x, point.y()+y);
+
+        // TODO: 1. Add two default rows in Input Mapper widget for Next hold and Back Hold.
+        // 2. Add a category to Input Mapper Actions having two values: General and Repeated.
+        //    Currently available actions are all of general category as repeated calling is not required to complete them.
+        //    However, 'Repeated' actions (like scrolling, moving mouse, change volume) etc. require repeated calls.
+        // 3. When a button is on hold, general actions will be called only once, however, repeated actions will called till
+        //    the button is on hold.
+        //    Repeated actions will only be available for Next hold and Back hold inputs.
+        m_holdButtonStatus.addEvent();
+      }
+    }
 
     // Vibration response check
     const uint8_t pcID = connection.getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);

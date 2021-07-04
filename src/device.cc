@@ -367,13 +367,14 @@ void SubDeviceConnection::pingSubDevice()
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::setHIDProtocol(float version) {
+void SubDeviceConnection::setHIDppProtocol(float version) {
+  // Inform user about the online status of device.
   if (version > 0) {
-    logDebug(hid) << path() << "is online with protocol version" << version ;
+    if (m_details.HIDppProtocolVer < 0) logInfo(hid) << "HID Device with path" << path() << tr("is now active with protocol version %1.").arg(version);
   } else {
-    logDebug(hid) << "HID Device with path" << path() << "got deactivated.";
+    if (m_details.HIDppProtocolVer > 0) logInfo(hid) << "HID Device with path" << path() << "got deactivated.";
   }
-  m_details.hidProtocolVer = version;
+  m_details.HIDppProtocolVer = version;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -405,6 +406,7 @@ void SubHidppConnection::initialize()
       sendData(data, sizeof(data));});
     msgCount++;
 
+    // Now enable both software and wireless notification bit
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
       constexpr uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_SET_FEATURE, 0x00, 0x00, 0x09, 0x00};
       sendData(data, sizeof(data));});
@@ -425,10 +427,16 @@ void SubHidppConnection::initialize()
       featureFlags |= DeviceFlag::ReportBattery;
       logDebug(hid) << "SubDevice" << path() << "can communicate battery information.";
     }
+    if (m_featureSet->supportFeatureCode(FeatureCode::ReprogramControlsV4)) {
+      featureFlags |= DeviceFlags::NextHold;
+      featureFlags |= DeviceFlags::BackHold;
+      logDebug(hid) << "SubDevice" << path() << "can send next and back hold event.";
+    }
   } else {
     logWarn(hid) << "Loading FeatureSet for" << path() << "failed. Device might be inactive.";
     logInfo(hid) << "Press any button on device to activate it.";
   }
+  setFlags(featureFlags, true);
   setReadNotifierEnabled(true);
 
   // Reset spotlight device
@@ -449,15 +457,31 @@ void SubHidppConnection::initialize()
     QTimer::singleShot(delay_ms*msgCount, this, [this](){pingSubDevice();});
     msgCount++;
   } else if (m_details.busType == BusType::Bluetooth) {
+    // Bluetooth connection do not respond to ping.
+    // Hence, we are faking a ping response here.
     // Bluetooth connection mean HID++ v2.0+.
     // Setting version to 6.4: same as USB connection.
-    setHIDProtocol(6.4);
+    setHIDppProtocol(6.4);
+    emit receivedPingResponse();
   }
 
-  setFlags(featureFlags, true);
+  // Enable Next and back button on hold functionality.
+  const auto rcID = m_featureSet->getFeatureID(FeatureCode::ReprogramControlsV4);
+  if (rcID) {
+    if (hasFlags(DeviceFlags::NextHold)) {
+      QTimer::singleShot(delay_ms*msgCount, this, [this, rcID](){
+        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcID, 0x3d, 0x00, 0xda, 0x33};
+        sendData(data, sizeof(data));});
+      msgCount++;
+    }
 
-  // Add other configuration to enable features in device
-  // like enabling on Next and back button on hold functionality.
+    if (hasFlags(DeviceFlags::BackHold)) {
+      QTimer::singleShot(delay_ms*msgCount, this, [this, rcID](){
+        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcID, 0x3d, 0x00, 0xdc, 0x33};
+        sendData(data, sizeof(data));});
+      msgCount++;
+    }
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -580,7 +604,6 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
 void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length)
 {
   // TODO put in HIDPP
-
   // TODO generalize features and protocol for proprietary device features like vibration
   //      for not only the Spotlight device.
   //
@@ -607,6 +630,7 @@ void SubHidppConnection::queryBatteryStatus()
       const uint8_t batteryCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
       sendData(batteryCmd, sizeof(batteryCmd));
     }
+    setWriteNotifierEnabled(false);
   }
 }
 

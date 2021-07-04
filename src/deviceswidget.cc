@@ -155,8 +155,11 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
       // report special flags set by program (like vibration and others)
       auto flagText = [](DeviceFlag f){
         QStringList flagList;
+        if (!!(f & DeviceFlag::Hidpp)) flagList.push_back("HID++");
         if (!!(f & DeviceFlag::Vibrate)) flagList.push_back("Vibration");
         if (!!(f & DeviceFlag::ReportBattery)) flagList.push_back("Report_Battery");
+        if (!!(f & DeviceFlag::NextHold)) flagList.push_back("Next_Hold");
+        if (!!(f & DeviceFlag::BackHold)) flagList.push_back("Back_Hold");
         return flagList;
       };
       for (const auto& sd: dc->subDevices()) {
@@ -215,8 +218,8 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
     });
 
     deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
-    deviceDetails += tr("VendorId:\t%1\n").arg(logging::hexId(dc->deviceId().vendorId));
-    deviceDetails += tr("ProductId:\t%1\n").arg(logging::hexId(dc->deviceId().productId));
+    deviceDetails += tr("VendorId:\t%1\n").arg(hexId(dc->deviceId().vendorId));
+    deviceDetails += tr("ProductId:\t%1\n").arg(hexId(dc->deviceId().productId));
     deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
     deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
     deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));

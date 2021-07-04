@@ -6,6 +6,7 @@
 #include <QTextStream>
 
 #include <linux/input.h>
+#include <iostream>
 
 // Function declaration to check for extra devices, definition in generated source
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId);
