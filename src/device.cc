@@ -9,10 +9,10 @@
 
 #include <fcntl.h>
 #include <linux/hidraw.h>
-#include <linux/input.h>
 #include <unistd.h>
 
 LOGGING_CATEGORY(device, "device")
+LOGGING_CATEGORY(hid, "HID")
 
 namespace  {
   // -----------------------------------------------------------------------------------------------
@@ -72,17 +72,33 @@ SubDeviceConnection::~SubDeviceConnection() = default;
 
 // -------------------------------------------------------------------------------------------------
 bool SubDeviceConnection::isConnected() const {
-  return m_notifier && m_notifier->isEnabled();
+  if (type() == ConnectionType::Event)
+    return (m_readNotifier && m_readNotifier->isEnabled());
+  if (type() == ConnectionType::Hidraw)
+    return (m_readNotifier && m_readNotifier->isEnabled()) && (m_writeNotifier);
+  return false;
 }
 
 // -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::disconnect() {
-  m_notifier.reset();
+  m_readNotifier.reset();
+  m_writeNotifier.reset();
 }
 
 // -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::disable() {
-  if (m_notifier) m_notifier->setEnabled(false);
+  if (m_readNotifier) m_readNotifier->setEnabled(false);
+  if (m_writeNotifier) m_writeNotifier->setEnabled(false);
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::disableWrite() {
+  if (m_writeNotifier) m_writeNotifier->setEnabled(false);
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::enableWrite() {
+  if (m_writeNotifier) m_writeNotifier->setEnabled(true);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -91,8 +107,13 @@ const std::shared_ptr<InputMapper>& SubDeviceConnection::inputMapper() const  {
 }
 
 // -------------------------------------------------------------------------------------------------
-QSocketNotifier* SubDeviceConnection::socketNotifier() {
-  return m_notifier.get();
+QSocketNotifier* SubDeviceConnection::socketReadNotifier() {
+  return m_readNotifier.get();
+}
+
+// -------------------------------------------------------------------------------------------------
+QSocketNotifier* SubDeviceConnection::socketWriteNotifier() {
+  return m_writeNotifier.get();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -104,6 +125,11 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
                                                                const DeviceConnection& dc)
 {
   const int evfd = ::open(sd.deviceFile.toLocal8Bit().constData(), O_RDONLY, 0);
+
+  if (evfd == -1) {
+    logWarn(device) << tr("Cannot open event device '%1' for read.").arg(sd.deviceFile);
+    return std::shared_ptr<SubEventConnection>();
+  }
 
   struct input_id id{};
   ioctl(evfd, EVIOCGID, &id); // get the event sub-device id
@@ -163,8 +189,8 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   }
 
   // Create socket notifier
-  connection->m_notifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);
-  QSocketNotifier* const notifier = connection->m_notifier.get();
+  connection->m_readNotifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);
+  QSocketNotifier* const notifier = connection->m_readNotifier.get();
   // Auto clean up and close descriptor on destruction of notifier
   connect(notifier, &QSocketNotifier::destroyed, [grabbed = connection->m_details.grabbed, notifier]() {
     if (grabbed) {
@@ -190,28 +216,28 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   const int devfd = ::open(sd.deviceFile.toLocal8Bit().constData(), O_RDWR|O_NONBLOCK , 0);
 
   if (devfd == -1) {
-    logWarn(device) << tr("Could not open hidraw device '%1' for read/write.").arg(sd.deviceFile);
+    logWarn(device) << tr("Cannot open hidraw device '%1' for read/write.").arg(sd.deviceFile);
     return std::shared_ptr<SubHidrawConnection>();
   }
 
   int descriptorSize = 0;
   // Get Report Descriptor Size
   if (ioctl(devfd, HIDIOCGRDESCSIZE, &descriptorSize) < 0) {
-    logWarn(device) << tr("Could retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
+    logWarn(device) << tr("Cannot retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
     return std::shared_ptr<SubHidrawConnection>();
   }
 
   struct hidraw_report_descriptor reportDescriptor{};
   reportDescriptor.size = descriptorSize;
   if (ioctl(devfd, HIDIOCGRDESC, &reportDescriptor) < 0) {
-    logWarn(device) << tr("Could retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
+    logWarn(device) << tr("Cannot retrieve report descriptor of hidraw device '%1'.").arg(sd.deviceFile);
     return std::shared_ptr<SubHidrawConnection>();
   }
 
   struct hidraw_devinfo devinfo{};
   // get the hidraw sub-device id info
   if (ioctl(devfd, HIDIOCGRAWINFO, &devinfo) < 0) {
-    logWarn(device) << tr("Could get info from hidraw device '%1'.").arg(sd.deviceFile);
+    logWarn(device) << tr("Cannot get info from hidraw device '%1'.").arg(sd.deviceFile);
     return std::shared_ptr<SubHidrawConnection>();
   };
 
@@ -238,14 +264,53 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
     connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
   }
 
-  // Create socket notifier
-  connection->m_notifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Read);
-  QSocketNotifier* const notifier = connection->m_notifier.get();
+  // Create read and write socket notifiers
+  connection->m_readNotifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Read);
+  QSocketNotifier* const readNotifier = connection->m_readNotifier.get();
   // Auto clean up and close descriptor on destruction of notifier
-  connect(notifier, &QSocketNotifier::destroyed, [notifier]() {
-    ::close(static_cast<int>(notifier->socket()));
+  connect(readNotifier, &QSocketNotifier::destroyed, [readNotifier]() {
+    ::close(static_cast<int>(readNotifier->socket()));
+  });
+
+  connection->m_writeNotifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Write);
+  QSocketNotifier* const writeNotifier = connection->m_writeNotifier.get();
+  // Auto clean up and close descriptor on destruction of notifier
+  connect(writeNotifier, &QSocketNotifier::destroyed, [writeNotifier]() {
+    ::close(static_cast<int>(writeNotifier->socket()));
   });
 
   connection->m_details.phys = sd.phys;
+  connection->disableWrite(); // disable write notifier
   return connection;
+}
+
+// -------------------------------------------------------------------------------------------------
+ssize_t SubDeviceConnection::sendData(QByteArray hidppMsg)
+{
+  ssize_t res = -1;
+  bool isValidMsg = (hidppMsg.length() == 7 && hidppMsg.at(0) == 0x10);             // HID++ short message
+  isValidMsg = isValidMsg || (hidppMsg.length() == 20 && hidppMsg.at(0) == 0x11);   // HID++ long message
+
+  if (type() == ConnectionType::Hidraw && mode() == ConnectionMode::ReadWrite
+          && m_writeNotifier && isValidMsg)
+  {
+    enableWrite();
+    const auto notifier = socketWriteNotifier();
+    res = ::write(notifier->socket(), hidppMsg.data(), hidppMsg.length());
+    logInfo(hid) << "Write " << hidppMsg.toHex();
+    disableWrite();
+  }
+
+  return res;
+}
+
+
+// -------------------------------------------------------------------------------------------------
+ssize_t SubDeviceConnection::sendData(const uint8_t hidppMsg[], size_t hidppMsgLen)
+{
+  QByteArray hidppMsgArr;
+  for(size_t i=0; i<hidppMsgLen; i++)
+    hidppMsgArr.append(hidppMsg[i]);
+
+  return sendData(hidppMsgArr);
 }

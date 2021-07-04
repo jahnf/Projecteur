@@ -127,6 +127,11 @@ public:
   bool isConnected() const;
   void disconnect(); // destroys socket notifier and close file handle
   void disable(); // disable receiving/sending data
+  void disableWrite(); // disable sending data
+  void enableWrite(); // enable sending data
+
+  ssize_t sendData(QByteArray hidppMsg);                          // Send HID++ Message to HIDraw connection
+  ssize_t sendData(const uint8_t hidppMsg[], size_t hidppMsgLen); // Send HID++ Message to HIDraw connection
 
   auto type() const { return m_details.type; };
   auto mode() const { return m_details.mode; };
@@ -136,14 +141,16 @@ public:
   const auto& path() const { return m_details.devicePath; };
 
   const std::shared_ptr<InputMapper>& inputMapper() const;
-  QSocketNotifier* socketNotifier();
+  QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
+  QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
 
 protected:
   SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode);
 
   SubDeviceConnectionDetails m_details;
   std::shared_ptr<InputMapper> m_inputMapper; // shared input mapper from parent device.
-  std::unique_ptr<QSocketNotifier> m_notifier;
+  std::unique_ptr<QSocketNotifier> m_readNotifier;
+  std::unique_ptr<QSocketNotifier> m_writeNotifier;   // only useful for Hidraw connections
 };
 
 // -------------------------------------------------------------------------------------------------

@@ -13,10 +13,10 @@
 #include <fcntl.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
-#include <linux/input.h>
 #include <unistd.h>
 
 DECLARE_LOGGING_CATEGORY(device)
+DECLARE_LOGGING_CATEGORY(hid)
 
 namespace {
   const auto hexId = logging::hexId;
@@ -132,7 +132,8 @@ int Spotlight::connectDevices()
           auto devCon = SubEventConnection::create(scanSubDevice, *dc);
           if (addInputEventHandler(devCon)) return devCon;
         } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
-          return SubHidrawConnection::create(scanSubDevice, *dc);
+          auto hidCon = SubHidrawConnection::create(scanSubDevice, *dc);
+          if(addHIDInputHandler(hidCon)) return hidCon;
         }
         return std::shared_ptr<SubDeviceConnection>();
       }();
@@ -289,16 +290,55 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
 }
 
 // -------------------------------------------------------------------------------------------------
+void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
+{
+  QByteArray readVal(20, 0);
+  if (::read(fd, static_cast<void *>(readVal.data()), readVal.length()) < 0)
+  {
+    if (errno != EAGAIN)
+    {
+      const bool anyConnectedBefore = anySpotlightDeviceConnected();
+      connection.disable();
+      QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
+        removeDeviceConnection(devicePath);
+        if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
+          emit anySpotlightDeviceConnectedChanged(false);
+        }
+      });
+    }
+    return;
+  }
+  logInfo(hid) << "Received " << readVal.toHex();
+  // TODO: Process Logitech HIDPP message
+}
+
+// -------------------------------------------------------------------------------------------------
 bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connection)
 {
   if (!connection || connection->type() != ConnectionType::Event || !connection->isConnected()) {
     return false;
   }
 
-  QSocketNotifier* const notifier = connection->socketNotifier();
-  connect(notifier, &QSocketNotifier::activated, this,
+  QSocketNotifier* const readNotifier = connection->socketReadNotifier();
+  connect(readNotifier, &QSocketNotifier::activated, this,
   [this, connection=std::move(connection)](int fd) {
     onEventDataAvailable(fd, *connection.get());
+  });
+
+  return true;
+}
+
+// -------------------------------------------------------------------------------------------------
+bool Spotlight::addHIDInputHandler(std::shared_ptr<SubHidrawConnection> connection)
+{
+  if (!connection || connection->type() != ConnectionType::Hidraw || !connection->isConnected()) {
+    return false;
+  }
+
+  QSocketNotifier* const readNotifier = connection->socketReadNotifier();
+  connect(readNotifier, &QSocketNotifier::activated, this,
+  [this, connection=std::move(connection)](int fd) {
+    onHIDDataAvailable(fd, *connection.get());
   });
 
   return true;
