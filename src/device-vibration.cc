@@ -407,7 +407,9 @@ void VibrationSettingsWidget::setIntensity(uint8_t intensity)
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
 {
-  m_subDeviceConnection = sdc;
+  if (sdc->type() == ConnectionType::Hidraw &&
+            sdc->mode() == ConnectionMode::ReadWrite)
+    m_subDeviceConnection = sdc;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -427,8 +429,7 @@ void VibrationSettingsWidget::sendVibrateCommand()
   const uint8_t vint = m_sbIntensity->value();
   const uint8_t vibrateCmd[] = {0x10, 0x01, 0x09, 0x1a, vlen, 0xe8, vint};
 
-  const auto notifier = m_subDeviceConnection->socketNotifier();
-  const auto res = ::write(notifier->socket(), &vibrateCmd[0], sizeof(vibrateCmd));
+  const auto res = m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
   if (res != sizeof(vibrateCmd)) {
     logWarn(device) << "Could not write vibrate command to device socket.";
   }
