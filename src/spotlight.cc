@@ -308,7 +308,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
     }
     return;
   }
-  logInfo(hid) << "Received " << readVal.toHex();
+  logDebug(hid) << "Received" << readVal.toHex(':') << "from" << connection.path();
   // TODO: Process Logitech HIDPP message
 }
 

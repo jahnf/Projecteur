@@ -285,7 +285,7 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
 }
 
 // -------------------------------------------------------------------------------------------------
-ssize_t SubDeviceConnection::sendData(QByteArray hidppMsg)
+ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg)
 {
   ssize_t res = -1;
   bool isValidMsg = (hidppMsg.length() == 7 && hidppMsg.at(0) == 0x10);             // HID++ short message
@@ -297,7 +297,7 @@ ssize_t SubDeviceConnection::sendData(QByteArray hidppMsg)
     enableWrite();
     const auto notifier = socketWriteNotifier();
     res = ::write(notifier->socket(), hidppMsg.data(), hidppMsg.length());
-    logInfo(hid) << "Write " << hidppMsg.toHex();
+    logDebug(hid) << "Write" << hidppMsg.toHex(':') << "to" << path();
     disableWrite();
   }
 
@@ -306,11 +306,9 @@ ssize_t SubDeviceConnection::sendData(QByteArray hidppMsg)
 
 
 // -------------------------------------------------------------------------------------------------
-ssize_t SubDeviceConnection::sendData(const uint8_t hidppMsg[], size_t hidppMsgLen)
+ssize_t SubDeviceConnection::sendData(const void* hidppMsg, size_t hidppMsgLen)
 {
-  QByteArray hidppMsgArr;
-  for(size_t i=0; i<hidppMsgLen; i++)
-    hidppMsgArr.append(hidppMsg[i]);
+  const QByteArray hidppMsgArr(reinterpret_cast<const char*>(hidppMsg), hidppMsgLen);
 
   return sendData(hidppMsgArr);
 }
