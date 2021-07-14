@@ -281,7 +281,38 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
 
   connection->m_details.phys = sd.phys;
   connection->disableWrite(); // disable write notifier
+  connection->initDevice();
   return connection;
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::initDevice()
+{
+  struct timespec ts;
+  int msec = 50;
+  ts.tv_sec = msec / 1000;
+  ts.tv_nsec = (msec % 1000) * 1000000;
+  //Reset device: Get rid of any device configuration by other programs
+  {const uint8_t data[] = {0x10, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00};
+    sendData(data, sizeof(data));}
+  ::nanosleep(&ts, &ts);
+  {const uint8_t data[] = {0x10, 0xff, 0x80, 0x00, 0x00, 0x01, 0x00};
+    sendData(data, sizeof(data));}
+  ::nanosleep(&ts, &ts);
+  {const uint8_t data[] = {0x10, 0x01, 0x05, 0x1d, 0x00, 0x00, 0x00};
+    sendData(data, sizeof(data));}
+  ::nanosleep(&ts, &ts);
+
+  // send hold event for next button
+  {const uint8_t data[] = {0x11, 0x01, 0x07, 0x3d, 0x00, 0xda, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    sendData(data, sizeof(data));}
+  ::nanosleep(&ts, &ts);
+
+  // send hold event for back button
+  {const uint8_t data[] = {0x11, 0x01, 0x07, 0x3d, 0x00, 0xdc, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    sendData(data, sizeof(data));}
+  //::nanosleep(&ts, &ts);
+  // No intialization needed for Event Sub device
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -304,11 +335,9 @@ ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg)
   return res;
 }
 
-
 // -------------------------------------------------------------------------------------------------
 ssize_t SubDeviceConnection::sendData(const void* hidppMsg, size_t hidppMsgLen)
 {
   const QByteArray hidppMsgArr(reinterpret_cast<const char*>(hidppMsg), hidppMsgLen);
-
   return sendData(hidppMsgArr);
 }

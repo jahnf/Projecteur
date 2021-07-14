@@ -9,6 +9,7 @@
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QVarLengthArray>
+#include <QCursor>
 
 #include <fcntl.h>
 #include <sys/inotify.h>
@@ -309,7 +310,68 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
     return;
   }
   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
-  // TODO: Process Logitech HIDPP message
+
+  if (readVal.at(0) == 0x10)   // Logitech HIDPP SHORT message
+  {
+    //if (readVal.at(2) == 0x41)      // Device initialiated the connection
+     //   initDevice();
+  }
+
+  if (readVal.at(0) == 0x11)    // Logitech HIDPP LONG message: 20 byte long
+  {
+    if (readVal.at(2) == 0x04) {    // Logitech presenter got activated.
+      connection.initDevice();
+    }
+
+    if (readVal.at(2) == 0x07)     // Button (for which hold events are on) related message.
+    {
+      uint8_t eventCode = static_cast<uint8_t>(readVal.at(3));
+      uint8_t buttonCode = static_cast<uint8_t>(readVal.at(5));
+      if (eventCode == 0x00) {  // hold start events
+        switch (buttonCode) {
+          case 0xda:
+            logDebug(hid) << "Next Hold Event ";
+            m_holdButtonStatus.setButton(ActiveHoldButton::Next);
+            break;
+          case 0xdc:
+            logDebug(hid) << "Back Hold Event ";
+            m_holdButtonStatus.setButton(ActiveHoldButton::Back);
+            break;
+          case 0x00:
+            // hold event over.
+            logDebug(hid) << "Hold Event over.";
+            m_holdButtonStatus.reset();
+        }
+      }
+      else if (eventCode == 0x10) {   // mouse move event
+        // Mouse data is sent as 4 byte information starting at 4th index and ending at 7th.
+        // out of these 5th byte and 7th byte are x and y relative change, respectively.
+        auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
+        int x = byteToRel(readVal.at(5));
+        int y = byteToRel(readVal.at(7));
+        logInfo(device) << x<<", "<< byteToRel(readVal.at(6)) <<", "<<y;
+        if (m_holdButtonStatus.numEvents() == 0) {
+
+        }
+        // Demonstration with cursor movement
+        QCursor cursor;
+        auto point = cursor.pos();
+        cursor.setPos(point.x()+x, point.y()+y);
+
+        // TODO: 1. Add two default rows in Input Mapper widget for Next hold and Back Hold.
+        // 2. Add a category to Input Mapper Actions having two values: General and Repeated.
+        //    Currently available actions are all of general category as repeated calling is not required to complete them.
+        //    However, 'Repeated' actions (like scrolling, moving mouse, change volume) etc. require repeated calls.
+        // 3. When a button is on hold, general actions will be called only once, however, repeated actions will called till
+        //    the button is on hold.
+        //    Repeated actions will only be available for Next hold and Back hold inputs.
+        m_holdButtonStatus.addEvent();
+      }
+    }
+
+    if (readVal.at(2) == 0x09 && readVal.at(3) == 0x1a)
+      logDebug(hid) << "Device reported a vibration event.";
+  }
 }
 
 // -------------------------------------------------------------------------------------------------

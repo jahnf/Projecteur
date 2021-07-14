@@ -13,6 +13,21 @@ class QTimer;
 class Settings;
 class VirtualDevice;
 
+// -----------------------------------------------------------------------------------------------
+enum class ActiveHoldButton : uint8_t { None, Next, Back };
+
+// -----------------------------------------------------------------------------------------------
+struct HoldButtonStatus {
+  void setButton(ActiveHoldButton b){_button = b; _numEvents=0;};
+  int numEvents() const {return _numEvents;};
+  void addEvent(){_numEvents++;};
+  void reset(){setButton(ActiveHoldButton::None);};
+private:
+  ActiveHoldButton _button = ActiveHoldButton::None;
+  size_t _numEvents = 0;
+};
+
+
 /// Class handling spotlight device connections and indicating if a device is sending
 /// sending mouse move events.
 class Spotlight : public QObject
@@ -70,4 +85,5 @@ private:
   bool m_spotActive = false;
   std::shared_ptr<VirtualDevice> m_virtualDevice;
   Settings* m_settings = nullptr;
+  HoldButtonStatus m_holdButtonStatus;
 };
