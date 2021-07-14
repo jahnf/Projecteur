@@ -297,7 +297,7 @@ ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg)
     enableWrite();
     const auto notifier = socketWriteNotifier();
     res = ::write(notifier->socket(), hidppMsg.data(), hidppMsg.length());
-    logDebug(hid) << "Write" << hidppMsg.toHex(':') << "to" << path();
+    logDebug(hid) << "Write" << hidppMsg.toHex() << "to" << path();
     disableWrite();
   }
 
