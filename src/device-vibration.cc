@@ -407,9 +407,7 @@ void VibrationSettingsWidget::setIntensity(uint8_t intensity)
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
 {
-  if (sdc->type() == ConnectionType::Hidraw &&
-            sdc->mode() == ConnectionMode::ReadWrite)
-    m_subDeviceConnection = sdc;
+  m_subDeviceConnection = sdc;
 }
 
 // -------------------------------------------------------------------------------------------------
