@@ -308,8 +308,31 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
     }
     return;
   }
+
+  // Only process HID++ packets (hence, the packets starting with 0x10 or 0x11)
+  if (!(readVal.at(0) == 0x10 || readVal.at(0) == 0x11)) {
+    return;
+  }
+
   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
-  // TODO: Process Logitech HIDPP message
+
+  if (readVal.at(0) == 0x11)    // Logitech HIDPP LONG message: 20 byte long
+  {
+    if (readVal.at(2) == 0x00 && readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) // response to ping
+    {
+      auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
+      logDebug(hid) << connection.path() << "is online with protocol version" << protocolVer ;
+      connection.setHIDProtocol(protocolVer);
+    }
+    if (readVal.at(2) == 0x04) {    // Logitech spotlight presenter unit got online.
+      connection.initSubDevice();
+    }
+    // TODO: Process other packets
+
+    if (readVal.at(2) == 0x09 && readVal.at(3) == 0x1a) {
+      logDebug(hid) << "Device acknowledged a vibration event.";
+    }
+  }
 }
 
 // -------------------------------------------------------------------------------------------------

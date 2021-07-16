@@ -64,8 +64,8 @@ bool DeviceConnection::removeSubDevice(const QString& path)
 }
 
 // -------------------------------------------------------------------------------------------------
-SubDeviceConnection::SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode)
-  : m_details(path, type, mode) {}
+SubDeviceConnection::SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode, BusType busType)
+  : m_details(path, type, mode, busType) {}
 
 // -------------------------------------------------------------------------------------------------
 SubDeviceConnection::~SubDeviceConnection() = default;
@@ -118,7 +118,7 @@ QSocketNotifier* SubDeviceConnection::socketWriteNotifier() {
 
 // -------------------------------------------------------------------------------------------------
 SubEventConnection::SubEventConnection(Token, const QString& path)
-  : SubDeviceConnection(path, ConnectionType::Event, ConnectionMode::ReadOnly) {}
+  : SubDeviceConnection(path, ConnectionType::Event, ConnectionMode::ReadOnly, BusType::Unknown) {}
 
 // -------------------------------------------------------------------------------------------------
 std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan::SubDevice& sd,
@@ -153,6 +153,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   }
 
   auto connection = std::make_shared<SubEventConnection>(Token{}, sd.deviceFile);
+  connection->m_details.busType = dc.deviceId().busType;
 
   if (!!(bitmask & (1 << EV_SYN))) connection->m_details.deviceFlags |= DeviceFlag::SynEvents;
   if (!!(bitmask & (1 << EV_REP))) connection->m_details.deviceFlags |= DeviceFlag::RepEvents;
@@ -207,7 +208,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
 
 // -------------------------------------------------------------------------------------------------
 SubHidrawConnection::SubHidrawConnection(Token, const QString& path)
-  : SubDeviceConnection(path, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
+  : SubDeviceConnection(path, ConnectionType::Hidraw, ConnectionMode::ReadWrite, BusType::Unknown) {}
 
 // -------------------------------------------------------------------------------------------------
 std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceScan::SubDevice& sd,
@@ -252,15 +253,15 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   }
 
   auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd.deviceFile);
+  connection->m_details.busType = dc.deviceId().busType;
 
   fcntl(devfd, F_SETFL, fcntl(devfd, F_GETFL, 0) | O_NONBLOCK);
   if ((fcntl(devfd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
     connection->m_details.deviceFlags |= DeviceFlag::NonBlocking;
   }
 
-  // For now vibration is only supported for the Logitech Spotlight (USB)
-  // TODO A more generic approach
-  if (dc.deviceId().vendorId == 0x46d && dc.deviceId().productId == 0xc53e) {
+  // For now vibration is only supported for the Logitech Spotlight (USB and Bluetooth)
+  if (dc.deviceId().vendorId == 0x46d && (dc.deviceId().productId == 0xc53e || dc.deviceId().productId == 0xb503)) {
     connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
   }
 
@@ -281,33 +282,119 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
 
   connection->m_details.phys = sd.phys;
   connection->disableWrite(); // disable write notifier
+  connection->initSubDevice();
   return connection;
 }
 
 // -------------------------------------------------------------------------------------------------
-ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg)
+void SubDeviceConnection::initSubDevice()
+{
+  struct timespec ts;
+  int msec = 50;
+  ts.tv_sec = msec / 1000;
+  ts.tv_nsec = (msec % 1000) * 1000000;
+
+  resetSubDevice(ts);
+
+  // Add other configuration to enable features in device
+  // like enabling on Next and back button on hold functionality.
+  // No intialization needed for Event Sub device
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::resetSubDevice(struct timespec delay)
+{
+  // Ping spotlight device for checking if is online
+  pingSubDevice();
+  ::nanosleep(&delay, &delay);
+
+  // Reset device: Get rid of any device configuration by other programs
+  // Reset USB dongle
+  if (m_details.busType == BusType::Usb) {
+    {const uint8_t data[] = {0x10, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00};
+    sendData(data, sizeof(data), false);}
+    ::nanosleep(&delay, &delay);
+    {const uint8_t data[] = {0x10, 0xff, 0x80, 0x00, 0x00, 0x01, 0x00};
+    sendData(data, sizeof(data), false);}
+    ::nanosleep(&delay, &delay);
+  }
+
+  // Reset spotlight device
+  {const uint8_t data[] = {0x10, 0x01, 0x05, 0x1d, 0x00, 0x00, 0x00};
+  sendData(data, sizeof(data), false);}
+  ::nanosleep(&delay, &delay);
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::pingSubDevice()
+{
+  const uint8_t pingCmd[] = {0x10, 0x01, 0x00, 0x1d, 0x00, 0x00, 0x5d};
+  sendData(pingCmd, sizeof(pingCmd), false);
+}
+
+// -------------------------------------------------------------------------------------------------
+ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg, bool checkDeviceOnline)
 {
   ssize_t res = -1;
-  bool isValidMsg = (hidppMsg.length() == 7 && hidppMsg.at(0) == 0x10);             // HID++ short message
-  isValidMsg = isValidMsg || (hidppMsg.length() == 20 && hidppMsg.at(0) == 0x11);   // HID++ long message
+
+  // If the message have 0xff as second byte, it is meant for USB dongle hence,
+  // should not be send when device is connected on bluetooth.
+  //
+  //
+  // Logitech Spotlight (USB) can receive data in two different length.
+  //   1. Short (10 byte long starting with 0x10)
+  //   2. Long (20 byte long starting with 0x11)
+  // However, bluetooth connection only accepts data in long (20 byte) packets.
+  // For converting standard short length data to long length data, change the first byte to 0x11 and
+  // pad the end of message with 0x00 to acheive the length of 20.
+
+  QByteArray _hidppMsg(hidppMsg);
+  if (m_details.busType == BusType::Bluetooth) {
+    if (static_cast<uint8_t>(hidppMsg.at(1)) == 0xff){
+      logDebug(hid) << "Invalid packet" << hidppMsg.toHex() << "for spotlight connected on bluetooth.";
+      return res;
+    }
+
+    if (hidppMsg.at(0) == 0x10) {
+      _hidppMsg.clear();
+      _hidppMsg.append(0x11);
+      _hidppMsg.append(hidppMsg.mid(1));
+      QByteArray padding(20 - _hidppMsg.length(), 0);
+      _hidppMsg.append(padding);
+    }
+  }
+
+  bool isValidMsg = (_hidppMsg.length() == 7 && _hidppMsg.at(0) == 0x10);             // HID++ short message
+  isValidMsg = isValidMsg || (_hidppMsg.length() == 20 && _hidppMsg.at(0) == 0x11);   // HID++ long message
+  // If checkDeviceOnline is true then do not send the packet if device is not online/active.
+  if (checkDeviceOnline) {
+    isValidMsg = isValidMsg && isOnline();
+  }
 
   if (type() == ConnectionType::Hidraw && mode() == ConnectionMode::ReadWrite
           && m_writeNotifier && isValidMsg)
   {
     enableWrite();
     const auto notifier = socketWriteNotifier();
-    res = ::write(notifier->socket(), hidppMsg.data(), hidppMsg.length());
-    logDebug(hid) << "Write" << hidppMsg.toHex() << "to" << path();
+    res = ::write(notifier->socket(), _hidppMsg.data(), _hidppMsg.length());
     disableWrite();
+  }
+
+  if (res == _hidppMsg.length()) {
+    logDebug(hid) << "Write" << _hidppMsg.toHex() << "to" << path();
+  } else {
+    logWarn(hid) << "Writing to" << path() << "failed.";
+    if (checkDeviceOnline && !isOnline()) {
+      logInfo(hid) << "The device is not active. Activate it by pressing any button on device.";
+    }
   }
 
   return res;
 }
 
-
 // -------------------------------------------------------------------------------------------------
-ssize_t SubDeviceConnection::sendData(const void* hidppMsg, size_t hidppMsgLen)
+ssize_t SubDeviceConnection::sendData(const void* hidppMsg, size_t hidppMsgLen, bool checkDeviceOnline)
 {
   const QByteArray hidppMsgArr(reinterpret_cast<const char*>(hidppMsg), hidppMsgLen);
-  return sendData(hidppMsgArr);
+  return sendData(hidppMsgArr, checkDeviceOnline);
 }
