@@ -135,8 +135,8 @@ namespace {
             const auto busType = ids.size() ? ids[0].toUShort(nullptr, 16) : 0;
             switch (busType)
             {
-              case BUS_USB: spotlightDevice.busType = DeviceScan::Device::BusType::Usb; break;
-              case BUS_BLUETOOTH: spotlightDevice.busType = DeviceScan::Device::BusType::Bluetooth; break;
+              case BUS_USB: spotlightDevice.id.busType = BusType::Usb; break;
+              case BUS_BLUETOOTH: spotlightDevice.id.busType = BusType::Bluetooth; break;
             }
             spotlightDevice.id.vendorId = ids.size() > 1 ? ids[1].toUShort(nullptr, 16) : 0;
             spotlightDevice.id.productId = ids.size() > 2 ? ids[2].toUShort(nullptr, 16) : 0;
@@ -154,7 +154,6 @@ namespace {
     }
     return spotlightDevice;
   }
-
 }
 
 namespace DeviceScan {
@@ -257,10 +256,9 @@ namespace DeviceScan {
         }
       }
 
-      // For now: only check for hidraw sub-devices that have support for custom "proprietary"
-      // functionality/protocol with Projecteur built in.
-      // TODO check if _Projecteur_ supports additional "proprietary" device protocol features..
-      if (eventSubDeviceCount > 0) continue;
+      // Spotlight (Bluetooth) have hidraw interface in the same folder. However
+      // for other connection, it has separate folder for hidraw device and input device.
+      if (!(rootDevice.id.busType == BusType::Bluetooth) && eventSubDeviceCount > 0) continue;
 
       // Iterate over 'hidraw' sub-dircectory, check for hidraw device node
       const QFileInfo hidrawSubdir(QDir(hidIt.filePath()).filePath("hidraw"));
