@@ -3,6 +3,8 @@
 
 #include <QPointer>
 #include <QWidget>
+#include <QTextEdit>
+#include <QTimer>
 
 struct DeviceId;
 class InputMapper;
@@ -30,9 +32,13 @@ private:
   QWidget* createInputMapperWidget(Settings* settings, Spotlight* spotlight);
   QWidget* createDeviceInfoWidget(Spotlight* spotlight);
   QWidget* createTimerTabWidget(Settings* settings, Spotlight* spotlight);
+  void updateDeviceDetails(Spotlight* spotlight);
 
   QComboBox* m_devicesCombo = nullptr;
   QWidget* m_timerTabWidget = nullptr;
+  QWidget* m_deviceDetailsTabWidget = nullptr;
+  QTextEdit* m_deviceDetailsTextEdit = nullptr;
+  QTimer* m_updateDeviceDetailsTimer = new QTimer(this);
   VibrationSettingsWidget* m_vibrationSettingsWidget = nullptr;
   QPointer<InputMapper> m_inputMapper;
 };

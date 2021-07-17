@@ -64,6 +64,29 @@ bool DeviceConnection::removeSubDevice(const QString& path)
 }
 
 // -------------------------------------------------------------------------------------------------
+void DeviceConnection::queryBatteryStatus()
+{
+  if (subDeviceCount() > 0) {
+    for (const auto& sd: subDevices()) {
+      if (sd.second->type() == ConnectionType::Hidraw && sd.second->mode() == ConnectionMode::ReadWrite) {
+        sd.second->queryBatteryStatus();
+      }
+    }
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+void DeviceConnection::setBatteryInfo(QByteArray batteryData)
+{
+  if (batteryData.length() == 3)
+  {
+    m_batteryInfo.status = static_cast<BatteryStatus>(batteryData.at(2));
+    m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0));
+    m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1));
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
 SubDeviceConnection::SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode, BusType busType)
   : m_details(path, type, mode, busType) {}
 
@@ -296,6 +319,8 @@ void SubDeviceConnection::initSubDevice()
 
   resetSubDevice(ts);
 
+  queryBatteryStatus();
+
   // Add other configuration to enable features in device
   // like enabling on Next and back button on hold functionality.
   // No intialization needed for Event Sub device
@@ -333,6 +358,19 @@ void SubDeviceConnection::pingSubDevice()
 }
 
 // -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::queryBatteryStatus()
+{
+  // if we make battery feature request packet by sending {0x11, 0x01, 0x00, 0x0d, 0x10, 0x00 ... padded by 0x00}
+  // batteryFeatureID is the fifth byte obtained by as device response.
+  // batteryFeatureID may differ for different logitech devices and may change after firmware update.
+  // last checked, batteryFeatureID was 0x06 for logitech spotlight.
+
+  const uint8_t batteryFeatureID = 0x06;
+  const uint8_t batteryCmd[] = {0x10, 0x01, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
+  sendData(batteryCmd, sizeof(batteryCmd), false);
+}
+
+// -------------------------------------------------------------------------------------------------
 ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg, bool checkDeviceOnline)
 {
   ssize_t res = -1;
@@ -366,26 +404,24 @@ ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg, bool checkDevi
 
   bool isValidMsg = (_hidppMsg.length() == 7 && _hidppMsg.at(0) == 0x10);             // HID++ short message
   isValidMsg = isValidMsg || (_hidppMsg.length() == 20 && _hidppMsg.at(0) == 0x11);   // HID++ long message
+
   // If checkDeviceOnline is true then do not send the packet if device is not online/active.
-  if (checkDeviceOnline) {
-    isValidMsg = isValidMsg && isOnline();
+  if (checkDeviceOnline && !isOnline()) {
+    logInfo(hid) << "The device is not active. Activate it by pressing any button on device.";
+    return res;
   }
 
   if (type() == ConnectionType::Hidraw && mode() == ConnectionMode::ReadWrite
-          && m_writeNotifier && isValidMsg)
-  {
+          && m_writeNotifier && isValidMsg) {
     enableWrite();
     const auto notifier = socketWriteNotifier();
     res = ::write(notifier->socket(), _hidppMsg.data(), _hidppMsg.length());
     disableWrite();
-  }
 
-  if (res == _hidppMsg.length()) {
-    logDebug(hid) << "Write" << _hidppMsg.toHex() << "to" << path();
-  } else {
-    logWarn(hid) << "Writing to" << path() << "failed.";
-    if (checkDeviceOnline && !isOnline()) {
-      logInfo(hid) << "The device is not active. Activate it by pressing any button on device.";
+    if (res == _hidppMsg.length()) {
+      logDebug(hid) << "Write" << _hidppMsg.toHex() << "to" << path();
+    } else {
+      logWarn(hid) << "Writing to" << path() << "failed.";
     }
   }
 
