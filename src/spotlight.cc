@@ -123,7 +123,12 @@ int Spotlight::connectDevices()
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
     for (const auto& scanSubDevice : dev.subDevices)
     {
-      if (!scanSubDevice.deviceReadable) continue;
+      if (!scanSubDevice.deviceReadable)
+      {
+        logWarn(device) << tr("Sub-device not readable: %1 (%2:%3) %4")
+          .arg(dc->deviceName(), hexId(dev.id.vendorId), hexId(dev.id.productId), scanSubDevice.deviceFile);
+        continue;
+      }
       if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
 
       std::shared_ptr<SubDeviceConnection> subDeviceConnection =
