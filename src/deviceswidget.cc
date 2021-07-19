@@ -289,8 +289,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
     return deviceDetails;
   };
 
-
-  updateBatteryInfo();
+  QTimer::singleShot(200, this, [updateBatteryInfo](){updateBatteryInfo();});
   if (m_deviceDetailsTextEdit) {
     QTimer::singleShot(1000, this, [this, getDeviceDetails](){m_deviceDetailsTextEdit->setText(getDeviceDetails());});
   }

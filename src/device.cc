@@ -6,6 +6,7 @@
 #include "logging.h"
 
 #include <QSocketNotifier>
+#include <QTimer>
 
 #include <fcntl.h>
 #include <linux/hidraw.h>
@@ -80,9 +81,10 @@ void DeviceConnection::setBatteryInfo(QByteArray batteryData)
 {
   if (batteryData.length() == 3)
   {
-    m_batteryInfo.status = static_cast<BatteryStatus>(batteryData.at(2));
-    m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0));
-    m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1));
+    // battery percent is only meaningful when battery is discharge. However, save them anyway.
+    m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100? batteryData.at(0): 100);
+    m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1) <= 100? batteryData.at(1): 100);
+    m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x06)? batteryData.at(2): 0x06);
   }
 }
 
@@ -310,51 +312,59 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::initSubDevice()
-{
-  struct timespec ts;
-  int msec = 50;
-  ts.tv_sec = msec / 1000;
-  ts.tv_nsec = (msec % 1000) * 1000000;
-
-  resetSubDevice(ts);
-
-  queryBatteryStatus();
-
-  // Add other configuration to enable features in device
-  // like enabling on Next and back button on hold functionality.
-  // No intialization needed for Event Sub device
-}
-
-// -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::resetSubDevice(struct timespec delay)
-{
-  // Ping spotlight device for checking if is online
-  pingSubDevice();
-  ::nanosleep(&delay, &delay);
-
-  // Reset device: Get rid of any device configuration by other programs
-  // Reset USB dongle
-  if (m_details.busType == BusType::Usb) {
-    {const uint8_t data[] = {0x10, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00};
-    sendData(data, sizeof(data), false);}
-    ::nanosleep(&delay, &delay);
-    {const uint8_t data[] = {0x10, 0xff, 0x80, 0x00, 0x00, 0x01, 0x00};
-    sendData(data, sizeof(data), false);}
-    ::nanosleep(&delay, &delay);
-  }
-
-  // Reset spotlight device
-  {const uint8_t data[] = {0x10, 0x01, 0x05, 0x1d, 0x00, 0x00, 0x00};
-  sendData(data, sizeof(data), false);}
-  ::nanosleep(&delay, &delay);
-}
-
-// -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::pingSubDevice()
 {
   const uint8_t pingCmd[] = {0x10, 0x01, 0x00, 0x1d, 0x00, 0x00, 0x5d};
   sendData(pingCmd, sizeof(pingCmd), false);
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::setHIDProtocol(float version) {
+  logDebug(hid) << path() << "is online with protocol version" << version ;
+  m_details.hidProtocolVer = version;
+}
+
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::initSubDevice()
+{
+  int msgCount = 1, delay_ms = 20;
+
+  // Reset device: get rid of any device configuration by other programs -------
+  // Reset USB dongle
+  if (m_details.busType == BusType::Usb) {
+    QTimer::singleShot(delay_ms*msgCount, this, [this](){
+      const uint8_t data[] = {0x10, 0xff, 0x81, 0x00, 0x00, 0x00, 0x00};
+      sendData(data, sizeof(data), false);});
+    msgCount++;
+
+    // Turn off software bit and keep the wireless notification bit on
+    QTimer::singleShot(delay_ms*msgCount, this, [this](){
+      const uint8_t data[] = {0x10, 0xff, 0x80, 0x00, 0x00, 0x01, 0x00};
+      sendData(data, sizeof(data), false);});
+    msgCount++;
+  }
+
+  // Reset spotlight device
+  QTimer::singleShot(delay_ms*msgCount, this, [this](){
+    const uint8_t data[] = {0x10, 0x01, 0x05, 0x1d, 0x00, 0x00, 0x00};
+    sendData(data, sizeof(data), false);});
+  // Device Resetting complete -------------------------------------------------
+
+  if (m_details.busType == BusType::Usb) {
+    // Ping spotlight device for checking if is online
+    // the response will have the version for HID++ protocol.
+    QTimer::singleShot(delay_ms*msgCount, this, [this](){pingSubDevice();});
+    msgCount++;
+  } else if (m_details.busType == BusType::Bluetooth) {
+    // Bluetooth connection mean HID++ v2.0+.
+    // Setting version to 6.4: same as USB connection.
+    setHIDProtocol(6.4);
+  }
+
+  // Add other configuration to enable features in device
+  // like enabling on Next and back button on hold functionality.
+  // No intialization needed for Event Sub device
 }
 
 // -------------------------------------------------------------------------------------------------

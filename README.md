@@ -49,7 +49,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
-* Vibration (Timer) Support for the Logitech Spotlight (USB)
+* Vibration (Timer) Support for the Logitech Spotlight
 * Usable without a presenter device (e.g. for online presentations)
 
 ### Screenshots

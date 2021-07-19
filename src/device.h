@@ -14,22 +14,6 @@
 enum class BusType : uint16_t { Unknown, Usb, Bluetooth };
 
 // -------------------------------------------------------------------------------------------------
-enum class BatteryStatus : uint8_t {Discharging    = 0x00,
-                                    Charging       = 0x01,
-                                    AlmostFull     = 0x02,
-                                    Full           = 0x03,
-                                    SlowCharging   = 0x04,
-                                    InvalidBattery = 0x05,
-                                    ThermalError   = 0x06};
-
-struct BatteryInfo
-{
-  uint8_t currentLevel = 0;
-  uint8_t nextReportedLevel = 0;
-  BatteryStatus status = BatteryStatus::Discharging;
-};
-
-// -------------------------------------------------------------------------------------------------
 struct DeviceId
 {
   uint16_t vendorId = 0;
@@ -58,6 +42,22 @@ class InputMapper;
 class QSocketNotifier;
 class SubDeviceConnection;
 class VirtualDevice;
+
+// -------------------------------------------------------------------------------------------------
+enum class BatteryStatus : uint8_t {Discharging    = 0x00,
+                                    Charging       = 0x01,
+                                    AlmostFull     = 0x02,
+                                    Full           = 0x03,
+                                    SlowCharging   = 0x04,
+                                    InvalidBattery = 0x05,
+                                    ThermalError   = 0x06};
+
+struct BatteryInfo
+{
+  uint8_t currentLevel = 0;
+  uint8_t nextReportedLevel = 0;
+  BatteryStatus status = BatteryStatus::Discharging;
+};
 
 // -----------------------------------------------------------------------------------------------
 enum class ConnectionType : uint8_t { Event, Hidraw };
@@ -161,11 +161,10 @@ public:
 
   // HID++ specific functions
   void initSubDevice();
-  void resetSubDevice(struct timespec delay);
   void pingSubDevice();
-  bool isOnline() {return (m_details.hidProtocolVer > 0);};
-  void setHIDProtocol(float p) {m_details.hidProtocolVer = p;};
-  float getHIDProtocol() {return m_details.hidProtocolVer;};
+  bool isOnline() { return (m_details.hidProtocolVer > 0); };
+  void setHIDProtocol(float version);
+  float getHIDProtocol() { return m_details.hidProtocolVer; };
   void queryBatteryStatus();
   ssize_t sendData(const QByteArray& hidppMsg, bool checkDeviceOnline = true);               // Send HID++ Message to HIDraw connection
   ssize_t sendData(const void* hidppMsg, size_t hidppMsgLen, bool checkDeviceOnline = true); // Send HID++ Message to HIDraw connection

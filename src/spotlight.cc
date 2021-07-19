@@ -123,7 +123,12 @@ int Spotlight::connectDevices()
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
     for (const auto& scanSubDevice : dev.subDevices)
     {
-      if (!scanSubDevice.deviceReadable) continue;
+      if (!scanSubDevice.deviceReadable)
+      {
+        logWarn(device) << tr("Sub-device not readable: %1 (%2:%3) %4")
+          .arg(dc->deviceName(), hexId(dev.id.vendorId), hexId(dev.id.productId), scanSubDevice.deviceFile);
+        continue;
+      }
       if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
 
       std::shared_ptr<SubDeviceConnection> subDeviceConnection =
@@ -322,18 +327,29 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
 
   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
 
+  if (readVal.at(0) == 0x10)    // Logitech HIDPP SHORT message: 7 byte long
+  {
+    if (readVal.at(2) == 0x41 && !!(readVal.at(3) & 0x04) &&
+                                    !(readVal.at(4) & 1<<6)) {    // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
+      // currently it is off as I observed that device send two online packet
+      // one with 0x10 and other with 0x11. Currently initsubDevice is triggered
+      // on 0x11 packet.
+      //connection.initSubDevice();
+    }
+  }
+
   if (readVal.at(0) == 0x11)    // Logitech HIDPP LONG message: 20 byte long
   {
     if (readVal.at(2) == 0x00) {
       if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) { // response to ping
         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
-        logDebug(hid) << connection.path() << "is online with protocol version" << protocolVer ;
         connection.setHIDProtocol(protocolVer);
         if (connection.isOnline()) emit connection.receivedPingResponse();
       }
     }
 
-    if (readVal.at(2) == 0x04) {    // Logitech spotlight presenter unit got online.
+    if (readVal.at(2) == 0x04 && readVal.at(4) ==0x01 &&
+            readVal.at(5) == 0x01 && readVal.at(6) == 0x01) {    // Logitech spotlight presenter unit got online.
       connection.initSubDevice();
     }
 

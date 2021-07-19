@@ -21,6 +21,7 @@ class DevicesWidget : public QWidget
 public:
   explicit DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
   const DeviceId currentDeviceId() const;
+  void updateDeviceDetails(Spotlight* spotlight);
 
 signals:
   void currentDeviceChanged(const DeviceId&);
@@ -32,7 +33,6 @@ private:
   QWidget* createInputMapperWidget(Settings* settings, Spotlight* spotlight);
   QWidget* createDeviceInfoWidget(Spotlight* spotlight);
   QWidget* createTimerTabWidget(Settings* settings, Spotlight* spotlight);
-  void updateDeviceDetails(Spotlight* spotlight);
 
   QComboBox* m_devicesCombo = nullptr;
   QWidget* m_timerTabWidget = nullptr;
