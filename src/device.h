@@ -10,23 +10,28 @@
 #include <linux/input.h>
 
 // -------------------------------------------------------------------------------------------------
+// Bus on which device is connected
+enum class BusType : uint16_t { Unknown, Usb, Bluetooth };
+
+// -------------------------------------------------------------------------------------------------
 struct DeviceId
 {
   uint16_t vendorId = 0;
   uint16_t productId = 0;
+  BusType busType = BusType::Unknown;
   QString phys; // should be sufficient to differentiate between two devices of the same type
                 // - not tested, don't have two devices of any type currently.
 
   inline bool operator==(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.phys);
+    return std::tie(vendorId, productId, busType, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
   }
 
   inline bool operator!=(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.phys);
+    return std::tie(vendorId, productId, busType, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
   }
 
   inline bool operator<(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.phys);
+    return std::tie(vendorId, productId, busType, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
   }
 };
 
@@ -90,15 +95,17 @@ ENUM(DeviceFlag, DeviceFlags)
 
 // -----------------------------------------------------------------------------------------------
 struct SubDeviceConnectionDetails {
-  SubDeviceConnectionDetails(const QString& path, ConnectionType type, ConnectionMode mode)
-    : type(type), mode(mode), devicePath(path) {}
+  SubDeviceConnectionDetails(const QString& path, ConnectionType type, ConnectionMode mode, BusType busType)
+    : type(type), mode(mode), busType(busType), devicePath(path) {}
 
   ConnectionType type;
   ConnectionMode mode;
+  BusType busType;
   bool grabbed = false;
   DeviceFlags deviceFlags = DeviceFlags::NoFlags;
   QString phys;
   QString devicePath;
+  float hidProtocolVer = -1;   // set after ping to HID sub-device; If positive then Hidraw device is online.
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -130,8 +137,14 @@ public:
   void disableWrite(); // disable sending data
   void enableWrite(); // enable sending data
 
-  ssize_t sendData(const QByteArray& hidppMsg);                          // Send HID++ Message to HIDraw connection
-  ssize_t sendData(const void* hidppMsg, size_t hidppMsgLen); // Send HID++ Message to HIDraw connection
+  // HID++ specific functions
+  void initSubDevice();
+  void pingSubDevice();
+  bool isOnline() { return (m_details.hidProtocolVer > 0); };
+  void setHIDProtocol(float p) { m_details.hidProtocolVer = p; };
+  float getHIDProtocol() { return m_details.hidProtocolVer; };
+  ssize_t sendData(const QByteArray& hidppMsg, bool checkDeviceOnline = true);               // Send HID++ Message to HIDraw connection
+  ssize_t sendData(const void* hidppMsg, size_t hidppMsgLen, bool checkDeviceOnline = true); // Send HID++ Message to HIDraw connection
 
   auto type() const { return m_details.type; };
   auto mode() const { return m_details.mode; };
@@ -145,7 +158,7 @@ public:
   QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
 
 protected:
-  SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode);
+  SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode, BusType busType);
 
   SubDeviceConnectionDetails m_details;
   std::shared_ptr<InputMapper> m_inputMapper; // shared input mapper from parent device.

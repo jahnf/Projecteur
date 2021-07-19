@@ -231,9 +231,9 @@ int main(int argc, char *argv[])
               << Main::tr(" * Found %1 supported devices. (%2 readable, %3 writable)")
                  .arg(result.devices.size()).arg(result.numDevicesReadable).arg(result.numDevicesWritable);
 
-      const auto busTypeToString = [](DeviceScan::Device::BusType type) -> QString {
-        if (type == DeviceScan::Device::BusType::Usb) return "USB";
-        if (type == DeviceScan::Device::BusType::Bluetooth) return "Bluetooth";
+      const auto busTypeToString = [](BusType type) -> QString {
+        if (type == BusType::Usb) return "USB";
+        if (type == BusType::Bluetooth) return "Bluetooth";
         return "unknown";
       };
 
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
         print() << "     " << "vendorId:  " << logging::hexId(device.id.vendorId);
         print() << "     " << "productId: " << logging::hexId(device.id.productId);
         print() << "     " << "phys:      " << device.id.phys;
-        print() << "     " << "busType:   " << busTypeToString(device.busType);
+        print() << "     " << "busType:   " << busTypeToString(device.id.busType);
         print() << "     " << "devices:   " << subDeviceList.join(", ");
         print() << "     " << "readable:  " << (allReadable ? "true" : "false");
         print() << "     " << "writable:  " << (allWriteable ? "true" : "false");
