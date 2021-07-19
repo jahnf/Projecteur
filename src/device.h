@@ -140,7 +140,8 @@ public:
   // HID++ specific functions
   void initSubDevice();
   void pingSubDevice();
-  bool isOnline() { return (m_details.hidProtocolVer > 0); };
+  bool isOnline() { return (m_details.busType == BusType::Bluetooth ||
+                            m_details.hidProtocolVer > 0); };
   void setHIDProtocol(float p) { m_details.hidProtocolVer = p; };
   float getHIDProtocol() { return m_details.hidProtocolVer; };
   ssize_t sendData(const QByteArray& hidppMsg, bool checkDeviceOnline = true);               // Send HID++ Message to HIDraw connection
