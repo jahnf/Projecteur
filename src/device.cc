@@ -77,14 +77,14 @@ void DeviceConnection::queryBatteryStatus()
 }
 
 // -------------------------------------------------------------------------------------------------
-void DeviceConnection::setBatteryInfo(QByteArray batteryData)
+void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 {
   if (batteryData.length() == 3)
   {
     // battery percent is only meaningful when battery is discharging. However, save them anyway.
-    m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100? batteryData.at(0): 100);
-    m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1) <= 100? batteryData.at(1): 100);
-    m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x06)? batteryData.at(2): 0x06);
+    m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0): 100);
+    m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
+    m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x06) ? batteryData.at(2): 0x06);
   }
 }
 
@@ -288,6 +288,7 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   // For now vibration is only supported for the Logitech Spotlight (USB and Bluetooth)
   if (dc.deviceId().vendorId == 0x46d && (dc.deviceId().productId == 0xc53e || dc.deviceId().productId == 0xb503)) {
     connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
+    connection->m_details.deviceFlags |= DeviceFlag::HasBattery;
   }
 
   // Create read and write socket notifiers
@@ -320,10 +321,13 @@ void SubDeviceConnection::pingSubDevice()
 
 // -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::setHIDProtocol(float version) {
-  logDebug(hid) << path() << "is online with protocol version" << version ;
+  if (version > 0) {
+    logDebug(hid) << path() << "is online with protocol version" << version ;
+  } else {
+    logDebug(hid) << "HID Device with path" << path() << "got deactivated.";
+  }
   m_details.hidProtocolVer = version;
 }
-
 
 // -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::initSubDevice()
@@ -376,9 +380,11 @@ void SubDeviceConnection::queryBatteryStatus()
   // batteryFeatureID may differ for different logitech devices and may change after firmware update.
   // last checked, batteryFeatureID was 0x06 for logitech spotlight.
 
-  const uint8_t batteryFeatureID = 0x06;
-  const uint8_t batteryCmd[] = {0x10, 0x01, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
-  sendData(batteryCmd, sizeof(batteryCmd), false);
+  if (!!(flags() & DeviceFlag::HasBattery)) {
+    const uint8_t batteryFeatureID = 0x06;
+    const uint8_t batteryCmd[] = {0x10, 0x01, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
+    sendData(batteryCmd, sizeof(batteryCmd), false);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------

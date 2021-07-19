@@ -85,7 +85,7 @@ public:
   auto getBatteryInfo(){return m_batteryInfo;};
 
 public slots:
-  void setBatteryInfo(QByteArray batteryData);
+  void setBatteryInfo(const QByteArray& batteryData);
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -112,6 +112,7 @@ enum class DeviceFlag : uint32_t {
   KeyEvents      = 1 << 4,
 
   Vibrate        = 1 << 16,
+  HasBattery     = 1 << 17,
 };
 ENUM(DeviceFlag, DeviceFlags)
 

@@ -329,12 +329,15 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
 
   if (readVal.at(0) == 0x10)    // Logitech HIDPP SHORT message: 7 byte long
   {
-    if (readVal.at(2) == 0x41 && !!(readVal.at(3) & 0x04) &&
-                                    !(readVal.at(4) & 1<<6)) {    // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
-      // currently it is off as I observed that device send two online packet
-      // one with 0x10 and other with 0x11. Currently initsubDevice is triggered
-      // on 0x11 packet.
-      //connection.initSubDevice();
+    if (readVal.at(2) == 0x41 && !!(readVal.at(3) & 0x04)) {    // wireless notification from USB dongle
+      if (readVal.at(4) & (1<<6)) {    // connection between USB dongle and spotlight device broke
+        connection.setHIDProtocol(-1);
+      } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
+        // currently it is off as I observed that device send two online packet
+        // one with 0x10 and other with 0x11. Currently initsubDevice is triggered
+        // on 0x11 packet.
+        //connection.initSubDevice();
+      }
     }
   }
 
@@ -348,8 +351,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
       }
     }
 
-    if (readVal.at(2) == 0x04 && readVal.at(4) ==0x01 &&
-            readVal.at(5) == 0x01 && readVal.at(6) == 0x01) {    // Logitech spotlight presenter unit got online.
+    if (readVal.at(2) == 0x04) {    // Logitech spotlight presenter unit got online.
       connection.initSubDevice();
     }
 

@@ -253,14 +253,13 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
       return "";
     };
 
-    auto batteryInfoText = [dc, batteryStatusText](){
-      auto sDevices = dc->subDevices();
+    auto sDevices = dc->subDevices();
+    auto batteryInfoText = [dc, batteryStatusText, sDevices](){
       const bool isOnline = std::any_of(sDevices.cbegin(), sDevices.cend(),
-            [](const auto& sd){
-              return (sd.second->type() == ConnectionType::Hidraw &&
-                      sd.second->mode() == ConnectionMode::ReadWrite &&
-                      sd.second->isOnline());
-            });
+                                            [](const auto& sd){
+            return (sd.second->type() == ConnectionType::Hidraw &&
+                    sd.second->mode() == ConnectionMode::ReadWrite &&
+                    sd.second->isOnline());});
       if (isOnline) {
         auto batteryInfo= dc->getBatteryInfo();
         // Only show battery percent while discharging.
@@ -277,6 +276,11 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
         return tr("Device not active. Press any key on device to update.");
       }
     };
+    const bool hasBattery = std::any_of(sDevices.cbegin(), sDevices.cend(),
+                                        [](const auto& sd){
+        return (sd.second->type() == ConnectionType::Hidraw &&
+                sd.second->mode() == ConnectionMode::ReadWrite &&
+                !!(sd.second->flags() & DeviceFlag::HasBattery));});
 
     deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
     deviceDetails += tr("VendorId:\t%1\n").arg(logging::hexId(dc->deviceId().vendorId));
@@ -284,7 +288,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
     deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
     deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
     deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
-    deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
+    if (hasBattery) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
 
     return deviceDetails;
   };
