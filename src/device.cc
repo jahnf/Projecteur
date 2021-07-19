@@ -81,7 +81,7 @@ void DeviceConnection::setBatteryInfo(QByteArray batteryData)
 {
   if (batteryData.length() == 3)
   {
-    // battery percent is only meaningful when battery is discharge. However, save them anyway.
+    // battery percent is only meaningful when battery is discharging. However, save them anyway.
     m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100? batteryData.at(0): 100);
     m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1) <= 100? batteryData.at(1): 100);
     m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x06)? batteryData.at(2): 0x06);
@@ -328,7 +328,7 @@ void SubDeviceConnection::setHIDProtocol(float version) {
 // -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::initSubDevice()
 {
-  int msgCount = 1, delay_ms = 20;
+  int msgCount = 0, delay_ms = 20;
 
   // Reset device: get rid of any device configuration by other programs -------
   // Reset USB dongle
@@ -349,6 +349,7 @@ void SubDeviceConnection::initSubDevice()
   QTimer::singleShot(delay_ms*msgCount, this, [this](){
     const uint8_t data[] = {0x10, 0x01, 0x05, 0x1d, 0x00, 0x00, 0x00};
     sendData(data, sizeof(data), false);});
+  msgCount++;
   // Device Resetting complete -------------------------------------------------
 
   if (m_details.busType == BusType::Usb) {

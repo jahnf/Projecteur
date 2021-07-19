@@ -420,7 +420,7 @@ void VibrationSettingsWidget::sendVibrateCommand()
   //
   // Spotlight:
   //                                                    len         intensity
-  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
+  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
 
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
