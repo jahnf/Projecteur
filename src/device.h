@@ -2,6 +2,7 @@
 #pragma once
 
 #include "enum-helper.h"
+#include "hidpp.h"
 
 #include <memory>
 
@@ -37,6 +38,7 @@ class InputMapper;
 class QSocketNotifier;
 class SubDeviceConnection;
 class VirtualDevice;
+class FeatureSet;
 
 // -----------------------------------------------------------------------------------------------
 enum class ConnectionType : uint8_t { Event, Hidraw };
@@ -60,6 +62,7 @@ public:
   void addSubDevice(std::shared_ptr<SubDeviceConnection>);
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
+  auto getFeatureSet() const { return m_featureSet; }
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -73,6 +76,7 @@ protected:
   QString m_deviceName;
   std::shared_ptr<InputMapper> m_inputMapper;
   ConnectionMap m_subDeviceConnections;
+  FeatureSet m_featureSet;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -85,6 +89,7 @@ enum class DeviceFlag : uint32_t {
   KeyEvents      = 1 << 4,
 
   Vibrate        = 1 << 16,
+  HasBattery     = 1 << 17,
 };
 ENUM(DeviceFlag, DeviceFlags)
 
@@ -186,4 +191,11 @@ public:
                                                      const DeviceConnection& dc);
 
   SubHidrawConnection(Token, const QString& path);
+  auto getFeatureSet () const { return m_featureSet; };
+
+signals:
+  void receivedPingResponse();
+
+protected:
+  std::shared_ptr<FeatureSet> m_featureSet = nullptr;
 };

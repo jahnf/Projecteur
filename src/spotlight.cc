@@ -133,6 +133,11 @@ int Spotlight::connectDevices()
           if (addInputEventHandler(devCon)) return devCon;
         } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
           auto hidCon = SubHidrawConnection::create(scanSubDevice, *dc);
+          if (dc->deviceId().vendorId == 0x46d && hidCon->getFeatureSet()->getFeatureCount() == 0) {
+              connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
+                      this, [this, hidCon](){
+                  removeDeviceConnection(hidCon->path());connectDevices();});
+          }
           if(addHIDInputHandler(hidCon)) return hidCon;
         }
         return std::shared_ptr<SubDeviceConnection>();

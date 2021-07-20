@@ -264,6 +264,29 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
     connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
   }
 
+  // Read HID++ FeatureSet (Feature ID and Feature Code pairs) from device
+  if (dc.deviceId().vendorId == 0x46d) // Only check FeatureSet for Logitech devices
+  {
+    connection->m_featureSet = std::make_shared<FeatureSet>(dc.getFeatureSet());
+    connection->m_featureSet->setHIDDeviceFileDescriptor(devfd);
+    connection->m_featureSet->populateFeatureTable();
+    if (connection->m_featureSet->getFeatureCount()) {
+      logDebug(hid) << "Loaded" << connection->m_featureSet->getFeatureCount() << "features for" << connection->path();
+      if (connection->m_featureSet->supportFeatureCode(FeatureCode::PresenterControl)) {
+        connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
+        logDebug(hid) << "SubDevice" << connection->path() << "reported Vibration capabilities.";
+      }
+      if (connection->m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus) ||
+              connection->m_featureSet->supportFeatureCode(FeatureCode::BatteryVoltage) ||
+              connection->m_featureSet->supportFeatureCode(FeatureCode::BatteryUnified)) {
+        connection->m_details.deviceFlags |= DeviceFlag::HasBattery;
+        logDebug(hid) << "SubDevice" << connection->path() << "can communicate battery information.";
+      }
+    } else {
+      logWarn(hid) << "Loading FeatureSet for" << connection->path() << "failed. Device might be inactive.";
+    }
+  }
+
   // Create read and write socket notifiers
   connection->m_readNotifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Read);
   QSocketNotifier* const readNotifier = connection->m_readNotifier.get();
