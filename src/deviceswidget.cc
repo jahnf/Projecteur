@@ -226,7 +226,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
       auto flagText = [](DeviceFlag f){
         QStringList flagList;
         if (!!(f & DeviceFlag::Vibrate)) flagList.push_back("Vibration");
-        if (!!(f & DeviceFlag::HasBattery)) flagList.push_back("Report_Battery");
+        if (!!(f & DeviceFlag::ReportBattery)) flagList.push_back("Report_Battery");
         return flagList;
       };
       for (const auto& sd: dc->subDevices()) {
@@ -248,8 +248,8 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
       if (d == BatteryStatus::AlmostFull) return "Almost Full";
       if (d == BatteryStatus::Full) return "Full Charge";
       if (d == BatteryStatus::SlowCharging) return "Slow Charging";
-      if (d == BatteryStatus::InvalidBattery || d == BatteryStatus::ThermalError) {
-        return "Battery Problem/Invalid Battery";
+      if (d == BatteryStatus::InvalidBattery || d == BatteryStatus::ThermalError || d == BatteryStatus::ChargingError) {
+        return "Charging Error";
       };
       return "";
     };
@@ -281,7 +281,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
                                         [](const auto& sd){
         return (sd.second->type() == ConnectionType::Hidraw &&
                 sd.second->mode() == ConnectionMode::ReadWrite &&
-                !!(sd.second->flags() & DeviceFlag::HasBattery));});
+                !!(sd.second->flags() & DeviceFlag::ReportBattery));});
 
     deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
     deviceDetails += tr("VendorId:\t%1\n").arg(logging::hexId(dc->deviceId().vendorId));

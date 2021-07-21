@@ -5,6 +5,7 @@
 #include <QWidget>
 #include <QTextEdit>
 #include <QTimer>
+#include <QTabWidget>
 
 struct DeviceId;
 class InputMapper;

@@ -46,13 +46,16 @@ class VirtualDevice;
 class FeatureSet;
 
 // -------------------------------------------------------------------------------------------------
+// Battery Status as returned on HID++ BatteryStatus feature code (0x1000)
 enum class BatteryStatus : uint8_t {Discharging    = 0x00,
                                     Charging       = 0x01,
                                     AlmostFull     = 0x02,
                                     Full           = 0x03,
                                     SlowCharging   = 0x04,
                                     InvalidBattery = 0x05,
-                                    ThermalError   = 0x06};
+                                    ThermalError   = 0x06,
+                                    ChargingError  = 0x07
+                                   };
 
 struct BatteryInfo
 {
@@ -116,18 +119,17 @@ enum class DeviceFlag : uint32_t {
   KeyEvents      = 1 << 4,
 
   Vibrate        = 1 << 16,
-  HasBattery     = 1 << 17,
+  ReportBattery  = 1 << 17,
 };
 ENUM(DeviceFlag, DeviceFlags)
 
 // -----------------------------------------------------------------------------------------------
 struct SubDeviceConnectionDetails {
-  SubDeviceConnectionDetails(const QString& path, ConnectionType type, ConnectionMode mode, BusType busType)
-    : type(type), mode(mode), busType(busType), devicePath(path) {}
+  SubDeviceConnectionDetails(const QString& path, ConnectionType type, ConnectionMode mode)
+    : type(type), mode(mode), devicePath(path) {}
 
   ConnectionType type;
   ConnectionMode mode;
-  BusType busType;
   bool grabbed = false;
   DeviceFlags deviceFlags = DeviceFlags::NoFlags;
   QString phys;
@@ -165,6 +167,7 @@ public:
   void enableWrite(); // enable sending data
 
   // HID++ specific functions
+  const auto& getFeatureSet () const { return m_featureSet; };
   void initSubDevice();
   void pingSubDevice();
   bool isOnline() { return (m_details.hidProtocolVer > 0); };
@@ -186,12 +189,14 @@ public:
   QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
 
 protected:
-  SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode, BusType busType);
+  SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode);
 
   SubDeviceConnectionDetails m_details;
   std::shared_ptr<InputMapper> m_inputMapper; // shared input mapper from parent device.
   std::unique_ptr<QSocketNotifier> m_readNotifier;
   std::unique_ptr<QSocketNotifier> m_writeNotifier;   // only useful for Hidraw connections
+  std::shared_ptr<FeatureSet> m_featureSet = nullptr;
+  DeviceId m_deviceID;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -227,12 +232,8 @@ public:
                                                      const DeviceConnection& dc);
 
   SubHidrawConnection(Token, const QString& path);
-  const auto& getFeatureSet () const { return m_featureSet; };
 
 signals:
   void receivedBatteryInfo(QByteArray batteryData);
   void receivedPingResponse();
-
-protected:
-  std::shared_ptr<FeatureSet> m_featureSet = nullptr;
 };

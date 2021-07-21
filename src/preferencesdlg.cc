@@ -103,7 +103,6 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
 
   connect(overlayCheckBox, &QCheckBox::toggled, this, [settings](bool checked){
     settings->setOverlayDisabled(!checked);
-
   });
 
   connect(settings, &Settings::overlayDisabledChanged, this,
