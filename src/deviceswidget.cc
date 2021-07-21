@@ -226,6 +226,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
       auto flagText = [](DeviceFlag f){
         QStringList flagList;
         if (!!(f & DeviceFlag::Vibrate)) flagList.push_back("Vibration");
+        if (!!(f & DeviceFlag::HasBattery)) flagList.push_back("Report_Battery");
         return flagList;
       };
       for (const auto& sd: dc->subDevices()) {

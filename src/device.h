@@ -2,6 +2,7 @@
 #pragma once
 
 #include "enum-helper.h"
+#include "hidpp.h"
 
 #include <memory>
 
@@ -42,6 +43,7 @@ class InputMapper;
 class QSocketNotifier;
 class SubDeviceConnection;
 class VirtualDevice;
+class FeatureSet;
 
 // -------------------------------------------------------------------------------------------------
 enum class BatteryStatus : uint8_t {Discharging    = 0x00,
@@ -75,6 +77,7 @@ public:
   const auto& deviceName() const { return m_deviceName; }
   const auto& deviceId() const { return m_deviceId; }
   const auto& inputMapper() const { return m_inputMapper; }
+  const auto& getFeatureSet() const { return m_featureSet; }
 
   auto subDeviceCount() const { return m_subDeviceConnections.size(); }
   bool hasSubDevice(const QString& path) const;
@@ -82,7 +85,7 @@ public:
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
   void queryBatteryStatus();
-  auto getBatteryInfo(){return m_batteryInfo;};
+  auto getBatteryInfo(){ return m_batteryInfo; }
 
 public slots:
   void setBatteryInfo(const QByteArray& batteryData);
@@ -100,6 +103,7 @@ protected:
   std::shared_ptr<InputMapper> m_inputMapper;
   ConnectionMap m_subDeviceConnections;
   BatteryInfo m_batteryInfo;
+  std::shared_ptr<FeatureSet> m_featureSet;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -223,8 +227,12 @@ public:
                                                      const DeviceConnection& dc);
 
   SubHidrawConnection(Token, const QString& path);
+  const auto& getFeatureSet () const { return m_featureSet; };
 
 signals:
   void receivedBatteryInfo(QByteArray batteryData);
   void receivedPingResponse();
+
+protected:
+  std::shared_ptr<FeatureSet> m_featureSet = nullptr;
 };

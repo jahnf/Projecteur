@@ -139,12 +139,21 @@ int Spotlight::connectDevices()
         } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
           auto hidCon = SubHidrawConnection::create(scanSubDevice, *dc);
           if(addHIDInputHandler(hidCon)) {
-            connect(hidCon.get(), &SubHidrawConnection::receivedBatteryInfo,
+            if (dc->deviceId().vendorId == 0x46d && hidCon->getFeatureSet()->getFeatureCount() == 0) {
+              //reconnect device to get the feature table
+              connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
+                      this, [this, hidCon](){
+                  removeDeviceConnection(hidCon->path());
+                  connectDevices();});
+            } else {
+              connect(hidCon.get(), &SubHidrawConnection::receivedBatteryInfo,
                     dc.get(), &DeviceConnection::setBatteryInfo);
-            connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
+              connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
                     dc.get(), [this, dc](){emit deviceActivated(dc->deviceId(), dc->deviceName());});
+            }
             return hidCon;
           }
+          if(addHIDInputHandler(hidCon)) return hidCon;
         }
         return std::shared_ptr<SubDeviceConnection>();
       }();
@@ -362,7 +371,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
 
     // TODO: Process other packets
 
-    if (readVal.at(2) == 0x09 && readVal.at(3) == 0x1a) {
+    if (readVal.at(2) == 0x09 && readVal.at(3) == 0x1d) {
       logDebug(hid) << "Device acknowledged a vibration event.";
     }
   }

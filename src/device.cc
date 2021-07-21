@@ -25,7 +25,9 @@ namespace  {
 // -------------------------------------------------------------------------------------------------
 DeviceConnection::DeviceConnection(const DeviceId& id, const QString& name,
                                    std::shared_ptr<VirtualDevice> vdev)
-  : m_deviceId(id), m_deviceName(name), m_inputMapper(std::make_shared<InputMapper>(std::move(vdev))){}
+  : m_deviceId(id), m_deviceName(name), m_inputMapper(std::make_shared<InputMapper>(std::move(vdev))){
+  m_featureSet = std::make_shared<FeatureSet>(FeatureSet());
+}
 
 // -------------------------------------------------------------------------------------------------
 DeviceConnection::~DeviceConnection() = default;
@@ -79,12 +81,19 @@ void DeviceConnection::queryBatteryStatus()
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 {
-  if (batteryData.length() == 3)
+  bool test = m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus);
+  if (test && batteryData.length() == 3)
   {
     // battery percent is only meaningful when battery is discharging. However, save them anyway.
     m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0): 100);
     m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
     m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x06) ? batteryData.at(2): 0x06);
+  }
+  if (m_featureSet->supportFeatureCode(FeatureCode::BatteryVoltage)) {
+    //TODO: Implement battery code for this feature
+  }
+  if (m_featureSet->supportFeatureCode(FeatureCode::BatteryUnified)) {
+    //TODO: Implement battery code for this feature
   }
 }
 
@@ -285,10 +294,27 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
     connection->m_details.deviceFlags |= DeviceFlag::NonBlocking;
   }
 
-  // For now vibration is only supported for the Logitech Spotlight (USB and Bluetooth)
-  if (dc.deviceId().vendorId == 0x46d && (dc.deviceId().productId == 0xc53e || dc.deviceId().productId == 0xb503)) {
-    connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
-    connection->m_details.deviceFlags |= DeviceFlag::HasBattery;
+  // Read HID++ FeatureSet (Feature ID and Feature Code pairs) from device
+  if (dc.deviceId().vendorId == 0x46d) // Only check FeatureSet for Logitech devices
+  {
+    connection->m_featureSet = dc.getFeatureSet();
+    connection->m_featureSet->setHIDDeviceFileDescriptor(devfd);
+    connection->m_featureSet->populateFeatureTable();
+    if (connection->m_featureSet->getFeatureCount()) {
+      logDebug(hid) << "Loaded" << connection->m_featureSet->getFeatureCount() << "features for" << connection->path();
+      if (connection->m_featureSet->supportFeatureCode(FeatureCode::PresenterControl)) {
+        connection->m_details.deviceFlags |= DeviceFlag::Vibrate;
+        logDebug(hid) << "SubDevice" << connection->path() << "reported Vibration capabilities.";
+      }
+      if (connection->m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus) ||
+              connection->m_featureSet->supportFeatureCode(FeatureCode::BatteryVoltage) ||
+              connection->m_featureSet->supportFeatureCode(FeatureCode::BatteryUnified)) {
+        connection->m_details.deviceFlags |= DeviceFlag::HasBattery;
+        logDebug(hid) << "SubDevice" << connection->path() << "can communicate battery information.";
+      }
+    } else {
+      logWarn(hid) << "Loading FeatureSet for" << connection->path() << "failed. Device might be inactive.";
+    }
   }
 
   // Create read and write socket notifiers

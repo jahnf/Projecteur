@@ -69,6 +69,7 @@ add_executable(projecteur
   src/spotlight.cc          src/spotlight.h
   src/spotshapes.cc         src/spotshapes.h
   src/virtualdevice.h       src/virtualdevice.cc
+  src/hidpp.cc              src/hidpp.h
   resources.qrc             qml/qml.qrc)
 
 target_include_directories(projecteur PRIVATE src)
