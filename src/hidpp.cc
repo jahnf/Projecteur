@@ -9,7 +9,19 @@
 DECLARE_LOGGING_CATEGORY(hid)
 
 // -------------------------------------------------------------------------------------------------
-QByteArray FeatureSet::getResponseFromDevice(QByteArray expectedBytes)
+namespace {
+  using HidppMsg = uint8_t[];
+
+  template <typename C, size_t N>
+  QByteArray make_QByteArray(const C(&a)[N]) {
+    return {reinterpret_cast<const char*>(a),N};
+  }
+
+  class Hid_ : public QObject {}; // for i18n and logging
+}
+
+// -------------------------------------------------------------------------------------------------
+QByteArray FeatureSet::getResponseFromDevice(const QByteArray& expectedBytes)
 {
   if (m_fdHIDDevice == -1) return QByteArray();
 
@@ -31,13 +43,22 @@ uint8_t FeatureSet::getFeatureIDFromDevice(FeatureCode fc)
 {
   if (m_fdHIDDevice == -1) return 0x00;
 
-  uint8_t fSetLSB = static_cast<uint8_t>(static_cast<uint16_t>(fc) >> 8);
-  uint8_t fSetMSB = static_cast<uint8_t>(static_cast<uint16_t>(fc));
-  uint8_t featureIDReq[] = {HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, 0x00, 0x0d, fSetLSB, fSetMSB, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  const QByteArray featureIDReqArr(reinterpret_cast<const char*>(featureIDReq), sizeof(featureIDReq));
-  ::write(m_fdHIDDevice, featureIDReqArr.data(), featureIDReqArr.length());
+  const uint8_t fSetLSB = static_cast<uint8_t>(static_cast<uint16_t>(fc) >> 8);
+  const uint8_t fSetMSB = static_cast<uint8_t>(static_cast<uint16_t>(fc));
 
-  auto response = getResponseFromDevice(featureIDReqArr.mid(1, 3));
+  const auto featureReqMessage = make_QByteArray(HidppMsg{
+    HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, 0x00, 0x0d, fSetLSB, fSetMSB, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  });
+
+  const auto res = ::write(m_fdHIDDevice, featureReqMessage.data(), featureReqMessage.size());
+  if (res != featureReqMessage.size())
+  {
+    logDebug(hid) << Hid_::tr("Failed to write feature request message to device.");
+    return 0x00;
+  }
+
+  const auto response = getResponseFromDevice(featureReqMessage.mid(1, 3));
   if (!response.length() || static_cast<uint8_t>(response.at(2)) == 0x8f) return 0x00;
   uint8_t featureID = static_cast<uint8_t>(response.at(4));
 
@@ -50,10 +71,19 @@ uint8_t FeatureSet::getFeatureCountFromDevice(uint8_t featureSetID)
   if (m_fdHIDDevice == -1) return 0x00;
 
   // Get Number of features (except Root Feature) supported
-  uint8_t featureCountReq[] = {HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, featureSetID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  const QByteArray featureCountReqArr(reinterpret_cast<const char*>(featureCountReq), sizeof(featureCountReq));
-  ::write(m_fdHIDDevice, featureCountReqArr.data(), featureCountReqArr.length());
-  auto response = getResponseFromDevice(featureCountReqArr.mid(1, 3));
+  const auto featureCountReqMessage = make_QByteArray(HidppMsg{
+    HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, featureSetID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  });
+
+  const auto res = ::write(m_fdHIDDevice, featureCountReqMessage.data(), featureCountReqMessage.size());
+  if (res != featureCountReqMessage.size())
+  {
+    logDebug(hid) << Hid_::tr("Failed to write feature count request message to device.");
+    return 0x00;
+  }
+
+  const auto response = getResponseFromDevice(featureCountReqMessage.mid(1, 3));
   if (!response.length() || static_cast<uint8_t>(response.at(2)) == 0x8f) return 0x00;
   uint8_t featureCount = static_cast<uint8_t>(response.at(4));
 
@@ -70,12 +100,21 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
   if (!fwID) return QByteArray();
 
   // Get the number of firmwares (Main HID++ application, BootLoader, or Hardware) now
-  uint8_t fwCountReq[] = {HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, fwID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  const QByteArray fwCountReqArr(reinterpret_cast<const char*>(fwCountReq), sizeof(fwCountReq));
-  ::write(m_fdHIDDevice, fwCountReqArr.data(), fwCountReqArr.length());
-  auto response = getResponseFromDevice(fwCountReqArr.mid(1, 3));
-  if (!response.length() || static_cast<uint8_t>(response.at(2)) == 0x8f) return  QByteArray();
-  uint8_t fwCount = static_cast<uint8_t>(response.at(4));
+  const auto fwCountReqMessage = make_QByteArray(HidppMsg{
+    HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, fwID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  });
+
+  const auto res = ::write(m_fdHIDDevice, fwCountReqMessage.data(), fwCountReqMessage.size());
+  if (res != fwCountReqMessage.size())
+  {
+    logDebug(hid) << Hid_::tr("Failed to write firmware count request message to device.");
+    return 0x00;
+  }
+
+  const auto response = getResponseFromDevice(fwCountReqMessage.mid(1, 3));
+  if (!response.length() || static_cast<uint8_t>(response.at(2)) == 0x8f) return QByteArray();
+  const uint8_t fwCount = static_cast<uint8_t>(response.at(4));
 
   // The following info is not used currently; however, these commented lines are kept for future reference.
   // uint8_t connectionMode = static_cast<uint8_t>(response.at(10));
@@ -92,16 +131,25 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
   // if (supportUsbWired) { auto usbmodelID = modelIDs.mid(count, 2); count += 2;}
 
 
-  // Iteratively find out firmware version for all firmwares and get the firmware for main application
+  // Iteratively find out firmware versions for all firmwares and get the firmware for main application
   for (uint8_t i = 0x00; i < fwCount; i++)
   {
-    uint8_t fwVerReq[] = {HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, fwID, 0x1d, i, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    const QByteArray fwVerReqArr(reinterpret_cast<const char*>(fwVerReq), sizeof(fwVerReq));
-    ::write(m_fdHIDDevice, fwVerReqArr.data(), fwVerReqArr.length());
-    auto fwResponse = getResponseFromDevice(fwVerReqArr.mid(1, 3));
+    const auto fwVerReqMessage = make_QByteArray(HidppMsg{
+      HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, fwID, 0x1d, i, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    });
+
+    const auto res = ::write(m_fdHIDDevice, fwVerReqMessage.data(), fwVerReqMessage.length());
+    if (res != fwCountReqMessage.size())
+    {
+      logDebug(hid) << Hid_::tr("Failed to write firmware request message to device (%1).")
+                             .arg(int(i));
+      return 0x00;
+    }
+    const auto fwResponse = getResponseFromDevice(fwVerReqMessage.mid(1, 3));
     if (!fwResponse.length() || static_cast<uint8_t>(fwResponse.at(2)) == 0x8f) return QByteArray();
-    auto fwType = (fwResponse.at(4) & 0x0f);  // 0 for main HID++ application, 1 for BootLoader, 2 for Hardware, 3-15 others
-    auto fwVersion = fwResponse.mid(5, 7);
+    const auto fwType = (fwResponse.at(4) & 0x0f);  // 0 for main HID++ application, 1 for BootLoader, 2 for Hardware, 3-15 others
+    const auto fwVersion = fwResponse.mid(5, 7);
     // Currently we are not interested in these details; however, these commented lines are kept for future reference.
     //auto firmwareName = fwVersion.mid(0, 3).data();
     //auto majorVesion = fwResponse.at(3);
@@ -122,7 +170,7 @@ void FeatureSet::populateFeatureTable()
   if (m_fdHIDDevice == -1) return;
 
   // Get the firmware version
-  auto firmwareVersion = getFirmwareVersionFromDevice();
+  const auto firmwareVersion = getFirmwareVersionFromDevice();
   if (!firmwareVersion.length()) return;
 
   // TODO:: Read and write cache file (settings most probably)
@@ -133,33 +181,42 @@ void FeatureSet::populateFeatureTable()
   if (firmwareVersion == cacheFirmwareVersion)
   {
     // TODO: load the featureSet from the cache file
-
-  } else {
+  }
+  else
+  {
     // For reading feature table from device
     // first get featureID for FeatureCode::FeatureSet
     // then we can get the number of features supported by the device (except Root Feature)
-    uint8_t featureSetID = getFeatureIDFromDevice(FeatureCode::FeatureSet);
+    const uint8_t featureSetID = getFeatureIDFromDevice(FeatureCode::FeatureSet);
     if (!featureSetID) return;
-    uint8_t featureCount = getFeatureCountFromDevice(featureSetID);
+    const uint8_t featureCount = getFeatureCountFromDevice(featureSetID);
     if (!featureCount) return;
 
     // Root feature is supported by all HID++ 2.0 device and has a featureID of 0 always.
     m_featureTable.insert({static_cast<uint16_t>(FeatureCode::Root), 0x00});
 
     // Read Feature Code for other featureIds from device.
-    for (uint8_t featureId = 0x01; featureId <= featureCount; featureId++) {
-      const uint8_t data[] = {HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, featureSetID, 0x1d, featureId, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-      const QByteArray dataArr(reinterpret_cast<const char*>(data), sizeof(data));
-      ::write(m_fdHIDDevice, dataArr.data(), dataArr.length());
-      auto response = getResponseFromDevice(dataArr.mid(1, 3));
+    for (uint8_t featureId = 0x01; featureId <= featureCount; ++featureId)
+    {
+      const auto featureCodeReqMsg = make_QByteArray(HidppMsg{
+        HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, featureSetID, 0x1d, featureId, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+      });
+      const auto res = ::write(m_fdHIDDevice, featureCodeReqMsg.data(), featureCodeReqMsg.size());
+      if (res != featureCodeReqMsg.size()) {
+        logDebug(hid) << Hid_::tr("Failed to write feature code request message to device.");
+        return;
+      }
+
+      const auto response = getResponseFromDevice(featureCodeReqMsg.mid(1, 3));
       if (!response.length() || static_cast<uint8_t>(response.at(2)) == 0x8f) {
         m_featureTable.clear();
         return;
       }
-      uint16_t featureCode = (static_cast<uint16_t>(response.at(4)) << 8) | static_cast<uint8_t>(response.at(5));
-      uint8_t featureType = static_cast<uint8_t>(response.at(6));
-      auto softwareHidden = (featureType & (1<<6));
-      auto obsoleteFeature = (featureType & (1<<7));
+      const uint16_t featureCode = (static_cast<uint16_t>(response.at(4)) << 8) | static_cast<uint8_t>(response.at(5));
+      const uint8_t featureType = static_cast<uint8_t>(response.at(6));
+      const auto softwareHidden = (featureType & (1<<6));
+      const auto obsoleteFeature = (featureType & (1<<7));
       if (!(softwareHidden) && !(obsoleteFeature)) m_featureTable.insert({featureCode, featureId});
     }
   }
@@ -168,7 +225,7 @@ void FeatureSet::populateFeatureTable()
 // -------------------------------------------------------------------------------------------------
 bool FeatureSet::supportFeatureCode(FeatureCode fc)
 {
-  auto featurePair = m_featureTable.find(static_cast<uint16_t>(fc));
+  const auto featurePair = m_featureTable.find(static_cast<uint16_t>(fc));
   return (featurePair != m_featureTable.end());
 }
 
@@ -177,21 +234,24 @@ uint8_t FeatureSet::getFeatureID(FeatureCode fc)
 {
   if (!supportFeatureCode(fc)) return 0x00;
 
-  auto featurePair = m_featureTable.find(static_cast<uint16_t>(fc));
+  const auto featurePair = m_featureTable.find(static_cast<uint16_t>(fc));
   return featurePair->second;
 }
 
 // -------------------------------------------------------------------------------------------------
-QByteArray HIDPP::shortToLongMsg(QByteArray shortMsg)
+QByteArray HIDPP::shortToLongMsg(const QByteArray& shortMsg)
 {
-  bool isValidShortMsg = (shortMsg.at(0) == HIDPP_SHORT_MSG && shortMsg.length() == 7);
+  const bool isValidShortMsg = (shortMsg.at(0) == HIDPP_SHORT_MSG && shortMsg.length() == 7);
 
-  if (isValidShortMsg) {
+  if (isValidShortMsg)
+  {
     QByteArray longMsg;
+    longMsg.reserve(20);
     longMsg.append(HIDPP_LONG_MSG);
     longMsg.append(shortMsg.mid(1));
-    QByteArray padding(20 - longMsg.length(), 0);
-    longMsg.append(padding);
+    longMsg.append(20 - longMsg.length(), 0);
     return longMsg;
-  } else return shortMsg;
+  }
+
+  return shortMsg;
 }

@@ -17,6 +17,8 @@
 #include <QStackedLayout>
 #include <QStyle>
 #include <QTabWidget>
+#include <QTimer>
+#include <QTextEdit>
 
 DECLARE_LOGGING_CATEGORY(preferences)
 
@@ -34,6 +36,7 @@ namespace {
 // -------------------------------------------------------------------------------------------------
 DevicesWidget::DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent)
   : QWidget(parent)
+  , m_updateDeviceDetailsTimer(new QTimer(this))
 {
   createDeviceComboBox(spotlight);
 

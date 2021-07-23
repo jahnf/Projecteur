@@ -1,10 +1,9 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
-#include <memory>
+#include <map>
 
-#include <QObject>
-#include <QFile>
+#include <QByteArray>
 
 #define HIDPP_SHORT_MSG                         0x10
 #define HIDPP_LONG_MSG                          0x11
@@ -37,27 +36,25 @@ enum class FeatureCode : uint16_t {
 };
 
 namespace HIDPP {
-QByteArray shortToLongMsg(QByteArray shortMsg);  // used for bluetooth connections
+  /// Used for Bluetooth connections
+  QByteArray shortToLongMsg(const QByteArray& shortMsg);
 }
 
 // Class to get and store Set of supported features for a HID++ 2.0 device
 class FeatureSet
 {
 public:
-  FeatureSet() {};
-  virtual ~FeatureSet() {}
-
   void setHIDDeviceFileDescriptor(int fd) { m_fdHIDDevice = fd; }
   uint8_t getFeatureID(FeatureCode fc);
   bool supportFeatureCode(FeatureCode fc);
   auto getFeatureCount() { return m_featureTable.size(); }
   void populateFeatureTable();
 
-protected:
+private:
   uint8_t getFeatureIDFromDevice(FeatureCode fc);
   uint8_t getFeatureCountFromDevice(uint8_t featureSetID);
   QByteArray getFirmwareVersionFromDevice();
-  QByteArray getResponseFromDevice(QByteArray expectedBytes);
+  QByteArray getResponseFromDevice(const QByteArray& expectedBytes);
 
   std::map<uint16_t, uint8_t> m_featureTable;
   int m_fdHIDDevice = -1;

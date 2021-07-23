@@ -25,10 +25,11 @@ namespace  {
 // -------------------------------------------------------------------------------------------------
 DeviceConnection::DeviceConnection(const DeviceId& id, const QString& name,
                                    std::shared_ptr<VirtualDevice> vdev)
-  : m_deviceId(id),
-    m_deviceName(name),
-    m_inputMapper(std::make_shared<InputMapper>(std::move(vdev))){
-  m_featureSet = std::make_shared<FeatureSet>(FeatureSet());
+  : m_deviceId(id)
+  , m_deviceName(name)
+  , m_inputMapper(std::make_shared<InputMapper>(std::move(vdev)))
+  , m_featureSet(std::make_shared<FeatureSet>())
+{
 }
 
 // -------------------------------------------------------------------------------------------------
