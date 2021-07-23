@@ -44,6 +44,7 @@ public:
 signals:
   void deviceConnected(const DeviceId& id, const QString& name);
   void deviceDisconnected(const DeviceId& id, const QString& name);
+  void deviceActivated(const DeviceId& id, const QString& name);
   void subDeviceConnected(const DeviceId& id, const QString& name, const QString& path);
   void subDeviceDisconnected(const DeviceId& id, const QString& name, const QString& path);
   void anySpotlightDeviceConnectedChanged(bool connected);

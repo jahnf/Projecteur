@@ -138,6 +138,13 @@ int Spotlight::connectDevices()
           if (addInputEventHandler(devCon)) return devCon;
         } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
           auto hidCon = SubHidrawConnection::create(scanSubDevice, *dc);
+          if(addHIDInputHandler(hidCon)) {
+              connect(hidCon.get(), &SubHidrawConnection::receivedBatteryInfo,
+                    dc.get(), &DeviceConnection::setBatteryInfo);
+              connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
+                    dc.get(), [this, dc](){emit deviceActivated(dc->deviceId(), dc->deviceName());});
+            return hidCon;
+          }
           if(addHIDInputHandler(hidCon)) return hidCon;
         }
         return std::shared_ptr<SubDeviceConnection>();
@@ -315,38 +322,52 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
   }
 
   // Only process HID++ packets (hence, the packets starting with 0x10 or 0x11)
-  if (!(readVal.at(0) == 0x10 || readVal.at(0) == 0x11)) {
+  if (!(readVal.at(0) == HIDPP_SHORT_MSG || readVal.at(0) == HIDPP_LONG_MSG)) {
     return;
   }
 
   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
 
-  if (readVal.at(0) == 0x10)    // Logitech HIDPP SHORT message: 7 byte long
+  if (readVal.at(0) == HIDPP_SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
   {
-    if (readVal.at(2) == 0x41 && !!(readVal.at(3) & 0x04 &&
-                                    !(readVal.at(4) & 1<<6))) {    // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
-      // currently it is off as I observed that device send two online packet
-      // one with 0x10 and other with 0x11. Currently initsubDevice is triggered
-      // on 0x11 packet.
-      //connection.initSubDevice();
+    if (readVal.at(2) == HIDPP_SHORT_WIRELESS_NOTIFICATION_CODE) {    // wireless notification from USB dongle
+      auto connection_status = readVal.at(4) & (1<<6);  // should be zero for successful connection
+      if (connection_status) {    // connection between USB dongle and spotlight device broke
+        connection.setHIDProtocol(-1);
+      } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
+        if (!connection.isOnline()) connection.initSubDevice();
+      }
     }
   }
 
-  if (readVal.at(0) == 0x11)    // Logitech HIDPP LONG message: 20 byte long
+  if (readVal.at(0) == HIDPP_LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
   {
-    if (readVal.at(2) == 0x00 && readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) // response to ping
-    {
-      auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
-      logDebug(hid) << connection.path() << "is online with protocol version" << protocolVer ;
-      connection.setHIDProtocol(protocolVer);
+    auto rootID = connection.getFeatureSet()->getFeatureID(FeatureCode::Root);
+    if (readVal.at(2) == rootID) {
+      if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) { // response to ping
+        auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
+        connection.setHIDProtocol(protocolVer);
+        if (connection.isOnline()) emit connection.receivedPingResponse();
+      }
     }
-    if (readVal.at(2) == 0x04 && readVal.at(4) ==0x01 &&
-            readVal.at(5) == 0x01 && readVal.at(6) == 0x01) {    // Logitech spotlight presenter unit got online.
-      connection.initSubDevice();
+
+    auto wirelessNotificationID = connection.getFeatureSet()->getFeatureID(FeatureCode::WirelessDeviceStatus);
+    if (wirelessNotificationID && readVal.at(2) == wirelessNotificationID) {    // Logitech spotlight presenter unit got online.
+      if (!connection.isOnline()) connection.initSubDevice();
     }
+
+    // Battery packet processing: Device responded to BatteryStatus (0x1000) packet
+    auto batteryID = connection.getFeatureSet()->getFeatureID(FeatureCode::BatteryStatus);
+    if (batteryID && readVal.at(2) == batteryID && readVal.at(3) == 0x0d) {  // Battery information packet
+      QByteArray batteryData(readVal.mid(4, 3));
+      emit connection.receivedBatteryInfo(batteryData);
+    }
+
     // TODO: Process other packets
 
-    if (readVal.at(2) == 0x09 && readVal.at(3) == 0x1d) {
+    // Vibration response check
+    const uint8_t pcID = connection.getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
+    if (pcID && readVal.at(2) == pcID && readVal.at(3) == 0x1d) {
       logDebug(hid) << "Device acknowledged a vibration event.";
     }
   }

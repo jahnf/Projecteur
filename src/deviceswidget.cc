@@ -159,9 +159,14 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
     m_vibrationSettingsWidget->setSubDeviceConnection(conn.get());
   }
 
+  m_deviceDetailsTabWidget = createDeviceInfoWidget(spotlight);
+  tabWidget->addTab(m_deviceDetailsTabWidget, tr("Details"));
+
   connect(this, &DevicesWidget::currentDeviceChanged, this,
   [vibrateConn=std::move(vibrateConn), tabWidget, settings, spotlight, this]
   (const DeviceId& devId) {
+    const auto idx = tabWidget->indexOf(m_deviceDetailsTabWidget);
+    if (idx >= 0) tabWidget->removeTab(idx);
     if (const auto conn = vibrateConn(devId)) {
       if (m_timerTabWidget == nullptr) {
         m_timerTabWidget = createTimerTabWidget(settings, spotlight);
@@ -176,20 +181,144 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
       if (idx >= 0) tabWidget->removeTab(idx);
       m_vibrationSettingsWidget->setSubDeviceConnection(nullptr);
     }
+    // ensure that Details tab is last tab
+    tabWidget->addTab(m_deviceDetailsTabWidget, tr("Details"));
+
+    tabWidget->setCurrentIndex(0);
   });
 
   return dw;
 }
 
 // -------------------------------------------------------------------------------------------------
-QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* /*spotlight*/)
+void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
+{
+  auto updateBatteryInfo = [this, spotlight]() {
+    auto curDeviceId = currentDeviceId();
+    if (curDeviceId == invalidDeviceId)
+      return;
+    auto dc = spotlight->deviceConnection(curDeviceId);
+    dc->queryBatteryStatus();
+  };
+
+  auto getDeviceDetails = [this, spotlight]() {
+    QString deviceDetails;
+    auto curDeviceId = currentDeviceId();
+    if (curDeviceId == invalidDeviceId)
+      return tr("No Device Connected");
+    auto dc = spotlight->deviceConnection(curDeviceId);
+
+    const auto busTypeToString = [](BusType type) -> QString {
+      if (type == BusType::Usb) return "USB";
+      if (type == BusType::Bluetooth) return "Bluetooth";
+      return "Unknown";
+    };
+
+    const QStringList subDeviceList = [dc](){
+      QStringList subDeviceList;
+      auto accessText = [](ConnectionMode m){
+        if (m == ConnectionMode::ReadOnly) return "ReadOnly";
+        if (m == ConnectionMode::WriteOnly) return "WriteOnly";
+        if (m == ConnectionMode::ReadWrite) return "ReadWrite";
+        return "Unknown Access";
+      };
+      // report special flags set by program (like vibration and others)
+      auto flagText = [](DeviceFlag f){
+        QStringList flagList;
+        if (!!(f & DeviceFlag::Vibrate)) flagList.push_back("Vibration");
+        if (!!(f & DeviceFlag::ReportBattery)) flagList.push_back("Report_Battery");
+        return flagList;
+      };
+      for (const auto& sd: dc->subDevices()) {
+        if (sd.second->path().size()) {
+          auto sds = sd.second;
+          auto flagInfo = flagText(sds->flags());
+          subDeviceList.push_back(tr("%1\t[%2, %3, %4]").arg(sds->path(),
+                                                     accessText(sds->mode()),
+                                                     sds->isGrabbed()?"Grabbed":"",
+                                                     flagInfo.isEmpty()?"":"Supports: " + flagInfo.join("; ")
+                                                     ));
+        }
+      }
+      return subDeviceList;
+    }();
+    auto batteryStatusText = [](BatteryStatus d){
+      if (d == BatteryStatus::Discharging) return "Discharging";
+      if (d == BatteryStatus::Charging) return "Charging";
+      if (d == BatteryStatus::AlmostFull) return "Almost Full";
+      if (d == BatteryStatus::Full) return "Full Charge";
+      if (d == BatteryStatus::SlowCharging) return "Slow Charging";
+      if (d == BatteryStatus::InvalidBattery || d == BatteryStatus::ThermalError || d == BatteryStatus::ChargingError) {
+        return "Charging Error";
+      };
+      return "";
+    };
+
+    auto sDevices = dc->subDevices();
+    auto batteryInfoText = [dc, batteryStatusText, sDevices](){
+      const bool isOnline = std::any_of(sDevices.cbegin(), sDevices.cend(),
+                                            [](const auto& sd){
+            return (sd.second->type() == ConnectionType::Hidraw &&
+                    sd.second->mode() == ConnectionMode::ReadWrite &&
+                    sd.second->isOnline());});
+      if (isOnline) {
+        auto batteryInfo= dc->getBatteryInfo();
+        // Only show battery percent while discharging.
+        // Other cases, device do not report battery percentage correctly.
+        if (batteryInfo.status == BatteryStatus::Discharging) {
+          return tr("%1\% - %2% (%3)").arg(
+                      QString::number(batteryInfo.currentLevel),
+                      QString::number(batteryInfo.nextReportedLevel),
+                      batteryStatusText(batteryInfo.status));
+        } else {
+          return tr("%3").arg(batteryStatusText(batteryInfo.status));
+        }
+      } else {
+        return tr("Device not active. Press any key on device to update.");
+      }
+    };
+    const bool hasBattery = std::any_of(sDevices.cbegin(), sDevices.cend(),
+                                        [](const auto& sd){
+        return (sd.second->type() == ConnectionType::Hidraw &&
+                sd.second->mode() == ConnectionMode::ReadWrite &&
+                !!(sd.second->flags() & DeviceFlag::ReportBattery));});
+
+    deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
+    deviceDetails += tr("VendorId:\t%1\n").arg(logging::hexId(dc->deviceId().vendorId));
+    deviceDetails += tr("ProductId:\t%1\n").arg(logging::hexId(dc->deviceId().productId));
+    deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
+    deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
+    deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
+    if (hasBattery) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
+
+    return deviceDetails;
+  };
+
+  QTimer::singleShot(200, this, [updateBatteryInfo](){updateBatteryInfo();});
+  if (m_deviceDetailsTextEdit) {
+    QTimer::singleShot(1000, this, [this, getDeviceDetails](){m_deviceDetailsTextEdit->setText(getDeviceDetails());});
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
 {
   const auto diWidget = new QWidget(this);
   const auto layout = new QHBoxLayout(diWidget);
-  layout->addStretch(1);
-  layout->addWidget(new QLabel(tr("Not yet implemented"), this));
-  layout->addStretch(1);
-  diWidget->setDisabled(true);
+  if (!m_deviceDetailsTextEdit) m_deviceDetailsTextEdit = new QTextEdit(this);
+  m_deviceDetailsTextEdit->setReadOnly(true);
+  m_deviceDetailsTextEdit->setText("");
+
+  updateDeviceDetails(spotlight);
+
+  connect(m_updateDeviceDetailsTimer, &QTimer::timeout, this, [this, spotlight](){updateDeviceDetails(spotlight);});
+  m_updateDeviceDetailsTimer->start(900000);  // Update every 15 minutes
+
+  connect(this, &DevicesWidget::currentDeviceChanged, this, [this, spotlight](){updateDeviceDetails(spotlight);});
+  connect(spotlight, &Spotlight::deviceActivated, this,
+          [this, spotlight](const DeviceId& d){if (d==currentDeviceId()){ updateDeviceDetails(spotlight);};});
+
+  layout->addWidget(m_deviceDetailsTextEdit);
   return diWidget;
 }
 

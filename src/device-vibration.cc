@@ -419,12 +419,14 @@ void VibrationSettingsWidget::sendVibrateCommand()
   //      for not only the Spotlight device.
   //
   // Spotlight:
-  //                                                    len         intensity
-  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
+  //                                        present
+  //                                        controlID   len         intensity
+  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
 
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
-  const uint8_t vibrateCmd[] = {0x10, 0x01, 0x09, 0x1d, vlen, 0xe8, vint};
+  const uint8_t pcID = m_subDeviceConnection->getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
+  const uint8_t vibrateCmd[] = {HIDPP_SHORT_MSG, MSG_TO_SPOTLIGHT, pcID, 0x1d, vlen, 0xe8, vint};
 
-  m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
+  if (pcID) m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
 }
