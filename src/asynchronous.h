@@ -4,16 +4,40 @@
 #include <QMetaObject>
 #include <QPointer>
 
+#if (QT_VERSION < QT_VERSION_CHECK(5, 10, 0))
+#include <QCoreApplication>
+#include <QEvent>
+#endif
+
 #include <functional>
 #include <type_traits>
 
 namespace async {
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
 // Invoke a (lambda) function for context QObject with queued connection.
 template <typename F>
 void invoke(QObject* context, F function) {
   QMetaObject::invokeMethod(context, std::move(function), Qt::QueuedConnection);
 }
+#else
+// ... older Qt versions < 5.10
+namespace detail {
+template <typename F>
+struct FEvent : public QEvent {
+  using Fun = typename std::decay<F>::type;
+  Fun fun;
+  FEvent(Fun && fun) : QEvent(QEvent::None), fun(std::move(fun)) {}
+  FEvent(const Fun & fun) : QEvent(QEvent::None), fun(fun) {}
+  ~FEvent() { fun(); }
+}; }
+
+template <typename F>
+void invoke(QObject* context, F&& function) {
+  QCoreApplication::postEvent(context, new detail::FEvent<F>(std::forward<F>(function)));
+}
+#endif
+
 
 // --- Helpers to deduce std::function type from a lambda.
 template <typename>
@@ -44,11 +68,16 @@ std::function<R(Args...)> makeSafeCallback(QObject* context,
       return;
     }
 
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
     QMetaObject::invokeMethod(ctxPtr,
       std::bind(std::move(func), std::forward<Args>(args)...),
       forceQueued ? Qt::QueuedConnection : Qt::AutoConnection);
     // Note: if forceQueued is false and current thread is the same as
     // the context thread -> execute directly
+    #else
+    // For Qt < 5.10 the call is always queued via the event queue
+    async::invoke(ctxPtr, std::bind(std::move(func), std::forward<Args>(args)...));
+    #endif
   };
   return res;
 }
@@ -83,7 +112,7 @@ protected:
   /// Post a function to the own event loop.
   template <typename F>
   void postSelf(F function) {
-    invoke(static_cast<T*>(this), std::move(function));
+    async::invoke(static_cast<T*>(this), std::move(function));
   }
 
 public:
