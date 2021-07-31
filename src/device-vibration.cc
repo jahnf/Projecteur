@@ -2,6 +2,7 @@
 #include "device-vibration.h"
 
 #include "device.h"
+#include "hidpp.h"
 #include "iconwidgets.h"
 #include "logging.h"
 
@@ -18,7 +19,6 @@
 
 #include <array>
 #include <chrono>
-#include <unistd.h>
 
 // -------------------------------------------------------------------------------------------------
 namespace {
@@ -412,7 +412,7 @@ void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
 void VibrationSettingsWidget::sendVibrateCommand()
 {
   if (!m_subDeviceConnection) return;
-  if ((m_subDeviceConnection->flags() & DeviceFlag::Vibrate) != DeviceFlag::Vibrate) return;
+  if (!m_subDeviceConnection->hasFlags(DeviceFlag::Vibrate)) return;
   if (!m_subDeviceConnection->isConnected()) return;
 
   // TODO generalize features and protocol for proprietary device features like vibration
@@ -423,10 +423,12 @@ void VibrationSettingsWidget::sendVibrateCommand()
   //                                        controlID   len         intensity
   // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
 
+  const uint8_t pcID = m_subDeviceConnection->getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
+  if (pcID == 0x00) return;
+
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
-  const uint8_t pcID = m_subDeviceConnection->getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
   const uint8_t vibrateCmd[] = {HIDPP_SHORT_MSG, MSG_TO_SPOTLIGHT, pcID, 0x1d, vlen, 0xe8, vint};
 
-  if (pcID) m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
+  m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
 }

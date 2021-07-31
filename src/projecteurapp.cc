@@ -9,8 +9,6 @@
 #include "settings.h"
 #include "spotlight.h"
 
-#include <QDesktopWidget>
-#include <QDialog>
 #include <QFontDatabase>
 #include <QLocalServer>
 #include <QLocalSocket>

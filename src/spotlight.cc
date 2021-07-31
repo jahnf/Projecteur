@@ -2,6 +2,7 @@
 #include "spotlight.h"
 
 #include "deviceinput.h"
+#include "hidpp.h"
 #include "logging.h"
 #include "settings.h"
 #include "virtualdevice.h"
@@ -132,20 +133,27 @@ int Spotlight::connectDevices()
       if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
 
       std::shared_ptr<SubDeviceConnection> subDeviceConnection =
-      [&scanSubDevice, &dc, this]() -> std::shared_ptr<SubDeviceConnection> {
+      [&scanSubDevice, &dc, this]() -> std::shared_ptr<SubDeviceConnection>
+      { // Input event sub devices
         if (scanSubDevice.type == DeviceScan::SubDevice::Type::Event) {
           auto devCon = SubEventConnection::create(scanSubDevice, *dc);
           if (addInputEventHandler(devCon)) return devCon;
-        } else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
+        } // Hidraw sub devices
+        else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
           auto hidCon = SubHidrawConnection::create(scanSubDevice, *dc);
-          if(addHIDInputHandler(hidCon)) {
-              connect(hidCon.get(), &SubHidrawConnection::receivedBatteryInfo,
+          if (addHIDInputHandler(hidCon))
+          {
+            // Post initialize task to event loop
+            hidCon->postTask([c = hidCon.get()](){ c->initialize(); });
+
+            // connect to hidraw sub connection signals
+            connect(hidCon.get(), &SubHidrawConnection::receivedBatteryInfo,
                     dc.get(), &DeviceConnection::setBatteryInfo);
-              connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
+            connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
                     dc.get(), [this, dc](){emit deviceActivated(dc->deviceId(), dc->deviceName());});
+
             return hidCon;
           }
-          if(addHIDInputHandler(hidCon)) return hidCon;
         }
         return std::shared_ptr<SubDeviceConnection>();
       }();
@@ -248,7 +256,7 @@ void Spotlight::removeDeviceConnection(const QString &devicePath)
 // -------------------------------------------------------------------------------------------------
 void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
 {
-  const bool isNonBlocking = !!(connection.flags() & DeviceFlag::NonBlocking);
+  const bool isNonBlocking = connection.hasFlags(DeviceFlag::NonBlocking);
   while (true)
   {
     auto& buf = connection.inputBuffer();
@@ -258,7 +266,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       if (errno != EAGAIN)
       {
         const bool anyConnectedBefore = anySpotlightDeviceConnected();
-        connection.disable();
+        connection.setNotifiersEnabled(false);
         QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
           removeDeviceConnection(devicePath);
           if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
@@ -310,7 +318,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
     if (errno != EAGAIN)
     {
       const bool anyConnectedBefore = anySpotlightDeviceConnected();
-      connection.disable();
+      connection.setNotifiersEnabled(false);
       QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
         removeDeviceConnection(devicePath);
         if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
@@ -335,7 +343,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
       if (connection_status) {    // connection between USB dongle and spotlight device broke
         connection.setHIDProtocol(-1);
       } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
-        if (!connection.isOnline()) connection.initSubDevice();
+        if (!connection.isOnline()) connection.initialize();
       }
     }
   }
@@ -353,7 +361,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
 
     auto wirelessNotificationID = connection.getFeatureSet()->getFeatureID(FeatureCode::WirelessDeviceStatus);
     if (wirelessNotificationID && readVal.at(2) == wirelessNotificationID) {    // Logitech spotlight presenter unit got online.
-      if (!connection.isOnline()) connection.initSubDevice();
+      if (!connection.isOnline()) connection.initialize();
     }
 
     // Battery packet processing: Device responded to BatteryStatus (0x1000) packet

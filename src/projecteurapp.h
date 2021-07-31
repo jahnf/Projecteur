@@ -17,7 +17,6 @@ class QQmlApplicationEngine;
 class QQmlComponent;
 class QSystemTrayIcon;
 class Settings;
-class Settings;
 
 class ProjecteurApplication : public QApplication
 {

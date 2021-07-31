@@ -4,7 +4,6 @@
 #include "device.h"
 
 #include <QString>
-#include <QMetaType>
 
 #include <vector>
 

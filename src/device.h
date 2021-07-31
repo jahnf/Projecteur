@@ -1,10 +1,11 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
+#include "asynchronous.h"
 #include "enum-helper.h"
-#include "hidpp.h"
 
 #include <memory>
+#include <vector>
 
 #include <QObject>
 
@@ -96,6 +97,7 @@ public slots:
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
   void subDeviceDisconnected(const DeviceId& id, const QString& path);
+  void subDeviceFlagsChanged(const DeviceId& id, const QString& path);
 
 protected:
   using DevicePath = QString;
@@ -118,7 +120,8 @@ enum class DeviceFlag : uint32_t {
   RelativeEvents = 1 << 3,
   KeyEvents      = 1 << 4,
 
-  Vibrate        = 1 << 16,
+  Hidpp          = 1 << 15, ///< Device supports hidpp requests
+  Vibrate        = 1 << 16, ///< Device supports vibrate commands
   ReportBattery  = 1 << 17,
 };
 ENUM(DeviceFlag, DeviceFlags)
@@ -154,7 +157,7 @@ private:
 };
 
 // -------------------------------------------------------------------------------------------------
-class SubDeviceConnection : public QObject
+class SubDeviceConnection : public QObject, public async::Async<SubDeviceConnection>
 {
   Q_OBJECT
 public:
@@ -162,18 +165,17 @@ public:
 
   bool isConnected() const;
   void disconnect(); // destroys socket notifier and close file handle
-  void disable(); // disable receiving/sending data
-  void disableWrite(); // disable sending data
-  void enableWrite(); // enable sending data
+  void setNotifiersEnabled(bool enabled); // enable/disable read and write socket notifiers
+  void setReadNotifierEnabled(bool enabled); // disable/enable read socket notifier
+  void setWriteNotifierEnabled(bool enabled); // disable/enable write socket notifier
 
   // HID++ specific functions
   const auto& getFeatureSet () const { return m_featureSet; };
-  void initSubDevice();
   void pingSubDevice();
-  bool isOnline() { return (m_details.hidProtocolVer > 0); };
+  bool isOnline() const { return (m_details.hidProtocolVer > 0); };
   void setHIDProtocol(float version);
-  float getHIDProtocol() { return m_details.hidProtocolVer; };
-  void queryBatteryStatus();
+  float getHIDProtocol() const { return m_details.hidProtocolVer; };
+
   ssize_t sendData(const QByteArray& hidppMsg, bool checkDeviceOnline = true);               // Send HID++ Message to HIDraw connection
   ssize_t sendData(const void* hidppMsg, size_t hidppMsgLen, bool checkDeviceOnline = true); // Send HID++ Message to HIDraw connection
 
@@ -184,18 +186,24 @@ public:
   const auto& phys() const { return m_details.phys; };
   const auto& path() const { return m_details.devicePath; };
 
+  inline bool hasFlags(DeviceFlags f) const { return ((flags() & f) == f); }
+
   const std::shared_ptr<InputMapper>& inputMapper() const;
   QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
   QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
 
+signals:
+  void flagsChanged(DeviceFlags f);
+
 protected:
   SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode);
+  DeviceFlags setFlags(DeviceFlags f, bool set = true);
 
   SubDeviceConnectionDetails m_details;
   std::shared_ptr<InputMapper> m_inputMapper; // shared input mapper from parent device.
   std::unique_ptr<QSocketNotifier> m_readNotifier;
   std::unique_ptr<QSocketNotifier> m_writeNotifier;   // only useful for Hidraw connections
-  std::shared_ptr<FeatureSet> m_featureSet = nullptr;
+  std::shared_ptr<FeatureSet> m_featureSet;
   DeviceId m_deviceID;
 };
 
@@ -232,6 +240,10 @@ public:
                                                      const DeviceConnection& dc);
 
   SubHidrawConnection(Token, const QString& path);
+
+  // --- HID++ specific
+  void initialize();
+  void queryBatteryStatus();
 
 signals:
   void receivedBatteryInfo(QByteArray batteryData);
