@@ -20,6 +20,7 @@ namespace {
   class Hid_ : public QObject {}; // for i18n and logging
 }
 
+namespace HIDPP {
 // -------------------------------------------------------------------------------------------------
 QByteArray FeatureSet::getResponseFromDevice(const QByteArray& expectedBytes)
 {
@@ -47,7 +48,7 @@ uint8_t FeatureSet::getFeatureIDFromDevice(FeatureCode fc)
   const uint8_t fSetMSB = static_cast<uint8_t>(static_cast<uint16_t>(fc));
 
   const auto featureReqMessage = make_QByteArray(HidppMsg{
-    HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, 0x00, 0x0d, fSetLSB, fSetMSB, 0x00, 0x00,
+    HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, 0x00, 0x0d, fSetLSB, fSetMSB, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
   });
 
@@ -72,7 +73,7 @@ uint8_t FeatureSet::getFeatureCountFromDevice(uint8_t featureSetID)
 
   // Get Number of features (except Root Feature) supported
   const auto featureCountReqMessage = make_QByteArray(HidppMsg{
-    HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, featureSetID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, featureSetID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
   });
 
@@ -101,7 +102,7 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
 
   // Get the number of firmwares (Main HID++ application, BootLoader, or Hardware) now
   const auto fwCountReqMessage = make_QByteArray(HidppMsg{
-    HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, fwID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, fwID, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
   });
 
@@ -135,7 +136,7 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
   for (uint8_t i = 0x00; i < fwCount; i++)
   {
     const auto fwVerReqMessage = make_QByteArray(HidppMsg{
-      HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, fwID, 0x1d, i, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, fwID, 0x1d, i, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     });
 
@@ -199,7 +200,7 @@ void FeatureSet::populateFeatureTable()
     for (uint8_t featureId = 0x01; featureId <= featureCount; ++featureId)
     {
       const auto featureCodeReqMsg = make_QByteArray(HidppMsg{
-        HIDPP_LONG_MSG, MSG_TO_SPOTLIGHT, featureSetID, 0x1d, featureId, 0x00, 0x00, 0x00, 0x00,
+        HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, featureSetID, 0x1d, featureId, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
       });
       const auto res = ::write(m_fdHIDDevice, featureCodeReqMsg.data(), featureCodeReqMsg.size());
@@ -223,14 +224,14 @@ void FeatureSet::populateFeatureTable()
 }
 
 // -------------------------------------------------------------------------------------------------
-bool FeatureSet::supportFeatureCode(FeatureCode fc)
+bool FeatureSet::supportFeatureCode(FeatureCode fc) const
 {
   const auto featurePair = m_featureTable.find(static_cast<uint16_t>(fc));
   return (featurePair != m_featureTable.end());
 }
 
 // -------------------------------------------------------------------------------------------------
-uint8_t FeatureSet::getFeatureID(FeatureCode fc)
+uint8_t FeatureSet::getFeatureID(FeatureCode fc) const
 {
   if (!supportFeatureCode(fc)) return 0x00;
 
@@ -239,15 +240,15 @@ uint8_t FeatureSet::getFeatureID(FeatureCode fc)
 }
 
 // -------------------------------------------------------------------------------------------------
-QByteArray HIDPP::shortToLongMsg(const QByteArray& shortMsg)
+QByteArray shortToLongMsg(const QByteArray& shortMsg)
 {
-  const bool isValidShortMsg = (shortMsg.at(0) == HIDPP_SHORT_MSG && shortMsg.length() == 7);
+  const bool isValidShortMsg = (shortMsg.at(0) == Bytes::SHORT_MSG && shortMsg.length() == 7);
 
   if (isValidShortMsg)
   {
     QByteArray longMsg;
     longMsg.reserve(20);
-    longMsg.append(HIDPP_LONG_MSG);
+    longMsg.append(Bytes::LONG_MSG);
     longMsg.append(shortMsg.mid(1));
     longMsg.append(20 - longMsg.length(), 0);
     return longMsg;
@@ -255,3 +256,25 @@ QByteArray HIDPP::shortToLongMsg(const QByteArray& shortMsg)
 
   return shortMsg;
 }
+
+// -------------------------------------------------------------------------------------------------
+bool isValidMessage(const QByteArray& msg) {
+  return (isValidShortMessage(msg) || isValidLongMessage(msg));
+}
+
+// -------------------------------------------------------------------------------------------------
+bool isValidShortMessage(const QByteArray& msg) {
+  return (msg.length() == 7 && static_cast<uint8_t>(msg.at(0)) == Bytes::SHORT_MSG);
+}
+
+// -------------------------------------------------------------------------------------------------
+bool isValidLongMessage(const QByteArray& msg) {
+  return (msg.length() == 20 && static_cast<uint8_t>(msg.at(0)) == Bytes::LONG_MSG);
+}
+
+// -------------------------------------------------------------------------------------------------
+bool isMessageForUsb(const QByteArray& msg) {
+  return (static_cast<uint8_t>(msg.at(1)) == Bytes::MSG_TO_USB_RECEIVER);
+}
+
+} // end namespace HIDPP

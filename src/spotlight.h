@@ -55,13 +55,13 @@ private:
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
   bool addInputEventHandler(std::shared_ptr<SubEventConnection> connection);
-  bool addHIDInputHandler(std::shared_ptr<SubHidrawConnection> connection);
+  bool addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection);
 
   bool setupDevEventInotify();
   int connectDevices();
   void removeDeviceConnection(const QString& devicePath);
   void onEventDataAvailable(int fd, SubEventConnection& connection);
-  void onHIDDataAvailable(int fd, SubHidrawConnection& connection);
+  void onHidppDataAvailable(int fd, SubHidppConnection& connection);
 
   const Options m_options;
   std::map<DeviceId, std::shared_ptr<DeviceConnection>> m_deviceConnections;

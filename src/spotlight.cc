@@ -139,20 +139,24 @@ int Spotlight::connectDevices()
           auto devCon = SubEventConnection::create(scanSubDevice, *dc);
           if (addInputEventHandler(devCon)) return devCon;
         } // Hidraw sub devices
-        else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw) {
-          auto hidCon = SubHidrawConnection::create(scanSubDevice, *dc);
-          if (addHIDInputHandler(hidCon))
+        else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw)
+        {
+          if (dc->hasHidppSupport())
           {
-            // Post initialize task to event loop
-            hidCon->postTask([c = hidCon.get()](){ c->initialize(); });
+            auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc);
+            if (addHidppInputHandler(hidppCon))
+            {
+              // connect to hidraw sub connection signals
+              connect(&*hidppCon, &SubHidrawConnection::receivedBatteryInfo,
+                      dc.get(), &DeviceConnection::setBatteryInfo);
+              connect(&*hidppCon, &SubHidrawConnection::receivedPingResponse, dc.get(),
+              [this, dc]() { emit deviceActivated(dc->deviceId(), dc->deviceName()); });
 
-            // connect to hidraw sub connection signals
-            connect(hidCon.get(), &SubHidrawConnection::receivedBatteryInfo,
-                    dc.get(), &DeviceConnection::setBatteryInfo);
-            connect(hidCon.get(), &SubHidrawConnection::receivedPingResponse,
-                    dc.get(), [this, dc](){emit deviceActivated(dc->deviceId(), dc->deviceName());});
-
-            return hidCon;
+              return hidppCon;
+            }
+          }
+          else {
+            return SubHidrawConnection::create(scanSubDevice, *dc);
           }
         }
         return std::shared_ptr<SubDeviceConnection>();
@@ -310,8 +314,10 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
 }
 
 // -------------------------------------------------------------------------------------------------
-void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
+void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 {
+  Q_UNUSED(fd);
+  Q_UNUSED(connection);
   QByteArray readVal(20, 0);
   if (::read(fd, static_cast<void *>(readVal.data()), readVal.length()) < 0)
   {
@@ -330,15 +336,15 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
   }
 
   // Only process HID++ packets (hence, the packets starting with 0x10 or 0x11)
-  if (!(readVal.at(0) == HIDPP_SHORT_MSG || readVal.at(0) == HIDPP_LONG_MSG)) {
+  if (!(readVal.at(0) == HIDPP::Bytes::SHORT_MSG || readVal.at(0) == HIDPP::Bytes::LONG_MSG)) {
     return;
   }
 
   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
 
-  if (readVal.at(0) == HIDPP_SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
+  if (readVal.at(0) == HIDPP::Bytes::SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
   {
-    if (readVal.at(2) == HIDPP_SHORT_WIRELESS_NOTIFICATION_CODE) {    // wireless notification from USB dongle
+    if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {    // wireless notification from USB dongle
       auto connection_status = readVal.at(4) & (1<<6);  // should be zero for successful connection
       if (connection_status) {    // connection between USB dongle and spotlight device broke
         connection.setHIDProtocol(-1);
@@ -348,7 +354,7 @@ void Spotlight::onHIDDataAvailable(int fd, SubHidrawConnection& connection)
     }
   }
 
-  if (readVal.at(0) == HIDPP_LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
+  if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
   {
     auto rootID = connection.getFeatureSet()->getFeatureID(FeatureCode::Root);
     if (readVal.at(2) == rootID) {
@@ -398,16 +404,18 @@ bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connect
 }
 
 // -------------------------------------------------------------------------------------------------
-bool Spotlight::addHIDInputHandler(std::shared_ptr<SubHidrawConnection> connection)
+bool Spotlight::addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection)
 {
-  if (!connection || connection->type() != ConnectionType::Hidraw || !connection->isConnected()) {
+  if (!connection || connection->type() != ConnectionType::Hidraw
+      || !connection->isConnected() || !connection->hasFlags(DeviceFlag::Hidpp))
+  {
     return false;
   }
 
   QSocketNotifier* const readNotifier = connection->socketReadNotifier();
   connect(readNotifier, &QSocketNotifier::activated, this,
   [this, connection=std::move(connection)](int fd) {
-    onHIDDataAvailable(fd, *connection.get());
+    onHidppDataAvailable(fd, *connection.get());
   });
 
   return true;

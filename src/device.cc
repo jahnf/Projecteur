@@ -21,11 +21,60 @@ namespace  {
   static const auto registeredComparator_ = QMetaType::registerComparators<DeviceId>();
 
   const auto hexId = logging::hexId;
+  class i18n : public QObject {}; // for i18n and logging
 
   // -----------------------------------------------------------------------------------------------
-  bool deviceHasHidppSupport(const DeviceId& id) {
-    // HID++ only for Logitech devices
-    return id.vendorId == 0x046d;
+  /// Open a hidraw subdevice and
+  int openHidrawSubDevice(const DeviceScan::SubDevice& sd, const DeviceId& devId)
+  {
+    constexpr int errorResult = -1;
+    const int devfd = ::open(sd.deviceFile.toLocal8Bit().constData(), O_RDWR|O_NONBLOCK , 0);
+
+    if (devfd == errorResult) {
+      logWarn(device) << i18n::tr("Cannot open hidraw device '%1' for read/write.").arg(sd.deviceFile);
+      return errorResult;
+    }
+
+    { // Get Report Descriptor Size and Descriptor -- currently unused, but if it fails
+      // we don't use the device
+      int descriptorSize = 0;
+      if (ioctl(devfd, HIDIOCGRDESCSIZE, &descriptorSize) < 0)
+      {
+        logWarn(device) << i18n::tr("Cannot retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
+        ::close(devfd);
+        return errorResult;
+      }
+
+      struct hidraw_report_descriptor reportDescriptor {};
+      reportDescriptor.size = descriptorSize;
+      if (ioctl(devfd, HIDIOCGRDESC, &reportDescriptor) < 0)
+      {
+        logWarn(device) << i18n::tr("Cannot retrieve report descriptor of hidraw device '%1'.").arg(sd.deviceFile);
+        ::close(devfd);
+        return errorResult;
+      }
+    }
+
+    struct hidraw_devinfo devinfo {};
+    // get the hidraw sub-device id info
+    if (ioctl(devfd, HIDIOCGRAWINFO, &devinfo) < 0)
+    {
+      logWarn(device) << i18n::tr("Cannot get info from hidraw device '%1'.").arg(sd.deviceFile);
+      ::close(devfd);
+      return errorResult;
+    };
+
+    // Check against given device id
+    if (static_cast<unsigned short>(devinfo.vendor) != devId.vendorId
+        || static_cast<unsigned short>(devinfo.product) != devId.productId)
+    {
+      logDebug(device) << i18n::tr("Device id mismatch: %1 (%2:%3)")
+                                .arg(sd.deviceFile, hexId(devinfo.vendor), hexId(devinfo.product));
+      ::close(devfd);
+      return errorResult;
+    }
+
+    return devfd;
   }
 }
 
@@ -35,7 +84,6 @@ DeviceConnection::DeviceConnection(const DeviceId& id, const QString& name,
   : m_deviceId(id)
   , m_deviceName(name)
   , m_inputMapper(std::make_shared<InputMapper>(std::move(vdev)))
-  , m_featureSet(std::make_shared<FeatureSet>())
 {
 }
 
@@ -80,6 +128,13 @@ bool DeviceConnection::removeSubDevice(const QString& path)
   return false;
 }
 
+
+// -------------------------------------------------------------------------------------------------
+bool DeviceConnection::hasHidppSupport() const{
+  // HID++ only for Logitech devices
+  return m_deviceId.vendorId == 0x046d;
+}
+
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::queryBatteryStatus()
 {
@@ -96,7 +151,7 @@ void DeviceConnection::queryBatteryStatus()
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 {
-  if (m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus) && batteryData.length() == 3)
+  if (false) //if (m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus) && batteryData.length() == 3)
   {
     // Battery percent is only meaningful when battery is discharging. However, save them anyway.
     m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0): 100);
@@ -106,8 +161,16 @@ void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 }
 
 // -------------------------------------------------------------------------------------------------
-SubDeviceConnection::SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode)
-  : m_details(path, type, mode) {}
+SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
+                                                       const DeviceId& id, ConnectionType type,
+                                                       ConnectionMode mode)
+  : type(type), mode(mode), busType(id.busType), phys(sd.phys), devicePath(sd.deviceFile)
+{}
+
+// -------------------------------------------------------------------------------------------------
+SubDeviceConnection::SubDeviceConnection(const DeviceScan::SubDevice& sd, const DeviceId& id,
+                                         ConnectionType type, ConnectionMode mode)
+  : m_details(sd, id, type, mode) {}
 
 // -------------------------------------------------------------------------------------------------
 SubDeviceConnection::~SubDeviceConnection() = default;
@@ -175,8 +238,23 @@ QSocketNotifier* SubDeviceConnection::socketWriteNotifier() {
 }
 
 // -------------------------------------------------------------------------------------------------
-SubEventConnection::SubEventConnection(Token, const QString& path)
-  : SubDeviceConnection(path, ConnectionType::Event, ConnectionMode::ReadOnly) {}
+ssize_t SubDeviceConnection::sendData(const QByteArray&) {
+  // do nothing for the base implementation
+  return -1;
+}
+
+// -------------------------------------------------------------------------------------------------
+ssize_t SubDeviceConnection::sendData(const void*, size_t) {
+  // do nothing for the base implementation
+  return -1;
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubDeviceConnection::sendVibrateCommand(uint8_t, uint8_t) {}
+
+// -------------------------------------------------------------------------------------------------
+SubEventConnection::SubEventConnection(Token, const DeviceScan::SubDevice& sd, const DeviceId& id)
+  : SubDeviceConnection(sd, id, ConnectionType::Event, ConnectionMode::ReadOnly) {}
 
 // -------------------------------------------------------------------------------------------------
 std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan::SubDevice& sd,
@@ -210,8 +288,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
     return std::shared_ptr<SubEventConnection>();
   }
 
-  auto connection = std::make_shared<SubEventConnection>(Token{}, sd.deviceFile);
-  connection->m_deviceID = dc.deviceId();
+  auto connection = std::make_shared<SubEventConnection>(Token{}, sd, dc.deviceId());
 
   if (!!(bitmask & (1 << EV_SYN))) connection->m_details.deviceFlags |= DeviceFlag::SynEvents;
   if (!!(bitmask & (1 << EV_REP))) connection->m_details.deviceFlags |= DeviceFlag::RepEvents;
@@ -259,114 +336,34 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   });
 
   connection->m_inputMapper = dc.inputMapper();
-  connection->m_details.phys = sd.phys;
-
   return connection;
 }
 
 // -------------------------------------------------------------------------------------------------
-SubHidrawConnection::SubHidrawConnection(Token, const QString& path)
-  : SubDeviceConnection(path, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
+SubHidrawConnection::SubHidrawConnection(Token, const DeviceScan::SubDevice& sd, const DeviceId& id)
+  : SubDeviceConnection(sd, id, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
 
 // -------------------------------------------------------------------------------------------------
 std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceScan::SubDevice& sd,
                                                                  const DeviceConnection& dc)
 {
-  const int devfd = ::open(sd.deviceFile.toLocal8Bit().constData(), O_RDWR|O_NONBLOCK , 0);
+  const int devfd = openHidrawSubDevice(sd, dc.deviceId());
+  if (devfd == -1) return std::shared_ptr<SubHidrawConnection>();
 
-  if (devfd == -1) {
-    logWarn(device) << tr("Cannot open hidraw device '%1' for read/write.").arg(sd.deviceFile);
-    return std::shared_ptr<SubHidrawConnection>();
-  }
-
-  int descriptorSize = 0;
-  // Get Report Descriptor Size
-  if (ioctl(devfd, HIDIOCGRDESCSIZE, &descriptorSize) < 0) {
-    logWarn(device) << tr("Cannot retrieve report descriptor size of hidraw device '%1'.").arg(sd.deviceFile);
-    return std::shared_ptr<SubHidrawConnection>();
-  }
-
-  struct hidraw_report_descriptor reportDescriptor{};
-  reportDescriptor.size = descriptorSize;
-  if (ioctl(devfd, HIDIOCGRDESC, &reportDescriptor) < 0) {
-    logWarn(device) << tr("Cannot retrieve report descriptor of hidraw device '%1'.").arg(sd.deviceFile);
-    return std::shared_ptr<SubHidrawConnection>();
-  }
-
-  struct hidraw_devinfo devinfo{};
-  // get the hidraw sub-device id info
-  if (ioctl(devfd, HIDIOCGRAWINFO, &devinfo) < 0) {
-    logWarn(device) << tr("Cannot get info from hidraw device '%1'.").arg(sd.deviceFile);
-    return std::shared_ptr<SubHidrawConnection>();
-  };
-
-  // Check against given device id
-  if (static_cast<unsigned short>(devinfo.vendor) != dc.deviceId().vendorId
-      || static_cast<unsigned short>(devinfo.product) != dc.deviceId().productId)
-  {
-    ::close(devfd);
-    logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
-                        .arg(sd.deviceFile, hexId(devinfo.vendor), hexId(devinfo.product));
-    return std::shared_ptr<SubHidrawConnection>();
-  }
-
-  auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd.deviceFile);
-  connection->m_deviceID = dc.deviceId();
-
-  // TODO feature set needs to be a member of a sub hidraw connection
-  connection->m_featureSet = dc.getFeatureSet();
-  connection->m_featureSet->setHIDDeviceFileDescriptor(devfd);
-  // ---
-
-  fcntl(devfd, F_SETFL, fcntl(devfd, F_GETFL, 0) | O_NONBLOCK);
-  if ((fcntl(devfd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
-    connection->m_details.deviceFlags |= DeviceFlag::NonBlocking;
-  }
-
-  if (deviceHasHidppSupport(dc.deviceId())) {
-    connection->m_details.deviceFlags |= DeviceFlag::Hidpp;
-  }
-
-  // Create read and write socket notifiers
-  connection->m_readNotifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Read);
-  QSocketNotifier* const readNotifier = connection->m_readNotifier.get();
-  // Auto clean up and close descriptor on destruction of notifier
-  connect(readNotifier, &QSocketNotifier::destroyed, [readNotifier]() {
-    ::close(static_cast<int>(readNotifier->socket()));
-  });
-
-  connection->m_writeNotifier = std::make_unique<QSocketNotifier>(devfd, QSocketNotifier::Write);
-  QSocketNotifier* const writeNotifier = connection->m_writeNotifier.get();
-  writeNotifier->setEnabled(false); // Disable write notifier by default
-  // Auto clean up and close descriptor on destruction of notifier
-  connect(writeNotifier, &QSocketNotifier::destroyed, [writeNotifier]() {
-    ::close(static_cast<int>(writeNotifier->socket()));
-  });
-
-  connection->m_details.phys = sd.phys;
+  auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd, dc.deviceId());
+  connection->createSocketNotifiers(devfd);
   return connection;
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidrawConnection::queryBatteryStatus()
-{
-  if (hasFlags(DeviceFlag::ReportBattery))
-  {
-    const uint8_t batteryFeatureID = m_featureSet->getFeatureID(FeatureCode::BatteryStatus);
-    if (batteryFeatureID)
-    {
-      const uint8_t batteryCmd[] = {HIDPP_SHORT_MSG, MSG_TO_SPOTLIGHT, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
-      sendData(batteryCmd, sizeof(batteryCmd), false);
-    }
-  }
-}
+void SubHidrawConnection::queryBatteryStatus() {}
 
 // -------------------------------------------------------------------------------------------------
 void SubDeviceConnection::pingSubDevice()
 {
   constexpr uint8_t rootID = 0x00;  // root ID is always 0x00 in any logitech device
-  const uint8_t pingCmd[] = {HIDPP_SHORT_MSG, MSG_TO_SPOTLIGHT, rootID, 0x1d, 0x00, 0x00, 0x5d};
-  sendData(pingCmd, sizeof(pingCmd), false);
+  const uint8_t pingCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rootID, 0x1d, 0x00, 0x00, 0x5d};
+  sendData(pingCmd, sizeof(pingCmd));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -380,7 +377,7 @@ void SubDeviceConnection::setHIDProtocol(float version) {
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidrawConnection::initialize()
+void SubHidppConnection::initialize()
 {
   // Currently only HID++ devices need additional initializing
   if (!hasFlags(DeviceFlag::Hidpp)) return;
@@ -388,29 +385,29 @@ void SubHidrawConnection::initialize()
   constexpr int delay_ms = 20;
   int msgCount = 0;
   // Reset device: get rid of any device configuration by other programs -------
-  if (m_deviceID.busType == BusType::Usb)
+  if (m_details.busType == BusType::Usb)
   {
-    // Reset USB dongle
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
-      constexpr uint8_t data[] = {HIDPP_SHORT_MSG, MSG_TO_USB_RECEIVER, HIDPP_SHORT_GET_FEATURE, 0x00, 0x00, 0x00, 0x00};
-      sendData(data, sizeof(data), false);});
+      const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_GET_FEATURE, 0x00, 0x00, 0x00, 0x00};
+      sendData(data, sizeof(data));
+    });
     msgCount++;
 
     // Turn off software bit and keep the wireless notification bit on
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
-      constexpr uint8_t data[] = {HIDPP_SHORT_MSG, MSG_TO_USB_RECEIVER, HIDPP_SHORT_SET_FEATURE, 0x00, 0x00, 0x01, 0x00};
-      sendData(data, sizeof(data), false);});
+      constexpr uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_SET_FEATURE, 0x00, 0x00, 0x01, 0x00};
+      sendData(data, sizeof(data));});
     msgCount++;
 
     // Initialize USB dongle
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
-      constexpr uint8_t data[] = {HIDPP_SHORT_MSG, MSG_TO_USB_RECEIVER, HIDPP_SHORT_SET_FEATURE, 0x02, 0x02, 0x00, 0x00};
-      sendData(data, sizeof(data), false);});
+      constexpr uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_SET_FEATURE, 0x02, 0x02, 0x00, 0x00};
+      sendData(data, sizeof(data));});
     msgCount++;
 
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
-      constexpr uint8_t data[] = {HIDPP_SHORT_MSG, MSG_TO_USB_RECEIVER, HIDPP_SHORT_SET_FEATURE, 0x00, 0x00, 0x09, 0x00};
-      sendData(data, sizeof(data), false);});
+      constexpr uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_SET_FEATURE, 0x00, 0x00, 0x09, 0x00};
+      sendData(data, sizeof(data));});
     msgCount++;
   }
 
@@ -439,85 +436,182 @@ void SubHidrawConnection::initialize()
     const auto resetID = m_featureSet->getFeatureID(FeatureCode::Reset);
     if (resetID) {
       QTimer::singleShot(delay_ms*msgCount, this, [this, resetID](){
-        const uint8_t data[] = {HIDPP_SHORT_MSG, MSG_TO_SPOTLIGHT, resetID, 0x1d, 0x00, 0x00, 0x00};
-        sendData(data, sizeof(data), false);});
+        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, resetID, 0x1d, 0x00, 0x00, 0x00};
+        sendData(data, sizeof(data));});
       msgCount++;
     }
   }
   // Device Resetting complete -------------------------------------------------
 
-  if (m_deviceID.busType == BusType::Usb) {
+  if (m_details.busType == BusType::Usb) {
     // Ping spotlight device for checking if is online
     // the response will have the version for HID++ protocol.
     QTimer::singleShot(delay_ms*msgCount, this, [this](){pingSubDevice();});
     msgCount++;
-  } else if (m_deviceID.busType == BusType::Bluetooth) {
+  } else if (m_details.busType == BusType::Bluetooth) {
     // Bluetooth connection mean HID++ v2.0+.
     // Setting version to 6.4: same as USB connection.
     setHIDProtocol(6.4);
   }
 
   setFlags(featureFlags, true);
+
   // Add other configuration to enable features in device
   // like enabling on Next and back button on hold functionality.
 }
 
 // -------------------------------------------------------------------------------------------------
-ssize_t SubDeviceConnection::sendData(const QByteArray& hidppMsg, bool checkDeviceOnline)
+ssize_t SubHidrawConnection::sendData(const QByteArray& msg)
 {
-  ssize_t res = -1;
+  constexpr ssize_t errorResult = -1;
 
-  // If the message have 0xff as second byte, it is meant for USB dongle hence,
-  // should not be send when device is connected on bluetooth.
-  //
-  //
-  // Logitech Spotlight (USB) can receive data in two different length.
-  //   1. Short (10 byte long starting with 0x10)
-  //   2. Long (20 byte long starting with 0x11)
-  // However, bluetooth connection only accepts data in long (20 byte) packets.
-  // For converting standard short length data to long length data, change the first byte to 0x11 and
-  // pad the end of message with 0x00 to acheive the length of 20.
+  if (mode() != ConnectionMode::ReadWrite || !m_writeNotifier) { return errorResult; }
 
-  QByteArray _hidppMsg(hidppMsg);
-  if (m_deviceID.busType == BusType::Bluetooth) {
-    if (static_cast<uint8_t>(hidppMsg.at(1)) == MSG_TO_USB_RECEIVER){
-      logDebug(hid) << "Invalid packet" << hidppMsg.toHex() << "for spotlight connected on bluetooth.";
-      return res;
-    }
+  const auto notifier = socketWriteNotifier();
+  const auto res = ::write(notifier->socket(), msg.data(), msg.length());
 
-    if (hidppMsg.at(0) == HIDPP_SHORT_MSG) {
-      _hidppMsg = HIDPP::shortToLongMsg(hidppMsg);
-    }
-  }
-
-  bool isValidMsg = (_hidppMsg.length() == 7 && _hidppMsg.at(0) == HIDPP_SHORT_MSG);             // HID++ short message
-  isValidMsg = isValidMsg || (_hidppMsg.length() == 20 && _hidppMsg.at(0) == HIDPP_LONG_MSG);   // HID++ long message
-
-  // If checkDeviceOnline is true then do not send the packet if device is not online/active.
-  if (checkDeviceOnline && !isOnline()) {
-    logInfo(hid) << "The device is not active. Activate it by pressing any button on device.";
-    return res;
-  }
-
-  if (type() == ConnectionType::Hidraw && mode() == ConnectionMode::ReadWrite
-          && m_writeNotifier && isValidMsg)
-  {
-    const auto notifier = socketWriteNotifier();
-    res = ::write(notifier->socket(), _hidppMsg.data(), _hidppMsg.length());
-
-    if (res == _hidppMsg.length()) {
-      logDebug(hid) << "Write" << _hidppMsg.toHex() << "to" << path();
-    } else {
-      logWarn(hid) << "Writing to" << path() << "failed.";
-    }
+  if (res == msg.length()) {
+    logDebug(hid) << res << "bytes written to" << path() << "(" << msg.toHex() << ")";
+  } else {
+    logWarn(hid) << "Writing to" << path() << "failed.";
   }
 
   return res;
 }
 
 // -------------------------------------------------------------------------------------------------
-ssize_t SubDeviceConnection::sendData(const void* hidppMsg, size_t hidppMsgLen, bool checkDeviceOnline)
+ssize_t SubHidrawConnection::sendData(const void* msg, size_t msgLen)
 {
-  const QByteArray hidppMsgArr(reinterpret_cast<const char*>(hidppMsg), hidppMsgLen);
-  return sendData(hidppMsgArr, checkDeviceOnline);
+  const QByteArray msgArr(reinterpret_cast<const char*>(msg), msgLen);
+  return sendData(msgArr);
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidrawConnection::createSocketNotifiers(int fd)
+{
+  fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+  if ((fcntl(fd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
+    m_details.deviceFlags |= DeviceFlag::NonBlocking;
+  }
+
+  // Create read and write socket notifiers
+  m_readNotifier = std::make_unique<QSocketNotifier>(fd, QSocketNotifier::Read);
+  QSocketNotifier *const readNotifier = m_readNotifier.get();
+  // Auto clean up and close descriptor on destruction of notifier
+  connect(readNotifier, &QSocketNotifier::destroyed, [readNotifier]() {
+    ::close(static_cast<int>(readNotifier->socket()));
+  });
+
+  m_writeNotifier = std::make_unique<QSocketNotifier>(fd, QSocketNotifier::Write);
+  QSocketNotifier *const writeNotifier = m_writeNotifier.get();
+  writeNotifier->setEnabled(false); // Disable write notifier by default
+  // Auto clean up and close descriptor on destruction of notifier
+  connect(writeNotifier, &QSocketNotifier::destroyed, [writeNotifier]() {
+    ::close(static_cast<int>(writeNotifier->socket()));
+  });
+}
+
+// -------------------------------------------------------------------------------------------------
+SubHidppConnection::SubHidppConnection(SubHidrawConnection::Token token,
+                                       const DeviceScan::SubDevice &sd, const DeviceId &id)
+  : SubHidrawConnection(token, sd, id), m_featureSet(std::make_unique<HIDPP::FeatureSet>()) {}
+
+// -------------------------------------------------------------------------------------------------
+SubHidppConnection::~SubHidppConnection() = default;
+
+// -------------------------------------------------------------------------------------------------
+    ssize_t SubHidppConnection::sendData(const QByteArray &msg)
+{
+  constexpr ssize_t errorResult = -1;
+
+  if (!HIDPP::isValidMessage(msg)) { return errorResult; }
+
+  // If the message have 0xff as second byte, it is meant for USB dongle hence,
+  // should not be send when device is connected on bluetooth.
+  //
+  // Logitech Spotlight (USB) can receive data in two different length.
+  //   1. Short (7 byte long starting with 0x10)
+  //   2. Long (20 byte long starting with 0x11)
+  // However, bluetooth connection only accepts data in long (20 byte) packets.
+  // For converting standard short length data to long length data, change the first byte to 0x11 and
+  // pad the end of message with 0x00 to acheive the length of 20.
+
+  if (m_details.busType == BusType::Bluetooth)
+  {
+    if (HIDPP::isMessageForUsb(msg))
+    {
+      logWarn(hid) << "Invalid packet" << msg.toHex() << "for spotlight connected on bluetooth.";
+      return errorResult;
+    }
+
+    // For bluetooth always convert to a long message if we have a short message
+    if (HIDPP::isValidShortMessage(msg)) {
+      return SubHidrawConnection::sendData(HIDPP::shortToLongMsg(msg));
+    }
+  }
+
+  return SubHidrawConnection::sendData(msg);
+}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan::SubDevice &sd,
+                                                                const DeviceConnection &dc)
+{
+  const int devfd = openHidrawSubDevice(sd, dc.deviceId());
+  if (devfd == -1) return std::shared_ptr<SubHidppConnection>();
+
+  auto connection = std::make_shared<SubHidppConnection>(Token{}, sd, dc.deviceId());
+
+  // TODO feature set needs to be a member of a sub hidraw connection
+  // connection->m_featureSet = dc.getFeatureSet();
+  connection->m_featureSet->setHIDDeviceFileDescriptor(devfd);
+  // ---
+
+  if (dc.hasHidppSupport()) {
+    connection->m_details.deviceFlags |= DeviceFlag::Hidpp;
+  }
+
+  connection->createSocketNotifiers(devfd);
+  connection->postTask([c=&*connection](){ c->initialize(); });
+  return connection;
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length)
+{
+  // TODO put in HIDPP
+
+  // TODO generalize features and protocol for proprietary device features like vibration
+  //      for not only the Spotlight device.
+  //
+  // Spotlight:
+  //                                        present
+  //                                        controlID   len         intensity
+  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
+
+  const uint8_t pcID = getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
+  if (pcID == 0x00) return;
+  const uint8_t vibrateCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, pcID, 0x1d, length, 0xe8, intensity};
+  sendData(vibrateCmd, sizeof(vibrateCmd));
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::queryBatteryStatus()
+{
+  // TODO put parts in HIDPP
+  if (hasFlags(DeviceFlag::ReportBattery))
+  {
+    const uint8_t batteryFeatureID = m_featureSet->getFeatureID(FeatureCode::BatteryStatus);
+    if (batteryFeatureID)
+    {
+      const uint8_t batteryCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
+      sendData(batteryCmd, sizeof(batteryCmd));
+    }
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+const HIDPP::FeatureSet* SubHidppConnection::getFeatureSet()
+{
+  return &*m_featureSet;
 }
