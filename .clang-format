@@ -1,0 +1,33 @@
+﻿---
+BasedOnStyle: LLVM
+Language: Cpp
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Left
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AlwaysBreakTemplateDeclarations: 'Yes'
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortBlocksOnASingleLine: Always
+AllowShortEnumsOnASingleLine: true
+BreakConstructorInitializers: BeforeComma
+ColumnLimit: '100'
+ConstructorInitializerIndentWidth: '2'
+IndentWidth: '2'
+MaxEmptyLinesToKeep: '2'
+PointerAlignment: Left
+SortIncludes: 'true'
+Standard: Auto
+TabWidth: '2'
+UseTab: Never
+BreakBeforeBinaryOperators: NonAssignment
+AlignConsecutiveAssignments: true
+NamespaceIndentation: Inner
+BreakBeforeBraces: Custom
+BraceWrapping:
+  BeforeLambdaBody: false
+  AfterControlStatement: MultiLine
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+
+...
