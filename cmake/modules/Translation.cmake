@@ -98,6 +98,7 @@ function(add_translation_update_task _prefix _input_dirs _output_dir _languages)
     ARGS ${_input_dirs}
     ARGS -locations relative
     ARGS -ts
+    ARGS -noobsolete
     ARGS ${_tsfiles_lupdate}
     WORKING_DIRECTORY ${_output_dir}
     COMMENT "Updating translations (${_prefix})..."
