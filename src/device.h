@@ -141,10 +141,9 @@ struct SubDeviceConnectionDetails {
 
   ConnectionType type;
   ConnectionMode mode;
-  BusType busType = BusType::Unknown;
+  DeviceId parentDeviceID;
   bool grabbed = false;
   DeviceFlags deviceFlags = DeviceFlags::NoFlags;
-  QString phys;
   QString devicePath;
   float HIDppProtocolVer = -1;   // set after ping to HID sub-device; If positive then Hidraw device is online.
 };
@@ -178,21 +177,10 @@ public:
   void setReadNotifierEnabled(bool enabled); // disable/enable read socket notifier
   void setWriteNotifierEnabled(bool enabled); // disable/enable write socket notifier
 
-  // HID++ specific functions
-  void pingSubDevice();
-  bool isOnline() const { return (m_details.HIDppProtocolVer > 0); };
-  void setHIDppProtocol(float version);
-  float getHIDppProtocol() const { return m_details.HIDppProtocolVer; };
-
-  // Base implementation of generic write methods to the device does nothing.
-  virtual ssize_t sendData(const QByteArray& msg);
-  virtual ssize_t sendData(const void* msg, size_t msgLen);
-
   auto type() const { return m_details.type; };
   auto mode() const { return m_details.mode; };
   auto isGrabbed() const { return m_details.grabbed; };
   auto flags() const { return m_details.deviceFlags; };
-  const auto& phys() const { return m_details.phys; };
   const auto& path() const { return m_details.devicePath; };
 
   inline bool hasFlags(DeviceFlags f) const { return ((flags() & f) == f); }
@@ -201,7 +189,15 @@ public:
   QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
   QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
 
+  // Hidraw specific command
+  // Base implementation of generic write methods to the device does nothing.
+  virtual ssize_t sendData(const QByteArray& msg);
+  virtual ssize_t sendData(const void* msg, size_t msgLen);
+
+  // HID++ specific functions: These commands write on device and expect some return message
+  virtual bool isOnline() const { return false; };
   virtual void sendVibrateCommand(uint8_t intensity, uint8_t length);
+  virtual void queryBatteryStatus();
 
 signals:
   void flagsChanged(DeviceFlags f);
@@ -252,12 +248,6 @@ public:
   ssize_t sendData(const QByteArray& msg) override;
   ssize_t sendData(const void* msg, size_t msgLen) override;
 
-  virtual void queryBatteryStatus();
-
-signals:
-  void receivedBatteryInfo(QByteArray batteryData);
-  void receivedPingResponse();
-
 protected:
   void createSocketNotifiers(int fd);
 };
@@ -281,10 +271,19 @@ public:
 
   void queryBatteryStatus() override;
   void sendVibrateCommand(uint8_t intensity, uint8_t length) override;
+  void pingSubDevice();
+  void setHIDppProtocol(float version);
+  float getHIDppProtocol() const { return m_details.HIDppProtocolVer; };
+  bool isOnline() const override { return (m_details.HIDppProtocolVer > 0); };
 
   void initialize();
 
   const HIDPP::FeatureSet* getFeatureSet();
+
+signals:
+  void receivedBatteryInfo(QByteArray batteryData);
+  void activated();
+  void deactivated();
 
 private:
   std::unique_ptr<HIDPP::FeatureSet> m_featureSet;

@@ -73,6 +73,7 @@ signals:
   void deviceConnected(const DeviceId& id, const QString& name);
   void deviceDisconnected(const DeviceId& id, const QString& name);
   void deviceActivated(const DeviceId& id, const QString& name);
+  void deviceDeactivated(const DeviceId& id, const QString& name);
   void subDeviceConnected(const DeviceId& id, const QString& name, const QString& path);
   void subDeviceDisconnected(const DeviceId& id, const QString& name, const QString& path);
   void anySpotlightDeviceConnectedChanged(bool connected);
@@ -93,6 +94,7 @@ private:
 
   const Options m_options;
   std::map<DeviceId, std::shared_ptr<DeviceConnection>> m_deviceConnections;
+  std::vector<DeviceId> m_activeDeviceIds;
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;

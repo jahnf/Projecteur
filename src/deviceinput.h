@@ -306,7 +306,7 @@ public:
 
   // input_events = complete sequence including SYN event
   void addEvents(const struct input_event input_events[], size_t num);
-  void addEvents(const KeyEvent key_events);
+  void addEvents(KeyEvent key_events);
 
   bool recordingMode() const;
   void setRecordingMode(bool recording);
@@ -322,6 +322,8 @@ public:
   void setConfiguration(const InputMapConfig& config);
   void setConfiguration(InputMapConfig&& config);
   const InputMapConfig& configuration() const;
+
+  std::shared_ptr<Action> getAction(KeyEventSequence kes);
 
 signals:
   void configurationChanged();

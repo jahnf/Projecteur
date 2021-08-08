@@ -147,11 +147,28 @@ int Spotlight::connectDevices()
             auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc);
             if (addHidppInputHandler(hidppCon))
             {
-              // connect to hidraw sub connection signals
-              connect(&*hidppCon, &SubHidrawConnection::receivedBatteryInfo,
+              // connect to hidpp sub connection signals
+              connect(&*hidppCon, &SubHidppConnection::receivedBatteryInfo,
                       dc.get(), &DeviceConnection::setBatteryInfo);
-              connect(&*hidppCon, &SubHidrawConnection::receivedPingResponse, dc.get(),
-              [this, dc]() { emit deviceActivated(dc->deviceId(), dc->deviceName()); });
+              auto hidppActivated = [this, dc]() {
+                if (std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(),
+                              dc->deviceId()) == m_activeDeviceIds.cend()) {
+                  logInfo(device) << dc->deviceName() << "is now active.";
+                  m_activeDeviceIds.emplace_back(dc->deviceId());
+                  emit deviceActivated(dc->deviceId(), dc->deviceName());
+                }
+              };
+              auto hidppDeactivated = [this, dc]() {
+                auto it = std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(), dc->deviceId());
+                if (it != m_activeDeviceIds.cend()) {
+                  logInfo(device) << dc->deviceName() << "is deactivated.";
+                  m_activeDeviceIds.erase(it);
+                  emit deviceDeactivated(dc->deviceId(), dc->deviceName());
+                }
+              };
+              connect(&*hidppCon, &SubHidppConnection::activated, dc.get(), hidppActivated);
+              connect(&*hidppCon, &SubHidppConnection::deactivated, dc.get(), hidppDeactivated);
+              connect(&*hidppCon, &SubHidppConnection::destroyed, dc.get(), hidppDeactivated);
 
               return hidppCon;
             }
@@ -396,8 +413,10 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 
   if (readVal.at(0) == HIDPP::Bytes::SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
   {
-    if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {    // wireless notification from USB dongle
-      auto connection_status = readVal.at(4) & (1<<6);  // should be zero for successful connection
+    // wireless notification from USB dongle
+    if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {
+      auto connection_status = readVal.at(4) & (1<<6);  // should be zero for working connection between
+                                                        // USB dongle and Spotlight device.
       if (connection_status) {    // connection between USB dongle and spotlight device broke
         connection.setHIDppProtocol(-1);
       } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
@@ -408,15 +427,16 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 
   if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
   {
+    // response to ping
     auto rootID = connection.getFeatureSet()->getFeatureID(FeatureCode::Root);
     if (readVal.at(2) == rootID) {
-      if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) { // response to ping
+      if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) {
         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
         connection.setHIDppProtocol(protocolVer);
-        if (connection.isOnline()) emit connection.receivedPingResponse();
       }
     }
 
+    // Wireless Notification from the Spotlight device
     auto wirelessNotificationID = connection.getFeatureSet()->getFeatureID(FeatureCode::WirelessDeviceStatus);
     if (wirelessNotificationID && readVal.at(2) == wirelessNotificationID) {    // Logitech spotlight presenter unit got online.
       if (!connection.isOnline()) connection.initialize();
@@ -435,7 +455,7 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
     {
       auto eventCode = static_cast<uint8_t>(readVal.at(3));
       auto buttonCode = static_cast<uint8_t>(readVal.at(5));
-      if (eventCode == 0x00) {  // hold start events
+      if (eventCode == 0x00) {  // hold start/stop events
         switch (buttonCode) {
           case 0xda:
             logDebug(hid) << "Next Hold Event ";
@@ -459,23 +479,10 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
         auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
         int x = byteToRel(readVal.at(5));
         int y = byteToRel(readVal.at(7));
-        auto im = connection.inputMapper();
+        auto action = connection.inputMapper()->getAction(m_holdButtonStatus.keyEventSeq());
 
-        auto mappedAction = [im, this](){
-          auto conf = im->configuration();
-          auto holdBtnKeys = m_holdButtonStatus.keyEventSeq();
-          if (holdBtnKeys.empty()) return MappedAction();
-          for (auto c: conf)
-          {
-            if (c.first == holdBtnKeys) return c.second;
-          }
-          return MappedAction();
-        }();
-
-        if (mappedAction.action && !mappedAction.action->empty())
+        if (action && !action->empty())
         {
-          auto action = mappedAction.action;
-
           if (action->type() == Action::Type::ScrollHorizontal)
           {
             const auto scrollHAction = static_cast<ScrollHorizontalAction*>(action.get());
@@ -492,13 +499,8 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
             volumeControlAction->param = -y/20; // reduce the values from Spotlight device
           }
 
-          // feed the keystroke to InputMapper
-          for (auto key_event: m_holdButtonStatus.keyEventSeq())
-          {
-            // key_event do not have SYN event at end. Add SYN event before sending to inputMapper.
-            if (key_event.back().type != EV_SYN) key_event.emplace_back(EV_SYN, SYN_REPORT, 0);
-            connection.inputMapper()->addEvents(key_event);
-          }
+          // feed the keystroke to InputMapper and let it trigger the associated action
+          for (auto key_event: m_holdButtonStatus.keyEventSeq()) connection.inputMapper()->addEvents(key_event);
         }
         m_holdButtonStatus.addEvent();
       }

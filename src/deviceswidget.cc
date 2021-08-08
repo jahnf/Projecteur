@@ -253,6 +253,7 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
   connect(this, &DevicesWidget::currentDeviceChanged, this, [this, spotlight](){updateDeviceDetails(spotlight);});
   connect(spotlight, &Spotlight::deviceActivated, this,
           [this, spotlight](const DeviceId& d){if (d==currentDeviceId()) updateDeviceDetails(spotlight);});
+  connect(spotlight, &Spotlight::deviceDeactivated, this, [this, spotlight](){updateDeviceDetails(spotlight);});
 
   layout->addWidget(m_deviceDetailsTextEdit);
   return diWidget;

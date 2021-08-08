@@ -142,8 +142,7 @@ void DeviceConnection::queryBatteryStatus()
   {
     if (sd.second->type() == ConnectionType::Hidraw && sd.second->mode() == ConnectionMode::ReadWrite)
     {
-      const auto hidrawConn = std::static_pointer_cast<SubHidrawConnection>(sd.second);
-      hidrawConn->queryBatteryStatus();
+      if (sd.second->hasFlags(DeviceFlag::ReportBattery)) sd.second->queryBatteryStatus();
     }
   }
 }
@@ -172,7 +171,7 @@ void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
                                                        const DeviceId& id, ConnectionType type,
                                                        ConnectionMode mode)
-  : type(type), mode(mode), busType(id.busType), phys(sd.phys), devicePath(sd.deviceFile)
+  : type(type), mode(mode), parentDeviceID(id), devicePath(sd.deviceFile)
 {}
 
 // -------------------------------------------------------------------------------------------------
@@ -362,15 +361,14 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   connection->createSocketNotifiers(devfd);
 
   connection->m_inputMapper = dc.inputMapper();
-  connection->m_details.phys = sd.phys;
   return connection;
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidrawConnection::queryBatteryStatus() {}
+void SubDeviceConnection::queryBatteryStatus() {}
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::pingSubDevice()
+void SubHidppConnection::pingSubDevice()
 {
   constexpr uint8_t rootID = 0x00;  // root ID is always 0x00 in any logitech device
   const uint8_t pingCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rootID, 0x1d, 0x00, 0x00, 0x5d};
@@ -378,12 +376,21 @@ void SubDeviceConnection::pingSubDevice()
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::setHIDppProtocol(float version) {
+void SubHidppConnection::setHIDppProtocol(float version) {
   // Inform user about the online status of device.
   if (version > 0) {
-    if (m_details.HIDppProtocolVer < 0) logInfo(hid) << "HID Device with path" << path() << tr("is now active with protocol version %1.").arg(version);
+    if (m_details.HIDppProtocolVer < 0)
+    {
+      logDebug(hid) << "HID++ Device with path" << path() << "is now active.";
+      logDebug(hid) << "HID++ protocol version" << tr("%1.").arg(version);
+      emit activated();
+    }
   } else {
-    if (m_details.HIDppProtocolVer > 0) logInfo(hid) << "HID Device with path" << path() << "got deactivated.";
+    if (m_details.HIDppProtocolVer > 0)
+    {
+      logDebug(hid) << "HID++ Device with path" << path() << "got deactivated.";
+      emit deactivated();
+    }
   }
   m_details.HIDppProtocolVer = version;
 }
@@ -397,7 +404,7 @@ void SubHidppConnection::initialize()
   constexpr int delay_ms = 20;
   int msgCount = 0;
   // Reset device: get rid of any device configuration by other programs -------
-  if (m_details.busType == BusType::Usb)
+  if (m_details.parentDeviceID.busType == BusType::Usb)
   {
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
       const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_GET_FEATURE, 0x00, 0x00, 0x00, 0x00};
@@ -448,8 +455,8 @@ void SubHidppConnection::initialize()
       logDebug(hid) << "SubDevice" << path() << "can send next and back hold event.";
     }
   } else {
-    logWarn(hid) << "Loading FeatureSet for" << path() << "failed. Device might be inactive.";
-    logInfo(hid) << "Press any button on device to activate it.";
+    logWarn(hid) << "Loading FeatureSet for" << path() << "failed.";
+    logInfo(hid) << "Device might be inactive. Press any button on device to activate it.";
   }
   setFlags(featureFlags, true);
   setReadNotifierEnabled(true);
@@ -466,18 +473,17 @@ void SubHidppConnection::initialize()
   }
   // Device Resetting complete -------------------------------------------------
 
-  if (m_details.busType == BusType::Usb) {
+  if (m_details.parentDeviceID.busType == BusType::Usb) {
     // Ping spotlight device for checking if is online
     // the response will have the version for HID++ protocol.
     QTimer::singleShot(delay_ms*msgCount, this, [this](){pingSubDevice();});
     msgCount++;
-  } else if (m_details.busType == BusType::Bluetooth) {
+  } else if (m_details.parentDeviceID.busType == BusType::Bluetooth) {
     // Bluetooth connection do not respond to ping.
     // Hence, we are faking a ping response here.
     // Bluetooth connection mean HID++ v2.0+.
     // Setting version to 6.4: same as USB connection.
     setHIDppProtocol(6.4);
-    emit receivedPingResponse();
   }
 
   // Enable Next and back button on hold functionality.
@@ -575,7 +581,7 @@ SubHidppConnection::~SubHidppConnection() = default;
   // For converting standard short length data to long length data, change the first byte to 0x11 and
   // pad the end of message with 0x00 to acheive the length of 20.
 
-  if (m_details.busType == BusType::Bluetooth)
+  if (m_details.parentDeviceID.busType == BusType::Bluetooth)
   {
     if (HIDPP::isMessageForUsb(msg))
     {
