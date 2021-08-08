@@ -131,6 +131,7 @@ enum class DeviceFlag : uint32_t {
   ReportBattery  = 1 << 17, ///< Device can report battery status
   NextHold       = 1 << 18, ///< Device can be configured to send 'Next Hold' event.
   BackHold       = 1 << 19, ///< Device can be configured to send 'Back Hold' event.
+  PointerSpeed   = 1 << 20, ///< Device allows changing pointer speed.
 };
 ENUM(DeviceFlag, DeviceFlags)
 
@@ -272,6 +273,7 @@ public:
   void queryBatteryStatus() override;
   void sendVibrateCommand(uint8_t intensity, uint8_t length) override;
   void pingSubDevice();
+  void setPointerSpeed(uint8_t level);
   void setHIDppProtocol(float version);
   float getHIDppProtocol() const { return m_details.HIDppProtocolVer; };
   bool isOnline() const override { return (m_details.HIDppProtocolVer > 0); };

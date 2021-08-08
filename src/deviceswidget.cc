@@ -160,6 +160,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
         if (!!(f & DeviceFlag::ReportBattery)) flagList.push_back("Report_Battery");
         if (!!(f & DeviceFlag::NextHold)) flagList.push_back("Next_Hold");
         if (!!(f & DeviceFlag::BackHold)) flagList.push_back("Back_Hold");
+        if (!!(f & DeviceFlag::PointerSpeed)) flagList.push_back("Pointer_Speed");
         return flagList;
       };
       for (const auto& sd: dc->subDevices()) {
@@ -441,12 +442,12 @@ TimerTabWidget::TimerTabWidget(Settings* settings, QWidget* parent)
   });
 
   connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::intensityChanged, this,
-  [settings, this](uint8_t intensity) {
+  [this](uint8_t intensity) {
     m_settings->setVibrationSettings(m_deviceId, m_vibrationSettingsWidget->length(), intensity);
   });
 
   connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::lengthChanged, this,
-  [settings, this](uint8_t len) {
+  [this](uint8_t len) {
     m_settings->setVibrationSettings(m_deviceId, len, m_vibrationSettingsWidget->intensity());
   });
 

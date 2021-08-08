@@ -454,6 +454,7 @@ void SubHidppConnection::initialize()
       reservedInputs.emplace_back(ReservedKeyEventSequence::BackHoldInfo);
       logDebug(hid) << "SubDevice" << path() << "can send next and back hold event.";
     }
+    if (m_featureSet->supportFeatureCode(FeatureCode::PointerSpeed)) featureFlags |= DeviceFlags::PointerSpeed;
   } else {
     logWarn(hid) << "Loading FeatureSet for" << path() << "failed.";
     logInfo(hid) << "Device might be inactive. Press any button on device to activate it.";
@@ -503,6 +504,9 @@ void SubHidppConnection::initialize()
       msgCount++;
     }
   }
+
+  // Reset pointer speed to default level of 0x04 (5th level)
+  if (hasFlags(DeviceFlags::PointerSpeed)) setPointerSpeed(0x04);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -654,6 +658,17 @@ void SubHidppConnection::queryBatteryStatus()
     }
     setWriteNotifierEnabled(false);
   }
+}
+
+void SubHidppConnection::setPointerSpeed(uint8_t level)
+{
+  const uint8_t psID = getFeatureSet()->getFeatureID(FeatureCode::PointerSpeed);
+  if (psID == 0x00) return;
+
+  level = (level > 0x09) ? 0x09: level; // level should be in range of 0-9
+  uint8_t pointerSpeed = 0x10 & level;  // pointer speed sent to device are between 0x10 - 0x19 (hence ten speed levels)
+  const uint8_t pointerSpeedCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, psID, 0x1d, pointerSpeed, 0x00, 0x00};
+  sendData(pointerSpeedCmd, sizeof(pointerSpeedCmd));
 }
 
 // -------------------------------------------------------------------------------------------------
