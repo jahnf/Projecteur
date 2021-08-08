@@ -204,6 +204,15 @@ void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type
   case Action::Type::ToggleSpotlight:
     item.action = std::make_shared<ToggleSpotlightAction>();
     break;
+  case Action::Type::ScrollHorizontal:
+    item.action = std::make_shared<ScrollHorizontalAction>();
+    break;
+  case Action::Type::ScrollVerticle:
+    item.action = std::make_shared<ScrollVerticleAction>();
+    break;
+  case Action::Type::ChangeVolume:
+    item.action = std::make_shared<ChangeVolumeAction>();
+    break;
   }
 
   configureInputMapper();
@@ -275,8 +284,8 @@ void InputMapConfigModel::updateDuplicates()
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 InputMapConfigView::InputMapConfigView(QWidget* parent)
-  : QTableView(parent)
-    , m_actionTypeDelegate(new ActionTypeDelegate(this))
+  : QTableView(parent),
+    m_actionTypeDelegate(new ActionTypeDelegate(this))
 {
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
 
@@ -296,21 +305,25 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
 
   connect(this, &QWidget::customContextMenuRequested, this,
-  [this, actionDelegate](const QPoint& pos)
+  [this, imSeqDelegate, actionDelegate](const QPoint& pos)
   {
     const auto idx = indexAt(pos);
     if (!idx.isValid()) return;
 
-    if (idx.column() == InputMapConfigModel::ActionCol)
+    switch(idx.column())
     {
-      actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                        idx, this->viewport()->mapToGlobal(pos));
-    }
-    else if (idx.column() == InputMapConfigModel::ActionTypeCol)
-    {
-      m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                              idx, this->viewport()->mapToGlobal(pos));
-    }
+      case InputMapConfigModel::InputSeqCol:
+        imSeqDelegate->inputSeqContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                                  idx, this->viewport()->mapToGlobal(pos));
+        break;
+      case InputMapConfigModel::ActionTypeCol:
+        m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                                idx, this->viewport()->mapToGlobal(pos));
+        break;
+      case InputMapConfigModel::ActionCol:
+        actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                          idx, this->viewport()->mapToGlobal(pos));
+    };
   });
 
   connect(this, &QTableView::doubleClicked, this, [this](const QModelIndex& idx)

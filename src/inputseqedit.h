@@ -8,6 +8,7 @@
 
 // -------------------------------------------------------------------------------------------------
 class QStyleOptionFrame;
+class InputMapConfigModel;
 
 // -------------------------------------------------------------------------------------------------
 class InputSeqEdit : public QWidget
@@ -68,6 +69,8 @@ public:
   QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+  void inputSeqContextMenu(QWidget* parent, InputMapConfigModel* model, const QModelIndex& index,
+                           const QPoint& globalPos);
 
   static void drawCurrentIndicator(QPainter &p, const QStyleOption& option);
 

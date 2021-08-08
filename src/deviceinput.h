@@ -1,6 +1,8 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #pragma once
 
+#include <linux/input.h>
+
 #include <memory>
 #include <vector>
 
@@ -74,6 +76,46 @@ QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
 
 // -------------------------------------------------------------------------------------------------
+// Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not valid
+// input event (input_event in linux/input.h) in conventional sense. Rather they are communicated
+// via HID++ messages from the device. To use to InputMapper architechture in that case we need to
+// reserve some KeyEventSequence for such events. These KeyEventSequence designed in such a way
+// that they cannot interfare with other valid input events from the device.
+namespace ReservedKeyEventSequence {
+  const auto genKeyEventsWithoutSYN = [](std::vector<uint16_t> codes){
+    // Generate the key envent without SYN event: these set of input events
+    // can not be produced by any device and hence these input events can be
+    // used in program without worrying about the conflict with input event
+    // from device in use.
+    KeyEventSequence ks;
+    for (auto code: codes)
+    {
+      KeyEvent pressed; KeyEvent released;
+      pressed.emplace_back(EV_KEY, code, 1);
+      released.emplace_back(EV_KEY, code, 0);
+      ks.emplace_back(std::move(pressed));
+      ks.emplace_back(std::move(released));
+    }
+    return ks;
+  };
+
+  struct ReservedKeyEventSeqInfo {QString name;
+                                  KeyEventSequence keqEventSeq = {};
+                                 };
+
+  // Use four key codes for Next and Back Hold event
+  const ReservedKeyEventSeqInfo NextHoldInfo = {"Next Hold",
+                                                genKeyEventsWithoutSYN({KEY_EQUAL, KEY_N, KEY_H, KEY_EQUAL})};  //=NH=: Reserved for Next Hold event
+  const ReservedKeyEventSeqInfo BackHoldInfo = {"Back Hold",
+                                                genKeyEventsWithoutSYN({KEY_EQUAL, KEY_B, KEY_H, KEY_EQUAL})};  //=BH=: Reserved for Back Hold event
+
+  const std::array<ReservedKeyEventSeqInfo, 2> HoldButtonsInfo {{NextHoldInfo, BackHoldInfo}};
+
+  // Currently HoldButtonsInfo are the only reserved keys. May change in the future.
+  const auto ReservedKeyEvents = HoldButtonsInfo;
+}
+
+// -------------------------------------------------------------------------------------------------
 class NativeKeySequence
 {
 public:
@@ -143,7 +185,11 @@ struct Action
     KeySequence = 1,
     CyclePresets = 2,
     ToggleSpotlight = 3,
+    ScrollHorizontal = 11,
+    ScrollVerticle = 12,
+    ChangeVolume = 13,
   };
+  int param = 0;
 
   virtual ~Action() = default;
 
@@ -151,6 +197,7 @@ struct Action
   virtual QDataStream& save(QDataStream&) const = 0;
   virtual QDataStream& load(QDataStream&) = 0;
   virtual bool empty() const = 0;
+  virtual bool isRepeated() const = 0;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -162,6 +209,7 @@ struct KeySequenceAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << keySequence; }
   QDataStream& load(QDataStream& s) override { return s >> keySequence; }
   bool empty() const override { return keySequence.empty(); }
+  bool isRepeated() const override { return false; }
   bool operator==(const KeySequenceAction& o) const { return keySequence == o.keySequence; }
 
   NativeKeySequence keySequence;
@@ -174,6 +222,7 @@ struct CyclePresetsAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
+  bool isRepeated() const override { return false; }
   bool operator==(const CyclePresetsAction&) const { return true; }
   bool placeholder = false;
 };
@@ -185,7 +234,44 @@ struct ToggleSpotlightAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
+  bool isRepeated() const override { return false; }
   bool operator==(const ToggleSpotlightAction&) const { return true; }
+  bool placeholder = false;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct ScrollHorizontalAction : public Action
+{
+  Type type() const override { return Type::ScrollHorizontal; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool isRepeated() const override { return true; }
+  bool operator==(const ScrollHorizontalAction&) const { return true; }
+  bool placeholder = false;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct ScrollVerticleAction : public Action
+{
+  Type type() const override { return Type::ScrollVerticle; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool isRepeated() const override { return true; }
+  bool operator==(const ScrollVerticleAction&) const { return true; }
+  bool placeholder = false;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct ChangeVolumeAction : public Action
+{
+  Type type() const override { return Type::ChangeVolume; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool isRepeated() const override { return true; }
+  bool operator==(const ChangeVolumeAction&) const { return true; }
   bool placeholder = false;
 };
 
@@ -204,6 +290,9 @@ QDataStream& operator<<(QDataStream& s, const MappedAction& mia);
 class InputMapConfig : public std::map<KeyEventSequence, MappedAction>{};
 
 // -------------------------------------------------------------------------------------------------
+using ReservedInput = std::vector<struct ReservedKeyEventSequence::ReservedKeyEventSeqInfo>;
+
+// -------------------------------------------------------------------------------------------------
 class InputMapper : public QObject
 {
   Q_OBJECT
@@ -215,13 +304,16 @@ public:
   void resetState(); // Reset any stored sequence state.
 
   // input_events = complete sequence including SYN event
-  void addEvents(const struct input_event input_events[], size_t num);
+  void addEvents(const struct input_event input_events[], size_t num, int event_param=0);
+  void addEvents(const KeyEvent key_events, int event_param=0);
 
   bool recordingMode() const;
   void setRecordingMode(bool recording);
 
   int keyEventInterval() const;
   void setKeyEventInterval(int interval);
+
+  auto getReservedInputs() { return reservedInputs; }
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
   bool hasVirtualDevice() const;
@@ -244,4 +336,5 @@ signals:
 private:
   struct Impl;
   std::unique_ptr<Impl> impl;
+  ReservedInput reservedInputs;
 };

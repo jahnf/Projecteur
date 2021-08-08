@@ -1,7 +1,6 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
-#include "deviceinput.h"
 #include "hidpp.h"
 #include "logging.h"
 #include "settings.h"
@@ -10,7 +9,7 @@
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QVarLengthArray>
-#include <QCursor>
+#include <QProcess>
 
 #include <fcntl.h>
 #include <sys/inotify.h>
@@ -19,6 +18,7 @@
 
 DECLARE_LOGGING_CATEGORY(device)
 DECLARE_LOGGING_CATEGORY(hid)
+DECLARE_LOGGING_CATEGORY(input)
 
 namespace {
   const auto hexId = logging::hexId;
@@ -180,6 +180,32 @@ int Spotlight::connectDevices()
 
         connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
         {
+          if (!(action->isRepeated()) && m_holdButtonStatus.numEvents() > 0) return;
+
+          static auto sign = [](int i) { return i/abs(i); };
+          auto emitNativeKeySequence = [this](const NativeKeySequence& ks)
+          {
+            if (!m_virtualDevice) return;
+
+            std::vector<input_event> events;
+            events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
+            for (const auto& ke : ks.nativeSequence())
+            {
+              for (const auto& ie : ke)
+                events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
+
+              m_virtualDevice->emitEvents(events);
+              events.resize(0);
+            };
+          };
+
+          if (action->type() == Action::Type::KeySequence)
+          {
+            const auto keySequenceAction = static_cast<KeySequenceAction*>(action.get());
+            logInfo(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
+            emitNativeKeySequence(keySequenceAction->keySequence);
+          }
+
           if (action->type() == Action::Type::CyclePresets)
           {
             auto it = std::find(m_settings->presets().cbegin(), m_settings->presets().cend(), lastPreset);
@@ -193,9 +219,33 @@ int Spotlight::connectDevices()
               m_settings->loadPreset(lastPreset);
             }
           }
-          else if (action->type() == Action::Type::ToggleSpotlight)
+
+          if (action->type() == Action::Type::ToggleSpotlight)
           {
             m_settings->setOverlayDisabled(!m_settings->overlayDisabled());
+          }
+
+          if (action->type() == Action::Type::ScrollHorizontal || action->type() == Action::Type::ScrollVerticle)
+          {
+            if (!m_virtualDevice) return;
+
+            uint16_t wheelType = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
+            auto param = (abs(action->param) > 60? 60 : action->param)/20;  // reduce the values from Spotlight device
+            param *= (action->type() == Action::Type::ScrollHorizontal) ? -1: 1;
+
+            if (param)
+              for (int j=0; j<abs(param); j++)
+                m_virtualDevice->emitEvents({{{},EV_REL, wheelType, sign(param)}});
+          }
+
+          if (action->type() == Action::Type::ChangeVolume)
+          {
+            auto param = -(action->param/20);  // reduce the values from Spotlight device
+            if (param) QProcess::execute("amixer",
+                                         QStringList({"set", "Master",
+                                                      tr("%1\%%2").arg(abs(param)).arg(sign(param)==1?"+":"-"),
+                                                      "-q"}));
+
           }
         });
 
@@ -388,11 +438,11 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
         switch (buttonCode) {
           case 0xda:
             logDebug(hid) << "Next Hold Event ";
-            m_holdButtonStatus.setButton(ActiveHoldButton::Next);
+            m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Next);
             break;
           case 0xdc:
             logDebug(hid) << "Back Hold Event ";
-            m_holdButtonStatus.setButton(ActiveHoldButton::Back);
+            m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Back);
             break;
           case 0x00:
             // hold event over.
@@ -408,20 +458,32 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
         auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
         int x = byteToRel(readVal.at(5));
         int y = byteToRel(readVal.at(7));
-        //logInfo(device) << byteToRel(readVal.at(4)) <<", "<< x<<", "<< byteToRel(readVal.at(6)) <<", "<<y;
+        auto im = connection.inputMapper();
 
-        // Demonstration with cursor movement
-        QCursor cursor;
-        auto point = cursor.pos();
-        cursor.setPos(point.x()+x, point.y()+y);
+        auto mappedAction = [im, this](){
+          auto conf = im->configuration();
+          for (auto c: conf)
+          {
+            if (c.first == m_holdButtonStatus.keyEventSeq()) return c.second;
+          }
+          return MappedAction();
+        }();
 
-        // TODO: 1. Add two default rows in Input Mapper widget for Next hold and Back Hold.
-        // 2. Add a category to Input Mapper Actions having two values: General and Repeated.
-        //    Currently available actions are all of general category as repeated calling is not required to complete them.
-        //    However, 'Repeated' actions (like scrolling, moving mouse, change volume) etc. require repeated calls.
-        // 3. When a button is on hold, general actions will be called only once, however, repeated actions will called till
-        //    the button is on hold.
-        //    Repeated actions will only be available for Next hold and Back hold inputs.
+        if (mappedAction.action)
+        {
+          int param = 0;
+          if (mappedAction.action->type() == Action::Type::ScrollHorizontal) param = x;
+          if (mappedAction.action->type() == Action::Type::ScrollVerticle ||
+                  mappedAction.action->type() == Action::Type::ChangeVolume) param = y;
+          for (auto key_event: m_holdButtonStatus.keyEventSeq())
+          {
+            KeyEvent ke = key_event;
+            // key_event do not have SYN event at end. Add SYN event
+            // before sending to inputMapper.
+            ke.emplace_back(EV_SYN, SYN_REPORT, 0);
+            connection.inputMapper()->addEvents(ke, param);
+          }
+        }
         m_holdButtonStatus.addEvent();
       }
     }
