@@ -1,14 +1,14 @@
 {
   "checksum": {
-    "previous": "a9504014a04ad54718a75911f452551882ad71440ff3fac45f0dad3a5042a9ef",
-    "current": "a9504014a04ad54718a75911f452551882ad71440ff3fac45f0dad3a5042a9ef"
+    "previous": "fdceee78baa623d59e66194333bacfa5e2256cd9a60fdbb02e780f8c59cfda1e",
+    "current": "fdceee78baa623d59e66194333bacfa5e2256cd9a60fdbb02e780f8c59cfda1e"
   },
   "fonts": [
-    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.ttf",
-    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.svg",
-    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.woff",
-    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.eot",
-    "output/fonts/projecteur-icons_a9504014a04ad54718a75911f4525518.woff2"
+    "output/fonts/projecteur-icons_fdceee78baa623d59e66194333bacfa5.ttf",
+    "output/fonts/projecteur-icons_fdceee78baa623d59e66194333bacfa5.svg",
+    "output/fonts/projecteur-icons_fdceee78baa623d59e66194333bacfa5.woff",
+    "output/fonts/projecteur-icons_fdceee78baa623d59e66194333bacfa5.eot",
+    "output/fonts/projecteur-icons_fdceee78baa623d59e66194333bacfa5.woff2"
   ],
   "glyphs": {
     "iconmonstr-arrow-73": {
@@ -18,6 +18,10 @@
     "iconmonstr-arrow-74": {
       "codepoint": 61708,
       "source": "svg/iconmonstr-arrow-74.svg"
+    },
+    "iconmonstr-audio-6": {
+      "codepoint": 61724,
+      "source": "svg/iconmonstr-audio-6.svg"
     },
     "iconmonstr-battery-3": {
       "codepoint": 61696,
@@ -46,6 +50,14 @@
     "iconmonstr-control-panel-9": {
       "codepoint": 61701,
       "source": "svg/iconmonstr-control-panel-9.svg"
+    },
+    "iconmonstr-cursor-21": {
+      "codepoint": 61721,
+      "source": "svg/iconmonstr-cursor-21.svg"
+    },
+    "iconmonstr-cursor-21-rotated": {
+      "codepoint": 61722,
+      "source": "svg/iconmonstr-cursor-21-rotated.svg"
     },
     "iconmonstr-gear-12": {
       "codepoint": 61702,

@@ -324,9 +324,9 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     case Action::Type::KeySequence: return Font::Icon::keyboard_4;
     case Action::Type::CyclePresets: return Font::Icon::connection_8;
     case Action::Type::ToggleSpotlight: return Font::Icon::power_on_off_11;
-    case Action::Type::ScrollHorizontal: return Font::Icon::power_on_off_11;
-    case Action::Type::ScrollVertical: return Font::Icon::power_on_off_11;
-    case Action::Type::VolumeControl: return Font::Icon::power_on_off_11;
+    case Action::Type::ScrollHorizontal: return Font::Icon::cursor_21_rotated;
+    case Action::Type::ScrollVertical: return Font::Icon::cursor_21;
+    case Action::Type::VolumeControl: return Font::Icon::audio_6;
     }
     return 0;
   }();
@@ -365,9 +365,9 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
     {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence"), KeySequenceAction().isRepeated()},
     {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets"), CyclePresetsAction().isRepeated()},
     {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight"), ToggleSpotlightAction().isRepeated()},
-    {Action::Type::ScrollHorizontal, Font::Icon::power_on_off_11, tr("Scroll Horizontal"), ScrollHorizontalAction().isRepeated()},
-    {Action::Type::ScrollVertical, Font::Icon::power_on_off_11, tr("Scroll Vertical"), ScrollVerticalAction().isRepeated()},
-    {Action::Type::VolumeControl, Font::Icon::power_on_off_11, tr("Volume Control"), VolumeControlAction().isRepeated()},
+    {Action::Type::ScrollHorizontal, Font::Icon::cursor_21_rotated, tr("Scroll Horizontal"), ScrollHorizontalAction().isRepeated()},
+    {Action::Type::ScrollVertical, Font::Icon::cursor_21, tr("Scroll Vertical"), ScrollVerticalAction().isRepeated()},
+    {Action::Type::VolumeControl, Font::Icon::audio_6, tr("Volume Control"), VolumeControlAction().isRepeated()},
   };
 
   static bool initIcons = []()
