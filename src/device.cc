@@ -151,7 +151,15 @@ void DeviceConnection::queryBatteryStatus()
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 {
-  if (false) //if (m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus) && batteryData.length() == 3)
+  const bool hasBattery = std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(),
+                                      [](const auto& sd)
+  {
+    return (sd.second->type() == ConnectionType::Hidraw &&
+            sd.second->mode() == ConnectionMode::ReadWrite &&
+            sd.second->hasFlags(DeviceFlag::ReportBattery));
+  });
+
+  if (hasBattery && batteryData.length() == 3)
   {
     // Battery percent is only meaningful when battery is discharging. However, save them anyway.
     m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0): 100);
@@ -352,6 +360,9 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
 
   auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd, dc.deviceId());
   connection->createSocketNotifiers(devfd);
+
+  connection->m_inputMapper = dc.inputMapper();
+  connection->m_details.phys = sd.phys;
   return connection;
 }
 
@@ -428,8 +439,12 @@ void SubHidppConnection::initialize()
       logDebug(hid) << "SubDevice" << path() << "can communicate battery information.";
     }
     if (m_featureSet->supportFeatureCode(FeatureCode::ReprogramControlsV4)) {
+      auto& reservedInputs = m_inputMapper->getReservedInputs();
+      reservedInputs.clear();
       featureFlags |= DeviceFlags::NextHold;
       featureFlags |= DeviceFlags::BackHold;
+      reservedInputs.emplace_back(ReservedKeyEventSequence::NextHoldInfo);
+      reservedInputs.emplace_back(ReservedKeyEventSequence::BackHoldInfo);
       logDebug(hid) << "SubDevice" << path() << "can send next and back hold event.";
     }
   } else {
@@ -596,6 +611,7 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
   }
 
   connection->createSocketNotifiers(devfd);
+  connection->m_inputMapper = dc.inputMapper();
   connection->postTask([c=&*connection](){ c->initialize(); });
   return connection;
 }

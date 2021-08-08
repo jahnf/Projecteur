@@ -188,13 +188,24 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
     };
 
     auto sDevices = dc->subDevices();
-    auto batteryInfoText = [dc, batteryStatusText, sDevices](){
-      const bool isOnline = std::any_of(sDevices.cbegin(), sDevices.cend(),
-                                            [](const auto& sd){
-            return (sd.second->type() == ConnectionType::Hidraw &&
-                    sd.second->mode() == ConnectionMode::ReadWrite &&
-                    sd.second->isOnline());});
-      if (isOnline) {
+    const bool isOnline = std::any_of(sDevices.cbegin(), sDevices.cend(),
+                                          [](const auto& sd){
+          return (sd.second->type() == ConnectionType::Hidraw &&
+                  sd.second->mode() == ConnectionMode::ReadWrite &&
+                  sd.second->isOnline());});
+    const bool hasHIDPP = std::any_of(sDevices.cbegin(), sDevices.cend(), [](const auto& sd)
+    {
+      return (sd.second->type() == ConnectionType::Hidraw &&
+              sd.second->mode() == ConnectionMode::ReadWrite &&
+              sd.second->hasFlags(DeviceFlag::Hidpp));
+    });
+    const bool hasBattery = std::any_of(sDevices.cbegin(), sDevices.cend(), [](const auto& sd)
+    {
+      return (sd.second->type() == ConnectionType::Hidraw &&
+              sd.second->mode() == ConnectionMode::ReadWrite &&
+              sd.second->hasFlags(DeviceFlag::ReportBattery));
+    });
+    auto batteryInfoText = [dc, batteryStatusText](){
         auto batteryInfo= dc->getBatteryInfo();
         // Only show battery percent while discharging.
         // Other cases, device do not report battery percentage correctly.
@@ -206,16 +217,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
         } else {
           return tr("%3").arg(batteryStatusText(batteryInfo.status));
         }
-      } else {
-        return tr("Device not active. Press any key on device to update.");
-      }
     };
-    const bool hasBattery = std::any_of(sDevices.cbegin(), sDevices.cend(), [](const auto& sd)
-    {
-      return (sd.second->type() == ConnectionType::Hidraw &&
-              sd.second->mode() == ConnectionMode::ReadWrite &&
-              sd.second->hasFlags(DeviceFlag::ReportBattery));
-    });
 
     deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
     deviceDetails += tr("VendorId:\t%1\n").arg(hexId(dc->deviceId().vendorId));
@@ -223,8 +225,8 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
     deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
     deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
     deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
-    if (hasBattery) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
-
+    if (hasBattery && isOnline) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
+    if (hasHIDPP && !isOnline) deviceDetails += tr("\n\t Device not active. Press any key on device to update.\n");
     return deviceDetails;
   };
 
@@ -250,7 +252,7 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
 
   connect(this, &DevicesWidget::currentDeviceChanged, this, [this, spotlight](){updateDeviceDetails(spotlight);});
   connect(spotlight, &Spotlight::deviceActivated, this,
-          [this, spotlight](const DeviceId& d){if (d==currentDeviceId()){ updateDeviceDetails(spotlight);};});
+          [this, spotlight](const DeviceId& d){if (d==currentDeviceId()) updateDeviceDetails(spotlight);});
 
   layout->addWidget(m_deviceDetailsTextEdit);
   return diWidget;

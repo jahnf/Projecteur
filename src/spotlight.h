@@ -8,27 +8,38 @@
 #include <vector>
 
 #include "devicescan.h"
+#include "deviceinput.h"
 
 class QTimer;
 class Settings;
 class VirtualDevice;
 
 // -----------------------------------------------------------------------------------------------
-enum class ActiveHoldButton : uint8_t { None, Next, Back };
-
-// -----------------------------------------------------------------------------------------------
 struct HoldButtonStatus {
-  void setButton(ActiveHoldButton b){ _button = b; _numEvents=0; };
+  enum class HoldButtonType : uint8_t { None, Next, Back };
+
+  void setButton(HoldButtonType b){ _button = b; _numEvents=0; };
   auto getButton() const { return _button; }
   int numEvents() const { return _numEvents; };
   void addEvent(){ _numEvents++; };
-  void reset(){ setButton(ActiveHoldButton::None); };
+  void reset(){ setButton(HoldButtonType::None); };
+  auto keyEventSeq() {
+    using namespace ReservedKeyEventSequence;
+    switch (_button){
+      case HoldButtonType::Next:
+        return NextHoldInfo.keqEventSeq;
+      case HoldButtonType::Back:
+        return BackHoldInfo.keqEventSeq;
+      case HoldButtonType::None:
+        return KeyEventSequence();
+      }
+    return KeyEventSequence();
+  };
 
 private:
-  ActiveHoldButton _button = ActiveHoldButton::None;
+  HoldButtonType _button = HoldButtonType::None;
   unsigned long _numEvents = 0;
 };
-
 
 /// Class handling spotlight device connections and indicating if a device is sending
 /// sending mouse move events.

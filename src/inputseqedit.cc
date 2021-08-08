@@ -47,7 +47,7 @@ namespace {
     // TODO some devices (e.g. August WP 200) have buttons that send a key combination
     //      (modifiers + key) - this is ignored completely right now.
     const auto text = QString("[%1%2%3")
-                         .arg(ke.back().code, 0, 16)
+                         .arg(ke.back().code != SYN_REPORT ? ke.back().code : ke.front().code, 0, 16)
                          .arg(buttonTap ? pressChar
                                         : ke.back().value ? pressChar : releaseChar)
                          .arg(buttonTap ? "" : "]");
@@ -88,7 +88,7 @@ namespace {
     {
       if (!drawEmptyPlaceholder) { return 0; }
       return InputSeqEdit::drawEmptyIndicator(startX, p, option);
-    }
+    }    
 
     int sequenceWidth = 0;
     const int paddingX = static_cast<int>(QStaticText(" ").size().width());
@@ -111,6 +111,28 @@ namespace {
     }
 
     return sequenceWidth;
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text, bool textDisabled)
+  {
+    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                         option.rect.bottomRight());
+
+    p.save();
+    if (textDisabled)
+    {
+      p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+    }
+    else
+    {
+      p.setPen(option.palette.color(QPalette::Text));
+    }
+    QRect br;
+    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+    p.restore();
+
+    return br.width();
   }
 }
 
@@ -192,7 +214,8 @@ void InputSeqEdit::paintEvent(QPaintEvent*)
       xPos += drawKeyEventSequence(xPos, p, option, m_recordedSequence, false);
     }
   }
-  else {
+  else
+  {
     xPos += drawKeyEventSequence(xPos, p, option, m_inputSequence);
   }
 }
@@ -342,16 +365,7 @@ int InputSeqEdit::drawRecordingSymbol(int startX, QPainter& p, const QStyleOptio
 // -------------------------------------------------------------------------------------------------
 int InputSeqEdit::drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
 {
-  const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
-                       option.rect.bottomRight());
-
-  p.save();
-  p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-  QRect br;
-  p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
-  p.restore();
-
-  return br.width();
+  return ::drawPlaceHolderText(startX, p, option, text, true);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -384,8 +398,23 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   // Our custom drawing of the KeyEventSequence...
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
-  drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).deviceSequence);
+  const auto keySeq = imModel->configData(index).deviceSequence;
+  const auto selHoldButton = [keySeq](){
+    using namespace ReservedKeyEventSequence;
+    for (auto& button : HoldButtonsInfo) {
+      if (keySeq == button.keqEventSeq) return button;
+    }
+    return ReservedKeyEventSeqInfo();
+  }();
 
+  if (!selHoldButton.keqEventSeq.empty())
+  {
+    drawPlaceHolderText(xPos, *painter, option, selHoldButton.name, false);
+  }
+  else
+  {
+    drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).deviceSequence);
+  }
   if (option.state & QStyle::State_HasFocus) {
     drawCurrentIndicator(*painter, option);
   }
@@ -478,4 +507,28 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
     return QStyledItemDelegate::sizeHint(option, index);
   }
   return QStyledItemDelegate::sizeHint(option, index);
+}
+
+#include<QMenu>
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel* model,
+                                           const QModelIndex& index, const QPoint& globalPos)
+{
+  if (!index.isValid() || !model) return;
+
+  auto reservedInputs = model->inputMapper()->getReservedInputs();
+  if (!reservedInputs.empty())
+  {
+    QMenu* menu = new QMenu(parent);
+
+    for (const auto& button : reservedInputs) {
+      const auto qaction = menu->addAction(button.name);
+      connect(qaction, &QAction::triggered, this, [model, index, button](){
+        model->setInputSequence(index, button.keqEventSeq);
+      });
+    }
+
+    menu->exec(globalPos);
+    menu->deleteLater();
+  }
 }
