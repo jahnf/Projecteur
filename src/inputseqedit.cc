@@ -88,7 +88,7 @@ namespace {
     {
       if (!drawEmptyPlaceholder) { return 0; }
       return InputSeqEdit::drawEmptyIndicator(startX, p, option);
-    }    
+    }
 
     int sequenceWidth = 0;
     const int paddingX = static_cast<int>(QStaticText(" ").size().width());
