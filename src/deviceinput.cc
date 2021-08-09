@@ -503,6 +503,7 @@ struct InputMapper::Impl
 
   std::pair<DeviceKeyMap::Result, const RefPair*> m_lastState;
   std::vector<input_event> m_events;
+  KeyEventSequence m_keyEventSeq;
   InputMapConfig m_config;
   bool m_recordingMode = false;
 };
@@ -561,7 +562,8 @@ void InputMapper::Impl::sequenceTimeout()
     // other sequences could have been possible.
     if (m_lastState.second->second)
     {
-      execAction(m_lastState.second->second->action, DeviceKeyMap::Result::PartialHit);
+      auto action = m_parent->getAction(m_keyEventSeq);
+      if (action) execAction(action, DeviceKeyMap::Result::PartialHit);
     }
     else if (m_vdev && m_events.size())
     {
@@ -577,6 +579,7 @@ void InputMapper::Impl::resetState()
 {
   m_keymap.resetState();
   m_events.resize(0);
+  m_keyEventSeq.clear();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -707,6 +710,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   }
 
   const auto res = impl->m_keymap.feed(input_events, num-1); // exclude syn event for keymap feed
+  impl->m_keyEventSeq.emplace_back(KeyEvent{input_events, input_events + num - 1});
 
   if (res == DeviceKeyMap::Result::Miss)
   { // key sequence miss, send all buffered events so far + current event
@@ -736,7 +740,8 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
     if (impl->m_vdev)
     {
       if (impl->m_keymap.state()->second) {
-        impl->execAction(impl->m_keymap.state()->second->action, DeviceKeyMap::Result::Hit);
+        auto action = getAction(impl->m_keyEventSeq);
+        if (action) impl->execAction(action, DeviceKeyMap::Result::Hit);
       }
       else
       {
@@ -791,4 +796,16 @@ const InputMapConfig& InputMapper::configuration() const
   return impl->m_config;
 }
 
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<Action> InputMapper::getAction(KeyEventSequence kes)
+{
+  if (kes.empty()) return nullptr;
 
+  auto conf = configuration();
+  const auto find_it = std::find_if(conf.cbegin(), conf.cend(), [kes](auto c) {
+    return kes == c.first;
+  });
+
+  if (find_it != conf.cend() && find_it->second.action) return find_it->second.action;
+  return nullptr;
+}
