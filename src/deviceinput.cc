@@ -6,8 +6,7 @@
 #include "virtualdevice.h"
 
 #include <algorithm>
-#include <map>
-#include <set>
+#include <list>
 #include <type_traits>
 
 #include <QTimer>
@@ -141,32 +140,13 @@ QDataStream& operator<<(QDataStream& s, const MappedAction& mia) {
 
 // -------------------------------------------------------------------------------------------------
 namespace  {
-  struct Next;
-  // Map of Key event and the next possible key events.
-  using SynKeyEventMap = std::map<const KeyEvent, std::unique_ptr<Next>>;
-  using RefPair = SynKeyEventMap::value_type;
-  // Set of references to the next possible key event.
-  using RefSet = std::set<const RefPair*>;
-
-  struct Next {
+  struct KeyEventItem {
+    KeyEventItem(KeyEvent ke = {}) : keyEvent(std::move(ke)) {}
+    const KeyEvent keyEvent;
     std::shared_ptr<Action> action;
-    RefSet next_events;
+    std::vector<KeyEventItem*> nextMap;
   };
 
-  // Helper function
-  size_t maxSequenceLength(const InputMapConfig& config)
-  {
-    const auto max = std::max_element(config.cbegin(), config.cend(),
-    [](const auto& a, const auto& b){
-      return a.first.size() < b.first.size();
-    });
-
-    return ((max == config.cend()) ? 0 : max->first.size());
-  }
-
-  // Internal data structure for keeping track of key events and checking if a configured
-  // key event sequence was pressed. Needs to be completely reconstructed/reconfigured
-  // if the configuration changes.
   struct DeviceKeyMap
   {
     DeviceKeyMap(const InputMapConfig& config = {}) { reconfigure(config); }
@@ -180,11 +160,12 @@ namespace  {
     auto state() const { return m_pos; }
     void resetState();
     void reconfigure(const InputMapConfig& config = {});
-    bool hasConfig() const { return m_keymaps.size(); }
+    bool hasConfig() const { return m_rootItem.nextMap.size(); }
 
   private:
-    const RefPair* m_pos = nullptr;
-    std::vector<SynKeyEventMap> m_keymaps;
+    std::list<KeyEventItem> m_items;
+    KeyEventItem m_rootItem;
+    const KeyEventItem* m_pos = &m_rootItem;
   };
 }
 
@@ -192,35 +173,26 @@ namespace  {
 DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[], size_t num)
 {
   if (!hasConfig()) return Result::Miss;
+  if (!m_pos) return Result::Miss;
 
-  if (m_pos == nullptr)
-  {
-    const auto find_it = m_keymaps[0].find(KeyEvent(input_events, input_events + num));
-    if (find_it == m_keymaps[0].cend()) return Result::Miss;
-    m_pos = &(*find_it);
-  }
-  else
-  {
-    if (!m_pos->second) return Result::Miss;
+  const auto ke = KeyEvent(KeyEvent(input_events, input_events + num));
+  const auto& nextMap = m_pos->nextMap;
+  const auto find_it = std::find_if(nextMap.cbegin(), nextMap.cend(),
+  [&ke](KeyEventItem const* next) {
+    return next && ke == next->keyEvent;
+  });
 
-    const auto ke = KeyEvent(KeyEvent(input_events, input_events + num));
-    const auto& set = m_pos->second->next_events;
-    const auto find_it = std::find_if(set.cbegin(), set.cend(), [&ke](RefPair const* next_ptr) {
-      return ke == next_ptr->first;
-    });
+  if (find_it == nextMap.cend()) return Result::Miss;
 
-    if (find_it == set.cend()) return Result::Miss;
-
-    m_pos = (*find_it);
-  }
+  m_pos = (*find_it);
 
   // Last KeyEvent in possible sequence...
-  if (!m_pos->second || m_pos->second->next_events.empty()) {
+  if (m_pos->nextMap.empty()) {
     return Result::Hit;
   }
 
   // KeyEvent in Sequence has action attached, but there are other possible sequences...
-  if (m_pos->second->action && !m_pos->second->action->empty()) {
+  if (m_pos->action && !m_pos->action->empty()) {
     return Result::PartialHit;
   }
 
@@ -230,52 +202,47 @@ DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[],
 // -------------------------------------------------------------------------------------------------
 void DeviceKeyMap::resetState()
 {
-  m_pos = nullptr;
+  m_pos = &m_rootItem;
 }
 
 // -------------------------------------------------------------------------------------------------
 void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 {
-  m_keymaps.resize(maxSequenceLength(config));
-
   // -- clear maps + state
   resetState();
-  for (auto& synKeyEventMap : m_keymaps) { synKeyEventMap.clear(); }
+  m_rootItem.nextMap.clear();
+  m_items.clear();
 
-  // -- fill maps
-  for (const auto& item: config)
+  // -- fill keymaps
+  for (const auto& configItem : config)
   {
-    if (!item.second.action || item.second.action->empty()) continue;
+    KeyEventItem* previous = nullptr;
+    KeyEventItem* current = &m_rootItem;
+    const auto& kes = configItem.first;
 
-    const auto& kes = item.first;
     for (size_t i = 0; i < kes.size(); ++i) {
-      m_keymaps[i].emplace(kes[i], nullptr);
-    }
-  }
+      const auto& keyEvent = kes[i];
+      const auto it = std::find_if(current->nextMap.cbegin(), current->nextMap.cend(),
+      [&keyEvent](const KeyEventItem* item) {
+        return (item && item->keyEvent == keyEvent);
+      });
 
-  // -- fill references
-  for (const auto& item: config)
-  {
-    if (!item.second.action || item.second.action->empty()) continue;
-
-    const auto& kes = item.first;
-    for (size_t i = 0; i < kes.size(); ++i)
-    {
-      const auto r = m_keymaps[i].equal_range(kes[i]);
-      if (r.first == r.second) continue;
-      auto& refobj = r.first->second;
-      if (!refobj) {
-        refobj = std::make_unique<Next>();
+      if (it != current->nextMap.cend()) {
+        previous = current;
+        current = *it;
+      }
+      else {
+        // Create new item if not found
+        m_items.emplace_back(KeyEventItem{keyEvent});
+        previous = current;
+        current = &m_items.back();
+        // link previous to current
+        previous->nextMap.push_back(current);
       }
 
-      if (i == kes.size() - 1) { // last keyevent in seq
-        refobj->action = item.second.action;
-      }
-      else if (i+1 < m_keymaps.size()) // if not last keyevent in seq
-      {
-        const auto r = m_keymaps[i+1].equal_range(kes[i+1]);
-        if (r.first == r.second) continue;
-        refobj->next_events.emplace(&(*r.first));
+      // if last item in key event set
+      if (i == kes.size() - 1) {
+        current->action = configItem.second.action;
       }
     }
   }
@@ -286,19 +253,19 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
 NativeKeySequence::NativeKeySequence() = default;
 
 // -------------------------------------------------------------------------------------------------
-NativeKeySequence::NativeKeySequence(const std::vector<int>& qtKeys, 
+NativeKeySequence::NativeKeySequence(const std::vector<int>& qtKeys,
                                      std::vector<uint16_t>&& nativeModifiers,
                                      KeyEventSequence&& kes)
   : m_keySequence(makeQKeySequence(qtKeys))
   , m_nativeSequence(std::move(kes))
   , m_nativeModifiers(std::move(nativeModifiers))
-{ 
+{
 }
 
 // -------------------------------------------------------------------------------------------------
 bool NativeKeySequence::operator==(const NativeKeySequence &other) const
 {
-  return m_keySequence == other.m_keySequence 
+  return m_keySequence == other.m_keySequence
          && m_nativeSequence == other.m_nativeSequence
          && m_nativeModifiers == other.m_nativeModifiers;
 }
@@ -306,7 +273,7 @@ bool NativeKeySequence::operator==(const NativeKeySequence &other) const
 // -------------------------------------------------------------------------------------------------
 bool NativeKeySequence::operator!=(const NativeKeySequence &other) const
 {
-  return m_keySequence != other.m_keySequence 
+  return m_keySequence != other.m_keySequence
          || m_nativeSequence != other.m_nativeSequence
          || m_nativeModifiers != other.m_nativeModifiers;
 }
@@ -330,10 +297,10 @@ QString NativeKeySequence::toString() const
 {
   QString seqString;
   const size_t size = count();
-  for (size_t i = 0; i < size; ++i) 
+  for (size_t i = 0; i < size; ++i)
   {
     if (i > 0) seqString += QLatin1String(", ");
-    seqString += toString(m_keySequence[i], 
+    seqString += toString(m_keySequence[i],
                           (i < m_nativeModifiers.size()) ? m_nativeModifiers[i]
                                                          : (uint16_t)Modifier::NoModifier);
   }
@@ -343,7 +310,7 @@ QString NativeKeySequence::toString() const
 // -------------------------------------------------------------------------------------------------
 QString NativeKeySequence::toString(int qtKey, uint16_t nativeModifiers)
 {
-  QString keyStr; 
+  QString keyStr;
 
   if (qtKey == 0) // Special case for manually created Key Sequences
   {
@@ -379,7 +346,7 @@ QString NativeKeySequence::toString(int qtKey, uint16_t nativeModifiers)
 
   if((qtKey & Qt::ControlModifier) == Qt::ControlModifier) {
     addKeyToString(keyStr, QLatin1String("Ctrl"));
-  } 
+  }
 
   if((qtKey & Qt::AltModifier) == Qt::AltModifier) {
     addKeyToString(keyStr, QLatin1String("Alt"));
@@ -406,10 +373,10 @@ QString NativeKeySequence::toString(const std::vector<int>& qtKeys,
 {
   QString seqString;
   const auto size = qtKeys.size();
-  for (size_t i = 0; i < size; ++i) 
+  for (size_t i = 0; i < size; ++i)
   {
     if (i > 0) seqString += QLatin1String(", ");
-    seqString += toString(qtKeys[i], 
+    seqString += toString(qtKeys[i],
                           (i < nativeModifiers.size()) ? nativeModifiers[i]
                                                        : (uint16_t)Modifier::NoModifier);
   }
@@ -501,7 +468,7 @@ struct InputMapper::Impl
   QTimer* m_seqTimer = nullptr;
   DeviceKeyMap m_keymap;
 
-  std::pair<DeviceKeyMap::Result, const RefPair*> m_lastState;
+  std::pair<DeviceKeyMap::Result, const KeyEventItem*> m_lastState;
   std::vector<input_event> m_events;
   InputMapConfig m_config;
   bool m_recordingMode = false;
@@ -559,9 +526,9 @@ void InputMapper::Impl::sequenceTimeout()
   else if (m_lastState.first == DeviceKeyMap::Result::PartialHit) {
     // Last input could have triggered an action, but we needed to wait for the timeout, since
     // other sequences could have been possible.
-    if (m_lastState.second->second)
+    if (m_lastState.second)
     {
-      execAction(m_lastState.second->second->action, DeviceKeyMap::Result::PartialHit);
+      execAction(m_lastState.second->action, DeviceKeyMap::Result::PartialHit);
     }
     else if (m_vdev && m_events.size())
     {
@@ -735,8 +702,8 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
     impl->m_seqTimer->stop();
     if (impl->m_vdev)
     {
-      if (impl->m_keymap.state()->second) {
-        impl->execAction(impl->m_keymap.state()->second->action, DeviceKeyMap::Result::Hit);
+      if (const auto pos = impl->m_keymap.state()) {
+        impl->execAction(pos->action, DeviceKeyMap::Result::Hit);
       }
       else
       {
