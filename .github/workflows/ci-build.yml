@@ -22,6 +22,7 @@ jobs:
         - fedora-34
         - debian-stretch
         - debian-buster
+        - debian-bullseye
         - ubuntu-18.04
         - ubuntu-20.04
         - ubuntu-20.10
