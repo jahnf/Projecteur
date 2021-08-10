@@ -142,8 +142,7 @@ void DeviceConnection::queryBatteryStatus()
   {
     if (sd.second->type() == ConnectionType::Hidraw && sd.second->mode() == ConnectionMode::ReadWrite)
     {
-      const auto hidrawConn = std::static_pointer_cast<SubHidrawConnection>(sd.second);
-      hidrawConn->queryBatteryStatus();
+      if (sd.second->hasFlags(DeviceFlag::ReportBattery)) sd.second->queryBatteryStatus();
     }
   }
 }
@@ -151,7 +150,15 @@ void DeviceConnection::queryBatteryStatus()
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 {
-  if (false) //if (m_featureSet->supportFeatureCode(FeatureCode::BatteryStatus) && batteryData.length() == 3)
+  const bool hasBattery = std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(),
+                                      [](const auto& sd)
+  {
+    return (sd.second->type() == ConnectionType::Hidraw &&
+            sd.second->mode() == ConnectionMode::ReadWrite &&
+            sd.second->hasFlags(DeviceFlag::ReportBattery));
+  });
+
+  if (hasBattery && batteryData.length() == 3)
   {
     // Battery percent is only meaningful when battery is discharging. However, save them anyway.
     m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0): 100);
@@ -164,7 +171,7 @@ void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
                                                        const DeviceId& id, ConnectionType type,
                                                        ConnectionMode mode)
-  : type(type), mode(mode), busType(id.busType), phys(sd.phys), devicePath(sd.deviceFile)
+  : type(type), mode(mode), parentDeviceID(id), devicePath(sd.deviceFile)
 {}
 
 // -------------------------------------------------------------------------------------------------
@@ -352,14 +359,16 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
 
   auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd, dc.deviceId());
   connection->createSocketNotifiers(devfd);
+
+  connection->m_inputMapper = dc.inputMapper();
   return connection;
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidrawConnection::queryBatteryStatus() {}
+void SubDeviceConnection::queryBatteryStatus() {}
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::pingSubDevice()
+void SubHidppConnection::pingSubDevice()
 {
   constexpr uint8_t rootID = 0x00;  // root ID is always 0x00 in any logitech device
   const uint8_t pingCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rootID, 0x1d, 0x00, 0x00, 0x5d};
@@ -367,13 +376,23 @@ void SubDeviceConnection::pingSubDevice()
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::setHIDProtocol(float version) {
+void SubHidppConnection::setHIDppProtocol(float version) {
+  // Inform user about the online status of device.
   if (version > 0) {
-    logDebug(hid) << path() << "is online with protocol version" << version ;
+    if (m_details.HIDppProtocolVer < 0)
+    {
+      logDebug(hid) << "HID++ Device with path" << path() << "is now active.";
+      logDebug(hid) << "HID++ protocol version" << tr("%1.").arg(version);
+      emit activated();
+    }
   } else {
-    logDebug(hid) << "HID Device with path" << path() << "got deactivated.";
+    if (m_details.HIDppProtocolVer > 0)
+    {
+      logDebug(hid) << "HID++ Device with path" << path() << "got deactivated.";
+      emit deactivated();
+    }
   }
-  m_details.hidProtocolVer = version;
+  m_details.HIDppProtocolVer = version;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -385,7 +404,7 @@ void SubHidppConnection::initialize()
   constexpr int delay_ms = 20;
   int msgCount = 0;
   // Reset device: get rid of any device configuration by other programs -------
-  if (m_details.busType == BusType::Usb)
+  if (m_details.parentDeviceID.busType == BusType::Usb)
   {
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
       const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_GET_FEATURE, 0x00, 0x00, 0x00, 0x00};
@@ -405,6 +424,7 @@ void SubHidppConnection::initialize()
       sendData(data, sizeof(data));});
     msgCount++;
 
+    // Now enable both software and wireless notification bit
     QTimer::singleShot(delay_ms*msgCount, this, [this](){
       constexpr uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_USB_RECEIVER, HIDPP::Bytes::SHORT_SET_FEATURE, 0x00, 0x00, 0x09, 0x00};
       sendData(data, sizeof(data));});
@@ -425,10 +445,21 @@ void SubHidppConnection::initialize()
       featureFlags |= DeviceFlag::ReportBattery;
       logDebug(hid) << "SubDevice" << path() << "can communicate battery information.";
     }
+    if (m_featureSet->supportFeatureCode(FeatureCode::ReprogramControlsV4)) {
+      auto& reservedInputs = m_inputMapper->getReservedInputs();
+      reservedInputs.clear();
+      featureFlags |= DeviceFlags::NextHold;
+      featureFlags |= DeviceFlags::BackHold;
+      reservedInputs.emplace_back(ReservedKeyEventSequence::NextHoldInfo);
+      reservedInputs.emplace_back(ReservedKeyEventSequence::BackHoldInfo);
+      logDebug(hid) << "SubDevice" << path() << "can send next and back hold event.";
+    }
+    if (m_featureSet->supportFeatureCode(FeatureCode::PointerSpeed)) featureFlags |= DeviceFlags::PointerSpeed;
   } else {
-    logWarn(hid) << "Loading FeatureSet for" << path() << "failed. Device might be inactive.";
-    logInfo(hid) << "Press any button on device to activate it.";
+    logWarn(hid) << "Loading FeatureSet for" << path() << "failed.";
+    logInfo(hid) << "Device might be inactive. Press any button on device to activate it.";
   }
+  setFlags(featureFlags, true);
   setReadNotifierEnabled(true);
 
   // Reset spotlight device
@@ -443,21 +474,39 @@ void SubHidppConnection::initialize()
   }
   // Device Resetting complete -------------------------------------------------
 
-  if (m_details.busType == BusType::Usb) {
+  if (m_details.parentDeviceID.busType == BusType::Usb) {
     // Ping spotlight device for checking if is online
     // the response will have the version for HID++ protocol.
     QTimer::singleShot(delay_ms*msgCount, this, [this](){pingSubDevice();});
     msgCount++;
-  } else if (m_details.busType == BusType::Bluetooth) {
+  } else if (m_details.parentDeviceID.busType == BusType::Bluetooth) {
+    // Bluetooth connection do not respond to ping.
+    // Hence, we are faking a ping response here.
     // Bluetooth connection mean HID++ v2.0+.
     // Setting version to 6.4: same as USB connection.
-    setHIDProtocol(6.4);
+    setHIDppProtocol(6.4);
   }
 
-  setFlags(featureFlags, true);
+  // Enable Next and back button on hold functionality.
+  const auto rcID = m_featureSet->getFeatureID(FeatureCode::ReprogramControlsV4);
+  if (rcID) {
+    if (hasFlags(DeviceFlags::NextHold)) {
+      QTimer::singleShot(delay_ms*msgCount, this, [this, rcID](){
+        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcID, 0x3d, 0x00, 0xda, 0x33};
+        sendData(data, sizeof(data));});
+      msgCount++;
+    }
 
-  // Add other configuration to enable features in device
-  // like enabling on Next and back button on hold functionality.
+    if (hasFlags(DeviceFlags::BackHold)) {
+      QTimer::singleShot(delay_ms*msgCount, this, [this, rcID](){
+        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcID, 0x3d, 0x00, 0xdc, 0x33};
+        sendData(data, sizeof(data));});
+      msgCount++;
+    }
+  }
+
+  // Reset pointer speed to default level of 0x04 (5th level)
+  if (hasFlags(DeviceFlags::PointerSpeed)) setPointerSpeed(0x04);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -536,7 +585,7 @@ SubHidppConnection::~SubHidppConnection() = default;
   // For converting standard short length data to long length data, change the first byte to 0x11 and
   // pad the end of message with 0x00 to acheive the length of 20.
 
-  if (m_details.busType == BusType::Bluetooth)
+  if (m_details.parentDeviceID.busType == BusType::Bluetooth)
   {
     if (HIDPP::isMessageForUsb(msg))
     {
@@ -572,6 +621,7 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
   }
 
   connection->createSocketNotifiers(devfd);
+  connection->m_inputMapper = dc.inputMapper();
   connection->postTask([c=&*connection](){ c->initialize(); });
   return connection;
 }
@@ -580,7 +630,6 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
 void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length)
 {
   // TODO put in HIDPP
-
   // TODO generalize features and protocol for proprietary device features like vibration
   //      for not only the Spotlight device.
   //
@@ -607,7 +656,19 @@ void SubHidppConnection::queryBatteryStatus()
       const uint8_t batteryCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
       sendData(batteryCmd, sizeof(batteryCmd));
     }
+    setWriteNotifierEnabled(false);
   }
+}
+
+void SubHidppConnection::setPointerSpeed(uint8_t level)
+{
+  const uint8_t psID = getFeatureSet()->getFeatureID(FeatureCode::PointerSpeed);
+  if (psID == 0x00) return;
+
+  level = (level > 0x09) ? 0x09: level; // level should be in range of 0-9
+  uint8_t pointerSpeed = 0x10 & level;  // pointer speed sent to device are between 0x10 - 0x19 (hence ten speed levels)
+  const uint8_t pointerSpeedCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, psID, 0x1d, pointerSpeed, 0x00, 0x00};
+  sendData(pointerSpeedCmd, sizeof(pointerSpeedCmd));
 }
 
 // -------------------------------------------------------------------------------------------------

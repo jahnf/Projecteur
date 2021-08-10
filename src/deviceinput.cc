@@ -106,6 +106,15 @@ QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
   case Action::Type::ToggleSpotlight:
     mia.action = std::make_shared<ToggleSpotlightAction>();
     return mia.action->load(s);
+  case Action::Type::ScrollHorizontal:
+    mia.action = std::make_shared<ScrollHorizontalAction>();
+    return mia.action->load(s);
+  case Action::Type::ScrollVertical:
+    mia.action = std::make_shared<ScrollVerticalAction>();
+    return mia.action->load(s);
+  case Action::Type::VolumeControl:
+    mia.action = std::make_shared<VolumeControlAction>();
+    return mia.action->load(s);
   }
   return s;
 }
@@ -127,6 +136,15 @@ bool MappedAction::operator==(const MappedAction& o) const
   case Action::Type::ToggleSpotlight:
     return (*static_cast<ToggleSpotlightAction*>(action.get()))
            == (*static_cast<ToggleSpotlightAction*>(o.action.get()));
+  case Action::Type::ScrollHorizontal:
+    return (*static_cast<ScrollHorizontalAction*>(action.get()))
+           == (*static_cast<ScrollHorizontalAction*>(o.action.get()));
+  case Action::Type::ScrollVertical:
+    return (*static_cast<ScrollVerticalAction*>(action.get()))
+           == (*static_cast<ScrollVerticalAction*>(o.action.get()));
+  case Action::Type::VolumeControl:
+    return (*static_cast<VolumeControlAction*>(action.get()))
+           == (*static_cast<VolumeControlAction*>(o.action.get()));
   }
 
   return false;
@@ -463,7 +481,6 @@ struct InputMapper::Impl
   void sequenceTimeout();
   void resetState();
   void record(const struct input_event input_events[], size_t num);
-  void emitNativeKeySequence(const NativeKeySequence& ks);
   void execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r);
 
   InputMapper* m_parent = nullptr;
@@ -496,16 +513,7 @@ void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, Device
   logDebug(input) << "Input map action, type = " << int(action->type())
                   << ", partial_hit = " << (r == DeviceKeyMap::Result::PartialHit);
 
-  if (action->type() == Action::Type::KeySequence)
-  {
-    const auto keySequenceAction = static_cast<KeySequenceAction*>(action.get());
-    logDebug(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
-    emitNativeKeySequence(keySequenceAction->keySequence);
-  }
-  else
-  {
-    emit m_parent->actionMapped(action);
-  }
+  emit m_parent->actionMapped(action);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -520,23 +528,16 @@ void InputMapper::Impl::sequenceTimeout()
   if (m_lastState.first == DeviceKeyMap::Result::Valid) {
     // Last input event was part of a valid key sequence, but timeout hit
     // So we emit our stored event so far to the virtual device
-    if (m_vdev && m_events.size())
-    {
-      m_vdev->emitEvents(m_events);
-    }
+    if (m_vdev) m_vdev->emitEvents(m_events);
     resetState();
   }
   else if (m_lastState.first == DeviceKeyMap::Result::PartialHit) {
     // Last input could have triggered an action, but we needed to wait for the timeout, since
     // other sequences could have been possible.
-    if (m_lastState.second)
+    if (m_vdev)
     {
-      execAction(m_lastState.second->action, DeviceKeyMap::Result::PartialHit);
-    }
-    else if (m_vdev && m_events.size())
-    {
-      m_vdev->emitEvents(m_events);
-      m_events.resize(0);
+      if (m_lastState.second) execAction(m_lastState.second->action, DeviceKeyMap::Result::PartialHit);
+      else m_vdev->emitEvents(m_events);
     }
     resetState();
   }
@@ -547,23 +548,6 @@ void InputMapper::Impl::resetState()
 {
   m_keymap.resetState();
   m_events.resize(0);
-}
-
-// -------------------------------------------------------------------------------------------------
-void InputMapper::Impl::emitNativeKeySequence(const NativeKeySequence& ks)
-{
-  if (!m_vdev) return;
-
-  std::vector<input_event> events;
-  events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
-  for (const auto& ke : ks.nativeSequence())
-  {
-    for (const auto& ie : ke)
-      events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
-
-    m_vdev->emitEvents(events);
-    events.resize(0);
-  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -640,13 +624,12 @@ void InputMapper::setKeyEventInterval(int interval)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::addEvents(const input_event* input_events, size_t num)
 {
-  if (num == 0 || (!impl->m_vdev)) return;
+  if (!(num && impl->m_vdev)) return;
 
   // If no key mapping is configured ...
   if (!impl->m_recordingMode && !impl->m_keymap.hasConfig()) {
-    if (impl->m_vdev) { // ... forward events to virtual device if it exists...
-      impl->m_vdev->emitEvents(input_events, num);
-    } // ... end return
+    // ... forward events to virtual device if it exists...
+    if (impl->m_vdev) impl->m_vdev->emitEvents(input_events, num);
     return;
   }
 
@@ -678,53 +661,52 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
 
   const auto res = impl->m_keymap.feed(input_events, num-1); // exclude syn event for keymap feed
 
+  // Add current events to the buffered events
+  impl->m_events.reserve(impl->m_events.size() + num);
+  std::copy(input_events, input_events + num, std::back_inserter(impl->m_events));
+
   if (res == DeviceKeyMap::Result::Miss)
-  { // key sequence miss, send all buffered events so far + current event
+  { // key sequence miss, send all buffered events so far
     impl->m_seqTimer->stop();
-    if (impl->m_vdev)
-    {
-      if (impl->m_events.size()) {
-        impl->m_vdev->emitEvents(impl->m_events);
-        impl->m_events.resize(0);
-      }
-      impl->m_vdev->emitEvents(input_events, num);
-    }
-    impl->m_keymap.resetState();
-  }
-  else if (res == DeviceKeyMap::Result::Valid)
-  { // KeyEvent is part of valid key sequence.
-    impl->m_lastState = std::make_pair(res, impl->m_keymap.state());
-    impl->m_seqTimer->start();
-    if (impl->m_vdev) {
-      impl->m_events.reserve(impl->m_events.size() + num);
-      std::copy(input_events, input_events + num, std::back_inserter(impl->m_events));
-    }
+    impl->m_vdev->emitEvents(impl->m_events);
+
+    impl->resetState();
   }
   else if (res == DeviceKeyMap::Result::Hit)
   { // Found a valid key sequence
     impl->m_seqTimer->stop();
-    if (impl->m_vdev)
-    {
-      if (const auto pos = impl->m_keymap.state()) {
-        impl->execAction(pos->action, DeviceKeyMap::Result::Hit);
-      }
-      else
-      {
-        if (impl->m_events.size()) impl->m_vdev->emitEvents(impl->m_events);
-        impl->m_vdev->emitEvents(input_events, num);
-      }
-    }
+    if (const auto pos = impl->m_keymap.state()) impl->execAction(pos->action, res);
+    else impl->m_vdev->emitEvents(impl->m_events);
+
     impl->resetState();
   }
-  else if (res == DeviceKeyMap::Result::PartialHit)
-  { // Found a valid key sequence, but are still more valid sequences possible -> start timer
+  else if (res == DeviceKeyMap::Result::Valid || res == DeviceKeyMap::Result::PartialHit)
+  { // KeyEvent is either a part of valid key sequence or Partial Hit.
+    // In both case, save the current state and start timer
     impl->m_lastState = std::make_pair(res, impl->m_keymap.state());
     impl->m_seqTimer->start();
-    if (impl->m_vdev) {
-      impl->m_events.reserve(impl->m_events.size() + num);
-      std::copy(input_events, input_events + num, std::back_inserter(impl->m_events));
-    }
   }
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::addEvents(KeyEvent key_event)
+{
+  if (key_event.empty()) addEvents({}, 0);
+
+  auto to_input_event = [](DeviceInputEvent de){
+    struct input_event ie = {{}, de.type, de.code, de.value};
+    return ie;
+  };
+
+  // If key_event do not have SYN event at end, add SYN event before sending to inputMapper.
+  if (key_event.back().type != EV_SYN) key_event.emplace_back(EV_SYN, SYN_REPORT, 0);
+
+  std::vector<struct input_event> events;
+  for (size_t i=0; i < key_event.size(); i++)
+  {
+    events.emplace_back(to_input_event(key_event[i]));
+  }
+  addEvents(events.data(), events.size());
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -761,4 +743,23 @@ const InputMapConfig& InputMapper::configuration() const
   return impl->m_config;
 }
 
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<Action> InputMapper::getAction(KeyEventSequence kes)
+{
+  if (kes.empty()) return nullptr;
 
+  KeyEventSequence kesWithoutSYNEvent;   // InputMapper save KeyEventSequence without ending EV_SYN event
+  for (auto ke: kes)
+  {
+    if (ke.back().type == EV_SYN) ke.pop_back();
+    kesWithoutSYNEvent.emplace_back(ke);
+  }
+
+  auto conf = configuration();
+  const auto find_it = std::find_if(conf.cbegin(), conf.cend(), [kesWithoutSYNEvent](auto c) {
+    return kesWithoutSYNEvent == c.first;
+  });
+
+  if (find_it != conf.cend() && find_it->second.action) return find_it->second.action;
+  return nullptr;
+}

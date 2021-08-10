@@ -8,6 +8,7 @@ namespace Font
   enum Icon {
     arrow_73 = 0xf10b, // svg/iconmonstr-arrow-73.svg
     arrow_74 = 0xf10c, // svg/iconmonstr-arrow-74.svg
+    audio_6 = 0xf11c, // svg/iconmonstr-audio-6.svg
     battery_3 = 0xf100, // svg/iconmonstr-battery-3.svg
     battery_4 = 0xf101, // svg/iconmonstr-battery-4.svg
     battery_5 = 0xf102, // svg/iconmonstr-battery-5.svg
@@ -15,6 +16,8 @@ namespace Font
     battery_7 = 0xf104, // svg/iconmonstr-battery-7.svg
     connection_8 = 0xf114, // svg/iconmonstr-connection-8.svg
     control_panel_9 = 0xf105, // svg/iconmonstr-control-panel-9.svg
+    cursor_21 = 0xf119, // svg/iconmonstr-cursor-21.svg
+    cursor_21_rotated = 0xf11a, // svg/iconmonstr-cursor-21-rotated.svg
     gear_12 = 0xf106, // svg/iconmonstr-gear-12.svg
     keyboard_14 = 0xf10e, // svg/iconmonstr-keyboard-14.svg
     keyboard_4 = 0xf10f, // svg/iconmonstr-keyboard-4.svg

@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "deviceswidget.h"
 
+#include "device.h"
 #include "device-vibration.h"
 #include "deviceinput.h"
 #include "iconwidgets.h"
@@ -152,22 +153,16 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
         if (m == ConnectionMode::ReadWrite) return "ReadWrite";
         return "Unknown Access";
       };
-      // report special flags set by program (like vibration and others)
-      auto flagText = [](DeviceFlag f){
-        QStringList flagList;
-        if (!!(f & DeviceFlag::Vibrate)) flagList.push_back("Vibration");
-        if (!!(f & DeviceFlag::ReportBattery)) flagList.push_back("Report_Battery");
-        return flagList;
-      };
       for (const auto& sd: dc->subDevices()) {
         if (sd.second->path().size()) {
           auto sds = sd.second;
-          auto flagInfo = flagText(sds->flags());
-          subDeviceList.push_back(tr("%1\t[%2, %3, %4]").arg(sds->path(),
-                                                     accessText(sds->mode()),
-                                                     sds->isGrabbed()?"Grabbed":"",
-                                                     flagInfo.isEmpty()?"":"Supports: " + flagInfo.join("; ")
-                                                     ));
+          subDeviceList.push_back(tr("%1%2[%3, %4, %5]").arg(
+            sds->path(),
+            (sds->path().length()<18)?"\t\t":"\t",
+            accessText(sds->mode()),
+            sds->isGrabbed()?"Grabbed":"",
+            sds->hasFlags(DeviceFlags::Hidpp)?"HID++":""
+            ));
         }
       }
       return subDeviceList;
@@ -185,13 +180,35 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
     };
 
     auto sDevices = dc->subDevices();
-    auto batteryInfoText = [dc, batteryStatusText, sDevices](){
-      const bool isOnline = std::any_of(sDevices.cbegin(), sDevices.cend(),
-                                            [](const auto& sd){
-            return (sd.second->type() == ConnectionType::Hidraw &&
-                    sd.second->mode() == ConnectionMode::ReadWrite &&
-                    sd.second->isOnline());});
-      if (isOnline) {
+    bool isOnline = false, hasBattery = false, hasHIDPP = false;
+    float HIDPPversion = -1;
+    QStringList HIDPPfeatureText;
+    auto HIDppSubDevice = std::find_if(sDevices.cbegin(), sDevices.cend(), [](const auto& sd){
+      return (sd.second->type() == ConnectionType::Hidraw &&
+              sd.second->mode() == ConnectionMode::ReadWrite &&
+              sd.second->hasFlags(DeviceFlag::Hidpp));
+    });
+
+    if (HIDppSubDevice != sDevices.cend())
+    {
+      auto dev = HIDppSubDevice->second;
+      hasHIDPP = true;
+      isOnline = dev->isOnline();
+      hasBattery = dev->hasFlags(DeviceFlags::ReportBattery);
+      HIDPPversion = dev->getHIDppProtocol();
+      // report HID++ features recognised by program (like vibration and others)
+      HIDPPfeatureText = [dev](){
+        QStringList flagList;
+        if (dev->hasFlags(DeviceFlag::Vibrate)) flagList.push_back("Vibration");
+        if (dev->hasFlags(DeviceFlag::ReportBattery)) flagList.push_back("Reports Battery");
+        if (dev->hasFlags(DeviceFlag::NextHold)) flagList.push_back("Next Hold Button (Reprogrammed)");
+        if (dev->hasFlags(DeviceFlag::BackHold)) flagList.push_back("Back Hold Button (Reprogrammed)");
+        if (dev->hasFlags(DeviceFlag::PointerSpeed)) flagList.push_back("Variable Pointer Speed");
+        return flagList;
+      }();
+    }
+
+    auto batteryInfoText = [dc, batteryStatusText](){
         auto batteryInfo= dc->getBatteryInfo();
         // Only show battery percent while discharging.
         // Other cases, device do not report battery percentage correctly.
@@ -203,24 +220,21 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
         } else {
           return tr("%3").arg(batteryStatusText(batteryInfo.status));
         }
-      } else {
-        return tr("Device not active. Press any key on device to update.");
-      }
     };
-    const bool hasBattery = std::any_of(sDevices.cbegin(), sDevices.cend(), [](const auto& sd)
-    {
-      return (sd.second->type() == ConnectionType::Hidraw &&
-              sd.second->mode() == ConnectionMode::ReadWrite &&
-              sd.second->hasFlags(DeviceFlag::ReportBattery));
-    });
 
     deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
-    deviceDetails += tr("VendorId:\t%1\n").arg(logging::hexId(dc->deviceId().vendorId));
-    deviceDetails += tr("ProductId:\t%1\n").arg(logging::hexId(dc->deviceId().productId));
+    deviceDetails += tr("VendorId:\t%1\n").arg(hexId(dc->deviceId().vendorId));
+    deviceDetails += tr("ProductId:\t%1\n").arg(hexId(dc->deviceId().productId));
     deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
     deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
     deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
-    if (hasBattery) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
+    if (hasBattery && isOnline) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
+    if (hasHIDPP && !isOnline) deviceDetails += tr("\n\n\t Device not active. Press any key on device to update.\n");
+    if (hasHIDPP && isOnline){
+      deviceDetails += "\n";
+      deviceDetails += tr("HID++ Version:\t%1\n").arg(HIDPPversion);
+      deviceDetails += tr("HID++ Features:\t%1\n").arg(HIDPPfeatureText.join(",\n\t\t"));
+    }
 
     return deviceDetails;
   };
@@ -247,7 +261,8 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
 
   connect(this, &DevicesWidget::currentDeviceChanged, this, [this, spotlight](){updateDeviceDetails(spotlight);});
   connect(spotlight, &Spotlight::deviceActivated, this,
-          [this, spotlight](const DeviceId& d){if (d==currentDeviceId()){ updateDeviceDetails(spotlight);};});
+          [this, spotlight](const DeviceId& d){if (d==currentDeviceId()) updateDeviceDetails(spotlight);});
+  connect(spotlight, &Spotlight::deviceDeactivated, this, [this, spotlight](){updateDeviceDetails(spotlight);});
 
   layout->addWidget(m_deviceDetailsTextEdit);
   return diWidget;
@@ -435,12 +450,12 @@ TimerTabWidget::TimerTabWidget(Settings* settings, QWidget* parent)
   });
 
   connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::intensityChanged, this,
-  [settings, this](uint8_t intensity) {
+  [this](uint8_t intensity) {
     m_settings->setVibrationSettings(m_deviceId, m_vibrationSettingsWidget->length(), intensity);
   });
 
   connect(m_vibrationSettingsWidget, &VibrationSettingsWidget::lengthChanged, this,
-  [settings, this](uint8_t len) {
+  [this](uint8_t len) {
     m_settings->setVibrationSettings(m_deviceId, len, m_vibrationSettingsWidget->intensity());
   });
 

@@ -68,6 +68,54 @@ namespace  {
       return QSize(100,16);
     }
   }
+
+  namespace scrollhorizontal {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const ScrollHorizontalAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Scroll Horizontal"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollHorizontalAction* /*action*/)
+    {
+      return QSize(100,16);
+    }
+  }
+
+  namespace scrollvertical {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const ScrollVerticalAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Scroll Vertical"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollVerticalAction* /*action*/)
+    {
+      return QSize(100,16);
+    }
+  }
+
+  namespace volumecontrol {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const VolumeControlAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Volume Control"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const VolumeControlAction* /*action*/)
+    {
+      return QSize(100,16);
+    }
+  }
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -94,6 +142,15 @@ void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option
   case Action::Type::ToggleSpotlight:
     togglespotlight::paint(painter, option, static_cast<ToggleSpotlightAction*>(item.action.get()));
     break;
+  case Action::Type::ScrollHorizontal:
+    scrollhorizontal::paint(painter, option, static_cast<ScrollHorizontalAction*>(item.action.get()));
+    break;
+  case Action::Type::ScrollVertical:
+    scrollvertical::paint(painter, option, static_cast<ScrollVerticalAction*>(item.action.get()));
+    break;
+  case Action::Type::VolumeControl:
+    volumecontrol::paint(painter, option, static_cast<VolumeControlAction*>(item.action.get()));
+    break;
   }
 
   if (option.state & QStyle::State_HasFocus) {
@@ -117,6 +174,13 @@ QSize ActionDelegate::sizeHint(const QStyleOptionViewItem& opt, const QModelInde
     return cyclepresets::sizeHint(opt, static_cast<CyclePresetsAction*>(item.action.get()));
   case Action::Type::ToggleSpotlight:
     return togglespotlight::sizeHint(opt, static_cast<ToggleSpotlightAction*>(item.action.get()));
+  case Action::Type::ScrollHorizontal:
+    return scrollhorizontal::sizeHint(opt, static_cast<ScrollHorizontalAction*>(item.action.get()));
+  case Action::Type::ScrollVertical:
+    return scrollvertical::sizeHint(opt, static_cast<ScrollVerticalAction*>(item.action.get()));
+  case Action::Type::VolumeControl:
+    return volumecontrol::sizeHint(opt, static_cast<VolumeControlAction*>(item.action.get()));
+
   }
 
   return QStyledItemDelegate::sizeHint(opt, index);
@@ -135,6 +199,12 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const Action* action) con
   case Action::Type::CyclePresets: // None for now...
     break;
   case Action::Type::ToggleSpotlight: // None for now...
+    break;
+  case Action::Type::ScrollHorizontal: // None for now...
+    break;
+  case Action::Type::ScrollVertical: // None for now...
+    break;
+  case Action::Type::VolumeControl: // None for now...
     break;
   }
   return nullptr;
@@ -254,6 +324,9 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     case Action::Type::KeySequence: return Font::Icon::keyboard_4;
     case Action::Type::CyclePresets: return Font::Icon::connection_8;
     case Action::Type::ToggleSpotlight: return Font::Icon::power_on_off_11;
+    case Action::Type::ScrollHorizontal: return Font::Icon::cursor_21_rotated;
+    case Action::Type::ScrollVertical: return Font::Icon::cursor_21;
+    case Action::Type::VolumeControl: return Font::Icon::audio_6;
     }
     return 0;
   }();
@@ -274,17 +347,27 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   const auto& item = model->configData(index);
   if (!item.action) return;
 
+  const bool showRepeatedActions = std::any_of(
+              ReservedKeyEventSequence::HoldButtonsInfo.cbegin(),
+              ReservedKeyEventSequence::HoldButtonsInfo.cend(),
+              [item](const auto& button){
+      return (item.deviceSequence == button.keqEventSeq);});
+
   struct actionEntry {
     Action::Type type;
     QChar symbol;
     QString text;
+    bool isRepeated;
     QIcon icon = {};
   };
 
   static std::vector<actionEntry> items {
-    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence")},
-    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets")},
-    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight")},
+    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence"), KeySequenceAction().isRepeated()},
+    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets"), CyclePresetsAction().isRepeated()},
+    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight"), ToggleSpotlightAction().isRepeated()},
+    {Action::Type::ScrollHorizontal, Font::Icon::cursor_21_rotated, tr("Scroll Horizontal"), ScrollHorizontalAction().isRepeated()},
+    {Action::Type::ScrollVertical, Font::Icon::cursor_21, tr("Scroll Vertical"), ScrollVerticalAction().isRepeated()},
+    {Action::Type::VolumeControl, Font::Icon::audio_6, tr("Volume Control"), VolumeControlAction().isRepeated()},
   };
 
   static bool initIcons = []()
@@ -310,10 +393,12 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   QMenu* menu = new QMenu(parent);
 
   for (const auto& entry : items) {
-    const auto qaction = menu->addAction(entry.icon, entry.text);
-    connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
-      model->setItemActionType(index, type);
-    });
+    if (!entry.isRepeated || (entry.isRepeated && showRepeatedActions)) {
+      const auto qaction = menu->addAction(entry.icon, entry.text);
+      connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
+        model->setItemActionType(index, type);
+      });
+    };
   }
 
   menu->exec(globalPos);

@@ -1,7 +1,6 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
-#include "deviceinput.h"
 #include "hidpp.h"
 #include "logging.h"
 #include "settings.h"
@@ -10,6 +9,7 @@
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QVarLengthArray>
+#include <QProcess>
 
 #include <fcntl.h>
 #include <sys/inotify.h>
@@ -18,6 +18,7 @@
 
 DECLARE_LOGGING_CATEGORY(device)
 DECLARE_LOGGING_CATEGORY(hid)
+DECLARE_LOGGING_CATEGORY(input)
 
 namespace {
   const auto hexId = logging::hexId;
@@ -146,11 +147,28 @@ int Spotlight::connectDevices()
             auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc);
             if (addHidppInputHandler(hidppCon))
             {
-              // connect to hidraw sub connection signals
-              connect(&*hidppCon, &SubHidrawConnection::receivedBatteryInfo,
+              // connect to hidpp sub connection signals
+              connect(&*hidppCon, &SubHidppConnection::receivedBatteryInfo,
                       dc.get(), &DeviceConnection::setBatteryInfo);
-              connect(&*hidppCon, &SubHidrawConnection::receivedPingResponse, dc.get(),
-              [this, dc]() { emit deviceActivated(dc->deviceId(), dc->deviceName()); });
+              auto hidppActivated = [this, dc]() {
+                if (std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(),
+                              dc->deviceId()) == m_activeDeviceIds.cend()) {
+                  logInfo(device) << dc->deviceName() << "is now active.";
+                  m_activeDeviceIds.emplace_back(dc->deviceId());
+                  emit deviceActivated(dc->deviceId(), dc->deviceName());
+                }
+              };
+              auto hidppDeactivated = [this, dc]() {
+                auto it = std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(), dc->deviceId());
+                if (it != m_activeDeviceIds.cend()) {
+                  logInfo(device) << dc->deviceName() << "is deactivated.";
+                  m_activeDeviceIds.erase(it);
+                  emit deviceDeactivated(dc->deviceId(), dc->deviceName());
+                }
+              };
+              connect(&*hidppCon, &SubHidppConnection::activated, dc.get(), hidppActivated);
+              connect(&*hidppCon, &SubHidppConnection::deactivated, dc.get(), hidppDeactivated);
+              connect(&*hidppCon, &SubHidppConnection::destroyed, dc.get(), hidppDeactivated);
 
               return hidppCon;
             }
@@ -179,6 +197,32 @@ int Spotlight::connectDevices()
 
         connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
         {
+          if (!(action->isRepeated()) && m_holdButtonStatus.numEvents() > 0) return;
+
+          static auto sign = [](int i) { return i/abs(i); };
+          auto emitNativeKeySequence = [this](const NativeKeySequence& ks)
+          {
+            if (!m_virtualDevice) return;
+
+            std::vector<input_event> events;
+            events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
+            for (const auto& ke : ks.nativeSequence())
+            {
+              for (const auto& ie : ke)
+                events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
+
+              m_virtualDevice->emitEvents(events);
+              events.resize(0);
+            };
+          };
+
+          if (action->type() == Action::Type::KeySequence)
+          {
+            const auto keySequenceAction = static_cast<KeySequenceAction*>(action.get());
+            logInfo(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
+            emitNativeKeySequence(keySequenceAction->keySequence);
+          }
+
           if (action->type() == Action::Type::CyclePresets)
           {
             auto it = std::find(m_settings->presets().cbegin(), m_settings->presets().cend(), lastPreset);
@@ -192,9 +236,34 @@ int Spotlight::connectDevices()
               m_settings->loadPreset(lastPreset);
             }
           }
-          else if (action->type() == Action::Type::ToggleSpotlight)
+
+          if (action->type() == Action::Type::ToggleSpotlight)
           {
             m_settings->setOverlayDisabled(!m_settings->overlayDisabled());
+          }
+
+          if (action->type() == Action::Type::ScrollHorizontal || action->type() == Action::Type::ScrollVertical)
+          {
+            if (!m_virtualDevice) return;
+
+            int param = 0;
+            uint16_t wheelType = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
+            if (action->type() == Action::Type::ScrollHorizontal) param = static_cast<ScrollHorizontalAction*>(action.get())->param;
+            if (action->type() == Action::Type::ScrollVertical) param = static_cast<ScrollVerticalAction*>(action.get())->param;
+
+            if (param)
+              for (int j=0; j<abs(param); j++)
+                m_virtualDevice->emitEvents({{{},EV_REL, wheelType, sign(param)}});
+          }
+
+          if (action->type() == Action::Type::VolumeControl)
+          {
+            auto param = static_cast<VolumeControlAction*>(action.get())->param;
+            if (param) QProcess::execute("amixer",
+                                         QStringList({"set", "Master",
+                                                      tr("%1\%%2").arg(abs(param)).arg(sign(param)==1?"+":"-"),
+                                                      "-q"}));
+
           }
         });
 
@@ -344,10 +413,12 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 
   if (readVal.at(0) == HIDPP::Bytes::SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
   {
-    if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {    // wireless notification from USB dongle
-      auto connection_status = readVal.at(4) & (1<<6);  // should be zero for successful connection
+    // wireless notification from USB dongle
+    if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {
+      auto connection_status = readVal.at(4) & (1<<6);  // should be zero for working connection between
+                                                        // USB dongle and Spotlight device.
       if (connection_status) {    // connection between USB dongle and spotlight device broke
-        connection.setHIDProtocol(-1);
+        connection.setHIDppProtocol(-1);
       } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
         if (!connection.isOnline()) connection.initialize();
       }
@@ -356,15 +427,16 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 
   if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
   {
+    // response to ping
     auto rootID = connection.getFeatureSet()->getFeatureID(FeatureCode::Root);
     if (readVal.at(2) == rootID) {
-      if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) { // response to ping
+      if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) {
         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
-        connection.setHIDProtocol(protocolVer);
-        if (connection.isOnline()) emit connection.receivedPingResponse();
+        connection.setHIDppProtocol(protocolVer);
       }
     }
 
+    // Wireless Notification from the Spotlight device
     auto wirelessNotificationID = connection.getFeatureSet()->getFeatureID(FeatureCode::WirelessDeviceStatus);
     if (wirelessNotificationID && readVal.at(2) == wirelessNotificationID) {    // Logitech spotlight presenter unit got online.
       if (!connection.isOnline()) connection.initialize();
@@ -377,7 +449,62 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
       emit connection.receivedBatteryInfo(batteryData);
     }
 
-    // TODO: Process other packets
+    // Process reprogrammed keys : Next Hold and Back Hold
+    auto reprogrammedControlID = connection.getFeatureSet()->getFeatureID(FeatureCode::ReprogramControlsV4);
+    if (reprogrammedControlID && readVal.at(2) == reprogrammedControlID)     // Button (for which hold events are on) related message.
+    {
+      auto eventCode = static_cast<uint8_t>(readVal.at(3));
+      auto buttonCode = static_cast<uint8_t>(readVal.at(5));
+      if (eventCode == 0x00) {  // hold start/stop events
+        switch (buttonCode) {
+          case 0xda:
+            logDebug(hid) << "Next Hold Event ";
+            m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Next);
+            break;
+          case 0xdc:
+            logDebug(hid) << "Back Hold Event ";
+            m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Back);
+            break;
+          case 0x00:
+            // hold event over.
+            logDebug(hid) << "Hold Event over.";
+            m_holdButtonStatus.reset();
+        }
+      }
+      else if (eventCode == 0x10) {   // mouse move event
+        // Mouse data is sent as 4 byte information starting at 4th index and ending at 7th.
+        // out of these 5th byte and 7th byte are x and y relative change, respectively.
+        // the forth byte show horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
+        // the sixth byte show vertical scroll towards up if rel value is -1 otherwise down scroll (0)
+        auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
+        int x = byteToRel(readVal.at(5));
+        int y = byteToRel(readVal.at(7));
+        auto action = connection.inputMapper()->getAction(m_holdButtonStatus.keyEventSeq());
+
+        if (action && !action->empty())
+        {
+          if (action->type() == Action::Type::ScrollHorizontal)
+          {
+            const auto scrollHAction = static_cast<ScrollHorizontalAction*>(action.get());
+            scrollHAction->param = -(abs(x) > 60? 60 : x)/20; // reduce the values from Spotlight device
+          }
+          if (action->type() == Action::Type::ScrollVertical)
+          {
+            const auto scrollVAction = static_cast<ScrollVerticalAction*>(action.get());
+            scrollVAction->param = (abs(y) > 60? 60 : y)/20; // reduce the values from Spotlight device
+          }
+          if(action->type() == Action::Type::VolumeControl)
+          {
+            const auto volumeControlAction = static_cast<VolumeControlAction*>(action.get());
+            volumeControlAction->param = -y/20; // reduce the values from Spotlight device
+          }
+
+          // feed the keystroke to InputMapper and let it trigger the associated action
+          for (auto key_event: m_holdButtonStatus.keyEventSeq()) connection.inputMapper()->addEvents(key_event);
+        }
+        m_holdButtonStatus.addEvent();
+      }
+    }
 
     // Vibration response check
     const uint8_t pcID = connection.getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
