@@ -58,15 +58,9 @@ jobs:
         echo Detected branch: ${BRANCH}
         echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
 
-    - name: Login to github docker registry
-      run: echo ${DOCKER_TOKEN} | docker login ghcr.io -u ${{ secrets.DOCKER_USER }} --password-stdin
-      env:
-        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: |
         docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
-        docker logout ghcr.io
     - name: docker create build container
       run: |
         docker run --name build --env MAKEFLAGS=${MAKEFLAGS} \
