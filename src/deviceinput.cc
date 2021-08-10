@@ -192,7 +192,7 @@ DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[],
   }
 
   // KeyEvent in Sequence has action attached, but there are other possible sequences...
-  if (m_pos->action && !m_pos->action->empty()) {
+  if (m_pos->action) {
     return Result::PartialHit;
   }
 
@@ -213,9 +213,12 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   m_rootItem.nextMap.clear();
   m_items.clear();
 
-  // -- fill keymaps
+    // -- fill keymaps
   for (const auto& configItem : config)
   {
+    // sanity check
+    if (!configItem.second.action) continue;
+
     KeyEventItem* previous = nullptr;
     KeyEventItem* current = &m_rootItem;
     const auto& kes = configItem.first;
