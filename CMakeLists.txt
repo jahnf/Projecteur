@@ -35,7 +35,7 @@ find_package(Qt5 QUIET COMPONENTS X11Extras)
 set(HAS_Qt5_X11Extras ${Qt5_FOUND})
 find_package(Qt5 QUIET COMPONENTS DBus)
 set(HAS_Qt5_DBus ${Qt5_FOUND})
-find_package(Qt5 QUIET COMPONENTS QuickCompiler REQUIRED)
+find_package(Qt5 QUIET COMPONENTS QuickCompiler)
 set(HAS_Qt5_QuickCompiler ${Qt5_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
