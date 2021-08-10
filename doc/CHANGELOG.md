@@ -5,7 +5,7 @@
 ### Changes/Updates:
 
 - Logitech Spotlight Bluetooth vibration & hidraw support ([#140][p140]);
-- Logitech Spotlight Scrolling and Audio Volume functionality ([#85][i85]); Many thanks to @mayanksuman
+- Logitech Spotlight Scrolling and Audio Volume functionality ([#85][i85]);
 - Bug fix for high CPU load in certain situations ([#133][i133])
 - Bug fix for wrong button mapping for inputs with same length ([#144][i144])
 - Added automated builds for Fedora 34, Debian 11 (Bullseye) and OpenSUSE 15.3 ([#148][i148])
