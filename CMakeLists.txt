@@ -30,12 +30,13 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
 find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
 find_package(Qt5 QUIET COMPONENTS X11Extras)
 set(HAS_Qt5_X11Extras ${Qt5_FOUND})
 find_package(Qt5 QUIET COMPONENTS DBus)
 set(HAS_Qt5_DBus ${Qt5_FOUND})
+find_package(Qt5 QUIET COMPONENTS QuickCompiler REQUIRED)
+set(HAS_Qt5_QuickCompiler ${Qt5_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -43,6 +44,17 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
     OR (Qt5_VERSION VERSION_GREATER "5.8" AND Qt5_VERSION VERSION_LESS "5.9"))
   message(WARNING "There are known issues when using Projecteur with Qt Version 5.8, "
                   "please use a different Qt Version.")
+endif()
+
+if (HAS_Qt5_QuickCompiler)
+  message(STATUS "Using QtQuick Compiler.")
+  qtquick_compiler_add_resources(RESOURCES resources.qrc qml/qml.qrc)
+  # Avoid CMake policy CMP0071 warning
+  foreach(resfile IN LISTS RESOURCES)
+    set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
+  endforeach()
+else()
+  qt5_add_resources(RESOURCES resources.qrc qml/qml.qrc)
 endif()
 
 add_executable(projecteur
@@ -70,7 +82,7 @@ add_executable(projecteur
   src/spotshapes.cc         src/spotshapes.h
   src/virtualdevice.h       src/virtualdevice.cc
   src/hidpp.cc              src/hidpp.h
-  resources.qrc             qml/qml.qrc)
+  ${RESOURCES})
 
 target_include_directories(projecteur PRIVATE src)
 
