@@ -4,6 +4,7 @@
 
 #include <unistd.h>
 
+#include <QCoreApplication>
 #include <QTime>
 
 DECLARE_LOGGING_CATEGORY(hid)
@@ -16,8 +17,6 @@ namespace {
   QByteArray make_QByteArray(const C(&a)[N]) {
     return {reinterpret_cast<const char*>(a),N};
   }
-
-  class Hid_ : public QObject {}; // for i18n and logging
 }
 
 namespace HIDPP {
@@ -55,7 +54,7 @@ uint8_t FeatureSet::getFeatureIndexFromDevice(FeatureCode fc)
   const auto res = ::write(m_fdHIDDevice, featureReqMessage.data(), featureReqMessage.size());
   if (res != featureReqMessage.size())
   {
-    logDebug(hid) << Hid_::tr("Failed to write feature request message to device.");
+    logDebug(hid) << tr("Failed to write feature request message to device.");
     return 0x00;
   }
 
@@ -80,7 +79,7 @@ uint8_t FeatureSet::getFeatureCountFromDevice(uint8_t featureSetIndex)
   const auto res = ::write(m_fdHIDDevice, featureCountReqMessage.data(), featureCountReqMessage.size());
   if (res != featureCountReqMessage.size())
   {
-    logDebug(hid) << Hid_::tr("Failed to write feature count request message to device.");
+    logDebug(hid) << tr("Failed to write feature count request message to device.");
     return 0x00;
   }
 
@@ -109,7 +108,7 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
   const auto res = ::write(m_fdHIDDevice, fwCountReqMessage.data(), fwCountReqMessage.size());
   if (res != fwCountReqMessage.size())
   {
-    logDebug(hid) << Hid_::tr("Failed to write firmware count request message to device.");
+    logDebug(hid) << tr("Failed to write firmware count request message to device.");
     return 0x00;
   }
 
@@ -143,7 +142,7 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
     const auto res = ::write(m_fdHIDDevice, fwVerReqMessage.data(), fwVerReqMessage.length());
     if (res != fwCountReqMessage.size())
     {
-      logDebug(hid) << Hid_::tr("Failed to write firmware request message to device (%1).")
+      logDebug(hid) << tr("Failed to write firmware request message to device (%1).")
                              .arg(int(i));
       return 0x00;
     }
@@ -151,18 +150,27 @@ QByteArray FeatureSet::getFirmwareVersionFromDevice()
     if (!fwResponse.length() || static_cast<uint8_t>(fwResponse.at(2)) == 0x8f) return QByteArray();
     const auto fwType = (fwResponse.at(4) & 0x0f);  // 0 for main HID++ application, 1 for BootLoader, 2 for Hardware, 3-15 others
     const auto fwVersion = fwResponse.mid(5, 7);
-    // Currently we are not interested in these details; however, these commented lines are kept for future reference.
-    //auto firmwareName = fwVersion.mid(0, 3).data();
-    //auto majorVesion = fwResponse.at(3);
-    //auto MinorVersion = fwResponse.at(4);
-    //auto build = fwResponse.mid(5);
+
     if (fwType == 0)
     {
-      logDebug(hid) << "Main application firmware Version:" << fwVersion.toHex();
+      logDebug(hid) << tr("Main application firmware Version:") << fwVersion.toHex();
       return fwVersion;
     }
   }
   return QByteArray();
+}
+
+// -------------------------------------------------------------------------------------------------
+QString FeatureSet::getFirmwareVersion()
+{
+  if (!m_firmwareVersion.length()) return "";
+
+  QString firmwareName = static_cast<QString>(m_firmwareVersion.mid(0, 3).data());
+  int majorVesion = static_cast<uint8_t>(m_firmwareVersion.at(3));
+  int minorVersion = static_cast<uint8_t>(m_firmwareVersion.at(4));
+  uint16_t build = ((static_cast<uint16_t>(m_firmwareVersion.at(5)) << 8) | static_cast<uint16_t>(m_firmwareVersion.at(6)));
+
+  return tr("%1 %2.%3 %4").arg(firmwareName).arg(majorVesion).arg(minorVersion).arg((build)?tr("(Build %1)").arg(build):"");
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -171,20 +179,34 @@ void FeatureSet::populateFeatureTable()
   if (m_fdHIDDevice == -1) return;
 
   // Get the firmware version
-  const auto firmwareVersion = getFirmwareVersionFromDevice();
-  if (!firmwareVersion.length()) return;
+  m_firmwareVersion = getFirmwareVersionFromDevice();
+  if (!m_firmwareVersion.length()) return;
 
-  // TODO:: Read and write cache file (settings most probably)
+  logDebug(hid) << tr("Device Firmware Version (ByteArray):") << m_firmwareVersion.toHex();
+
   // if the firmware details match with cached file; then load the FeatureTable from file
   // else read the entire feature table from the device
-  QByteArray cacheFirmwareVersion;  // currently a dummy variable for Firmware Version from cache file.
-
-  if (firmwareVersion == cacheFirmwareVersion)
+  auto featureSetSetting = new QSettings(QCoreApplication::applicationName(), "Device_FeatureSet", this);
+  QByteArray cacheFirmwareVersion = featureSetSetting->value("FirmwareVersion").toByteArray();
+  if (cacheFirmwareVersion.length())
   {
-    // TODO: load the featureSet from the cache file
+    logDebug(hid) << tr("Cached Firmware Version (ByteArray):") << cacheFirmwareVersion.toHex();
+  }
+
+  if (m_firmwareVersion == cacheFirmwareVersion)
+  {
+    logDebug(hid) << tr("Loading HID++ Feature Set from cache.");
+    featureSetSetting->beginGroup("FeatureSet");
+    QStringList keys = featureSetSetting->childKeys();
+      foreach (QString key, keys) {
+           m_featureTable[static_cast<uint16_t>(key.toUInt())] = static_cast<uint8_t>(featureSetSetting->value(key).toUInt());
+      }
+    featureSetSetting->endGroup();
   }
   else
   {
+    logDebug(hid) << tr("Loading HID++ Feature Set from Device.");
+
     // For reading feature table from device
     // first get featureIndex for FeatureCode::FeatureSet
     // then we can get the number of features supported by the device (except Root Feature)
@@ -205,7 +227,7 @@ void FeatureSet::populateFeatureTable()
       });
       const auto res = ::write(m_fdHIDDevice, featureCodeReqMsg.data(), featureCodeReqMsg.size());
       if (res != featureCodeReqMsg.size()) {
-        logDebug(hid) << Hid_::tr("Failed to write feature code request message to device.");
+        logDebug(hid) << tr("Failed to write feature code request message to device.");
         return;
       }
 
@@ -220,6 +242,14 @@ void FeatureSet::populateFeatureTable()
       const auto obsoleteFeature = (featureType & (1<<7));
       if (!(softwareHidden) && !(obsoleteFeature)) m_featureTable.insert({featureCode, featureIndex});
     }
+
+    // Save the firmware version and feture set to cache file.
+    featureSetSetting->setValue("FirmwareVersion", m_firmwareVersion);
+    featureSetSetting->beginGroup("FeatureSet");
+    for (auto f : m_featureTable) {
+         featureSetSetting->setValue(tr("%1").arg(f.first), f.second);
+     }
+    featureSetSetting->endGroup();
   }
 }
 

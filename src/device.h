@@ -200,6 +200,7 @@ public:
   virtual void sendVibrateCommand(uint8_t intensity, uint8_t length);
   virtual void queryBatteryStatus();
   virtual float getHIDppProtocol() const { return -1; };
+  virtual QString getFirmwareVersion() const { return ""; }
 
 signals:
   void flagsChanged(DeviceFlags f);
@@ -278,6 +279,8 @@ public:
   void setHIDppProtocol(float version);
   float getHIDppProtocol() const override { return m_details.HIDppProtocolVer; };
   bool isOnline() const override { return (m_details.HIDppProtocolVer > 0); };
+  QString getFirmwareVersion() const override;
+
 
   void initialize();
 

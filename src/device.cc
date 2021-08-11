@@ -680,3 +680,9 @@ const HIDPP::FeatureSet* SubHidppConnection::getFeatureSet()
 {
   return &*m_featureSet;
 }
+
+// -------------------------------------------------------------------------------------------------
+QString SubHidppConnection::getFirmwareVersion() const
+{
+  return m_featureSet->getFirmwareVersion();
+}

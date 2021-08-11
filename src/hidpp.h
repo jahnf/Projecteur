@@ -4,8 +4,7 @@
 #include <map>
 
 #include <QByteArray>
-
-
+#include <QSettings>
 
 // Feature Codes important for Logitech Spotlight
 enum class FeatureCode : uint16_t {
@@ -50,14 +49,17 @@ namespace HIDPP {
   bool isMessageForUsb(const QByteArray& msg);
 
   // Class to get and store Set of supported features for a HID++ 2.0 device
-  class FeatureSet
+  class FeatureSet : public QObject
   {
+    Q_OBJECT
+
   public:
     void setHIDDeviceFileDescriptor(int fd) { m_fdHIDDevice = fd; }
     uint8_t getFeatureIndex(FeatureCode fc) const;
     bool supportFeatureCode(FeatureCode fc) const;
     auto getFeatureCount() const { return m_featureTable.size(); }
     uint8_t getRandomFunctionCode(uint8_t functionCode) const { return (functionCode | m_softwareIDBits); }
+    QString getFirmwareVersion();
     void populateFeatureTable();
 
   private:
@@ -66,9 +68,9 @@ namespace HIDPP {
     QByteArray getFirmwareVersionFromDevice();
     QByteArray getResponseFromDevice(const QByteArray &expectedBytes);
 
+    QByteArray m_firmwareVersion;
     std::map<uint16_t, uint8_t> m_featureTable;
     int m_fdHIDDevice = -1;
     uint8_t m_softwareIDBits = (rand() & 0x0f);
   };
-
 } //end of HIDPP namespace

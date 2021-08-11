@@ -181,6 +181,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
 
     auto sDevices = dc->subDevices();
     bool isOnline = false, hasBattery = false, hasHIDPP = false;
+    QString HIDPPFwVersion;
     float HIDPPversion = -1;
     QStringList HIDPPfeatureText;
     auto HIDppSubDevice = std::find_if(sDevices.cbegin(), sDevices.cend(), [](const auto& sd){
@@ -196,6 +197,7 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
       isOnline = dev->isOnline();
       hasBattery = dev->hasFlags(DeviceFlags::ReportBattery);
       HIDPPversion = dev->getHIDppProtocol();
+      HIDPPFwVersion = dev->getFirmwareVersion();
       // report HID++ features recognised by program (like vibration and others)
       HIDPPfeatureText = [dev](){
         QStringList flagList;
@@ -222,11 +224,16 @@ void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
         }
     };
 
-    deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
-    deviceDetails += tr("VendorId:\t%1\n").arg(hexId(dc->deviceId().vendorId));
-    deviceDetails += tr("ProductId:\t%1\n").arg(hexId(dc->deviceId().productId));
+
+    auto deviceName = tr("%1 %2(%3:%4)").arg(dc->deviceName())
+            .arg((dc->deviceName().contains(busTypeToString(dc->deviceId().busType)))?
+                     "":tr("(%1) ").arg(busTypeToString(dc->deviceId().busType)))
+            .arg(hexId(dc->deviceId().vendorId))
+            .arg(hexId(dc->deviceId().productId));
+
+    deviceDetails += tr("Device:\t\t%1\n").arg(deviceName);
     deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
-    deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
+    if (hasHIDPP && isOnline){ deviceDetails += tr("Firmware:\t%1\n").arg(HIDPPFwVersion); }
     deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
     if (hasBattery && isOnline) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
     if (hasHIDPP && !isOnline) deviceDetails += tr("\n\n\t Device not active. Press any key on device to update.\n");
