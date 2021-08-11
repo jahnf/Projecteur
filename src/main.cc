@@ -206,6 +206,7 @@ int main(int argc, char *argv[])
       {
         print() << "  - compiler: " << XSTRINGIFY(CXX_COMPILER_ID) << " "
                                     << XSTRINGIFY(CXX_COMPILER_VERSION);
+        print() << "  - build-type: " << projecteur::version_buildtype();
         print() << "  - qt-version: (build: " << QT_VERSION_STR << ", runtime: " << qVersion() << ")";
 
         const auto result = DeviceScan::getDevices(options.additionalDevices);

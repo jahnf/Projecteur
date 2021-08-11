@@ -47,15 +47,22 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
 endif()
 
 if (HAS_Qt5_QuickCompiler)
-  message(STATUS "Using QtQuick Compiler.")
-  qtquick_compiler_add_resources(RESOURCES resources.qrc qml/qml.qrc)
-  # Avoid CMake policy CMP0071 warning
-  foreach(resfile IN LISTS RESOURCES)
-    set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
-  endforeach()
-else()
-  qt5_add_resources(RESOURCES resources.qrc qml/qml.qrc)
+  # Off by default, since this ties the application strictly to the Qt version
+  # it is built with, see https://doc.qt.io/qt-5.12/qtquick-deployment.html#compiling-qml-ahead-of-time
+  option(USE_QTQUICK_COMPILER "Use the QtQuickCompiler" OFF)
+
+  if (USE_QTQUICK_COMPILER)
+    message(STATUS "Using QtQuick Compiler.")
+    qtquick_compiler_add_resources(RESOURCES qml/qml.qrc)
+    # Avoid CMake policy CMP0071 warning
+    foreach(resfile IN LISTS RESOURCES)
+      set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
+    endforeach()
+  else()
+    qt5_add_resources(RESOURCES qml/qml.qrc)
+  endif()
 endif()
+qt5_add_resources(RESOURCES resources.qrc)
 
 add_executable(projecteur
   src/main.cc               src/enum-helper.h
@@ -67,6 +74,7 @@ add_executable(projecteur
   src/deviceinput.cc        src/deviceinput.h
   src/devicescan.cc         src/devicescan.h
   src/deviceswidget.cc      src/deviceswidget.h
+  src/hidpp.cc              src/hidpp.h
   src/linuxdesktop.cc       src/linuxdesktop.h
   src/iconwidgets.cc        src/iconwidgets.h
   src/imageitem.cc          src/imageitem.h
@@ -81,7 +89,6 @@ add_executable(projecteur
   src/spotlight.cc          src/spotlight.h
   src/spotshapes.cc         src/spotshapes.h
   src/virtualdevice.h       src/virtualdevice.cc
-  src/hidpp.cc              src/hidpp.h
   ${RESOURCES})
 
 target_include_directories(projecteur PRIVATE src)

@@ -11,4 +11,5 @@ namespace @TARGET@ {
   const char* version_fullhash() { return "@VERSION_FULLHASH@"; }
   bool version_isdirty() { return @VERSION_ISDIRTY@; }
   const char* version_branch() { return "@VERSION_BRANCH@"; }
+  const char* version_buildtype() { return "@VERSION_BUILDTYPE@"; }
 }
