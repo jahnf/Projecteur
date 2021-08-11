@@ -70,7 +70,7 @@ private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
   std::unique_ptr<QMenu> m_trayMenu;
   std::unique_ptr<PreferencesDialog> m_dialog;
-  std::unique_ptr<AboutDialog> m_aboutDialog;
+  QPointer<AboutDialog> m_aboutDialog;
   QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;

@@ -143,9 +143,9 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   connect(actionAbout, &QAction::triggered, this, [this]()
   {
     if (!m_aboutDialog) {
-      m_aboutDialog = std::make_unique<AboutDialog>();
-      connect(m_aboutDialog.get(), &QDialog::finished, this, [this](int){
-        m_aboutDialog.reset(); // No need to keep about dialog in memory, not that important
+      m_aboutDialog = new AboutDialog();
+      connect(m_aboutDialog, &QDialog::finished, this, [this](int){
+        m_aboutDialog->deleteLater(); // No need to keep about dialog in memory, not that important
       });
     }
 
@@ -154,7 +154,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
       m_aboutDialog->raise();
       m_aboutDialog->activateWindow();
     } else {
-      m_aboutDialog->exec();
+      m_aboutDialog->open();
     }
   });
 
