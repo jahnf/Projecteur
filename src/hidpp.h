@@ -54,19 +54,21 @@ namespace HIDPP {
   {
   public:
     void setHIDDeviceFileDescriptor(int fd) { m_fdHIDDevice = fd; }
-    uint8_t getFeatureID(FeatureCode fc) const;
+    uint8_t getFeatureIndex(FeatureCode fc) const;
     bool supportFeatureCode(FeatureCode fc) const;
     auto getFeatureCount() const { return m_featureTable.size(); }
+    uint8_t getRandomFunctionCode(uint8_t functionCode) const { return (functionCode | m_softwareIDBits); }
     void populateFeatureTable();
 
   private:
-    uint8_t getFeatureIDFromDevice(FeatureCode fc);
+    uint8_t getFeatureIndexFromDevice(FeatureCode fc);
     uint8_t getFeatureCountFromDevice(uint8_t featureSetID);
     QByteArray getFirmwareVersionFromDevice();
     QByteArray getResponseFromDevice(const QByteArray &expectedBytes);
 
     std::map<uint16_t, uint8_t> m_featureTable;
     int m_fdHIDDevice = -1;
+    uint8_t m_softwareIDBits = (rand() & 0x0f);
   };
-}
 
+} //end of HIDPP namespace
