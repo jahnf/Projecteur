@@ -19,8 +19,10 @@ jobs:
         - fedora-31
         - fedora-32
         - fedora-33
+        - fedora-34
         - debian-stretch
         - debian-buster
+        - debian-bullseye
         - ubuntu-18.04
         - ubuntu-20.04
         - ubuntu-20.10
@@ -28,13 +30,14 @@ jobs:
         - opensuse-15.0
         - opensuse-15.1
         - opensuse-15.2
+        - opensuse-15.3
         - centos-8
         os:
         - ubuntu-latest
 
     runs-on: ${{ matrix.os }}
     env:
-      DOCKER_IMG: docker.pkg.github.com/jahnf/projecteur/projecteur
+      DOCKER_IMG: ghcr.io/jahnf/projecteur/projecteur
       DOCKER_TAG: ${{ matrix.docker_tag }}
       MAKEFLAGS: -j2
       CLOUDSMITH_USER: jahnf
@@ -56,15 +59,9 @@ jobs:
         echo Detected branch: ${BRANCH}
         echo "BRANCH=${BRANCH}" >> $GITHUB_ENV
 
-    - name: Login to github docker registry
-      run: echo ${DOCKER_TOKEN} | docker login docker.pkg.github.com -u ${{ secrets.DOCKER_USER }} --password-stdin
-      env:
-        DOCKER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Pull ${{ matrix.docker_tag }} docker image
       run: |
         docker pull ${DOCKER_IMG}:${{ matrix.docker_tag }}
-        docker logout docker.pkg.github.com
     - name: docker create build container
       run: |
         docker run --name build --env MAKEFLAGS=${MAKEFLAGS} \
@@ -189,10 +186,11 @@ jobs:
         declare -A distromap=( ["debian-stretch"]="debian/stretch" ["debian-buster"]="debian/buster" \
           ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
           ["ubuntu-20.04"]="ubuntu/focal" ["ubuntu-21.04"]="ubuntu/hirsute" \
-          ["opensuse-15.1"]="opensuse/15.1" \
-          ["opensuse-15.2"]="opensuse/15.2" ["centos-8"]="el/8" \
+          ["opensuse-15.1"]="opensuse/15.1" ["opensuse-15.2"]="opensuse/15.2" \
+          ["opensuse-15.3"]="opensuse/15.3" ["centos-8"]="el/8" \
           ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
-          ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" )
+          ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" \
+          ["fedora-34"]="fedora/34" )
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
         echo DISTRO=$DISTRO
