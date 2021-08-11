@@ -428,30 +428,31 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
   if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
   {
     // response to ping
-    auto rootID = connection.getFeatureSet()->getFeatureID(FeatureCode::Root);
-    if (readVal.at(2) == rootID) {
-      if (readVal.at(3) == 0x1d && readVal.at(6) == 0x5d) {
+    auto rootIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::Root);
+    if (readVal.at(2) == rootIndex) {
+      if (readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10) && readVal.at(6) == 0x5d) {
         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
         connection.setHIDppProtocol(protocolVer);
       }
     }
 
     // Wireless Notification from the Spotlight device
-    auto wirelessNotificationID = connection.getFeatureSet()->getFeatureID(FeatureCode::WirelessDeviceStatus);
-    if (wirelessNotificationID && readVal.at(2) == wirelessNotificationID) {    // Logitech spotlight presenter unit got online.
+    auto wnIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::WirelessDeviceStatus);
+    if (wnIndex && readVal.at(2) == wnIndex) {    // Logitech spotlight presenter unit got online.
       if (!connection.isOnline()) connection.initialize();
     }
 
     // Battery packet processing: Device responded to BatteryStatus (0x1000) packet
-    auto batteryID = connection.getFeatureSet()->getFeatureID(FeatureCode::BatteryStatus);
-    if (batteryID && readVal.at(2) == batteryID && readVal.at(3) == 0x0d) {  // Battery information packet
+    auto batteryIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::BatteryStatus);
+    if (batteryIndex && readVal.at(2) == batteryIndex &&
+            readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x00)) {  // Battery information packet
       QByteArray batteryData(readVal.mid(4, 3));
       emit connection.receivedBatteryInfo(batteryData);
     }
 
     // Process reprogrammed keys : Next Hold and Back Hold
-    auto reprogrammedControlID = connection.getFeatureSet()->getFeatureID(FeatureCode::ReprogramControlsV4);
-    if (reprogrammedControlID && readVal.at(2) == reprogrammedControlID)     // Button (for which hold events are on) related message.
+    auto rcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::ReprogramControlsV4);
+    if (rcIndex && readVal.at(2) == rcIndex)     // Button (for which hold events are on) related message.
     {
       auto eventCode = static_cast<uint8_t>(readVal.at(3));
       auto buttonCode = static_cast<uint8_t>(readVal.at(5));
@@ -507,8 +508,8 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
     }
 
     // Vibration response check
-    const uint8_t pcID = connection.getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
-    if (pcID && readVal.at(2) == pcID && readVal.at(3) == 0x1d) {
+    const uint8_t pcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::PresenterControl);
+    if (pcIndex && readVal.at(2) == pcIndex && readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10)) {
       logDebug(hid) << "Device acknowledged a vibration event.";
     }
   }

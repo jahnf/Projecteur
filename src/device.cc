@@ -370,8 +370,9 @@ void SubDeviceConnection::queryBatteryStatus() {}
 // -------------------------------------------------------------------------------------------------
 void SubHidppConnection::pingSubDevice()
 {
-  constexpr uint8_t rootID = 0x00;  // root ID is always 0x00 in any logitech device
-  const uint8_t pingCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rootID, 0x1d, 0x00, 0x00, 0x5d};
+  constexpr uint8_t rootIndex = 0x00;  // root Index is always 0x00 in any logitech device
+  const uint8_t pingCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rootIndex,
+                             m_featureSet->getRandomFunctionCode(0x10), 0x00, 0x00, 0x5d};
   sendData(pingCmd, sizeof(pingCmd));
 }
 
@@ -464,10 +465,10 @@ void SubHidppConnection::initialize()
 
   // Reset spotlight device
   if (m_featureSet->getFeatureCount()) {
-    const auto resetID = m_featureSet->getFeatureID(FeatureCode::Reset);
-    if (resetID) {
-      QTimer::singleShot(delay_ms*msgCount, this, [this, resetID](){
-        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, resetID, 0x1d, 0x00, 0x00, 0x00};
+    const auto resetIndex = m_featureSet->getFeatureIndex(FeatureCode::Reset);
+    if (resetIndex) {
+      QTimer::singleShot(delay_ms*msgCount, this, [this, resetIndex](){
+        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, resetIndex, m_featureSet->getRandomFunctionCode(0x10), 0x00, 0x00, 0x00};
         sendData(data, sizeof(data));});
       msgCount++;
     }
@@ -488,18 +489,20 @@ void SubHidppConnection::initialize()
   }
 
   // Enable Next and back button on hold functionality.
-  const auto rcID = m_featureSet->getFeatureID(FeatureCode::ReprogramControlsV4);
-  if (rcID) {
+  const auto rcIndex = m_featureSet->getFeatureIndex(FeatureCode::ReprogramControlsV4);
+  if (rcIndex) {
     if (hasFlags(DeviceFlags::NextHold)) {
-      QTimer::singleShot(delay_ms*msgCount, this, [this, rcID](){
-        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcID, 0x3d, 0x00, 0xda, 0x33};
+      QTimer::singleShot(delay_ms*msgCount, this, [this, rcIndex](){
+        const uint8_t data[] = {HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcIndex, m_featureSet->getRandomFunctionCode(0x30), 0x00, 0xda, 0x33,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         sendData(data, sizeof(data));});
       msgCount++;
     }
 
     if (hasFlags(DeviceFlags::BackHold)) {
-      QTimer::singleShot(delay_ms*msgCount, this, [this, rcID](){
-        const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcID, 0x3d, 0x00, 0xdc, 0x33};
+      QTimer::singleShot(delay_ms*msgCount, this, [this, rcIndex](){
+        const uint8_t data[] = {HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, rcIndex, m_featureSet->getRandomFunctionCode(0x30), 0x00, 0xdc, 0x33,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         sendData(data, sizeof(data));});
       msgCount++;
     }
@@ -611,14 +614,8 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
 
   auto connection = std::make_shared<SubHidppConnection>(Token{}, sd, dc.deviceId());
 
-  // TODO feature set needs to be a member of a sub hidraw connection
-  // connection->m_featureSet = dc.getFeatureSet();
+  if (dc.hasHidppSupport()) connection->m_details.deviceFlags |= DeviceFlag::Hidpp;
   connection->m_featureSet->setHIDDeviceFileDescriptor(devfd);
-  // ---
-
-  if (dc.hasHidppSupport()) {
-    connection->m_details.deviceFlags |= DeviceFlag::Hidpp;
-  }
 
   connection->createSocketNotifiers(devfd);
   connection->m_inputMapper = dc.inputMapper();
@@ -629,6 +626,8 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
 // -------------------------------------------------------------------------------------------------
 void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length)
 {
+  if (!hasFlags(DeviceFlags::Vibrate)) return;
+
   // TODO put in HIDPP
   // TODO generalize features and protocol for proprietary device features like vibration
   //      for not only the Spotlight device.
@@ -638,10 +637,12 @@ void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length)
   //                                        controlID   len         intensity
   // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
 
-  const uint8_t pcID = getFeatureSet()->getFeatureID(FeatureCode::PresenterControl);
-  if (pcID == 0x00) return;
-  const uint8_t vibrateCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, pcID, 0x1d, length, 0xe8, intensity};
-  sendData(vibrateCmd, sizeof(vibrateCmd));
+  length = length > 10? 10: length;   //length should be between 0 to 10.
+  const uint8_t pcIndex = getFeatureSet()->getFeatureIndex(FeatureCode::PresenterControl);
+  using namespace HIDPP;
+  const uint8_t vibrateCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, pcIndex,
+                                m_featureSet->getRandomFunctionCode(0x10), length, 0xe8, intensity};
+  if (pcIndex) sendData(vibrateCmd, sizeof (vibrateCmd));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -650,24 +651,27 @@ void SubHidppConnection::queryBatteryStatus()
   // TODO put parts in HIDPP
   if (hasFlags(DeviceFlag::ReportBattery))
   {
-    const uint8_t batteryFeatureID = m_featureSet->getFeatureID(FeatureCode::BatteryStatus);
-    if (batteryFeatureID)
+    const uint8_t batteryFeatureIndex = m_featureSet->getFeatureIndex(FeatureCode::BatteryStatus);
+    if (batteryFeatureIndex)
     {
-      const uint8_t batteryCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, batteryFeatureID, 0x0d, 0x00, 0x00, 0x00};
+      const uint8_t batteryCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, batteryFeatureIndex,
+                                    m_featureSet->getRandomFunctionCode(0x00), 0x00, 0x00, 0x00};
       sendData(batteryCmd, sizeof(batteryCmd));
     }
     setWriteNotifierEnabled(false);
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 void SubHidppConnection::setPointerSpeed(uint8_t level)
 {
-  const uint8_t psID = getFeatureSet()->getFeatureID(FeatureCode::PointerSpeed);
-  if (psID == 0x00) return;
+  const uint8_t psIndex = getFeatureSet()->getFeatureIndex(FeatureCode::PointerSpeed);
+  if (psIndex == 0x00) return;
 
   level = (level > 0x09) ? 0x09: level; // level should be in range of 0-9
   uint8_t pointerSpeed = 0x10 & level;  // pointer speed sent to device are between 0x10 - 0x19 (hence ten speed levels)
-  const uint8_t pointerSpeedCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, psID, 0x1d, pointerSpeed, 0x00, 0x00};
+  const uint8_t pointerSpeedCmd[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT, psIndex,
+                                     m_featureSet->getRandomFunctionCode(0x10), pointerSpeed, 0x00, 0x00};
   sendData(pointerSpeedCmd, sizeof(pointerSpeedCmd));
 }
 
