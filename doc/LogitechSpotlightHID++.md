@@ -13,7 +13,7 @@ These two types of message are
 		* First Byte: `0x10`
 
 		* Second Byte: Device code for which the message is meant (in case it
-				is sent from PC)/originated. 0xff for USB dongle, `0x01` for
+				is sent from PC)/originated. `0xff` for USB dongle, `0x01` for
 				Logitech Spotlight device.
 
 		* Third Byte: Feature Index. Some of the featureIndex are `0x00` (for
@@ -21,8 +21,8 @@ These two types of message are
 				`0x80` (short set), `0x81` (short get).
 
 		* Forth Byte: If third byte is not `0x80` or `0x81` then last 4 bits
-			(forth_byte & 0xf0) are function code and first 4 bits
-			(forth_byte & 0x0f) are software identification code.
+			(`forth_byte & 0xf0`) are function code and first 4 bits
+			(`forth_byte & 0x0f`) are software identification code.
 			Software identification code is random value in range of 0 to 15
 			(used to differentiate traffic for different softwares).
 
@@ -43,7 +43,7 @@ and forth byte respectively as in the request message from the application.
 If the Spotlight device is connected through Bluetooth then a short HID++
 message meant for device should be transformed to a long HID++ message before
 sending it to device. For changing a short message to a long message, the first
-byte is replaced as 0x11 and the message is appended with trailing zero to
+byte is replaced as `0x11` and the message is appended with trailing zero to
 achieve the length of 20.
 
 ## HID++ Feature Code
@@ -134,8 +134,8 @@ following steps:
   contain the HID++ Feature Code at byte 5 and 6 as `uint16_t` and the Feature
   Type at byte 7 for a valid Feature Index. In the Feature Type byte, if 7th bit
   is set this means _Software Hidden_, if bit 8 is set this means
-  _Obsolete feature_. So, Software_Hidden = (Feature_Type & (1<<6)) and
-  Obsolete_Feature = (Feature_Type & (1<<7)).
+  _Obsolete feature_. So, Software_Hidden = (`Feature_Type & (1<<6)`) and
+  Obsolete_Feature = (`Feature_Type & (1<<7)`).
   Software Hidden or Obsolete features should not be handled by any application.
   In case the Feature Index is not valid (i.e.,feature index > number of
   feature supported) then `0x0200` will be in the response at byte 5 and 6.
@@ -170,8 +170,10 @@ Spotlight device can be reset with following HID++ message from the application:
 
 In addition to these steps, the Projecteur also pings the device by sending
 `{0x10, 0x01, 0x00, 0x1d, 0x00, 0x00, 0x5d}` (function code `0x10` and software
-identification code `0x0d` in forth byte). The response to this ping contains
-the HID++ version supported by the device.
+identification code `0x0d` in forth byte; the last byte is a random value that
+will returned back on 7th byte in the response message). The response to this
+ping contains the HID++ version (`fifth_byte + sixth_byte/10.0`) supported by
+the device.
 
 Further, Projecteur configures the Logitech device to send `Next Hold` and
 `Back Hold` events and resets the pointer speed to a default value with
@@ -212,7 +214,9 @@ advantageous as it help in implementing Input Mapping feature that official
 Logitech Software lacks. However, this approach also makes porting Projecteur
 to different platforms more difficult.
 
-# Wireless Notification on Activation/Deactivation of Spotlight Device
+# Important HID++ commands for Spotlight device
+
+## Wireless Notification on Activation/Deactivation of Spotlight Device
 
 The Spotlight device sends a wireless notification if it gets activated.
 Wireless notification will be short HID++ message if the Spotlight device is
@@ -227,20 +231,61 @@ A long HID++ wireless notification is only received for device activation.
 In this message, third byte will be the Feature Index for the Wireless
 Notification Feature Code (`0x1db4`).
 
-# Vibration support
+## Vibration support
 
 The spotlight device can vibrate if the HID++ message
 `{0x10, 0x01, (Feature Index for Presenter Control Feature Code), 0x1d, length, 0xe8, intensity}`
 is sent to it. In the message, length can range between `0x00` to `0x0a`.
+
+## Battery Status
+
+Battery status can be requested by sending request command
+`{0x10, 0x01, 0x06, 0x0d, 0x00, 0x00, 0x00}` (assuming the Feature Index for
+Battery Status Feature Code (`0x1000`) is `0x06`; function code is `0x00` and
+software identification code is `0x0d`). In the response, the fifth byte shows
+current battery level in percent, sixth byte shows the next reported battery
+level in percent (device do not report continuous battery level) and the seventh
+byte shows the state of battery with following possible values.
+
+```
+enum class BatteryStatus : uint8_t {Discharging    = 0x00,
+                                    Charging       = 0x01,
+                                    AlmostFull     = 0x02,
+                                    Full           = 0x03,
+                                    SlowCharging   = 0x04,
+                                    InvalidBattery = 0x05,
+                                    ThermalError   = 0x06,
+                                    ChargingError  = 0x07
+                                   };
+```
 
 # Processing of device response
 
 All of the HID++ commands listed above result in response messages from the
 Spotlight device. For most messages, these responses from device are just the
 acknowledgements of the HID++ commands sent by the application. However, some
-responses from the Spotlight device contain useful information. For details on
-processing such responses see the  `onHidppDataAvailable` method in the
-`Spotlight` class in [spotlight.h](../src/spotlight.h).
+responses from the Spotlight device contain useful information. These responses
+are processed in the  `onHidppDataAvailable` method in the `Spotlight` class
+in [spotlight.h](../src/spotlight.h). Description of HID++ messages from device
+to reprogrammed keys (`Next Hold` and `Back Hold`) are provided in following
+sub-section:
+
+## Response to `Next Hold` and `Back Hold` keys
+
+The first HID++ message sent by Spotlight device at the start and end of any
+hold event is `{0x11, 0x01, 0x07, 0x00, (button_code), ...followed by zeroes ....}`
+(assuming `0x07` is the Feature Index for ReprogramControlsV4 Feature Code (`0x1b04`)).
+When the hold event starts, button_code will be `0xda` for start of `Next Hold`
+event and `0xdc` for start of `Back Hold` event. When the button is released
+the HID++ message received have `0x00` as button_code for both cases.
+
+During the Hold event, the Spotlight device sends the relative mouse movement
+data as HID++ messages. These messages are of form
+`{0x11, 0x01, 0x07, 0x10, (mouse data in 4 bytes), ...followed by zeroes ....}`
+(assuming `0x07` is the Feature Index for ReprogramControlsV4 Feature Code (`0x1b04`)).
+In the four bytes (for mouse data), the second and last bytes are relative `x`
+and `y` values. These relative `x` and `y` values are used for Scrolling and
+Volume Control Actions in Projecteur.
 
 # Further information
 
