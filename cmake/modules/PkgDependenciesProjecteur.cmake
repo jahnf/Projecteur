@@ -5,6 +5,7 @@ list(APPEND _PkgDeps_Projecteur_opensuse
   "libQt5DBus5 >= 5.7"
   "shadow"
   "udev"
+  "alsa-utils"
 )
 
 list(APPEND _PkgDeps_Projecteur_fedora
@@ -14,6 +15,7 @@ list(APPEND _PkgDeps_Projecteur_fedora
   "qt5-qtx11extras >= 5.7"
   "passwd"
   "udev"
+  "alsa-utils"
 )
 
 list(APPEND _PkgDeps_Projecteur_centos
@@ -23,6 +25,7 @@ list(APPEND _PkgDeps_Projecteur_centos
   "qt5-qtx11extras >= 5.7"
   "passwd"
   "udev"
+  "alsa-utils"
 )
 
 list(APPEND _PkgDeps_Projecteur_debian
@@ -31,6 +34,7 @@ list(APPEND _PkgDeps_Projecteur_debian
   "libqt5x11extras5 (>= 5.7)"
   "passwd"
   "udev"
+  "alsa-utils"
   "libc6"
 )
 
@@ -40,6 +44,7 @@ list(APPEND _PkgDeps_Projecteur_archlinux
   "qt5-graphicaleffects>=5.7"
   "qt5-x11extras>=5.7"
   "udev"
+  "alsa-utils"
 )
 
 list(APPEND _PkgDepsMake_Projecteur_archlinux
