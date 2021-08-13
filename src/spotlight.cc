@@ -478,10 +478,11 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
         }
       }
       else if (eventCode == 0x10) {   // mouse move event
-        // Mouse data is sent as 4 byte information starting at 4th index and ending at 7th.
-        // out of these 5th byte and 7th byte are x and y relative change, respectively.
-        // the forth byte show horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
-        // the sixth byte show vertical scroll towards up if rel value is -1 otherwise down scroll (0)
+        // Mouse data is sent as 4 byte information starting at 5th byte and ending at 8th.
+        // out of these 6th byte and 8th bytes are x and y relative change, respectively.
+        // Not sure about meaning of 5th and 7th bytes. However during testing
+        // the 5th byte shows horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
+        // the 7th byte shows vertical scroll towards up if rel value is -1 otherwise down scroll (0)
         auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
         int x = byteToRel(readVal.at(5));
         int y = byteToRel(readVal.at(7));
