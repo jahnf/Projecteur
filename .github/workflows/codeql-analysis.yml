@@ -9,7 +9,7 @@ on:
 
 jobs:
   analyse:
-    if: ${{ github.repo == 'jahnf/Projecteur' }}
+    if: ${{ github.repository == 'jahnf/Projecteur' }}
     name: Analyse
     runs-on: ubuntu-20.04
 
