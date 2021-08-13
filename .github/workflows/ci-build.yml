@@ -142,14 +142,14 @@ jobs:
         echo "REPO_UPLOAD=${{ false }}" >> $GITHUB_ENV
 
     - name: Check for binary-pkg upload conditions
-      if: ${{ (env.BRANCH == 'develop' || env.BRANCH == 'master') && github.repo == 'jahnf/Projecteur' }}
+      if: ${{ (env.BRANCH == 'develop' || env.BRANCH == 'master') && github.repository == 'jahnf/Projecteur' }}
       run: |
         echo "upload_bin_pkg=${{ true }}" >> $GITHUB_ENV
         pip install --upgrade wheel
         pip install --upgrade cloudsmith-cli
 
     - name: Check for source-pkg upload conditions
-      if: ${{ env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux') && github.repo == 'jahnf/Projecteur' }}
+      if: ${{ env.upload_bin_pkg == 'true' && startsWith(matrix.docker_tag, 'archlinux') && github.repository == 'jahnf/Projecteur' }}
       run: |
         echo "upload_src_pkg=${{ true }}" >> $GITHUB_ENV
 
@@ -170,7 +170,7 @@ jobs:
           --summary "${CLOUDSMITH_SUMMARY}" --description "${CLOUDSMITH_DESC}" ${{ env.dist_pkg_artifact }}
 
     - name: Upload raw source-pkg to cloudsmith
-      if: ${{ env.upload_src_pkg == 'true' && github.repo == 'jahnf/Projecteur' }}
+      if: ${{ env.upload_src_pkg == 'true' && github.repository == 'jahnf/Projecteur' }}
       env:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_REPO: ${{ env.cloudsmith_upload_repo }}
@@ -214,7 +214,7 @@ jobs:
   # =====================================================================================
   # ---------- Upload artifacts to projecteur server ------------
   projecteur-bin-upload:
-    if: ${{ github.repo == 'jahnf/Projecteur' }}
+    if: ${{ github.repository == 'jahnf/Projecteur' }}
     needs: build
     runs-on: ubuntu-latest
 
