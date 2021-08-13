@@ -11,6 +11,7 @@
 #include <QObject>
 
 class VirtualDevice;
+class QTimer;
 
 // -------------------------------------------------------------------------------------------------
 /// This is basically the input_event struct from linux/input.h without the time member
@@ -340,4 +341,5 @@ private:
   struct Impl;
   std::unique_ptr<Impl> impl;
   ReservedInput reservedInputs;
+  QTimer* m_repeatedActionTimer = nullptr;  // Timer for introducing time gap between repeated ations
 };
