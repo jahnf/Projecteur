@@ -199,7 +199,6 @@ int Spotlight::connectDevices()
         {
           if (!(action->isRepeated()) && m_holdButtonStatus.numEvents() > 0) return;
 
-          static auto sign = [](int i) { return i/abs(i); };
           auto emitNativeKeySequence = [this](const NativeKeySequence& ks)
           {
             if (!m_virtualDevice) return;
@@ -218,9 +217,14 @@ int Spotlight::connectDevices()
 
           if (action->type() == Action::Type::KeySequence)
           {
+            if (!m_virtualDevice) return;
+
             const auto keySequenceAction = static_cast<KeySequenceAction*>(action.get());
-            logInfo(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
-            emitNativeKeySequence(keySequenceAction->keySequence);
+            if (!keySequenceAction->keySequence.empty())
+            {
+              logDebug(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
+              emitNativeKeySequence(keySequenceAction->keySequence);
+            }
           }
 
           if (action->type() == Action::Type::CyclePresets)
@@ -247,23 +251,24 @@ int Spotlight::connectDevices()
             if (!m_virtualDevice) return;
 
             int param = 0;
-            uint16_t wheelType = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
             if (action->type() == Action::Type::ScrollHorizontal) param = static_cast<ScrollHorizontalAction*>(action.get())->param;
             if (action->type() == Action::Type::ScrollVertical) param = static_cast<ScrollVerticalAction*>(action.get())->param;
 
-            if (param)
-              for (int j=0; j<abs(param); j++)
-                m_virtualDevice->emitEvents({{{},EV_REL, wheelType, sign(param)}});
+            uint16_t wheelCode = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
+            const std::vector<input_event> scrollInputEvents = {{{}, EV_REL, wheelCode, param}, {{}, EV_SYN, SYN_REPORT, 0},};
+
+            if (param) m_virtualDevice->emitEvents(scrollInputEvents);
           }
 
           if (action->type() == Action::Type::VolumeControl)
           {
-            auto param = static_cast<VolumeControlAction*>(action.get())->param;
-            if (param) QProcess::execute("amixer",
-                                         QStringList({"set", "Master",
-                                                      tr("%1\%%2").arg(abs(param)).arg(sign(param)==1?"+":"-"),
-                                                      "-q"}));
+            if (!m_virtualDevice) return;
 
+            auto param = static_cast<VolumeControlAction*>(action.get())->param;
+            uint16_t keyCode = (param > 0)? KEY_VOLUMEUP: KEY_VOLUMEDOWN;
+            const std::vector<input_event> curVolInputEvents = {{{}, EV_KEY, keyCode, abs(param)}, {{}, EV_SYN, SYN_REPORT, 0},
+                                                                {{}, EV_KEY, keyCode, 0}, {{}, EV_SYN, SYN_REPORT, 0},};
+            if (param) m_virtualDevice->emitEvents(curVolInputEvents);
           }
         });
 
@@ -484,20 +489,28 @@ void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 
         if (action && !action->empty())
         {
+          auto getReducedParam = [](int param, int limit=2){  // reduce the values from Spotlight device for better scroll behavior
+            int minVal=5;
+            if (abs(param) < minVal) return 0;        // ignore small device movement
+
+            auto sign = (param == 0)? 0: ((param > 0)? 1:-1);
+            return ((abs(param) > minVal*limit)? sign*minVal*limit : param)/minVal;    // limit return value between -limit to limit
+          };
+
           if (action->type() == Action::Type::ScrollHorizontal)
           {
             const auto scrollHAction = static_cast<ScrollHorizontalAction*>(action.get());
-            scrollHAction->param = -(abs(x) > 60? 60 : x)/20; // reduce the values from Spotlight device
+            scrollHAction->param = -(getReducedParam(x));
           }
           if (action->type() == Action::Type::ScrollVertical)
           {
             const auto scrollVAction = static_cast<ScrollVerticalAction*>(action.get());
-            scrollVAction->param = (abs(y) > 60? 60 : y)/20; // reduce the values from Spotlight device
+            scrollVAction->param = getReducedParam(y);
           }
           if(action->type() == Action::Type::VolumeControl)
           {
             const auto volumeControlAction = static_cast<VolumeControlAction*>(action.get());
-            volumeControlAction->param = -y/20; // reduce the values from Spotlight device
+            volumeControlAction->param = -getReducedParam(y, 3);
           }
 
           // feed the keystroke to InputMapper and let it trigger the associated action

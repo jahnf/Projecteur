@@ -508,7 +508,12 @@ InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev
 // -------------------------------------------------------------------------------------------------
 void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r)
 {
-  if (!action) return;
+  if (!action || action->empty()) return;
+  if (action->isRepeated())
+  {
+    if(m_parent->m_repeatedActionTimer->isActive()) return;
+    m_parent->m_repeatedActionTimer->start();
+  }
 
   logDebug(input) << "Input map action, type = " << int(action->type())
                   << ", partial_hit = " << (r == DeviceKeyMap::Result::PartialHit);
@@ -567,7 +572,10 @@ void InputMapper::Impl::record(const struct input_event input_events[], size_t n
 InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent)
   : QObject(parent)
   , impl(std::make_unique<Impl>(this, std::move(virtualDevice)))
+  , m_repeatedActionTimer(new QTimer(this))
 {
+  m_repeatedActionTimer->setSingleShot(true);
+  m_repeatedActionTimer->setInterval(25);           // time gap between repeated action
 }
 
 // -------------------------------------------------------------------------------------------------
