@@ -4,6 +4,8 @@
 #include "asynchronous.h"
 #include "enum-helper.h"
 
+#include "devicescan.h"
+
 #include <memory>
 #include <vector>
 
@@ -11,33 +13,6 @@
 
 #include <linux/input.h>
 
-// -------------------------------------------------------------------------------------------------
-// Bus on which device is connected
-enum class BusType : uint8_t { Unknown, Usb, Bluetooth };
-
-// -------------------------------------------------------------------------------------------------
-struct DeviceId
-{
-  uint16_t vendorId = 0;
-  uint16_t productId = 0;
-  BusType busType = BusType::Unknown;
-  QString phys; // should be sufficient to differentiate between two devices of the same type
-                // - not tested, don't have two devices of any type currently.
-
-  inline bool operator==(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, busType, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
-  }
-
-  inline bool operator!=(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, busType, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
-  }
-
-  inline bool operator<(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, busType, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
-  }
-};
-
-Q_DECLARE_METATYPE(DeviceId);
 
 // -------------------------------------------------------------------------------------------------
 class InputMapper;
@@ -45,13 +20,13 @@ class QSocketNotifier;
 class SubDeviceConnection;
 class VirtualDevice;
 
-namespace HIDPP {
-  class FeatureSet;
-}
+// namespace HIDPP {
+//   class FeatureSet;
+// }
 
-namespace DeviceScan {
-  struct SubDevice;
-}
+// namespace DeviceScan {
+//   struct SubDevice;
+// }
 
 // -------------------------------------------------------------------------------------------------
 // Battery Status as returned on HID++ BatteryStatus feature code (0x1000)
@@ -72,11 +47,9 @@ struct BatteryInfo
   BatteryStatus status = BatteryStatus::Discharging;
 };
 
-// -----------------------------------------------------------------------------------------------
-enum class ConnectionType : uint8_t { Event, Hidraw };
-enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 
 // -------------------------------------------------------------------------------------------------
+/// @brief TODO
 class DeviceConnection : public QObject
 {
   Q_OBJECT
@@ -95,6 +68,8 @@ public:
   void addSubDevice(std::shared_ptr<SubDeviceConnection>);
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
+
+  // TODO ... battery status on device or subdevice level?
   void queryBatteryStatus();
   auto getBatteryInfo(){ return m_batteryInfo; }
 
@@ -114,7 +89,8 @@ protected:
   QString m_deviceName;
   std::shared_ptr<InputMapper> m_inputMapper;
   ConnectionMap m_subDeviceConnections;
-  BatteryInfo m_batteryInfo;
+
+  BatteryInfo m_batteryInfo; // TODO..
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -137,16 +113,14 @@ ENUM(DeviceFlag, DeviceFlags)
 
 // -------------------------------------------------------------------------------------------------
 struct SubDeviceConnectionDetails {
-  SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd, const DeviceId& id,
+  SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
                              ConnectionType type, ConnectionMode mode);
 
   ConnectionType type;
   ConnectionMode mode;
-  DeviceId parentDeviceID;
   bool grabbed = false;
   DeviceFlags deviceFlags = DeviceFlags::NoFlags;
   QString devicePath;
-  float HIDppProtocolVer = -1;   // set after ping to HID sub-device; If positive then Hidraw device is online.
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -172,11 +146,11 @@ class SubDeviceConnection : public QObject, public async::Async<SubDeviceConnect
 public:
   virtual ~SubDeviceConnection() = 0;
 
-  bool isConnected() const;
-  void disconnect(); // destroys socket notifier and close file handle
-  void setNotifiersEnabled(bool enabled); // enable/disable read and write socket notifiers
+  virtual bool isConnected() const;
+  virtual void disconnect(); // destroys socket notifier(s) and close file handle(s)
+  //void setNotifiersEnabled(bool enabled); // enable/disable read and write socket notifiers
   void setReadNotifierEnabled(bool enabled); // disable/enable read socket notifier
-  void setWriteNotifierEnabled(bool enabled); // disable/enable write socket notifier
+  // void setWriteNotifierEnabled(bool enabled); // disable/enable write socket notifier
 
   auto type() const { return m_details.type; };
   auto mode() const { return m_details.mode; };
@@ -188,12 +162,6 @@ public:
 
   const std::shared_ptr<InputMapper>& inputMapper() const;
   QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
-  QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
-
-  // Hidraw specific command
-  // Base implementation of generic write methods to the device does nothing.
-  virtual ssize_t sendData(const QByteArray& msg);
-  virtual ssize_t sendData(const void* msg, size_t msgLen);
 
   // HID++ specific functions: These commands write on device and expect some return message
   virtual bool isOnline() const { return false; };
@@ -203,16 +171,15 @@ public:
 
 signals:
   void flagsChanged(DeviceFlags f);
+  void socketReadError(int err);
 
 protected:
-  SubDeviceConnection(const DeviceScan::SubDevice& sd, const DeviceId& id,
-                             ConnectionType type, ConnectionMode mode);
+  SubDeviceConnection(const DeviceScan::SubDevice& sd, ConnectionType type, ConnectionMode mode);
   DeviceFlags setFlags(DeviceFlags f, bool set = true);
 
   SubDeviceConnectionDetails m_details;
-  std::shared_ptr<InputMapper> m_inputMapper; // shared input mapper from parent device.
+  std::shared_ptr<InputMapper> m_inputMapper; ///< Shared input mapper from parent device.
   std::unique_ptr<QSocketNotifier> m_readNotifier;
-  std::unique_ptr<QSocketNotifier> m_writeNotifier;   // only useful for Hidraw connections
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -225,7 +192,8 @@ public:
   static std::shared_ptr<SubEventConnection> create(const DeviceScan::SubDevice& sd,
                                                     const DeviceConnection& dc);
 
-  SubEventConnection(Token, const DeviceScan::SubDevice& sd, const DeviceId& id);
+  SubEventConnection(Token, const DeviceScan::SubDevice& sd);
+  bool isConnected() const;
   auto& inputBuffer() { return m_inputEventBuffer; }
 
 protected:
@@ -233,7 +201,15 @@ protected:
 };
 
 // -------------------------------------------------------------------------------------------------
-class SubHidrawConnection : public SubDeviceConnection
+class HidrawConnectionInterface
+{
+  // Generic plain, synchronous sendData interface
+  virtual ssize_t sendData(const QByteArray& msg) = 0;
+  virtual ssize_t sendData(const void* msg, size_t msgLen) = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+class SubHidrawConnection : public SubDeviceConnection, public HidrawConnectionInterface
 {
   Q_OBJECT
 
@@ -244,50 +220,21 @@ public:
   static std::shared_ptr<SubHidrawConnection> create(const DeviceScan::SubDevice& sd,
                                                      const DeviceConnection& dc);
 
-  SubHidrawConnection(Token, const DeviceScan::SubDevice& sd, const DeviceId& id);
+  SubHidrawConnection(Token, const DeviceScan::SubDevice& sd);
+  virtual ~SubHidrawConnection();
+  virtual bool isConnected() const override;
+  virtual void disconnect() override;
 
-  // Generic plain sendData implementation for hidraw devices.
+  // Generic plain, synchronous sendData implementation for hidraw devices.
   ssize_t sendData(const QByteArray& msg) override;
   ssize_t sendData(const void* msg, size_t msgLen) override;
 
 protected:
   void createSocketNotifiers(int fd);
-};
-
-// -------------------------------------------------------------------------------------------------
-class SubHidppConnection : public SubHidrawConnection
-{
-  Q_OBJECT
-
-public:
-  static std::shared_ptr<SubHidppConnection> create(const DeviceScan::SubDevice &sd,
-                                                    const DeviceConnection &dc);
-
-  SubHidppConnection(SubHidrawConnection::Token, const DeviceScan::SubDevice& sd, const DeviceId& id);
-  ~SubHidppConnection();
-
-  using SubHidrawConnection::sendData;
-
-  /// sendData implementation for HIDPP devices
-  ssize_t sendData(const QByteArray& msg) override;
-
-  void queryBatteryStatus() override;
-  void sendVibrateCommand(uint8_t intensity, uint8_t length) override;
-  void pingSubDevice();
-  void setPointerSpeed(uint8_t level);
-  void setHIDppProtocol(float version);
-  float getHIDppProtocol() const override { return m_details.HIDppProtocolVer; };
-  bool isOnline() const override { return (m_details.HIDppProtocolVer > 0); };
-
-  void initialize();
-
-  const HIDPP::FeatureSet* getFeatureSet();
-
-signals:
-  void receivedBatteryInfo(QByteArray batteryData);
-  void activated();
-  void deactivated();
+  static int openHidrawSubDevice(const DeviceScan::SubDevice& sd, const DeviceId& devId);
+  std::unique_ptr<QSocketNotifier> m_writeNotifier;
 
 private:
-  std::unique_ptr<HIDPP::FeatureSet> m_featureSet;
+  void onHidrawDataAvailable(int fd);
 };
+

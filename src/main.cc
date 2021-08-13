@@ -12,6 +12,7 @@
 #include <QQmlDebuggingEnabler>
 #endif
 
+#include <csignal>
 #include <iostream>
 #include <iomanip>
 
@@ -39,6 +40,14 @@ namespace {
     auto& operator<<(const T& a) const { return std::cerr << a; }
     ~error() { std::cerr << std::endl; }
   };
+
+  void ctrl_c_signal_handler(int sig)
+  {
+    if (sig == SIGINT) {
+      print() << "...";
+      if (qApp) QCoreApplication::quit();
+    }
+  }
 }
 
 int main(int argc, char *argv[])
@@ -326,5 +335,6 @@ int main(int argc, char *argv[])
   }
 
   ProjecteurApplication app(argc, argv, options);
+  signal(SIGINT, ctrl_c_signal_handler);
   return app.exec();
 }

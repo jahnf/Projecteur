@@ -1,7 +1,8 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 #include "spotlight.h"
 
-#include "hidpp.h"
+#include "device.h"
+#include "device-hidpp.h"
 #include "logging.h"
 #include "settings.h"
 #include "virtualdevice.h"
@@ -9,7 +10,6 @@
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QVarLengthArray>
-#include <QProcess>
 
 #include <fcntl.h>
 #include <sys/inotify.h>
@@ -145,7 +145,9 @@ int Spotlight::connectDevices()
           if (dc->hasHidppSupport())
           {
             auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc);
-            if (addHidppInputHandler(hidppCon))
+            if (true
+              //addHidppInputHandler(hidppCon)
+              )
             {
               // connect to hidpp sub connection signals
               connect(&*hidppCon, &SubHidppConnection::receivedBatteryInfo,
@@ -199,34 +201,6 @@ int Spotlight::connectDevices()
         {
           if (!(action->isRepeated()) && m_holdButtonStatus.numEvents() > 0) return;
 
-          auto emitNativeKeySequence = [this](const NativeKeySequence& ks)
-          {
-            if (!m_virtualDevice) return;
-
-            std::vector<input_event> events;
-            events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
-            for (const auto& ke : ks.nativeSequence())
-            {
-              for (const auto& ie : ke)
-                events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
-
-              m_virtualDevice->emitEvents(events);
-              events.resize(0);
-            };
-          };
-
-          if (action->type() == Action::Type::KeySequence)
-          {
-            if (!m_virtualDevice) return;
-
-            const auto keySequenceAction = static_cast<KeySequenceAction*>(action.get());
-            if (!keySequenceAction->keySequence.empty())
-            {
-              logDebug(input) << "Emitting Key Sequence:" << keySequenceAction->keySequence.toString();
-              emitNativeKeySequence(keySequenceAction->keySequence);
-            }
-          }
-
           if (action->type() == Action::Type::CyclePresets)
           {
             auto it = std::find(m_settings->presets().cbegin(), m_settings->presets().cend(), lastPreset);
@@ -240,13 +214,11 @@ int Spotlight::connectDevices()
               m_settings->loadPreset(lastPreset);
             }
           }
-
-          if (action->type() == Action::Type::ToggleSpotlight)
+          else if (action->type() == Action::Type::ToggleSpotlight)
           {
             m_settings->setOverlayDisabled(!m_settings->overlayDisabled());
           }
-
-          if (action->type() == Action::Type::ScrollHorizontal || action->type() == Action::Type::ScrollVertical)
+          else if (action->type() == Action::Type::ScrollHorizontal || action->type() == Action::Type::ScrollVertical)
           {
             if (!m_virtualDevice) return;
 
@@ -259,8 +231,7 @@ int Spotlight::connectDevices()
 
             if (param) m_virtualDevice->emitEvents(scrollInputEvents);
           }
-
-          if (action->type() == Action::Type::VolumeControl)
+          else if (action->type() == Action::Type::VolumeControl)
           {
             if (!m_virtualDevice) return;
 
@@ -344,7 +315,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       if (errno != EAGAIN)
       {
         const bool anyConnectedBefore = anySpotlightDeviceConnected();
-        connection.setNotifiersEnabled(false);
+        connection.disconnect();
         QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
           removeDeviceConnection(devicePath);
           if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
@@ -387,147 +358,149 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
   } // end while loop
 }
 
-// -------------------------------------------------------------------------------------------------
-void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
-{
-  Q_UNUSED(fd);
-  Q_UNUSED(connection);
-  QByteArray readVal(20, 0);
-  if (::read(fd, static_cast<void *>(readVal.data()), readVal.length()) < 0)
-  {
-    if (errno != EAGAIN)
-    {
-      const bool anyConnectedBefore = anySpotlightDeviceConnected();
-      connection.setNotifiersEnabled(false);
-      QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
-        removeDeviceConnection(devicePath);
-        if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
-          emit anySpotlightDeviceConnectedChanged(false);
-        }
-      });
-    }
-    return;
-  }
+// // -------------------------------------------------------------------------------------------------
+// void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
+// {
+//   Q_UNUSED(fd);
+//   Q_UNUSED(connection);
+//   QByteArray readVal(20, 0);
+//   if (::read(fd, static_cast<void *>(readVal.data()), readVal.length()) < 0)
+//   {
+//     if (errno != EAGAIN)
+//     {
+//       const bool anyConnectedBefore = anySpotlightDeviceConnected();
+//       connection.disconnect();
+//       QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
+//         removeDeviceConnection(devicePath);
+//         if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
+//           emit anySpotlightDeviceConnectedChanged(false);
+//         }
+//       });
+//     }
+//     return;
+//   }
 
-  // Only process HID++ packets (hence, the packets starting with 0x10 or 0x11)
-  if (!(readVal.at(0) == HIDPP::Bytes::SHORT_MSG || readVal.at(0) == HIDPP::Bytes::LONG_MSG)) {
-    return;
-  }
+//   // Only process HID++ packets (hence, the packets starting with 0x10 or 0x11)
+//   if (!(readVal.at(0) == HIDPP::Bytes::SHORT_MSG || readVal.at(0) == HIDPP::Bytes::LONG_MSG)) {
+//     return;
+//   }
 
-  logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
+//   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
 
-  if (readVal.at(0) == HIDPP::Bytes::SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
-  {
-    // wireless notification from USB dongle
-    if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {
-      auto connection_status = readVal.at(4) & (1<<6);  // should be zero for working connection between
-                                                        // USB dongle and Spotlight device.
-      if (connection_status) {    // connection between USB dongle and spotlight device broke
-        connection.setHIDppProtocol(-1);
-      } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
-        if (!connection.isOnline()) connection.initialize();
-      }
-    }
-  }
+//   if (readVal.at(0) == HIDPP::Bytes::SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
+//   {
+//     // wireless notification from USB dongle
+//     if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {
+//       auto connection_status = readVal.at(4) & (1<<6);  // should be zero for working connection between
+//                                                         // USB dongle and Spotlight device.
+//       if (connection_status) {    // connection between USB dongle and spotlight device broke
+//         connection.setHIDppProtocol(-1);
+//       } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
+//         if (!connection.isOnline()) connection.initialize();
+//       }
+//     }
+//   }
 
-  if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
-  {
-    // response to ping
-    auto rootIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::Root);
-    if (readVal.at(2) == rootIndex) {
-      if (readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10) && readVal.at(6) == 0x5d) {
-        auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
-        connection.setHIDppProtocol(protocolVer);
-      }
-    }
+//   if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
+//   {
+//     // response to ping
+//     auto rootIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::Root);
+//     if (readVal.at(2) == rootIndex) {
+//       if (readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10) && readVal.at(6) == 0x5d) {
+//         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
+//         connection.setHIDppProtocol(protocolVer);
+//       }
+//     }
 
-    // Wireless Notification from the Spotlight device
-    auto wnIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::WirelessDeviceStatus);
-    if (wnIndex && readVal.at(2) == wnIndex) {    // Logitech spotlight presenter unit got online.
-      if (!connection.isOnline()) connection.initialize();
-    }
+//     // Wireless Notification from the Spotlight device
+//     auto wnIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::WirelessDeviceStatus);
+//     if (wnIndex && readVal.at(2) == wnIndex) {    // Logitech spotlight presenter unit got online.
+//       if (!connection.isOnline()) connection.initialize();
+//     }
 
-    // Battery packet processing: Device responded to BatteryStatus (0x1000) packet
-    auto batteryIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::BatteryStatus);
-    if (batteryIndex && readVal.at(2) == batteryIndex &&
-            readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x00)) {  // Battery information packet
-      QByteArray batteryData(readVal.mid(4, 3));
-      emit connection.receivedBatteryInfo(batteryData);
-    }
+//     // Battery packet processing: Device responded to BatteryStatus (0x1000) packet
+//     auto batteryIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::BatteryStatus);
+//     if (batteryIndex && readVal.at(2) == batteryIndex &&
+//             readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x00)) {  // Battery information packet
+//       QByteArray batteryData(readVal.mid(4, 3));
+//       emit connection.receivedBatteryInfo(batteryData);
+//     }
 
-    // Process reprogrammed keys : Next Hold and Back Hold
-    auto rcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::ReprogramControlsV4);
-    if (rcIndex && readVal.at(2) == rcIndex)     // Button (for which hold events are on) related message.
-    {
-      auto eventCode = static_cast<uint8_t>(readVal.at(3));
-      auto buttonCode = static_cast<uint8_t>(readVal.at(5));
-      if (eventCode == 0x00) {  // hold start/stop events
-        switch (buttonCode) {
-          case 0xda:
-            logDebug(hid) << "Next Hold Event ";
-            m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Next);
-            break;
-          case 0xdc:
-            logDebug(hid) << "Back Hold Event ";
-            m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Back);
-            break;
-          case 0x00:
-            // hold event over.
-            logDebug(hid) << "Hold Event over.";
-            m_holdButtonStatus.reset();
-        }
-      }
-      else if (eventCode == 0x10) {   // mouse move event
-        // Mouse data is sent as 4 byte information starting at 5th byte and ending at 8th.
-        // out of these 6th byte and 8th bytes are x and y relative change, respectively.
-        // Not sure about meaning of 5th and 7th bytes. However during testing
-        // the 5th byte shows horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
-        // the 7th byte shows vertical scroll towards up if rel value is -1 otherwise down scroll (0)
-        auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
-        int x = byteToRel(readVal.at(5));
-        int y = byteToRel(readVal.at(7));
-        auto action = connection.inputMapper()->getAction(m_holdButtonStatus.keyEventSeq());
+//     // Process reprogrammed keys : Next Hold and Back Hold
+//     auto rcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::ReprogramControlsV4);
+//     if (rcIndex && readVal.at(2) == rcIndex)     // Button (for which hold events are on) related message.
+//     {
+//       auto eventCode = static_cast<uint8_t>(readVal.at(3));
+//       auto buttonCode = static_cast<uint8_t>(readVal.at(5));
+//       if (eventCode == 0x00) {  // hold start/stop events
+//         switch (buttonCode) {
+//           case 0xda:
+//             logDebug(hid) << "Next Hold Event ";
+//             m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Next);
+//             break;
+//           case 0xdc:
+//             logDebug(hid) << "Back Hold Event ";
+//             m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Back);
+//             break;
+//           case 0x00:
+//             // hold event over.
+//             logDebug(hid) << "Hold Event over.";
+//             m_holdButtonStatus.reset();
+//         }
+//       }
+//       else if (eventCode == 0x10) {   // mouse move event
+//         // Mouse data is sent as 4 byte information starting at 5th byte and ending at 8th.
+//         // out of these 6th byte and 8th bytes are x and y relative change, respectively.
+//         // Not sure about meaning of 5th and 7th bytes. However during testing
+//         // the 5th byte shows horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
+//         // the 7th byte shows vertical scroll towards up if rel value is -1 otherwise down scroll (0)
+//         auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
+//         int x = byteToRel(readVal.at(5));
+//         int y = byteToRel(readVal.at(7));
 
-        if (action && !action->empty())
-        {
-          auto getReducedParam = [](int param, int limit=2){  // reduce the values from Spotlight device for better scroll behavior
-            int minVal=5;
-            if (abs(param) < minVal) return 0;        // ignore small device movement
+//         //auto action = connection.inputMapper()->getAction(m_holdButtonStatus.keyEventSeq());
+//         auto action = std::shared_ptr<Action>{};
 
-            auto sign = (param == 0)? 0: ((param > 0)? 1:-1);
-            return ((abs(param) > minVal*limit)? sign*minVal*limit : param)/minVal;    // limit return value between -limit to limit
-          };
+//         if (action && !action->empty())
+//         {
+//           auto getReducedParam = [](int param, int limit=2){  // reduce the values from Spotlight device for better scroll behavior
+//             int minVal=5;
+//             if (abs(param) < minVal) return 0;        // ignore small device movement
 
-          if (action->type() == Action::Type::ScrollHorizontal)
-          {
-            const auto scrollHAction = static_cast<ScrollHorizontalAction*>(action.get());
-            scrollHAction->param = -(getReducedParam(x));
-          }
-          if (action->type() == Action::Type::ScrollVertical)
-          {
-            const auto scrollVAction = static_cast<ScrollVerticalAction*>(action.get());
-            scrollVAction->param = getReducedParam(y);
-          }
-          if(action->type() == Action::Type::VolumeControl)
-          {
-            const auto volumeControlAction = static_cast<VolumeControlAction*>(action.get());
-            volumeControlAction->param = -getReducedParam(y, 3);
-          }
+//             auto sign = (param == 0)? 0: ((param > 0)? 1:-1);
+//             return ((abs(param) > minVal*limit)? sign*minVal*limit : param)/minVal;    // limit return value between -limit to limit
+//           };
 
-          // feed the keystroke to InputMapper and let it trigger the associated action
-          for (auto key_event: m_holdButtonStatus.keyEventSeq()) connection.inputMapper()->addEvents(key_event);
-        }
-        m_holdButtonStatus.addEvent();
-      }
-    }
+//           if (action->type() == Action::Type::ScrollHorizontal)
+//           {
+//             const auto scrollHAction = static_cast<ScrollHorizontalAction*>(action.get());
+//             scrollHAction->param = -(getReducedParam(x));
+//           }
+//           if (action->type() == Action::Type::ScrollVertical)
+//           {
+//             const auto scrollVAction = static_cast<ScrollVerticalAction*>(action.get());
+//             scrollVAction->param = getReducedParam(y);
+//           }
+//           if(action->type() == Action::Type::VolumeControl)
+//           {
+//             const auto volumeControlAction = static_cast<VolumeControlAction*>(action.get());
+//             volumeControlAction->param = -getReducedParam(y, 3);
+//           }
 
-    // Vibration response check
-    const uint8_t pcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::PresenterControl);
-    if (pcIndex && readVal.at(2) == pcIndex && readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10)) {
-      logDebug(hid) << "Device acknowledged a vibration event.";
-    }
-  }
-}
+//           // feed the keystroke to InputMapper and let it trigger the associated action
+//           for (auto key_event: m_holdButtonStatus.keyEventSeq()) connection.inputMapper()->addEvents(key_event);
+//         }
+//         m_holdButtonStatus.addEvent();
+//       }
+//     }
+
+//     // Vibration response check
+//     const uint8_t pcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::PresenterControl);
+//     if (pcIndex && readVal.at(2) == pcIndex && readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10)) {
+//       logDebug(hid) << "Device acknowledged a vibration event.";
+//     }
+//   }
+// }
 
 // -------------------------------------------------------------------------------------------------
 bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connection)
@@ -545,23 +518,23 @@ bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connect
   return true;
 }
 
-// -------------------------------------------------------------------------------------------------
-bool Spotlight::addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection)
-{
-  if (!connection || connection->type() != ConnectionType::Hidraw
-      || !connection->isConnected() || !connection->hasFlags(DeviceFlag::Hidpp))
-  {
-    return false;
-  }
+// // -------------------------------------------------------------------------------------------------
+// bool Spotlight::addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection)
+// {
+//   if (!connection || connection->type() != ConnectionType::Hidraw
+//       || !connection->isConnected() || !connection->hasFlags(DeviceFlag::Hidpp))
+//   {
+//     return false;
+//   }
 
-  QSocketNotifier* const readNotifier = connection->socketReadNotifier();
-  connect(readNotifier, &QSocketNotifier::activated, this,
-  [this, connection=std::move(connection)](int fd) {
-    onHidppDataAvailable(fd, *connection.get());
-  });
+//   QSocketNotifier* const readNotifier = connection->socketReadNotifier();
+//   connect(readNotifier, &QSocketNotifier::activated, this,
+//   [this, connection=std::move(connection)](int fd) {
+//     onHidppDataAvailable(fd, *connection.get());
+//   });
 
-  return true;
-}
+//   return true;
+// }
 
 // -------------------------------------------------------------------------------------------------
 bool Spotlight::setupDevEventInotify()

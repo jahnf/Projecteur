@@ -324,8 +324,6 @@ public:
   void setConfiguration(InputMapConfig&& config);
   const InputMapConfig& configuration() const;
 
-  std::shared_ptr<Action> getAction(KeyEventSequence kes);
-
 signals:
   void configurationChanged();
   void recordingModeChanged(bool recording);

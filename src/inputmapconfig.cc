@@ -280,7 +280,6 @@ void InputMapConfigModel::updateDuplicates()
   }
 }
 
-#include <QMenu>
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 InputMapConfigView::InputMapConfigView(QWidget* parent)

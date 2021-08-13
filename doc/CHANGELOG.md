@@ -9,6 +9,7 @@
 - Bug fix for high CPU load in certain situations ([#133][i133])
 - Bug fix for wrong button mapping for inputs with same length ([#144][i144])
 - Added automated builds for Fedora 34, Debian 11 (Bullseye) and OpenSUSE 15.3 ([#148][i148])
+- Bug fix for crash when closing the about dialog.
 
 Many thanks to *[@mayanksuman][c-mayanksuman]* for Logitech Bluetooth, Scrolling and Audio volume
 support.

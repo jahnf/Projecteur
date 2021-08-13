@@ -13,6 +13,8 @@
 class QTimer;
 class Settings;
 class VirtualDevice;
+class DeviceConnection;
+class SubEventConnection;
 
 // -----------------------------------------------------------------------------------------------
 struct HoldButtonStatus {
@@ -84,13 +86,13 @@ private:
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
   bool addInputEventHandler(std::shared_ptr<SubEventConnection> connection);
-  bool addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection);
+  // bool addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection);
 
   bool setupDevEventInotify();
   int connectDevices();
   void removeDeviceConnection(const QString& devicePath);
   void onEventDataAvailable(int fd, SubEventConnection& connection);
-  void onHidppDataAvailable(int fd, SubHidppConnection& connection);
+  // void onHidppDataAvailable(int fd, SubHidppConnection& connection);
 
   const Options m_options;
   std::map<DeviceId, std::shared_ptr<DeviceConnection>> m_deviceConnections;

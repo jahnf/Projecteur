@@ -8,10 +8,12 @@
 #include <QTableView>
 
 // -------------------------------------------------------------------------------------------------
+
 class ActionTypeDelegate;
 class InputSeqDelegate;
 
 // -------------------------------------------------------------------------------------------------
+/// @brief TODO
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
   std::shared_ptr<Action> action;
@@ -19,6 +21,7 @@ struct InputMapModelItem {
 };
 
 // -------------------------------------------------------------------------------------------------
+/// @brief TODO
 class InputMapConfigModel : public QAbstractTableModel
 {
   Q_OBJECT
@@ -60,6 +63,7 @@ private:
 };
 
 // -------------------------------------------------------------------------------------------------
+/// @brief TODO
 struct InputMapConfigView : public QTableView
 {
   Q_OBJECT

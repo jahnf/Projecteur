@@ -3,6 +3,7 @@
 #include "spotlight.h"
 
 #include <QApplication>
+#include <QPointer>
 
 #include <map>
 #include <memory>
