@@ -6,6 +6,7 @@
 #include "device-defs.h"
 #include "asynchronous.h"
 
+#include <array>
 #include <map>
 #include <queue>
 #include <vector>
@@ -18,6 +19,7 @@
 // - also see https://github.com/cvuchener/g500/blob/master/doc/hidpp10.md
 
 namespace HIDPP {
+  // -----------------------------------------------------------------------------------------------
   namespace DeviceIndex {
     constexpr uint8_t DefaultDevice = 0xff;
     constexpr uint8_t CordedDevice = 0x00;
@@ -29,6 +31,7 @@ namespace HIDPP {
     constexpr uint8_t WirelessDevice6 = 6;
   } // end namespace DeviceIndex
 
+  // -----------------------------------------------------------------------------------------------
   // see also: https://github.com/cvuchener/hidpp/blob/master/src/tools/hidpp-list-features.cpp
   // Feature Codes important for Logitech Spotlight
   enum class FeatureCode : uint16_t {
@@ -47,6 +50,7 @@ namespace HIDPP {
     PointerSpeed         = 0x2205,
   };
 
+  // -----------------------------------------------------------------------------------------------
   /// Hid++ 2.0 error codes
   enum class Error : uint8_t {
     NoError             = 0,
@@ -61,8 +65,7 @@ namespace HIDPP {
     Unsupported         = 9,
   };
 
-  const char* toString(Error e);
-
+  // -----------------------------------------------------------------------------------------------
   namespace Commands {
     constexpr uint8_t SetRegister     = 0x80;
     constexpr uint8_t GetRegister     = 0x81;
@@ -70,6 +73,21 @@ namespace HIDPP {
     constexpr uint8_t GetLongRegister = 0x83;
   }
 
+  // -----------------------------------------------------------------------------------------------
+  struct ProtocolVersion {
+    uint8_t major = 0;
+    uint8_t minor = 0;
+
+    bool smallerThan(uint8_t otherMajor, uint8_t otherMinor) const {
+      return (major < otherMajor) ? true : (minor < otherMinor) ? true : false;
+    }
+
+    bool operator<(const ProtocolVersion& other) const {
+      return smallerThan(other.major, other.minor);
+    }
+  };
+
+  // -----------------------------------------------------------------------------------------------
   /// Hidpp message class, heavily inspired by this library: https://github.com/cvuchener/hidpp
   class Message final
   {
@@ -90,10 +108,14 @@ namespace HIDPP {
     Message(Type type);
     /// Create a message with the given properties and payload.
     Message(Type type, uint8_t deviceIndex, uint8_t featureIndex, uint8_t function, uint8_t swId,
-            Data payload);
+            Data payload = {});
     /// Create a message with the given properties and payload.
     /// An internal default is used as software id for the message.
-    Message(Type type, uint8_t deviceIndex, uint8_t featureIndex, uint8_t function, Data payload);
+    Message(Type type, uint8_t deviceIndex, uint8_t featureIndex, uint8_t function,
+            Data payload = {});
+
+    Message(Type type, uint8_t deviceIndex, uint8_t featureIndex, Data payload = {});
+    Message(Type type, uint8_t deviceIndex, Data payload = {});
 
     /// Create a message from raw data.
     /// If the data is not a valid Hidpp message, this will result in an invalid HID++ message.
@@ -101,6 +123,7 @@ namespace HIDPP {
 
     Message(Message&& msg) = default;
     Message(const Message& msg) = default;
+    Message& operator=(Message&&) = default;
 
     inline bool operator==(const Message& other) const { return m_data == other.m_data; }
 
@@ -150,13 +173,17 @@ namespace HIDPP {
     bool isErrorResponseTo(const Message& other) const;
 
     auto data() { return m_data.data(); }
+    const auto data() const { return m_data.data(); }
     auto dataSize() { return m_data.size(); }
-    auto operator[](size_t i) { return m_data.operator[](i); }
+    auto& operator[](size_t i) { return m_data.operator[](i); }
+    const auto& operator[](size_t i) const { return m_data.operator[](i); }
     QString hex() const;
 
   private:
     Data m_data;
   };
+
+  Message::Data getRandomPingPayload();
 } //end of HIDPP namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -171,8 +198,6 @@ public:
     Timeout,
     HidppError,
   };
-
-  static const char* toString(MsgResult);
 
   using SendResultCallback = std::function<void(MsgResult)>;
   using RequestResultCallback = std::function<void(MsgResult, HIDPP::Message)>;
@@ -216,6 +241,34 @@ namespace HIDPP {
     constexpr uint8_t SHORT_WIRELESS_NOTIFICATION_CODE = 0x41; // TODO MOVE RENAME ///
   }
 
+  class FirmwareInfo
+  {
+  public:
+    enum class FirmwareType : uint8_t {
+      MainApp = 0,
+      Bootloader = 1,
+      Hardware = 2,
+      Other = 3,
+      Invalid = 0xff
+    };
+
+    FirmwareInfo() = default;
+    FirmwareInfo(Message&& msg);
+    FirmwareInfo(const FirmwareInfo&) = default;
+    FirmwareInfo(FirmwareInfo&&) = default;
+    FirmwareInfo& operator=(FirmwareInfo&&) = default;
+
+    FirmwareType firmwareType() const;
+    QString firmwarePrefix() const;
+    uint16_t firmwareVersion() const;
+    uint16_t firmwareBuild() const;
+    bool isValid() const { return firmwareType() != FirmwareType::Invalid; }
+
+  private:
+    HIDPP::Message m_rawMsg;
+  };
+
+  // -----------------------------------------------------------------------------------------------
   /// Class to get and store set of supported features and additional information
   /// for a HID++ 2.0 device (although very much specialized for the Logitech Spotlight).
   class FeatureSet : public QObject, public async::Async<FeatureSet>
@@ -227,36 +280,43 @@ namespace HIDPP {
 
     FeatureSet(HidppConnectionInterface* connection, QObject* parent = nullptr);
 
-    void initFromDevice();
+    void initFromDevice(std::function<void(State)> cb);
     State state() const;
 
-    uint8_t getFeatureIndex(FeatureCode fc) const;
-    bool supportFeatureCode(FeatureCode fc) const;
-    auto getFeatureCount() const { return m_featureTable.size(); }
-    void populateFeatureTable();
+    uint8_t featureIndex(FeatureCode fc) const;
+    bool featureCodeSupported(FeatureCode fc) const;
+    auto featureCount() const { return m_featureTable.size(); }
+
+    //void populateFeatureTable();
 
   signals:
     void stateChanged(State s);
 
   private:
-    struct ProtocolVersion {
-      uint8_t major = 0;
-      uint8_t minor = 0;
-    };
     using MsgResult = HidppConnectionInterface::MsgResult;
+    using FeatureTable = std::map<uint16_t, uint8_t>;
+
     void getFeatureIndex(FeatureCode fc, std::function<void(MsgResult, uint8_t)> cb);
+    void getFeatureCount(std::function<void(MsgResult, uint8_t featureIndex, uint8_t count)> cb);
+    void getFirmwareCount(std::function<void(MsgResult, uint8_t featureIndex, uint8_t count)> cb);
+    void getFeatureIds(uint8_t featureSetIndex, uint8_t count,
+                       std::function<void(MsgResult, FeatureTable)> cb);
+    void getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo)> cb);
+    void getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t current,
+                             std::function<void(MsgResult, FirmwareInfo)> cb);
+    void getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
+                         std::function<void(MsgResult, FirmwareInfo)> cb);
 
-    void getProtocolVersion(std::function<void(MsgResult, HIDPP::Error, ProtocolVersion)> cb);
-
-    uint8_t getFeatureIndexFromDevice(FeatureCode fc);
-    uint8_t getFeatureCountFromDevice(uint8_t featureSetID);
-    QByteArray getFirmwareVersionFromDevice();
+    void setState(State s);
 
     HidppConnectionInterface* m_connection = nullptr;
-    std::map<uint16_t, uint8_t> m_featureTable;
-
-    ProtocolVersion m_protocolVersion;
+    FeatureTable m_featureTable;
+    FirmwareInfo m_mainFirmwareInfo;
 
     State m_state = State::Uninitialized;
   };
 } //end namespace HIDPP
+
+const char* toString(HIDPP::Error e);
+const char* toString(HidppConnectionInterface::MsgResult r);
+const char* toString(HIDPP::FeatureSet::State s);

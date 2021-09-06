@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include "asynchronous.h"
@@ -49,7 +50,7 @@ struct BatteryInfo
 
 
 // -------------------------------------------------------------------------------------------------
-/// @brief TODO
+/// The main device connection class, which usually consists of one or multiple sub devices.
 class DeviceConnection : public QObject
 {
   Q_OBJECT

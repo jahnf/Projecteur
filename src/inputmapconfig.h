@@ -13,7 +13,7 @@ class ActionTypeDelegate;
 class InputSeqDelegate;
 
 // -------------------------------------------------------------------------------------------------
-/// @brief TODO
+/// Item for the input map model.
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
   std::shared_ptr<Action> action;
@@ -21,7 +21,7 @@ struct InputMapModelItem {
 };
 
 // -------------------------------------------------------------------------------------------------
-/// @brief TODO
+/// Input map configuration table model.
 class InputMapConfigModel : public QAbstractTableModel
 {
   Q_OBJECT
@@ -63,7 +63,7 @@ private:
 };
 
 // -------------------------------------------------------------------------------------------------
-/// @brief TODO
+/// Input map configuration view.
 struct InputMapConfigView : public QTableView
 {
   Q_OBJECT

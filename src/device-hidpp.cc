@@ -4,9 +4,10 @@
 #include "device-hidpp.h"
 #include "logging.h"
 
-#include <unistd.h>
-
+#include "enum-helper.h"
 #include "deviceinput.h"
+
+#include <unistd.h>
 
 #include <QSocketNotifier>
 #include <QTimer>
@@ -30,6 +31,33 @@ SubHidppConnection::SubHidppConnection(SubHidrawConnection::Token token,
 SubHidppConnection::~SubHidppConnection() = default;
 
 // -------------------------------------------------------------------------------------------------
+const char* toString(SubHidppConnection::ReceiverState s)
+{
+  using ReceiverState = SubHidppConnection::ReceiverState;
+  switch (s) {
+    ENUM_CASE_STRINGIFY(ReceiverState::Uninitialized);
+    ENUM_CASE_STRINGIFY(ReceiverState::Initializing);
+    ENUM_CASE_STRINGIFY(ReceiverState::Initialized);
+    ENUM_CASE_STRINGIFY(ReceiverState::Error);
+  }
+  return "ReceiverState::(unknown)";
+}
+
+const char* toString(SubHidppConnection::PresenterState s)
+{
+  using PresenterState = SubHidppConnection::PresenterState;
+  switch (s) {
+    ENUM_CASE_STRINGIFY(PresenterState::Uninitialized);
+    ENUM_CASE_STRINGIFY(PresenterState::Uninitialized_Offline);
+    ENUM_CASE_STRINGIFY(PresenterState::Initializing);
+    ENUM_CASE_STRINGIFY(PresenterState::Initialized_Online);
+    ENUM_CASE_STRINGIFY(PresenterState::Initialized_Offline);
+    ENUM_CASE_STRINGIFY(PresenterState::Error);
+  }
+  return "PresenterState::(unknown)";
+}
+
+// -------------------------------------------------------------------------------------------------
 ssize_t SubHidppConnection::sendData(std::vector<uint8_t> data) {
   return sendData(HIDPP::Message(std::move(data)));
 }
@@ -42,20 +70,19 @@ ssize_t SubHidppConnection::sendData(HIDPP::Message msg) //
     return errorResult;
   }
 
-  // If the message have 0xff as second byte, it is meant for USB dongle hence,
-  // should not be send when device is connected on bluetooth.
+  // If the message has the device index 0xff it is meant for USB dongle.
+  // We should not be send it, when the device is connected via bluetooth.
   //
-  // Logitech Spotlight (USB) can receive data in two different length.
+  // The Logitech Spotlight (USB) can receive data in two different lengths:
   //   1. Short (7 byte long starting with 0x10)
   //   2. Long (20 byte long starting with 0x11)
-  // However, bluetooth connection only accepts data in long (20 byte) packets.
-  // For converting standard short length data to long length data, change the first byte to 0x11
-  // and pad the end of message with 0x00 to acheive the length of 20.
+  // However, the bluetooth connection only accepts data in long (20 byte) messages.
 
   if (m_busType == BusType::Bluetooth)
   {
     if (msg.deviceIndex() == HIDPP::DeviceIndex::DefaultDevice) {
-      logWarn(hid) << "Invalid packet" << msg.hex() << "for spotlight connected on bluetooth.";
+      logWarn(hid) << tr("Invalid message device index in data '%1' for device connected "
+                         "via bluetooth.").arg(msg.hex());
       return errorResult;
     }
 
@@ -65,7 +92,6 @@ ssize_t SubHidppConnection::sendData(HIDPP::Message msg) //
 
   return SubHidrawConnection::sendData(msg.data(), msg.size());
 }
-
 
 // -------------------------------------------------------------------------------------------------
 void SubHidppConnection::sendData(std::vector<uint8_t> data, SendResultCallback resultCb) {
@@ -110,30 +136,47 @@ void SubHidppConnection::sendRequest(HIDPP::Message msg, RequestResultCallback r
       return;
     }
 
+    // Device index sanity check
+    static const std::array<uint8_t, 3> validDeviceIndexes {
+      HIDPP::DeviceIndex::CordedDevice,
+      HIDPP::DeviceIndex::DefaultDevice,
+      HIDPP::DeviceIndex::WirelessDevice1,
+    };
+
+    const auto deviceIndexIt
+      = std::find(validDeviceIndexes.cbegin(), validDeviceIndexes.cend(), msg.deviceIndex());
+
+    if (deviceIndexIt == validDeviceIndexes.cend())
+    {
+      logWarn(hid) << tr("Invalid device index (%1) in message for '%2'")
+                      .arg(msg.deviceIndex()).arg(path());
+      if (cb) cb(MsgResult::InvalidFormat, HIDPP::Message());
+      return;
+    }
+
     if (m_busType == BusType::Bluetooth) {
       // For bluetooth always convert to a long message if we have a short message
       msg.convertToLong();
     }
 
-    // TODO: more early sanity checks?? device index in a valid range???
+    sendData(msg, makeSafeCallback([this, msg](MsgResult result)
+    {
+      // If data was sent successfully the request will be handled when the reply arrives or
+      // the request times out -> return
+      if (result == MsgResult::Ok) { return; }
 
-    sendData(msg, [this, msg](MsgResult result) {
-      if (result == MsgResult::Ok) return;
-
-      // error result, find msg in request list
+      // error result, find our message in the request list
       auto it = std::find_if(m_requests.begin(), m_requests.end(),
                              [&msg](const RequestEntry& entry) { return entry.request == msg; });
 
       if (it == m_requests.end()) {
-        // TODO log warning send error for message without matching request
+        logDebug(hid) << "Send request write error without matching request queue entry.";
         return;
       }
 
-      if (it->callBack) {
-        it->callBack(result, HIDPP::Message());
-      }
+      if (it->callBack) { it->callBack(result, HIDPP::Message()); }
       m_requests.erase(it);
-    });
+    }));
 
     // Place request in request list with a timeout
     m_requests.emplace_back(RequestEntry{
@@ -256,7 +299,7 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
   connect(connection->socketReadNotifier(), &QSocketNotifier::activated, &*connection,
           &SubHidppConnection::onHidppDataAvailable);
 
-  connection->postTask([c = &*connection]() { c->initialize(); });
+  connection->postTask([c = &*connection]() { c->subDeviceInit(); });
   return connection;
 }
 
@@ -274,7 +317,7 @@ void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length) {
   // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
 
   length = length > 10 ? 10 : length; // length should be between 0 to 10.
-  const uint8_t pcIndex = m_featureSet.getFeatureIndex(HIDPP::FeatureCode::PresenterControl);
+  const uint8_t pcIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::PresenterControl);
   using namespace HIDPP;
   // const uint8_t vibrateCmd[] = {HIDPP::Bytes::SHORT_MSG,
   //                               HIDPP::Bytes::MSG_TO_SPOTLIGHT,
@@ -314,7 +357,7 @@ void SubHidppConnection::setPointerSpeed(uint8_t
 //level
 )
 {
-  const uint8_t psIndex = m_featureSet.getFeatureIndex(HIDPP::FeatureCode::PointerSpeed);
+  const uint8_t psIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::PointerSpeed);
   if (psIndex == 0x00) return;
 
   // level = (level > 0x09) ? 0x09 : level; // level should be in range of 0-9
@@ -330,78 +373,171 @@ void SubHidppConnection::setPointerSpeed(uint8_t
 }
 
 // -------------------------------------------------------------------------------------------------
-
-void SubHidppConnection::initUsbReceiver(std::function<void(MsgResult)> cb)
+void SubHidppConnection::setReceiverState(ReceiverState rs)
 {
-  if (m_busType != BusType::Usb)
-  {
-    if (cb) cb(MsgResult::Ok);
-    return;
-  }
+  if (rs == m_receiverState) return;
 
-  using namespace HIDPP;
-  using Type = HIDPP::Message::Type;
-  RequestBatch batch{{
-    RequestBatchItem{
-      // Reset device: get rid of any device configuration by other programs
-      Message(Type::Short, DeviceIndex::DefaultDevice, Commands::GetRegister, 0, 0, {}),
-      makeSafeCallback([](MsgResult result, HIDPP::Message /* msg */) {
-        if (result == MsgResult::Ok) return;
-        logWarn(hid) << tr("Usb Receiver init failure - %1").arg(toString(result));
-      })
-    },
-    RequestBatchItem{
-      // Turn off software bit and keep the wireless notification bit on
-      Message(Type::Short, DeviceIndex::DefaultDevice, Commands::SetRegister, 0, 0, {0x00, 0x01, 0x00}),
-      makeSafeCallback([](MsgResult result, HIDPP::Message /* msg */) {
-        if (result == MsgResult::Ok) return;
-        logWarn(hid) << tr("Usb Receiver init failure - %1").arg(toString(result));
-      })
-    },
-    RequestBatchItem{
-      // Initialize USB dongle
-      Message(Type::Short, DeviceIndex::DefaultDevice, Commands::GetRegister, 0, 2, {}),
-      makeSafeCallback([](MsgResult result, HIDPP::Message /* msg */) {
-        if (result == MsgResult::Ok) return;
-        logWarn(hid) << tr("Usb Receiver init failure - %1").arg(toString(result));
-      })
-    },
-    RequestBatchItem{
-      // ---
-      Message(Type::Short, DeviceIndex::DefaultDevice, Commands::SetRegister, 0, 2, {0x02, 0x00, 0x00}),
-      makeSafeCallback([](MsgResult result, HIDPP::Message /* msg */) {
-        if (result == MsgResult::Ok) return;
-        logWarn(hid) << tr("Usb Receiver init failure - %1").arg(toString(result));
-      })
-    },
-    RequestBatchItem{
-      // Now enable both software and wireless notification bit
-      Message(Type::Short, DeviceIndex::DefaultDevice, Commands::SetRegister, 0, 0, {0x00, 0x09, 0x00}),
-      makeSafeCallback([](MsgResult result, HIDPP::Message /* msg */) {
-        if (result == MsgResult::Ok) return;
-        logWarn(hid) << tr("Usb Receiver init failure - %1").arg(toString(result));
-      })
-    },
-  }};
+  logDebug(hid) << tr("Receiver state (%1) changes from %3 to %4")
+                   .arg(path()).arg(toString(m_receiverState), toString(rs));
+  m_receiverState = rs;
+  emit receiverStateChanged(m_receiverState);
+}
 
-  sendRequestBatch(std::move(batch), [cb=std::move(cb)](std::vector<MsgResult> results) {
-      if (cb) cb(results.back());
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::setPresenterState(PresenterState ps)
+{
+  if (ps == m_presenterState) return;
+
+  logDebug(hid) << tr("Presenter state (%1) changes from %2 to %3")
+                   .arg(path()).arg(toString(m_presenterState), toString(ps));
+  m_presenterState = ps;
+  emit presenterStateChanged(m_presenterState);
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::initReceiver(std::function<void(ReceiverState)> cb)
+{
+  postSelf([this, cb=std::move(cb)](){
+    if (m_receiverState == ReceiverState::Initializing
+        || m_receiverState == ReceiverState::Initialized)
+    {
+      logDebug(hid) << "Cannot init receiver when initializing or already initialized.";
+      if (cb) cb(m_receiverState);
+      return;
+    }
+
+    setReceiverState(ReceiverState::Initializing);
+
+    if (m_busType != BusType::Usb)
+    {
+      // If bus type is not USB return immediately with success result and initialized state
+      setReceiverState(ReceiverState::Initialized);
+      if (cb) cb(m_receiverState);
+      return;
+    }
+
+    using namespace HIDPP;
+    using Type = HIDPP::Message::Type;
+
+    int index = -1;
+
+    RequestBatch batch{{
+      RequestBatchItem{
+        // Reset device: get rid of any device configuration by other programs
+        Message(Type::Short, DeviceIndex::DefaultDevice, Commands::GetRegister, 0, 0, {}),
+        makeSafeCallback([index=++index](MsgResult result, HIDPP::Message /* msg */) {
+          if (result == MsgResult::Ok) return;
+          logWarn(hid) << tr("Usb receiver init error; step %1: %2")
+            .arg(index).arg(toString(result));
+        })
+      },
+      RequestBatchItem{
+        // Turn off software bit and keep the wireless notification bit on
+        Message(Type::Short, DeviceIndex::DefaultDevice, Commands::SetRegister, 0, 0,
+                {0x00, 0x01, 0x00}),
+        makeSafeCallback([index=++index](MsgResult result, HIDPP::Message /* msg */) {
+          if (result == MsgResult::Ok) return;
+          logWarn(hid) << tr("Usb receiver init error; step %1: %2")
+            .arg(index).arg(toString(result));
+        })
+      },
+      RequestBatchItem{
+        // Initialize USB dongle
+        Message(Type::Short, DeviceIndex::DefaultDevice, Commands::GetRegister, 0, 2, {}),
+        makeSafeCallback([index=++index](MsgResult result, HIDPP::Message /* msg */) {
+          if (result == MsgResult::Ok) return;
+          logWarn(hid) << tr("Usb receiver init error; step %1: %2")
+            .arg(index).arg(toString(result));
+        })
+      },
+      RequestBatchItem{
+        // ---
+        Message(Type::Short, DeviceIndex::DefaultDevice, Commands::SetRegister, 0, 2,
+                {0x02, 0x00, 0x00}),
+        makeSafeCallback([index=++index](MsgResult result, HIDPP::Message /* msg */) {
+          if (result == MsgResult::Ok) return;
+          logWarn(hid) << tr("Usb receiver init error; step %1: %2")
+            .arg(index).arg(toString(result));
+        })
+      },
+      RequestBatchItem{
+        // Now enable both software and wireless notification bit
+        Message(Type::Short, DeviceIndex::DefaultDevice, Commands::SetRegister, 0, 0,
+                {0x00, 0x09, 0x00}),
+        makeSafeCallback([index=++index](MsgResult result, HIDPP::Message /* msg */) {
+          if (result == MsgResult::Ok) return;
+          logWarn(hid) << tr("Usb receiver init error; step %1: %2")
+            .arg(index).arg(toString(result));
+        })
+      },
+    }};
+
+    sendRequestBatch(std::move(batch),
+    makeSafeCallback([this, cb=std::move(cb)](std::vector<MsgResult> results)
+    {
+      setReceiverState(results.back() == MsgResult::Ok ? ReceiverState::Initialized
+                                                       : ReceiverState::Error);
+      if (cb) cb(m_receiverState);
+    }));
   });
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidppConnection::initialize()
+void SubHidppConnection::initPresenter(std::function<void(PresenterState)> cb)
+{
+  postSelf([this, cb=std::move(cb)](){
+    if (m_presenterState == PresenterState::Initializing
+        || m_presenterState == PresenterState::Initialized_Offline
+        || m_presenterState == PresenterState::Initialized_Online
+        || m_presenterState == PresenterState::Uninitialized_Offline)
+    {
+      logDebug(hid) << "Cannot init presenter when offline, initializing or already initialized.";
+      if (cb) cb(m_presenterState);
+      return;
+    }
+
+    setPresenterState(PresenterState::Initializing);
+
+    m_featureSet.initFromDevice(makeSafeCallback(
+    [this, cb=std::move(cb)](HIDPP::FeatureSet::State state)
+    {
+      using FState = HIDPP::FeatureSet::State;
+      switch (state)
+      {
+        case FState::Error: {
+          setPresenterState(PresenterState::Error);
+          break;
+        }
+        case FState::Uninitialized:
+        case FState::Initializing: {
+          logError(hid) << tr("Unexpected state from feature set.");
+          setPresenterState(PresenterState::Error);
+          break;
+        }
+        case FState::Initialized: {
+          setPresenterState(PresenterState::Initialized_Online);
+          break;
+        }
+      }
+      if (cb) cb(m_presenterState);
+    }));
+  });
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::subDeviceInit()
 {
   if (!hasFlags(DeviceFlag::Hidpp)) return;
 
-  // TODO set state: not_initialized, initializing, initialized for the subdevice
-
-  initUsbReceiver(makeSafeCallback([this](MsgResult res)
+  // Init receiver - will return almost immediately for bluetooth connections
+  initReceiver(makeSafeCallback([this](ReceiverState rs)
   {
-    if (res != MsgResult::Ok) {
-      // TODO log error - re-schedule init?
-    }
-    m_featureSet.initFromDevice();
+    Q_UNUSED(rs);
+    // Independent of the receiver init result, try to initialize the
+    // presenter device HID++ features and more
+    checkAndUpdatePresenterState(makeSafeCallback([this](PresenterState ps) {
+      logDebug(hid) << tr("subDeviceInit, checkAndUpdatePresenterState = %1").arg(toString(ps));
+    }));
   }));
 
   // DeviceFlags featureFlags = DeviceFlag::NoFlags;
@@ -469,7 +605,7 @@ void SubHidppConnection::initialize()
 
   // TODO implement
   // Enable Next and back button on hold functionality.
-  const auto rcIndex = m_featureSet.getFeatureIndex(HIDPP::FeatureCode::ReprogramControlsV4);
+  const auto rcIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::ReprogramControlsV4);
   if (rcIndex) {
     //   if (hasFlags(DeviceFlags::NextHold)) {
     //     QTimer::singleShot(delay_ms*msgCount, this, [this, rcIndex](){
@@ -500,36 +636,121 @@ void SubHidppConnection::initialize()
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidppConnection::pingSubDevice() {
-  // constexpr uint8_t rootIndex = 0x00; // root Index is always 0x00 in any logitech device
-  // const uint8_t pingCmd[]     = {HIDPP::Bytes::SHORT_MSG,
-  //                            HIDPP::Bytes::MSG_TO_SPOTLIGHT,
-  //                            rootIndex,
-  //                            m_featureSet.getRandomFunctionCode(0x10),
-  //                            0x00,
-  //                            0x00,
-  //                            0x5d};
-  // sendData(pingCmd, sizeof(pingCmd));
+SubHidppConnection::ReceiverState SubHidppConnection::receiverState() const {
+  return m_receiverState;
 }
 
-// // -------------------------------------------------------------------------------------------------
-// void SubHidppConnection::setHIDppProtocol(float version) {
-//   // Inform user about the online status of device.
-//   if (version > 0) {
-//     if (HIDppProtocolVer < 0) {
-//       logDebug(hid) << "HID++ Device with path" << path() << "is now active.";
-//       logDebug(hid) << "HID++ protocol version" << tr("%1.").arg(version);
-//       emit activated();
-//     }
-//   }
-//   else {
-//     if (HIDppProtocolVer > 0) {
-//       logDebug(hid) << "HID++ Device with path" << path() << "got deactivated.";
-//       emit deactivated();
-//     }
-//   }
-//   HIDppProtocolVer = version;
-// }
+// -------------------------------------------------------------------------------------------------
+SubHidppConnection::PresenterState SubHidppConnection::presenterState() const {
+  return m_presenterState;
+}
+
+// -------------------------------------------------------------------------------------------------
+HIDPP::ProtocolVersion SubHidppConnection::protocolVersion() const {
+  return m_protocolVersion;
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::sendPing(RequestResultCallback cb)
+{
+  using namespace HIDPP;
+  // Ping wireless device 1 - same as requesting protocol version
+  Message pingMsg(Message::Type::Short, DeviceIndex::WirelessDevice1, 0, 1, getRandomPingPayload());
+  sendRequest(std::move(pingMsg), std::move(cb));
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::getProtocolVersion(std::function<void(MsgResult, HIDPP::Error,
+                                            HIDPP::ProtocolVersion)> cb)
+{
+  sendPing([cb=std::move(cb)](MsgResult res, HIDPP::Message msg) {
+    if (cb) {
+      auto pv = (res == MsgResult::Ok) ? HIDPP::ProtocolVersion{ msg[4], msg[5] }
+                                       : HIDPP::ProtocolVersion();
+      logDebug(hid) << tr("getProtocolVersion() => %1, version = %2.%3")
+                       .arg(toString(res)).arg(pv.major).arg(pv.minor);
+      cb(res, (res == MsgResult::HidppError) ? msg.errorCode()
+                                             : HIDPP::Error::NoError, std::move(pv));
+    }
+  });
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::checkPresenterOnline(std::function<void(bool, HIDPP::ProtocolVersion)> cb)
+{
+  getProtocolVersion(
+  [cb=std::move(cb)](MsgResult res, HIDPP::Error err, HIDPP::ProtocolVersion pv) {
+    if (!cb) return;
+    const bool deviceOnline = MsgResult::Ok == res && err == HIDPP::Error::NoError;
+    if (!deviceOnline && err != HIDPP::Error::Unsupported) {
+      // Unsupported is send as error if the device is offline
+      logWarn(hid) << tr("Unexpected error for offline device (%1, %2)")
+        .arg(toString(res)).arg(toString(err));
+    }
+    cb(deviceOnline, std::move(pv));
+  });
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::checkAndUpdatePresenterState(std::function<void(PresenterState)> cb)
+{
+  postSelf([this, cb=std::move(cb)]()
+  {
+    if (m_presenterState == PresenterState::Initializing)
+    {
+      if (cb) cb(m_presenterState);
+      return;
+    }
+
+    checkPresenterOnline(makeSafeCallback(
+    [this, cb=std::move(cb)](bool isOnline, HIDPP::ProtocolVersion pv)
+    {
+      if (!isOnline)
+      {
+        switch (m_presenterState)
+        {
+          case PresenterState::Initialized_Online:  // [[fallthrough]];
+          case PresenterState::Initialized_Offline: {
+            setPresenterState(PresenterState::Initialized_Offline);
+            break;
+          }
+          case PresenterState::Error: break;
+          case PresenterState::Initializing: break;
+          case PresenterState::Uninitialized_Offline: // [[fallthrough]];
+          case PresenterState::Uninitialized: {
+            setPresenterState(PresenterState::Uninitialized_Offline);
+          }
+        }
+        if (cb) cb(m_presenterState);
+        return;
+      }
+
+      // device is online, set protocol version and init device feature table if necessary.
+      m_protocolVersion = std::move(pv);
+
+      if (m_presenterState == PresenterState::Uninitialized
+          || m_presenterState == PresenterState::Uninitialized_Offline
+          || m_presenterState == PresenterState::Error)
+      {
+        if (m_protocolVersion.smallerThan(2, 0))
+        {
+          logWarn(hid) << tr("Hid++ version < 2.0 not supported. (%1)").arg(path());
+          setPresenterState(PresenterState::Error);
+          if (cb) cb(m_presenterState);
+          return;
+        }
+
+        initPresenter(std::move(cb));
+      }
+      else if (m_presenterState == PresenterState::Initialized_Offline
+               || m_presenterState == PresenterState::Initialized_Online)
+      {
+        setPresenterState(PresenterState::Initialized_Online);
+        if (cb) cb(m_presenterState);
+      }
+    }));
+  });
+}
 
 // -------------------------------------------------------------------------------------------------
 void SubHidppConnection::onHidppDataAvailable(int fd)
@@ -544,8 +765,9 @@ void SubHidppConnection::onHidppDataAvailable(int fd)
   }
 
   if (!msg.isValid()) {
+    // TODO check for move pointer messages on hid++ device, else log invalid message
     logDebug(hid) << tr("Received invalid HID++ message "
-                        "'%1' from %2").arg(qPrintable(msg.hex()), path());
+                        "'%1' from %2").arg(msg.hex(), path());
     return;
   }
 

@@ -7,7 +7,7 @@
 #include <QLabel>
 
 // -------------------------------------------------------------------------------------------------
-/// @brief Icon button class used throughout the application's widget based dialogs.
+/// Icon button class used throughout the application's widget based dialogs.
 class IconButton : public QToolButton
 {
   Q_OBJECT
@@ -17,7 +17,7 @@ public:
 };
 
 // -------------------------------------------------------------------------------------------------
-/// @brief Icon label class used throughout the application's widget based dialogs.
+/// Icon label class used throughout the application's widget based dialogs.
 class IconLabel : public QLabel
 {
   Q_OBJECT

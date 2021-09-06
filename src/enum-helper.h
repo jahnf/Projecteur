@@ -1,15 +1,16 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <type_traits>
 
-/// @brief Cast enum type to underlying integral type.
+/// Cast enum type to underlying integral type.
 template <typename T>
 constexpr auto to_integral(T e) {
   return static_cast<std::underlying_type_t<T>>(e);
 }
 
-/// @brief Cast integral type to a given enum type.
+/// Cast integral type to a given enum type.
 template <typename E, typename T>
 constexpr auto to_enum(T v) {
   return static_cast<E>(v);
@@ -36,3 +37,5 @@ constexpr auto to_enum(T v) {
 #define ENUM2(ENUMCLASS, PLURALNAME) \
   ENUM1(ENUMCLASS); \
   using PLURALNAME = ENUMCLASS;
+
+#define ENUM_CASE_STRINGIFY(x) case x: return #x

@@ -145,32 +145,30 @@ int Spotlight::connectDevices()
           if (dc->hasHidppSupport())
           {
             auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc);
-            if (true
-              //addHidppInputHandler(hidppCon)
-              )
+            if (hidppCon)
             {
               // connect to hidpp sub connection signals
               connect(&*hidppCon, &SubHidppConnection::receivedBatteryInfo,
                       dc.get(), &DeviceConnection::setBatteryInfo);
-              auto hidppActivated = [this, dc]() {
-                if (std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(),
-                              dc->deviceId()) == m_activeDeviceIds.cend()) {
-                  logInfo(device) << dc->deviceName() << "is now active.";
-                  m_activeDeviceIds.emplace_back(dc->deviceId());
-                  emit deviceActivated(dc->deviceId(), dc->deviceName());
-                }
-              };
-              auto hidppDeactivated = [this, dc]() {
-                auto it = std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(), dc->deviceId());
-                if (it != m_activeDeviceIds.cend()) {
-                  logInfo(device) << dc->deviceName() << "is deactivated.";
-                  m_activeDeviceIds.erase(it);
-                  emit deviceDeactivated(dc->deviceId(), dc->deviceName());
-                }
-              };
-              connect(&*hidppCon, &SubHidppConnection::activated, dc.get(), hidppActivated);
-              connect(&*hidppCon, &SubHidppConnection::deactivated, dc.get(), hidppDeactivated);
-              connect(&*hidppCon, &SubHidppConnection::destroyed, dc.get(), hidppDeactivated);
+              // auto hidppActivated = [this, dc]() {
+              //   if (std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(),
+              //                 dc->deviceId()) == m_activeDeviceIds.cend()) {
+              //     logInfo(device) << dc->deviceName() << "is now active.";
+              //     m_activeDeviceIds.emplace_back(dc->deviceId());
+              //     emit deviceActivated(dc->deviceId(), dc->deviceName());
+              //   }
+              // };
+              // auto hidppDeactivated = [this, dc]() {
+              //   auto it = std::find(m_activeDeviceIds.cbegin(), m_activeDeviceIds.cend(), dc->deviceId());
+              //   if (it != m_activeDeviceIds.cend()) {
+              //     logInfo(device) << dc->deviceName() << "is deactivated.";
+              //     m_activeDeviceIds.erase(it);
+              //     emit deviceDeactivated(dc->deviceId(), dc->deviceName());
+              //   }
+              // };
+              // connect(&*hidppCon, &SubHidppConnection::activated, dc.get(), hidppActivated);
+              // connect(&*hidppCon, &SubHidppConnection::deactivated, dc.get(), hidppDeactivated);
+              // connect(&*hidppCon, &SubHidppConnection::destroyed, dc.get(), hidppDeactivated);
 
               return hidppCon;
             }

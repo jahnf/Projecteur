@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "device.h"
 
 #include "deviceinput.h"
@@ -86,7 +88,8 @@ void DeviceConnection::queryBatteryStatus()
 {
   for (const auto& sd: subDevices())
   {
-    if (sd.second->type() == ConnectionType::Hidraw && sd.second->mode() == ConnectionMode::ReadWrite)
+    if (sd.second->type() == ConnectionType::Hidraw
+        && sd.second->mode() == ConnectionMode::ReadWrite)
     {
       if (sd.second->hasFlags(DeviceFlag::ReportBattery)) sd.second->queryBatteryStatus();
     }
@@ -96,19 +99,19 @@ void DeviceConnection::queryBatteryStatus()
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
 {
-  const bool hasBattery = std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(),
-                                      [](const auto& sd)
-  {
-    return (sd.second->type() == ConnectionType::Hidraw &&
-            sd.second->mode() == ConnectionMode::ReadWrite &&
-            sd.second->hasFlags(DeviceFlag::ReportBattery));
-  });
+  // TODO Remove / refactor with hid++ update 2
+  const bool hasBattery =
+    std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(), [](const auto& sd) {
+      return sd.second->hasFlags(DeviceFlag::ReportBattery);
+    });
 
   if (hasBattery && batteryData.length() == 3)
   {
     // Battery percent is only meaningful when battery is discharging. However, save them anyway.
-    m_batteryInfo.currentLevel = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0): 100);
-    m_batteryInfo.nextReportedLevel = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
+    m_batteryInfo.currentLevel
+      = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0) : 100);
+    m_batteryInfo.nextReportedLevel
+      = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
     m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x07) ? batteryData.at(2): 0x07);
   }
 }
