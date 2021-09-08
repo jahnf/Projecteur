@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "linuxdesktop.h"
 
 #include "logging.h"
@@ -27,8 +29,8 @@ namespace {
                              QStringLiteral("/org/gnome/Shell/Screenshot"),
                              QStringLiteral("org.gnome.Shell.Screenshot"));
     QDBusReply<bool> reply = interface.call(QStringLiteral("Screenshot"), false, false, filepath);
-    
-    if (reply.value()) 
+
+    if (reply.value())
     {
       QPixmap pm(filepath);
       QFile::remove(filepath);
@@ -66,7 +68,7 @@ namespace {
     QPixmap pm(QApplication::primaryScreen()->grabWindow(
                  QApplication::desktop()->winId(), g.x(), g.y(), g.width(), g.height()));
 
-    if (!pm.isNull())  
+    if (!pm.isNull())
     {
       pm.setDevicePixelRatio(screen->devicePixelRatio());
       return pm.copy(screen->geometry());
@@ -87,7 +89,7 @@ LinuxDesktop::LinuxDesktop(QObject* parent)
     const auto xdgCurrentDesktop = env.value(QStringLiteral("XDG_CURRENT_DESKTOP"));
     if (gnomeSessionId.size() || xdgCurrentDesktop.contains("Gnome", Qt::CaseInsensitive)) {
       m_type = LinuxDesktop::Type::Gnome;
-    } 
+    }
     else if (kdeFullSession.size() || desktopSession == "kde-plasma") {
       m_type = LinuxDesktop::Type::KDE;
     }
@@ -96,17 +98,17 @@ LinuxDesktop::LinuxDesktop(QObject* parent)
   { // check for wayland session
     const auto waylandDisplay = env.value(QStringLiteral("WAYLAND_DISPLAY"));
     const auto xdgSessionType = env.value(QStringLiteral("XDG_SESSION_TYPE"));
-    m_wayland = (xdgSessionType == "wayland") 
+    m_wayland = (xdgSessionType == "wayland")
                 || waylandDisplay.contains("wayland", Qt::CaseInsensitive);
   }
 }
 
 QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
 {
-  if (screen == nullptr) 
+  if (screen == nullptr)
     return QPixmap();
-  
-  if (isWayland()) 
+
+  if (isWayland())
     return grabScreenWayland(screen);
 
   #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
@@ -117,7 +119,7 @@ QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
 
   if (isVirtualDesktop)
     return grabScreenVirtualDesktop(screen);
- 
+
   // everything else.. usually X11
   return screen->grabWindow(0);
 }
@@ -126,13 +128,13 @@ QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
 {
 #if HAS_Qt5_DBus
   QPixmap pm;
-  switch (type()) 
+  switch (type())
   {
-  case LinuxDesktop::Type::Gnome: 
-    pm = grabScreenDBusGnome(); 
+  case LinuxDesktop::Type::Gnome:
+    pm = grabScreenDBusGnome();
     break;
-  case LinuxDesktop::Type::KDE: 
-    pm = grabScreenDBusKde(); 
+  case LinuxDesktop::Type::KDE:
+    pm = grabScreenDBusKde();
     break;
   default:
     logWarning(desktop) << tr("Currently zoom on Wayland is only supported via DBus on KDE and GNOME.");

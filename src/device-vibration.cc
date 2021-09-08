@@ -1,7 +1,9 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "device-vibration.h"
 
-#include "device.h"
+#include "device-hidpp.h"
 #include "hidpp.h"
 #include "iconwidgets.h"
 #include "logging.h"
@@ -405,7 +407,7 @@ void VibrationSettingsWidget::setIntensity(uint8_t intensity)
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
 {
-  m_subDeviceConnection = sdc;
+  m_subDeviceConnection = qobject_cast<SubHidppConnection*>(sdc);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -417,5 +419,5 @@ void VibrationSettingsWidget::sendVibrateCommand()
 
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
-  m_subDeviceConnection->sendVibrateCommand(vint, vlen);
+  m_subDeviceConnection->sendVibrateCommand(vint, vlen, {});
 }

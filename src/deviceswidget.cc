@@ -124,127 +124,128 @@ QWidget* DevicesWidget::createDevicesWidget(Settings* settings, Spotlight* spotl
 }
 
 // -------------------------------------------------------------------------------------------------
-void DevicesWidget::updateDeviceDetails(Spotlight* spotlight)
+void DevicesWidget::updateDeviceDetails(Spotlight* /* spotlight */)
 {
-  auto updateBatteryInfo = [this, spotlight]() {
-    auto curDeviceId = currentDeviceId();
-    if (curDeviceId == invalidDeviceId)
-      return;
-    auto dc = spotlight->deviceConnection(curDeviceId);
-    dc->queryBatteryStatus();
-  };
+  // // TODO refactor device details together with battery info handling
+  // auto updateBatteryInfo = [this, spotlight]() {
+  //   auto curDeviceId = currentDeviceId();
+  //   if (curDeviceId == invalidDeviceId)
+  //     return;
+  //   auto dc = spotlight->deviceConnection(curDeviceId);
+  //   dc->queryBatteryStatus();
+  // };
 
-  auto getDeviceDetails = [this, spotlight]() {
-    QString deviceDetails;
-    auto curDeviceId = currentDeviceId();
-    if (curDeviceId == invalidDeviceId)
-      return tr("No Device Connected");
-    auto dc = spotlight->deviceConnection(curDeviceId);
+  // auto getDeviceDetails = [this, spotlight]() {
+  //   QString deviceDetails;
+  //   auto curDeviceId = currentDeviceId();
+  //   if (curDeviceId == invalidDeviceId)
+  //     return tr("No Device Connected");
+  //   auto dc = spotlight->deviceConnection(curDeviceId);
 
-    const auto busTypeToString = [](BusType type) -> QString {
-      if (type == BusType::Usb) return "USB";
-      if (type == BusType::Bluetooth) return "Bluetooth";
-      return "Unknown";
-    };
+  //   const auto busTypeToString = [](BusType type) -> QString {
+  //     if (type == BusType::Usb) return "USB";
+  //     if (type == BusType::Bluetooth) return "Bluetooth";
+  //     return "Unknown";
+  //   };
 
-    const QStringList subDeviceList = [dc](){
-      QStringList subDeviceList;
-      auto accessText = [](ConnectionMode m){
-        if (m == ConnectionMode::ReadOnly) return "ReadOnly";
-        if (m == ConnectionMode::WriteOnly) return "WriteOnly";
-        if (m == ConnectionMode::ReadWrite) return "ReadWrite";
-        return "Unknown Access";
-      };
-      for (const auto& sd: dc->subDevices()) {
-        if (sd.second->path().size()) {
-          auto sds = sd.second;
-          subDeviceList.push_back(tr("%1%2[%3, %4, %5]").arg(
-            sds->path(),
-            (sds->path().length()<18)?"\t\t":"\t",
-            accessText(sds->mode()),
-            sds->isGrabbed()?"Grabbed":"",
-            sds->hasFlags(DeviceFlags::Hidpp)?"HID++":""
-            ));
-        }
-      }
-      return subDeviceList;
-    }();
-    auto batteryStatusText = [](BatteryStatus d){
-      if (d == BatteryStatus::Discharging) return "Discharging";
-      if (d == BatteryStatus::Charging) return "Charging";
-      if (d == BatteryStatus::AlmostFull) return "Almost Full";
-      if (d == BatteryStatus::Full) return "Full Charge";
-      if (d == BatteryStatus::SlowCharging) return "Slow Charging";
-      if (d == BatteryStatus::InvalidBattery || d == BatteryStatus::ThermalError || d == BatteryStatus::ChargingError) {
-        return "Charging Error";
-      };
-      return "";
-    };
+  //   const QStringList subDeviceList = [dc](){
+  //     QStringList subDeviceList;
+  //     auto accessText = [](ConnectionMode m){
+  //       if (m == ConnectionMode::ReadOnly) return "ReadOnly";
+  //       if (m == ConnectionMode::WriteOnly) return "WriteOnly";
+  //       if (m == ConnectionMode::ReadWrite) return "ReadWrite";
+  //       return "Unknown Access";
+  //     };
+  //     for (const auto& sd: dc->subDevices()) {
+  //       if (sd.second->path().size()) {
+  //         auto sds = sd.second;
+  //         subDeviceList.push_back(tr("%1%2[%3, %4, %5]").arg(
+  //           sds->path(),
+  //           (sds->path().length()<18)?"\t\t":"\t",
+  //           accessText(sds->mode()),
+  //           sds->isGrabbed()?"Grabbed":"",
+  //           sds->hasFlags(DeviceFlags::Hidpp)?"HID++":""
+  //           ));
+  //       }
+  //     }
+  //     return subDeviceList;
+  //   }();
+  //   auto batteryStatusText = [](BatteryStatus d){
+  //     if (d == BatteryStatus::Discharging) return "Discharging";
+  //     if (d == BatteryStatus::Charging) return "Charging";
+  //     if (d == BatteryStatus::AlmostFull) return "Almost Full";
+  //     if (d == BatteryStatus::Full) return "Full Charge";
+  //     if (d == BatteryStatus::SlowCharging) return "Slow Charging";
+  //     if (d == BatteryStatus::InvalidBattery || d == BatteryStatus::ThermalError || d == BatteryStatus::ChargingError) {
+  //       return "Charging Error";
+  //     };
+  //     return "";
+  //   };
 
-    auto sDevices = dc->subDevices();
-    bool isOnline = false, hasBattery = false, hasHIDPP = false;
-    float HIDPPversion = -1;
-    QStringList HIDPPfeatureText;
-    auto HIDppSubDevice = std::find_if(sDevices.cbegin(), sDevices.cend(), [](const auto& sd){
-      return (sd.second->type() == ConnectionType::Hidraw &&
-              sd.second->mode() == ConnectionMode::ReadWrite &&
-              sd.second->hasFlags(DeviceFlag::Hidpp));
-    });
+  //   auto sDevices = dc->subDevices();
+  //   bool isOnline = false, hasBattery = false, hasHIDPP = false;
+  //   float HIDPPversion = -1;
+  //   QStringList HIDPPfeatureText;
+  //   auto HIDppSubDevice = std::find_if(sDevices.cbegin(), sDevices.cend(), [](const auto& sd){
+  //     return (sd.second->type() == ConnectionType::Hidraw &&
+  //             sd.second->mode() == ConnectionMode::ReadWrite &&
+  //             sd.second->hasFlags(DeviceFlag::Hidpp));
+  //   });
 
-    if (HIDppSubDevice != sDevices.cend())
-    {
-      auto dev = HIDppSubDevice->second;
-      hasHIDPP = true;
-      isOnline = dev->isOnline();
-      hasBattery = dev->hasFlags(DeviceFlags::ReportBattery);
-      HIDPPversion = dev->getHIDppProtocol();
-      // report HID++ features recognised by program (like vibration and others)
-      HIDPPfeatureText = [dev](){
-        QStringList flagList;
-        if (dev->hasFlags(DeviceFlag::Vibrate)) flagList.push_back("Vibration");
-        if (dev->hasFlags(DeviceFlag::ReportBattery)) flagList.push_back("Reports Battery");
-        if (dev->hasFlags(DeviceFlag::NextHold)) flagList.push_back("Next Hold Button (Reprogrammed)");
-        if (dev->hasFlags(DeviceFlag::BackHold)) flagList.push_back("Back Hold Button (Reprogrammed)");
-        if (dev->hasFlags(DeviceFlag::PointerSpeed)) flagList.push_back("Variable Pointer Speed");
-        return flagList;
-      }();
-    }
+  //   if (HIDppSubDevice != sDevices.cend())
+  //   {
+  //     auto dev = HIDppSubDevice->second;
+  //     hasHIDPP = true;
+  //     isOnline = dev->isOnline();
+  //     hasBattery = dev->hasFlags(DeviceFlags::ReportBattery);
+  //     HIDPPversion = dev->getHIDppProtocol();
+  //     // report HID++ features recognised by program (like vibration and others)
+  //     HIDPPfeatureText = [dev](){
+  //       QStringList flagList;
+  //       if (dev->hasFlags(DeviceFlag::Vibrate)) flagList.push_back("Vibration");
+  //       if (dev->hasFlags(DeviceFlag::ReportBattery)) flagList.push_back("Reports Battery");
+  //       if (dev->hasFlags(DeviceFlag::NextHold)) flagList.push_back("Next Hold Button (Reprogrammed)");
+  //       if (dev->hasFlags(DeviceFlag::BackHold)) flagList.push_back("Back Hold Button (Reprogrammed)");
+  //       if (dev->hasFlags(DeviceFlag::PointerSpeed)) flagList.push_back("Variable Pointer Speed");
+  //       return flagList;
+  //     }();
+  //   }
 
-    auto batteryInfoText = [dc, batteryStatusText](){
-        auto batteryInfo= dc->getBatteryInfo();
-        // Only show battery percent while discharging.
-        // Other cases, device do not report battery percentage correctly.
-        if (batteryInfo.status == BatteryStatus::Discharging) {
-          return tr("%1\% - %2% (%3)").arg(
-                      QString::number(batteryInfo.currentLevel),
-                      QString::number(batteryInfo.nextReportedLevel),
-                      batteryStatusText(batteryInfo.status));
-        } else {
-          return tr("%3").arg(batteryStatusText(batteryInfo.status));
-        }
-    };
+  //   auto batteryInfoText = [dc, batteryStatusText](){
+  //       auto batteryInfo= dc->getBatteryInfo();
+  //       // Only show battery percent while discharging.
+  //       // Other cases, device do not report battery percentage correctly.
+  //       if (batteryInfo.status == BatteryStatus::Discharging) {
+  //         return tr("%1\% - %2% (%3)").arg(
+  //                     QString::number(batteryInfo.currentLevel),
+  //                     QString::number(batteryInfo.nextReportedLevel),
+  //                     batteryStatusText(batteryInfo.status));
+  //       } else {
+  //         return tr("%3").arg(batteryStatusText(batteryInfo.status));
+  //       }
+  //   };
 
-    deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
-    deviceDetails += tr("VendorId:\t%1\n").arg(hexId(dc->deviceId().vendorId));
-    deviceDetails += tr("ProductId:\t%1\n").arg(hexId(dc->deviceId().productId));
-    deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
-    deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
-    deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
-    if (hasBattery && isOnline) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
-    if (hasHIDPP && !isOnline) deviceDetails += tr("\n\n\t Device not active. Press any key on device to update.\n");
-    if (hasHIDPP && isOnline){
-      deviceDetails += "\n";
-      deviceDetails += tr("HID++ Version:\t%1\n").arg(HIDPPversion);
-      deviceDetails += tr("HID++ Features:\t%1\n").arg(HIDPPfeatureText.join(",\n\t\t"));
-    }
+  //   deviceDetails += tr("Name:\t\t%1\n").arg(dc->deviceName());
+  //   deviceDetails += tr("VendorId:\t%1\n").arg(hexId(dc->deviceId().vendorId));
+  //   deviceDetails += tr("ProductId:\t%1\n").arg(hexId(dc->deviceId().productId));
+  //   deviceDetails += tr("Phys:\t\t%1\n").arg(dc->deviceId().phys);
+  //   deviceDetails += tr("Bus Type:\t%1\n").arg(busTypeToString(dc->deviceId().busType));
+  //   deviceDetails += tr("Sub-Devices:\t%1\n").arg(subDeviceList.join(",\n\t\t"));
+  //   if (hasBattery && isOnline) deviceDetails += tr("Battery Status:\t%1\n").arg(batteryInfoText());
+  //   if (hasHIDPP && !isOnline) deviceDetails += tr("\n\n\t Device not active. Press any key on device to update.\n");
+  //   if (hasHIDPP && isOnline){
+  //     deviceDetails += "\n";
+  //     deviceDetails += tr("HID++ Version:\t%1\n").arg(HIDPPversion);
+  //     deviceDetails += tr("HID++ Features:\t%1\n").arg(HIDPPfeatureText.join(",\n\t\t"));
+  //   }
 
-    return deviceDetails;
-  };
+  //   return deviceDetails;
+  // };
 
-  QTimer::singleShot(200, this, [updateBatteryInfo](){updateBatteryInfo();});
-  if (m_deviceDetailsTextEdit) {
-    QTimer::singleShot(1000, this, [this, getDeviceDetails](){m_deviceDetailsTextEdit->setText(getDeviceDetails());});
-  }
+  // QTimer::singleShot(200, this, [updateBatteryInfo](){updateBatteryInfo();});
+  // if (m_deviceDetailsTextEdit) {
+  //   QTimer::singleShot(1000, this, [this, getDeviceDetails](){m_deviceDetailsTextEdit->setText(getDeviceDetails());});
+  // }
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -78,43 +78,43 @@ bool DeviceConnection::removeSubDevice(const QString& path)
 
 
 // -------------------------------------------------------------------------------------------------
-bool DeviceConnection::hasHidppSupport() const{
+bool DeviceConnection::hasHidppSupport() const {
   // HID++ only for Logitech devices
   return m_deviceId.vendorId == 0x046d;
 }
 
-// -------------------------------------------------------------------------------------------------
-void DeviceConnection::queryBatteryStatus()
-{
-  for (const auto& sd: subDevices())
-  {
-    if (sd.second->type() == ConnectionType::Hidraw
-        && sd.second->mode() == ConnectionMode::ReadWrite)
-    {
-      if (sd.second->hasFlags(DeviceFlag::ReportBattery)) sd.second->queryBatteryStatus();
-    }
-  }
-}
+// // -------------------------------------------------------------------------------------------------
+// void DeviceConnection::queryBatteryStatus()
+// {
+//   for (const auto& sd: subDevices())
+//   {
+//     if (sd.second->type() == ConnectionType::Hidraw
+//         && sd.second->mode() == ConnectionMode::ReadWrite)
+//     {
+//       if (sd.second->hasFlags(DeviceFlag::ReportBattery)) sd.second->queryBatteryStatus();
+//     }
+//   }
+// }
 
-// -------------------------------------------------------------------------------------------------
-void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
-{
-  // TODO Remove / refactor with hid++ update 2
-  const bool hasBattery =
-    std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(), [](const auto& sd) {
-      return sd.second->hasFlags(DeviceFlag::ReportBattery);
-    });
+// // -------------------------------------------------------------------------------------------------
+// void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
+// {
+//   // TODO Refactor battery handling
+//   const bool hasBattery =
+//     std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(), [](const auto& sd) {
+//       return sd.second->hasFlags(DeviceFlag::ReportBattery);
+//     });
 
-  if (hasBattery && batteryData.length() == 3)
-  {
-    // Battery percent is only meaningful when battery is discharging. However, save them anyway.
-    m_batteryInfo.currentLevel
-      = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0) : 100);
-    m_batteryInfo.nextReportedLevel
-      = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
-    m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x07) ? batteryData.at(2): 0x07);
-  }
-}
+//   if (hasBattery && batteryData.length() == 3)
+//   {
+//     // Battery percent is only meaningful when battery is discharging. However, save them anyway.
+//     m_batteryInfo.currentLevel
+//       = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0) : 100);
+//     m_batteryInfo.nextReportedLevel
+//       = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
+//     m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x07) ? batteryData.at(2): 0x07);
+//   }
+// }
 
 // -------------------------------------------------------------------------------------------------
 SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
@@ -173,12 +173,6 @@ const std::shared_ptr<InputMapper>& SubDeviceConnection::inputMapper() const  {
 QSocketNotifier* SubDeviceConnection::socketReadNotifier() {
   return m_readNotifier.get();
 }
-
-// -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::sendVibrateCommand(uint8_t, uint8_t) {}
-
-// -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::queryBatteryStatus() {}
 
 // -------------------------------------------------------------------------------------------------
 SubEventConnection::SubEventConnection(Token, const DeviceScan::SubDevice& sd)
@@ -376,7 +370,6 @@ ssize_t SubHidrawConnection::sendData(const void* msg, size_t msgLen)
   if (mode() != ConnectionMode::ReadWrite || !m_writeNotifier) { return errorResult; }
   // TODO check against m_writeNotifier?
   const auto res = ::write(m_writeNotifier->socket(), msg, msgLen);
-  logWarn(hid) << tr("Writing to '%1' len=%2 msg=%3").arg(path()).arg(msgLen).arg(qPrintable(QByteArray::fromRawData(static_cast<const char*>(msg), msgLen).toHex()));
 
   if (static_cast<size_t>(res) == msgLen) {
     logDebug(hid) << res << "bytes written to" << path() << "("

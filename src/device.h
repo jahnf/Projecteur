@@ -21,34 +21,6 @@ class QSocketNotifier;
 class SubDeviceConnection;
 class VirtualDevice;
 
-// namespace HIDPP {
-//   class FeatureSet;
-// }
-
-// namespace DeviceScan {
-//   struct SubDevice;
-// }
-
-// -------------------------------------------------------------------------------------------------
-// Battery Status as returned on HID++ BatteryStatus feature code (0x1000)
-enum class BatteryStatus : uint8_t {Discharging    = 0x00,
-                                    Charging       = 0x01,
-                                    AlmostFull     = 0x02,
-                                    Full           = 0x03,
-                                    SlowCharging   = 0x04,
-                                    InvalidBattery = 0x05,
-                                    ThermalError   = 0x06,
-                                    ChargingError  = 0x07
-                                   };
-
-struct BatteryInfo
-{
-  uint8_t currentLevel = 0;
-  uint8_t nextReportedLevel = 0;
-  BatteryStatus status = BatteryStatus::Discharging;
-};
-
-
 // -------------------------------------------------------------------------------------------------
 /// The main device connection class, which usually consists of one or multiple sub devices.
 class DeviceConnection : public QObject
@@ -70,12 +42,12 @@ public:
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
 
-  // TODO ... battery status on device or subdevice level?
-  void queryBatteryStatus();
-  auto getBatteryInfo(){ return m_batteryInfo; }
+  // // TODO ... battery status on device or subdevice level?
+  // void queryBatteryStatus();
+  // auto getBatteryInfo(){ return m_batteryInfo; }
 
-public slots:
-  void setBatteryInfo(const QByteArray& batteryData);
+// public slots:
+//   void setBatteryInfo(const QByteArray& batteryData);
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -91,7 +63,7 @@ protected:
   std::shared_ptr<InputMapper> m_inputMapper;
   ConnectionMap m_subDeviceConnections;
 
-  BatteryInfo m_batteryInfo; // TODO..
+  // BatteryInfo m_batteryInfo; // TODO..
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -164,11 +136,11 @@ public:
   const std::shared_ptr<InputMapper>& inputMapper() const;
   QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
 
-  // HID++ specific functions: These commands write on device and expect some return message
-  virtual bool isOnline() const { return false; };
-  virtual void sendVibrateCommand(uint8_t intensity, uint8_t length);
-  virtual void queryBatteryStatus();
-  virtual float getHIDppProtocol() const { return -1; };
+  // // HID++ specific functions: These commands write on device and expect some return message
+  // // virtual bool isOnline() const { return false; };
+  // // virtual void sendVibrateCommand(uint8_t intensity, uint8_t length);
+  // virtual void queryBatteryStatus();
+  // virtual float getHIDppProtocol() const { return -1; };
 
 signals:
   void flagsChanged(DeviceFlags f);
@@ -238,4 +210,3 @@ protected:
 private:
   void onHidrawDataAvailable(int fd);
 };
-

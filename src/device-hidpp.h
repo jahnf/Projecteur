@@ -60,9 +60,10 @@ public:
   void sendPing(RequestResultCallback cb);
   HIDPP::ProtocolVersion protocolVersion() const;
 
-  void queryBatteryStatus() override;
-  void sendVibrateCommand(uint8_t intensity, uint8_t length) override;
-  void setPointerSpeed(uint8_t level);
+  void queryBatteryStatus(); // TODO refactory battery info handling
+  void sendVibrateCommand(uint8_t intensity, uint8_t length, RequestResultCallback cb);
+  /// Set device pointer speed - speed needs to be in the range [0-9]
+  void setPointerSpeed(uint8_t speed, RequestResultCallback cb);
 
 signals:
   void receiverStateChanged(ReceiverState);
@@ -74,6 +75,9 @@ private:
   void subDeviceInit();
   void initReceiver(std::function<void(ReceiverState)>);
   void initPresenter(std::function<void(PresenterState)>);
+  void updateDeviceFlags();
+  /// Initializes features. Returns a map of initalized features and the result from it.
+  void initFeatures(std::function<void(std::map<HIDPP::FeatureCode, MsgResult>&&)> cb);
 
   void setReceiverState(ReceiverState rs);
   void setPresenterState(PresenterState ps);

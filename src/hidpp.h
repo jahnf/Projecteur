@@ -73,6 +73,26 @@ namespace HIDPP {
     constexpr uint8_t GetLongRegister = 0x83;
   }
 
+  // -------------------------------------------------------------------------------------------------
+  // Battery Status as returned on HID++ BatteryStatus feature code (0x1000)
+  enum class BatteryStatus : uint8_t {
+    Discharging    = 0x00,
+    Charging       = 0x01,
+    AlmostFull     = 0x02,
+    Full           = 0x03,
+    SlowCharging   = 0x04,
+    InvalidBattery = 0x05,
+    ThermalError   = 0x06,
+    ChargingError  = 0x07
+  };
+
+  struct BatteryInfo
+  {
+    uint8_t currentLevel = 0;
+    uint8_t nextReportedLevel = 0;
+    BatteryStatus status = BatteryStatus::Discharging;
+  };
+
   // -----------------------------------------------------------------------------------------------
   struct ProtocolVersion {
     uint8_t major = 0;
@@ -197,10 +217,11 @@ public:
     WriteError,
     Timeout,
     HidppError,
+    FeatureNotSupported,
   };
 
   using SendResultCallback = std::function<void(MsgResult)>;
-  using RequestResultCallback = std::function<void(MsgResult, HIDPP::Message)>;
+  using RequestResultCallback = std::function<void(MsgResult, HIDPP::Message&&)>;
 
   virtual BusType busType() const = 0;
 
@@ -220,7 +241,7 @@ public:
   };
 
   using RequestBatch = std::queue<RequestBatchItem>;
-  using RequestBatchResultCallback = std::function<void(std::vector<MsgResult>)>;
+  using RequestBatchResultCallback = std::function<void(std::vector<MsgResult>&&)>;
   virtual void sendRequestBatch(RequestBatch requestBatch, RequestBatchResultCallback cb,
                                 bool continueOnError = false) = 0;
 
@@ -230,17 +251,13 @@ public:
   };
 
   using DataBatch = std::queue<DataBatchItem>;
-  using DataBatchResultCallback = std::function<void(std::vector<MsgResult>)>;
+  using DataBatchResultCallback = std::function<void(std::vector<MsgResult>&&)>;
   virtual void sendDataBatch(DataBatch dataBatch, DataBatchResultCallback cb,
                              bool continueOnError = false) = 0;
 };
 
 namespace HIDPP {
   // -----------------------------------------------------------------------------------------------
-  namespace Bytes {
-    constexpr uint8_t SHORT_WIRELESS_NOTIFICATION_CODE = 0x41; // TODO MOVE RENAME ///
-  }
-
   class FirmwareInfo
   {
   public:
@@ -287,8 +304,6 @@ namespace HIDPP {
     bool featureCodeSupported(FeatureCode fc) const;
     auto featureCount() const { return m_featureTable.size(); }
 
-    //void populateFeatureTable();
-
   signals:
     void stateChanged(State s);
 
@@ -300,12 +315,12 @@ namespace HIDPP {
     void getFeatureCount(std::function<void(MsgResult, uint8_t featureIndex, uint8_t count)> cb);
     void getFirmwareCount(std::function<void(MsgResult, uint8_t featureIndex, uint8_t count)> cb);
     void getFeatureIds(uint8_t featureSetIndex, uint8_t count,
-                       std::function<void(MsgResult, FeatureTable)> cb);
-    void getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo)> cb);
+                       std::function<void(MsgResult, FeatureTable&&)> cb);
+    void getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo&&)> cb);
     void getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t current,
-                             std::function<void(MsgResult, FirmwareInfo)> cb);
+                             std::function<void(MsgResult, FirmwareInfo&&)> cb);
     void getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
-                         std::function<void(MsgResult, FirmwareInfo)> cb);
+                         std::function<void(MsgResult, FirmwareInfo&&)> cb);
 
     void setState(State s);
 
@@ -317,6 +332,8 @@ namespace HIDPP {
   };
 } //end namespace HIDPP
 
-const char* toString(HIDPP::Error e);
 const char* toString(HidppConnectionInterface::MsgResult r);
+const char* toString(HIDPP::Error e);
 const char* toString(HIDPP::FeatureSet::State s);
+const char* toString(HIDPP::FeatureCode fc);
+const char* toString(HIDPP::BatteryStatus bs);

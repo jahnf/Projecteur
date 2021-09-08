@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <QPointer>
@@ -7,6 +8,7 @@
 
 class QSpinBox;
 class SubDeviceConnection;
+class SubHidppConnection;
 
 // -------------------------------------------------------------------------------------------------
 class TimerWidget : public QWidget
@@ -93,7 +95,7 @@ signals:
   void lengthChanged(uint8_t length);
 
 private:
-  QPointer<SubDeviceConnection> m_subDeviceConnection;
+  QPointer<SubHidppConnection> m_subDeviceConnection;
   QSpinBox* m_sbLength = nullptr;
   QSpinBox* m_sbIntensity = nullptr;
 };

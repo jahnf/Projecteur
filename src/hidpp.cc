@@ -70,6 +70,7 @@ const char* toString(HidppConnectionInterface::MsgResult res)
     ENUM_CASE_STRINGIFY(MsgResult::WriteError);
     ENUM_CASE_STRINGIFY(MsgResult::Timeout);
     ENUM_CASE_STRINGIFY(MsgResult::HidppError);
+    ENUM_CASE_STRINGIFY(MsgResult::FeatureNotSupported);
   }
   return "MsgResult::(unknown)";
 }
@@ -348,7 +349,7 @@ void FeatureSet::getFeatureIndex(FeatureCode fc, std::function<void(MsgResult, u
                                Message::Data{fcLSB, fcMSB});
 
     m_connection->sendRequest(std::move(featureIndexReqMsg),
-    [cb=std::move(cb), fc, fcLSB, fcMSB](MsgResult result, Message msg)
+    [cb=std::move(cb), fc, fcLSB, fcMSB](MsgResult result, Message&& msg)
     {
       logDebug(hid) << tr("getFeatureIndex(%1) => %2, %3")
                        .arg(to_integral(fc)).arg(toString(result)).arg(msg[4]);
@@ -372,7 +373,7 @@ void FeatureSet::getFeatureCount(std::function<void(MsgResult, uint8_t, uint8_t)
     Message featureCountReqMsg(Message::Type::Long, DeviceIndex::WirelessDevice1, featureIndex);
 
     m_connection->sendRequest(std::move(featureCountReqMsg),
-    [featureIndex, cb=std::move(cb)](MsgResult result, Message msg) {
+    [featureIndex, cb=std::move(cb)](MsgResult result, Message&& msg) {
       if (cb) cb(result, featureIndex, (result != MsgResult::Ok) ? 0 : msg[4]);
     });
   }));
@@ -393,7 +394,7 @@ void FeatureSet::getFirmwareCount(std::function<void(MsgResult, uint8_t, uint8_t
     Message fwCountReqMsg(Message::Type::Long, DeviceIndex::WirelessDevice1, featureIndex);
 
     m_connection->sendRequest(std::move(fwCountReqMsg),
-    [featureIndex, cb=std::move(cb)](MsgResult result, Message msg)
+    [featureIndex, cb=std::move(cb)](MsgResult result, Message&& msg)
     {
       logDebug(hid) << tr("getFirmwareCount() => %1, featureIndex = %2, count = %3")
                        .arg(toString(result)).arg(featureIndex).arg(msg[4]);
@@ -404,7 +405,7 @@ void FeatureSet::getFirmwareCount(std::function<void(MsgResult, uint8_t, uint8_t
 
 // -------------------------------------------------------------------------------------------------
 void FeatureSet::getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
-                                 std::function<void(MsgResult, FirmwareInfo)> cb)
+                                 std::function<void(MsgResult, FirmwareInfo&&)> cb)
 {
   if (m_connection == nullptr)
   {
@@ -416,13 +417,13 @@ void FeatureSet::getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
                           Message::Data{entity});
 
   m_connection->sendRequest(std::move(fwVerReqMessage),
-  [cb=std::move(cb)](MsgResult res, Message msg) {
+  [cb=std::move(cb)](MsgResult res, Message&& msg) {
     if (cb) cb(res, FirmwareInfo(std::move(msg)));
   });
 }
 
 // -------------------------------------------------------------------------------------------------
-void FeatureSet::getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo)> cb)
+void FeatureSet::getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo&&)> cb)
 {
   getFirmwareCount(makeSafeCallback(
   [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count)
@@ -438,10 +439,10 @@ void FeatureSet::getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo)
 
 // -------------------------------------------------------------------------------------------------
 void FeatureSet::getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t current,
-                                     std::function<void(MsgResult, FirmwareInfo)> cb)
+                                     std::function<void(MsgResult, FirmwareInfo&&)> cb)
 {
   getFirmwareInfo(fwIndex, current, makeSafeCallback(
-  [this, current, max, fwIndex, cb=std::move(cb)](MsgResult res, FirmwareInfo fi)
+  [this, current, max, fwIndex, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi)
   {
     logDebug(hid) << tr("getFirmwareInfo(%1, %2, %3) => %4, fi.type = %5, fi.ver = %6, fi.pref = %7")
                      .arg(fwIndex).arg(max).arg(current).arg(toString(res))
@@ -475,7 +476,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
 
     setState(State::Initializing);
 
-    getMainFirmwareInfo(makeSafeCallback([this, cb=std::move(cb)](MsgResult res, FirmwareInfo fi)
+    getMainFirmwareInfo(makeSafeCallback([this, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi)
     {
       logDebug(hid) << tr("getMainFirmwareInfo() => %1, fi.type = %2").arg(toString(res))
       .arg(to_integral(fi.firmwareType()));
@@ -501,7 +502,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
         }
 
         getFeatureIds(featureIndex, count, makeSafeCallback(
-        [this, cb=std::move(cb)](MsgResult res, FeatureTable ft)
+        [this, cb=std::move(cb)](MsgResult res, FeatureTable&& ft)
         {
           if (res != MsgResult::Ok) {
             setState(State::Error);
@@ -521,7 +522,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
 
 // -------------------------------------------------------------------------------------------------
 void FeatureSet::getFeatureIds(uint8_t featureSetIndex, uint8_t count,
-                               std::function<void(MsgResult, FeatureTable)> cb)
+                               std::function<void(MsgResult, FeatureTable&&)> cb)
 {
   if (m_connection == nullptr)
   {
@@ -541,30 +542,27 @@ void FeatureSet::getFeatureIds(uint8_t featureSetIndex, uint8_t count,
   for (uint8_t featureIndex = 1; featureIndex <= count; ++featureIndex)
   {
     // featureIdReqMsg[Offset::Payload] = featureIndex;
-    batch.emplace(
-      HidppConnectionInterface::RequestBatchItem {
-        Message(Message::Type::Long, DeviceIndex::WirelessDevice1, featureSetIndex, 1,
-                Message::Data{featureIndex}),
-        makeSafeCallback([featureTable, featureIndex](MsgResult res, Message msg)
-        {
-          if (res != MsgResult::Ok) return;
-          const uint16_t featureCode = (static_cast<uint16_t>(msg[4]) << 8)
-                                       | static_cast<uint8_t>(msg[5]);
-          const uint8_t featureType = msg[6];
-          const bool softwareHidden = (featureType & (1<<6));
-          const bool obsoleteFeature = (featureType & (1<<7));
-          if (!softwareHidden && !obsoleteFeature) {
-            // logDebug(hid) << tr("featureCode %1 -> index %2").arg(featureCode).arg(featureIndex);
-            featureTable->emplace(featureCode, featureIndex);
-          }
-      })}
-    );
+    batch.emplace(HidppConnectionInterface::RequestBatchItem {
+      Message(Message::Type::Long, DeviceIndex::WirelessDevice1, featureSetIndex, 1,
+              Message::Data{featureIndex}),
+      [featureTable, featureIndex](MsgResult res, Message&& msg)
+      {
+        if (res != MsgResult::Ok) return;
+        const uint16_t featureCode = (static_cast<uint16_t>(msg[4]) << 8)
+                                     | static_cast<uint8_t>(msg[5]);
+        const uint8_t featureType = msg[6];
+        const bool softwareHidden = (featureType & (1<<6));
+        const bool obsoleteFeature = (featureType & (1<<7));
+        if (!softwareHidden && !obsoleteFeature) {
+          // logDebug(hid) << tr("featureCode %1 -> index %2").arg(featureCode).arg(featureIndex);
+          featureTable->emplace(featureCode, featureIndex);
+        }
+      }
+    });
   }
 
   m_connection->sendRequestBatch(std::move(batch),
-  [featureTable, cb=std::move(cb)](std::vector<MsgResult> results)
-  {
-
+  [featureTable, cb=std::move(cb)](std::vector<MsgResult>&& results) {
     if (cb) cb(results.back(), std::move(*featureTable));
   });
 }
@@ -579,10 +577,11 @@ bool FeatureSet::featureCodeSupported(FeatureCode fc) const
 // -------------------------------------------------------------------------------------------------
 uint8_t FeatureSet::featureIndex(FeatureCode fc) const
 {
-  if (!featureCodeSupported(fc)) return 0x00;
-
-  const auto featureInfo = m_featureTable.find(to_integral(fc));
-  return featureInfo->second;
+  const auto it = m_featureTable.find(to_integral(fc));
+  if (it == m_featureTable.cend()) {
+    return 0x00;
+  }
+  return it->second;
 }
 
 // =================================================================================================
@@ -658,4 +657,45 @@ const char* toString(HIDPP::FeatureSet::State s)
     ENUM_CASE_STRINGIFY(State::Error);
   };
   return "State::(unknown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(HIDPP::FeatureCode fc)
+{
+  using FeatureCode = HIDPP::FeatureCode;
+  switch (fc)
+  {
+    ENUM_CASE_STRINGIFY(FeatureCode::Root);
+    ENUM_CASE_STRINGIFY(FeatureCode::FeatureSet);
+    ENUM_CASE_STRINGIFY(FeatureCode::FirmwareVersion);
+    ENUM_CASE_STRINGIFY(FeatureCode::DeviceName);
+    ENUM_CASE_STRINGIFY(FeatureCode::Reset);
+    ENUM_CASE_STRINGIFY(FeatureCode::DFUControlSigned);
+    ENUM_CASE_STRINGIFY(FeatureCode::BatteryStatus);
+    ENUM_CASE_STRINGIFY(FeatureCode::PresenterControl);
+    ENUM_CASE_STRINGIFY(FeatureCode::Sensor3D);
+    ENUM_CASE_STRINGIFY(FeatureCode::ReprogramControlsV4);
+    ENUM_CASE_STRINGIFY(FeatureCode::WirelessDeviceStatus);
+    ENUM_CASE_STRINGIFY(FeatureCode::SwapCancelButton);
+    ENUM_CASE_STRINGIFY(FeatureCode::PointerSpeed);
+  };
+  return "FeatureCode::(unknown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(HIDPP::BatteryStatus bs)
+{
+  using BatteryStatus = HIDPP::BatteryStatus;
+  switch (bs)
+  {
+    ENUM_CASE_STRINGIFY(BatteryStatus::AlmostFull);
+    ENUM_CASE_STRINGIFY(BatteryStatus::Charging);
+    ENUM_CASE_STRINGIFY(BatteryStatus::ChargingError);
+    ENUM_CASE_STRINGIFY(BatteryStatus::Discharging);
+    ENUM_CASE_STRINGIFY(BatteryStatus::Full);
+    ENUM_CASE_STRINGIFY(BatteryStatus::InvalidBattery);
+    ENUM_CASE_STRINGIFY(BatteryStatus::SlowCharging);
+    ENUM_CASE_STRINGIFY(BatteryStatus::ThermalError);
+  };
+  return "BatteryStatus::(unknown)";
 }

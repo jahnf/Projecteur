@@ -264,7 +264,7 @@ void SubHidppConnection::sendRequestBatch(RequestBatch requestBatch, RequestBatc
     sendRequest(std::move(queueItem.message), makeSafeCallback(
     [this, batch = std::move(batch), results = std::move(results), coe,
      batchCb = std::move(batchCb), resultCb = std::move(queueItem.callback)]
-    (MsgResult result, HIDPP::Message replyMessage) mutable
+    (MsgResult result, HIDPP::Message&& replyMessage) mutable
     {
       // Add result to results vector
       results.push_back(result);
@@ -304,10 +304,17 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length) {
-  if (!hasFlags(DeviceFlags::Vibrate)) return;
+void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length,
+                                            RequestResultCallback cb)
+{
+  const uint8_t pcIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::PresenterControl);
 
-  // TODO put in HIDPP
+  if (pcIndex == 0)
+  {
+    if (cb) cb(MsgResult::FeatureNotSupported, HIDPP::Message());
+    return;
+  }
+
   // TODO generalize features and protocol for proprietary device features like vibration
   //      for not only the Spotlight device.
   //
@@ -317,25 +324,20 @@ void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length) {
   // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
 
   length = length > 10 ? 10 : length; // length should be between 0 to 10.
-  const uint8_t pcIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::PresenterControl);
+
   using namespace HIDPP;
-  // const uint8_t vibrateCmd[] = {HIDPP::Bytes::SHORT_MSG,
-  //                               HIDPP::Bytes::MSG_TO_SPOTLIGHT,
-  //                               pcIndex,
-  //                               m_featureSet.getRandomFunctionCode(0x10),
-  //                               length,
-  //                               0xe8,
-  //                               intensity};
+
   Message vibrateMsg(Message::Type::Long, DeviceIndex::WirelessDevice1, pcIndex, 1, {
     length, 0xe8, intensity
   });
-  if (pcIndex) sendData(std::move(vibrateMsg));
+
+  sendRequest(std::move(vibrateMsg), std::move(cb));
 }
 
 // -------------------------------------------------------------------------------------------------
 void SubHidppConnection::queryBatteryStatus()
 {
-  // TODO put parts in HIDPP
+  // TODO refactor battery status handling
   // if (hasFlags(DeviceFlag::ReportBattery)) {
   //   const uint8_t batteryFeatureIndex =
   //     m_featureSet.getFeatureIndex(HIDPP::FeatureCode::BatteryStatus);
@@ -353,23 +355,25 @@ void SubHidppConnection::queryBatteryStatus()
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidppConnection::setPointerSpeed(uint8_t
-//level
-)
+void SubHidppConnection::setPointerSpeed(uint8_t speed,
+                                         std::function<void(MsgResult, HIDPP::Message&&)> cb)
 {
   const uint8_t psIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::PointerSpeed);
-  if (psIndex == 0x00) return;
+  if (psIndex == 0x00)
+  {
+    if (cb) cb(MsgResult::FeatureNotSupported, HIDPP::Message());
+    return;
+  }
 
-  // level = (level > 0x09) ? 0x09 : level; // level should be in range of 0-9
-  // uint8_t pointerSpeed = 0x10 & level; // pointer speed sent to device are between 0x10 - 0x19 (hence ten speed levels)
-  // const uint8_t pointerSpeedCmd[] = {HIDPP::Bytes::SHORT_MSG,
-  //                                    HIDPP::Bytes::MSG_TO_SPOTLIGHT,
-  //                                    psIndex,
-  //                                    m_featureSet.getRandomFunctionCode(0x10),
-  //                                    pointerSpeed,
-  //                                    0x00,
-  //                                    0x00};
-  // sendData(pointerSpeedCmd, sizeof(pointerSpeedCmd));
+  speed = (speed > 0x09) ? 0x09 : speed; // speed should be in range of 0-9
+  // Pointer speed sent to the device with values 0x10 - 0x19
+  const uint8_t pointerSpeed = 0x10 & speed;
+
+  sendRequest(
+    HIDPP::Message(HIDPP::Message::Type::Long, HIDPP::DeviceIndex::WirelessDevice1,
+                   psIndex, 1, HIDPP::Message::Data{pointerSpeed}),
+    std::move(cb)
+  );
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -473,7 +477,7 @@ void SubHidppConnection::initReceiver(std::function<void(ReceiverState)> cb)
     }};
 
     sendRequestBatch(std::move(batch),
-    makeSafeCallback([this, cb=std::move(cb)](std::vector<MsgResult> results)
+    makeSafeCallback([this, cb=std::move(cb)](std::vector<MsgResult>&& results)
     {
       setReceiverState(results.back() == MsgResult::Ok ? ReceiverState::Initialized
                                                        : ReceiverState::Error);
@@ -514,14 +518,145 @@ void SubHidppConnection::initPresenter(std::function<void(PresenterState)> cb)
           setPresenterState(PresenterState::Error);
           break;
         }
-        case FState::Initialized: {
-          setPresenterState(PresenterState::Initialized_Online);
-          break;
+        case FState::Initialized:
+        {
+          logDebug(hid) << tr("Received %1 supported features from device. (%2)")
+                           .arg(m_featureSet.featureCount()).arg(path());
+
+          updateDeviceFlags();
+          initFeatures(makeSafeCallback(
+          [this, cb=std::move(cb)](std::map<HIDPP::FeatureCode, MsgResult>&& resultMap)
+          {
+            if (resultMap.size()) {
+              for (const auto& res : resultMap) {
+                logDebug(hid) << tr("InitFeature result %1 => %2").arg(toString(res.first)).arg(toString(res.second));
+              }
+            }
+            setPresenterState(PresenterState::Initialized_Online);
+            if (cb) cb(m_presenterState);
+          }));
+          return;
         }
       }
       if (cb) cb(m_presenterState);
     }));
   });
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::initFeatures(
+  std::function<void(std::map<HIDPP::FeatureCode, MsgResult>&&)> cb)
+{
+  using namespace HIDPP;
+  using ResultMap = std::map<HIDPP::FeatureCode, MsgResult>;
+
+  RequestBatch batch;
+  auto resultMap = std::make_shared<ResultMap>();
+
+  // TODO: Is resetting the device necessary?
+  // Reset spotlight device, if supported
+  if (const auto resetFeatureIndex = m_featureSet.featureIndex(FeatureCode::Reset))
+  {
+    batch.emplace(RequestBatchItem {
+      Message(Message::Type::Long, DeviceIndex::WirelessDevice1, resetFeatureIndex, 1),
+      [resultMap](MsgResult res, Message&&) {
+        resultMap->emplace(FeatureCode::Reset, res);
+      }
+    });
+  }
+
+  // Enable Next and back button on hold functionality.
+  if (const auto contrFeatureIndex = m_featureSet.featureIndex(FeatureCode::ReprogramControlsV4))
+  {
+    if (hasFlags(DeviceFlags::NextHold))
+    {
+      batch.emplace(RequestBatchItem {
+        Message(Message::Type::Long, DeviceIndex::WirelessDevice1, contrFeatureIndex, 3,
+                Message::Data{0x00, 0xda, 0x33}),
+        [resultMap](MsgResult res, Message&&) {
+          resultMap->emplace(FeatureCode::ReprogramControlsV4, res);
+        }
+      });
+    }
+
+    if (hasFlags(DeviceFlags::BackHold))
+    {
+      batch.emplace(RequestBatchItem {
+        Message(Message::Type::Long, DeviceIndex::WirelessDevice1, contrFeatureIndex, 3,
+                Message::Data{0x00, 0xdc, 0x33}),
+        [resultMap](MsgResult res, Message&&) {
+          resultMap->emplace(FeatureCode::ReprogramControlsV4, res);
+        }
+      });
+    }
+  }
+
+  if (const auto psFeatureIndex = m_featureSet.featureIndex(FeatureCode::PointerSpeed))
+  {
+    // Reset pointer speed to 0x14 - the device accepts values from 0x10 to 0x19
+    batch.emplace(RequestBatchItem {
+      HIDPP::Message(HIDPP::Message::Type::Long, HIDPP::DeviceIndex::WirelessDevice1,
+                     psFeatureIndex, 1, HIDPP::Message::Data{0x14}),
+      [resultMap](MsgResult res, Message&&) {
+        resultMap->emplace(FeatureCode::PointerSpeed, res);
+      }
+    });
+  }
+
+  sendRequestBatch(std::move(batch),
+  [resultMap=std::move(resultMap), cb=std::move(cb)](std::vector<MsgResult>&&) {
+    if (cb) cb(std::move(*resultMap));
+  });
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::updateDeviceFlags()
+{
+  DeviceFlags featureFlagsSet = DeviceFlag::NoFlags;
+  DeviceFlags featureFlagsUnset = DeviceFlag::NoFlags;
+
+  if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::PresenterControl)) {
+    featureFlagsSet |= DeviceFlag::Vibrate;
+    logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
+                     .arg(path()).arg(toString(HIDPP::FeatureCode::PresenterControl));
+  } else {
+    featureFlagsUnset |= DeviceFlag::Vibrate;
+  }
+
+  if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::BatteryStatus)) {
+    featureFlagsSet |= DeviceFlag::ReportBattery;
+    logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
+                     .arg(path()).arg(toString(HIDPP::FeatureCode::BatteryStatus));
+  } else {
+    featureFlagsUnset |= DeviceFlag::ReportBattery;
+  }
+
+  if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::ReprogramControlsV4)) {
+    auto& reservedInputs = m_inputMapper->getReservedInputs();
+    reservedInputs.clear();
+    featureFlagsSet |= DeviceFlags::NextHold;
+    featureFlagsSet |= DeviceFlags::BackHold;
+    reservedInputs.emplace_back(ReservedKeyEventSequence::NextHoldInfo);
+    reservedInputs.emplace_back(ReservedKeyEventSequence::BackHoldInfo);
+    logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
+                     .arg(path()).arg(toString(HIDPP::FeatureCode::ReprogramControlsV4));
+  }
+  else {
+    featureFlagsUnset |= DeviceFlags::NextHold;
+    featureFlagsUnset |= DeviceFlags::BackHold;
+  }
+
+  if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::PointerSpeed)) {
+    featureFlagsSet |= DeviceFlags::PointerSpeed;
+    logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
+                     .arg(path()).arg(toString(HIDPP::FeatureCode::PointerSpeed));
+  }
+  else {
+    featureFlagsUnset |= DeviceFlags::BackHold;
+  }
+
+  setFlags(featureFlagsUnset, false);
+  setFlags(featureFlagsSet, true);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -539,100 +674,6 @@ void SubHidppConnection::subDeviceInit()
       logDebug(hid) << tr("subDeviceInit, checkAndUpdatePresenterState = %1").arg(toString(ps));
     }));
   }));
-
-  // DeviceFlags featureFlags = DeviceFlag::NoFlags;
-  // Read HID++ FeatureSet (Feature ID and Feature Code pairs) from logitech device
-  // setNotifiersEnabled(false);
-  // setReadNotifierEnabled(false); // TODO remove ... implement populatefeaturetable via async..
-  // if (m_featureSet.getFeatureCount() == 0) m_featureSet.populateFeatureTable();
-  // if (m_featureSet.getFeatureCount()) {
-  //   logDebug(hid) << "Loaded" << m_featureSet.getFeatureCount() << "features for" << path();
-  //   if (m_featureSet.supportFeatureCode(HIDPP::FeatureCode::PresenterControl)) {
-  //     featureFlags |= DeviceFlag::Vibrate;
-  //     logDebug(hid) << "SubDevice" << path() << "reported Vibration capabilities.";
-  //   }
-  //   if (m_featureSet.supportFeatureCode(HIDPP::FeatureCode::BatteryStatus)) {
-  //     featureFlags |= DeviceFlag::ReportBattery;
-  //     logDebug(hid) << "SubDevice" << path() << "can communicate battery information.";
-  //   }
-  //   if (m_featureSet.supportFeatureCode(HIDPP::FeatureCode::ReprogramControlsV4)) {
-  //     auto& reservedInputs = m_inputMapper->getReservedInputs();
-  //     reservedInputs.clear();
-  //     featureFlags |= DeviceFlags::NextHold;
-  //     featureFlags |= DeviceFlags::BackHold;
-  //     reservedInputs.emplace_back(ReservedKeyEventSequence::NextHoldInfo);
-  //     reservedInputs.emplace_back(ReservedKeyEventSequence::BackHoldInfo);
-  //     logDebug(hid) << "SubDevice" << path() << "can send next and back hold event.";
-  //   }
-  //   if (m_featureSet.supportFeatureCode(HIDPP::FeatureCode::PointerSpeed)) {
-  //     featureFlags |= DeviceFlags::PointerSpeed;
-  //   }
-  // }
-  // else {
-  //   logWarn(hid) << "Loading FeatureSet for" << path() << "failed.";
-  //   logInfo(hid) << "Device might be inactive. Press any button on device to activate it.";
-  // }
-  // setFlags(featureFlags, true);
-  // setReadNotifierEnabled(true);
-
-  // TODO: implement
-  // // Reset spotlight device
-  // if (m_featureSet.getFeatureCount()) {
-  //   const auto resetIndex = m_featureSet.getFeatureIndex(FeatureCode::Reset);
-  //   if (resetIndex) {
-  //     QTimer::singleShot(delay_ms*msgCount, this, [this, resetIndex](){
-  //       const uint8_t data[] = {HIDPP::Bytes::SHORT_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT,
-  //       resetIndex, m_featureSet.getRandomFunctionCode(0x10), 0x00, 0x00, 0x00}; sendData(data,
-  //       sizeof(data));});
-  //     msgCount++;
-  //   }
-  // }
-  // Device Resetting complete -------------------------------------------------
-
-  // TODO: implement
-  // if (m_busType == BusType::Usb) {
-  //   // Ping spotlight device for checking if is online
-  //   // the response will have the version for HID++ protocol.
-  //   QTimer::singleShot(delay_ms*msgCount, this, [this](){pingSubDevice();});
-  //   msgCount++;
-  // } else if (m_busType == BusType::Bluetooth) {
-  //   // Bluetooth connection do not respond to ping.
-  //   // Hence, we are faking a ping response here.
-  //   // Bluetooth connection mean HID++ v2.0+.
-  //   // Setting version to 6.4: same as USB connection.
-  //   setHIDppProtocol(6.4);
-  // }
-
-  // TODO implement
-  // Enable Next and back button on hold functionality.
-  const auto rcIndex = m_featureSet.featureIndex(HIDPP::FeatureCode::ReprogramControlsV4);
-  if (rcIndex) {
-    //   if (hasFlags(DeviceFlags::NextHold)) {
-    //     QTimer::singleShot(delay_ms*msgCount, this, [this, rcIndex](){
-    //       const uint8_t data[] = {HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT,
-    //       rcIndex, m_featureSet.getRandomFunctionCode(0x30), 0x00, 0xda, 0x33,
-    //                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //                              0x00, 0x00, 0x00};
-    //       sendData(data, sizeof(data));});
-    //     msgCount++;
-    //   }
-
-    //   if (hasFlags(DeviceFlags::BackHold)) {
-    //     QTimer::singleShot(delay_ms*7777777msgCount, this, [this, rcIndex](){
-    //       const uint8_t data[] = {HIDPP::Bytes::LONG_MSG, HIDPP::Bytes::MSG_TO_SPOTLIGHT,
-    //       rcIndex, m_featureSet.getRandomFunctionCode(0x30), 0x00, 0xdc, 0x33,
-    //                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //                              0x00, 0x00, 0x00};
-    //       sendData(data, sizeof(data));});
-    //     msgCount++;
-    //   }
-  }
-
-  // Reset pointer speed to default level of 0x04 (5th level)
-  if (hasFlags(DeviceFlags::PointerSpeed)) setPointerSpeed(0x04);
-
-
-  // m_featureSet.initFromDevice();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -764,10 +805,14 @@ void SubHidppConnection::onHidppDataAvailable(int fd)
     return;
   }
 
-  if (!msg.isValid()) {
-    // TODO check for move pointer messages on hid++ device, else log invalid message
-    logDebug(hid) << tr("Received invalid HID++ message "
-                        "'%1' from %2").arg(msg.hex(), path());
+  if (!msg.isValid())
+  {
+    if (msg[0] == 0x02) {
+      // just ignore regular HID reports from the Logitech Spotlight
+    }
+    else {
+      logDebug(hid) << tr("Received invalid HID++ message '%1' from %2").arg(msg.hex(), path());
+    }
     return;
   }
 
@@ -810,10 +855,19 @@ void SubHidppConnection::onHidppDataAvailable(int fd)
     }
     m_requests.erase(it);
   }
-  else {
+  else if (msg.softwareId() == 0 || msg.subId() < 0x80)
+  {
+    // Event/Notification
+    // TODO Notify listeners registered to the notification type
+    //  check for wireless notification code 0x41 from usb dongle (see hid++ 1.0 docs)
+
+    logDebug(hid) << tr("Received notification (%1) on %2").arg(msg.hex()).arg(path());
+  }
+  else
+  {
     // TODO check for device event messages, that don't require a request
     logWarn(hid) << tr("Received hidpp message "
-                       "'%1' without matching request.").arg(qPrintable(msg.hex()));
+                       "'%1' without matching request.").arg(msg.hex());
   }
 }
 
