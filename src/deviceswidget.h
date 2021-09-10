@@ -49,7 +49,6 @@ private:
 
   // TODO Put into separate DeviceDetailsWidget
   QTextEdit* m_deviceDetailsTextEdit = nullptr;
-  QTimer* m_updateDeviceDetailsTimer = nullptr;
 
   QPointer<InputMapper> m_inputMapper;
 };

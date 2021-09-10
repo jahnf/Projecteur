@@ -49,7 +49,6 @@ namespace {
 // -------------------------------------------------------------------------------------------------
 DevicesWidget::DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent)
   : QWidget(parent)
-  , m_updateDeviceDetailsTimer(new QTimer(this))
 {
   createDeviceComboBox(spotlight);
 
@@ -258,14 +257,9 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
   m_deviceDetailsTextEdit->setText("");
 
   updateDeviceDetails(spotlight);
-
-  connect(m_updateDeviceDetailsTimer, &QTimer::timeout, this, [this, spotlight](){updateDeviceDetails(spotlight);});
-  m_updateDeviceDetailsTimer->start(900000);  // Update every 15 minutes
-
   connect(this, &DevicesWidget::currentDeviceChanged, this, [this, spotlight](){updateDeviceDetails(spotlight);});
-  connect(spotlight, &Spotlight::deviceActivated, this,
-          [this, spotlight](const DeviceId& d){if (d==currentDeviceId()) updateDeviceDetails(spotlight);});
-  connect(spotlight, &Spotlight::deviceDeactivated, this, [this, spotlight](){updateDeviceDetails(spotlight);});
+  // TODO connect to deviceflag and battery status changes for the current device
+  // => only update info widget if something changes
 
   layout->addWidget(m_deviceDetailsTextEdit);
   return diWidget;

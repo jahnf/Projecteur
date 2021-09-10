@@ -66,6 +66,12 @@ namespace HIDPP {
   };
 
   // -----------------------------------------------------------------------------------------------
+  enum class Notification : uint8_t {
+    DeviceDisconnection = 0x40,
+    DeviceConnection = 0x41,
+  };
+
+  // -----------------------------------------------------------------------------------------------
   namespace Commands {
     constexpr uint8_t SetRegister     = 0x80;
     constexpr uint8_t GetRegister     = 0x81;
@@ -254,6 +260,25 @@ public:
   using DataBatchResultCallback = std::function<void(std::vector<MsgResult>&&)>;
   virtual void sendDataBatch(DataBatch dataBatch, DataBatchResultCallback cb,
                              bool continueOnError = false) = 0;
+
+  // ---
+
+  using NotificationCallback = std::function<void(HIDPP::Message)>;
+  // The registered notification callback will be automatically unregistered if obj is destroyed.
+  virtual void registerNotificationCallback(QObject* obj,
+                                            uint8_t featureIndex,
+                                            NotificationCallback cb,
+                                            uint8_t function = 0xff) = 0;
+  virtual void registerNotificationCallback(QObject* obj,
+                                            HIDPP::Notification n,
+                                            NotificationCallback cb,
+                                            uint8_t function = 0xff) = 0;
+
+
+  virtual void unregisterNotificationCallback(QObject* obj, uint8_t featureIndex,
+                                              uint8_t function = 0xff) = 0;
+  virtual void unregisterNotificationCallback(QObject* obj, HIDPP::Notification n,
+                                              uint8_t function = 0xff) = 0;
 };
 
 namespace HIDPP {
@@ -337,3 +362,4 @@ const char* toString(HIDPP::Error e);
 const char* toString(HIDPP::FeatureSet::State s);
 const char* toString(HIDPP::FeatureCode fc);
 const char* toString(HIDPP::BatteryStatus bs);
+const char* toString(HIDPP::Notification n);

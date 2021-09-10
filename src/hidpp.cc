@@ -229,7 +229,7 @@ uint8_t Message::address() const {
 
 // -------------------------------------------------------------------------------------------------
 uint8_t Message::featureIndex() const {
-  return m_data[Offset::Address];
+  return m_data[Offset::FeatureIndex];
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -698,4 +698,16 @@ const char* toString(HIDPP::BatteryStatus bs)
     ENUM_CASE_STRINGIFY(BatteryStatus::ThermalError);
   };
   return "BatteryStatus::(unknown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(HIDPP::Notification n)
+{
+  using Notification = HIDPP::Notification;
+  switch (n)
+  {
+    ENUM_CASE_STRINGIFY(Notification::DeviceDisconnection);
+    ENUM_CASE_STRINGIFY(Notification::DeviceConnection);
+  };
+  return "Notification::(unknown)";
 }

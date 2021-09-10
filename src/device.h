@@ -42,12 +42,7 @@ public:
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
 
-  // // TODO ... battery status on device or subdevice level?
-  // void queryBatteryStatus();
-  // auto getBatteryInfo(){ return m_batteryInfo; }
-
-// public slots:
-//   void setBatteryInfo(const QByteArray& batteryData);
+  // // TODO ... Refactor battery status handling
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -86,9 +81,10 @@ ENUM(DeviceFlag, DeviceFlags)
 
 // -------------------------------------------------------------------------------------------------
 struct SubDeviceConnectionDetails {
-  SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
+  SubDeviceConnectionDetails(const DeviceId& dId, const DeviceScan::SubDevice& sd,
                              ConnectionType type, ConnectionMode mode);
 
+  DeviceId deviceId;
   ConnectionType type;
   ConnectionMode mode;
   bool grabbed = false;
@@ -121,33 +117,25 @@ public:
 
   virtual bool isConnected() const;
   virtual void disconnect(); // destroys socket notifier(s) and close file handle(s)
-  //void setNotifiersEnabled(bool enabled); // enable/disable read and write socket notifiers
-  void setReadNotifierEnabled(bool enabled); // disable/enable read socket notifier
-  // void setWriteNotifierEnabled(bool enabled); // disable/enable write socket notifier
 
-  auto type() const { return m_details.type; };
-  auto mode() const { return m_details.mode; };
-  auto isGrabbed() const { return m_details.grabbed; };
-  auto flags() const { return m_details.deviceFlags; };
-  const auto& path() const { return m_details.devicePath; };
+  auto type() const { return m_details.type; }
+  auto mode() const { return m_details.mode; }
+  auto isGrabbed() const { return m_details.grabbed; }
+  auto flags() const { return m_details.deviceFlags; }
+  const auto& path() const { return m_details.devicePath; }
+  const auto& deviceId() const { return m_details.deviceId; }
 
   inline bool hasFlags(DeviceFlags f) const { return ((flags() & f) == f); }
 
   const std::shared_ptr<InputMapper>& inputMapper() const;
   QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
 
-  // // HID++ specific functions: These commands write on device and expect some return message
-  // // virtual bool isOnline() const { return false; };
-  // // virtual void sendVibrateCommand(uint8_t intensity, uint8_t length);
-  // virtual void queryBatteryStatus();
-  // virtual float getHIDppProtocol() const { return -1; };
-
 signals:
   void flagsChanged(DeviceFlags f);
   void socketReadError(int err);
 
 protected:
-  SubDeviceConnection(const DeviceScan::SubDevice& sd, ConnectionType type, ConnectionMode mode);
+  SubDeviceConnection(const DeviceId& dId, const DeviceScan::SubDevice& sd, ConnectionType type, ConnectionMode mode);
   DeviceFlags setFlags(DeviceFlags f, bool set = true);
 
   SubDeviceConnectionDetails m_details;
@@ -165,7 +153,7 @@ public:
   static std::shared_ptr<SubEventConnection> create(const DeviceScan::SubDevice& sd,
                                                     const DeviceConnection& dc);
 
-  SubEventConnection(Token, const DeviceScan::SubDevice& sd);
+  SubEventConnection(Token, const DeviceId&, const DeviceScan::SubDevice&);
   bool isConnected() const;
   auto& inputBuffer() { return m_inputEventBuffer; }
 
@@ -193,7 +181,7 @@ public:
   static std::shared_ptr<SubHidrawConnection> create(const DeviceScan::SubDevice& sd,
                                                      const DeviceConnection& dc);
 
-  SubHidrawConnection(Token, const DeviceScan::SubDevice& sd);
+  SubHidrawConnection(Token, const DeviceId&, const DeviceScan::SubDevice&);
   virtual ~SubHidrawConnection();
   virtual bool isConnected() const override;
   virtual void disconnect() override;

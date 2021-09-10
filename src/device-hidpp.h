@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <list>
+#include <unordered_map>
 
 class QTimer;
 
@@ -32,15 +33,14 @@ public:
   static std::shared_ptr<SubHidppConnection> create(const DeviceScan::SubDevice& sd,
                                                     const DeviceConnection& dc);
 
-  SubHidppConnection(SubHidrawConnection::Token, const DeviceScan::SubDevice& sd,
-                     const DeviceId& id);
+  SubHidppConnection(SubHidrawConnection::Token, const DeviceId&, const DeviceScan::SubDevice&);
   ~SubHidppConnection();
 
   using SubHidrawConnection::sendData;
 
   // --- HidppConnectionInterface implementation:
 
-  BusType busType() const override { return m_busType; }
+  BusType busType() const override { return m_details.deviceId.busType; }
   ssize_t sendData(std::vector<uint8_t> msg) override;
   ssize_t sendData(HIDPP::Message msg) override;
   void sendData(std::vector<uint8_t> msg, SendResultCallback resultCb) override;
@@ -52,6 +52,15 @@ public:
   void sendRequestBatch(RequestBatch requestBatch, RequestBatchResultCallback cb,
                         bool continueOnError = false) override;
 
+  void registerNotificationCallback(QObject* obj, HIDPP::Notification notification,
+                                    NotificationCallback cb, uint8_t function = 0xff) override;
+  void registerNotificationCallback(QObject* obj, uint8_t featureIndex,
+                                    NotificationCallback cb, uint8_t function = 0xff) override;
+  void unregisterNotificationCallback(QObject* obj, uint8_t featureIndex,
+                                      uint8_t function = 0xff) override;
+  void unregisterNotificationCallback(QObject* obj, HIDPP::Notification notification,
+                                      uint8_t function = 0xff) override;
+
   // ---
 
   PresenterState presenterState() const;
@@ -60,7 +69,7 @@ public:
   void sendPing(RequestResultCallback cb);
   HIDPP::ProtocolVersion protocolVersion() const;
 
-  void queryBatteryStatus(); // TODO refactory battery info handling
+  void getBatteryLevelStatus(std::function<void(MsgResult, HIDPP::BatteryInfo&&)> cb);
   void sendVibrateCommand(uint8_t intensity, uint8_t length, RequestResultCallback cb);
   /// Set device pointer speed - speed needs to be in the range [0-9]
   void setPointerSpeed(uint8_t speed, RequestResultCallback cb);
@@ -69,13 +78,13 @@ signals:
   void receiverStateChanged(ReceiverState);
   void presenterStateChanged(PresenterState);
 
-  void receivedBatteryInfo(QByteArray batteryData);
-
 private:
   void subDeviceInit();
   void initReceiver(std::function<void(ReceiverState)>);
   void initPresenter(std::function<void(PresenterState)>);
   void updateDeviceFlags();
+  void registerForUsbNotifications();
+  void registerForFeatureNotifications();
   /// Initializes features. Returns a map of initalized features and the result from it.
   void initFeatures(std::function<void(std::map<HIDPP::FeatureCode, MsgResult>&&)> cb);
 
@@ -96,7 +105,6 @@ private:
                         bool continueOnError, std::vector<MsgResult> results);
 
   HIDPP::FeatureSet m_featureSet;
-  const BusType m_busType = BusType::Unknown;
   HIDPP::ProtocolVersion m_protocolVersion;
 
   ReceiverState m_receiverState = ReceiverState::Uninitialized;
@@ -104,13 +112,16 @@ private:
 
   /// A request entry for request messages sent to the device.
   struct RequestEntry {
-    HIDPP::Message request; // bytes 0(or 1) to 5 should be enough to check against reply
+    HIDPP::Message request;
     std::chrono::time_point<std::chrono::steady_clock> validUntil;
     RequestResultCallback callBack;
   };
 
   std::list<RequestEntry> m_requests;
   QTimer* m_requestCleanupTimer = nullptr;
+
+  struct Subscriber { QObject* object = nullptr; uint8_t function; NotificationCallback cb; };
+  std::unordered_map<uint8_t, std::list<Subscriber>> m_notificationSubscribers;
 };
 
 const char* toString(SubHidppConnection::ReceiverState rs);

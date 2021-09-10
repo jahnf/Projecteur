@@ -144,8 +144,8 @@ class Async
 protected:
   /// Returns a function object that is guaranteed to be invoked in the own thread context.
   template <typename F>
-  auto makeSafeCallback(F&& f) {
-    return async::makeSafeCallback(static_cast<T*>(this), std::forward<F>(f));
+  auto makeSafeCallback(F&& f, bool forceQueued = true) {
+    return async::makeSafeCallback(static_cast<T*>(this), std::forward<F>(f), forceQueued);
   }
 
   /// Post a function to the own event loop.

@@ -117,15 +117,15 @@ bool DeviceConnection::hasHidppSupport() const {
 // }
 
 // -------------------------------------------------------------------------------------------------
-SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceScan::SubDevice& sd,
+SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceId& dId, const DeviceScan::SubDevice& sd,
                                                        ConnectionType type, ConnectionMode mode)
-  : type(type), mode(mode), devicePath(sd.deviceFile)
+  : deviceId(dId), type(type), mode(mode), devicePath(sd.deviceFile)
 {}
 
 // -------------------------------------------------------------------------------------------------
-SubDeviceConnection::SubDeviceConnection(const DeviceScan::SubDevice& sd,
+SubDeviceConnection::SubDeviceConnection(const DeviceId& dId, const DeviceScan::SubDevice& sd,
                                          ConnectionType type, ConnectionMode mode)
-  : m_details(sd, type, mode) {}
+  : m_details(dId, sd, type, mode) {}
 
 // -------------------------------------------------------------------------------------------------
 SubDeviceConnection::~SubDeviceConnection() = default;
@@ -160,11 +160,6 @@ void SubDeviceConnection::disconnect() {
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubDeviceConnection::setReadNotifierEnabled(bool enabled) {
-  if (m_readNotifier) m_readNotifier->setEnabled(enabled);
-}
-
-// -------------------------------------------------------------------------------------------------
 const std::shared_ptr<InputMapper>& SubDeviceConnection::inputMapper() const  {
   return m_inputMapper;
 }
@@ -175,8 +170,8 @@ QSocketNotifier* SubDeviceConnection::socketReadNotifier() {
 }
 
 // -------------------------------------------------------------------------------------------------
-SubEventConnection::SubEventConnection(Token, const DeviceScan::SubDevice& sd)
-  : SubDeviceConnection(sd, ConnectionType::Event, ConnectionMode::ReadOnly) {}
+SubEventConnection::SubEventConnection(Token, const DeviceId& dId, const DeviceScan::SubDevice& sd)
+  : SubDeviceConnection(dId, sd, ConnectionType::Event, ConnectionMode::ReadOnly) {}
 
 // -------------------------------------------------------------------------------------------------
 bool SubEventConnection::isConnected() const {
@@ -215,7 +210,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
     return std::shared_ptr<SubEventConnection>();
   }
 
-  auto connection = std::make_shared<SubEventConnection>(Token{}, sd);
+  auto connection = std::make_shared<SubEventConnection>(Token{}, dc.deviceId(), sd);
 
   if (!!(bitmask & (1 << EV_SYN))) connection->m_details.deviceFlags |= DeviceFlag::SynEvents;
   if (!!(bitmask & (1 << EV_REP))) connection->m_details.deviceFlags |= DeviceFlag::RepEvents;
@@ -267,8 +262,8 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
 }
 
 // -------------------------------------------------------------------------------------------------
-SubHidrawConnection::SubHidrawConnection(Token, const DeviceScan::SubDevice& sd)
-  : SubDeviceConnection(sd, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
+SubHidrawConnection::SubHidrawConnection(Token, const DeviceId& dId, const DeviceScan::SubDevice& sd)
+  : SubDeviceConnection(dId, sd, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
 
 // -------------------------------------------------------------------------------------------------
 SubHidrawConnection::~SubHidrawConnection() = default;
@@ -294,7 +289,7 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   const int devfd = openHidrawSubDevice(sd, dc.deviceId());
   if (devfd == -1) return std::shared_ptr<SubHidrawConnection>();
 
-  auto connection = std::make_shared<SubHidrawConnection>(Token{}, sd);
+  auto connection = std::make_shared<SubHidrawConnection>(Token{}, dc.deviceId(), sd);
   connection->createSocketNotifiers(devfd);
 
   connect(connection->socketReadNotifier(), &QSocketNotifier::activated,

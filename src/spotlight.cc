@@ -24,6 +24,9 @@ DECLARE_LOGGING_CATEGORY(input)
 
 namespace {
   const auto hexId = logging::hexId;
+
+  // See details on workaround in onEventDataAvailable
+  bool workaroundLogitechFirstMoveEvent = true;
 } // --- end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -39,6 +42,7 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
 
   connect(m_activeTimer, &QTimer::timeout, this, [this](){
     setSpotActive(false);
+    workaroundLogitechFirstMoveEvent = true;
   });
 
   if (m_options.enableUInput) {
@@ -146,7 +150,22 @@ int Spotlight::connectDevices()
         {
           if (dc->hasHidppSupport())
           {
-            if (auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc)) {
+            if (auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc))
+            {
+              // Remove device on socketReadError
+              QPointer<SubHidppConnection> connPtr(hidppCon.get());
+              connect(&*hidppCon, &SubHidppConnection::socketReadError, this, [this, connPtr](){
+                if (!connPtr) return;
+                const bool anyConnectedBefore = anySpotlightDeviceConnected();
+                connPtr->disconnect();
+                QTimer::singleShot(0, this, [this, devicePath=connPtr->path(), anyConnectedBefore](){
+                  removeDeviceConnection(devicePath);
+                  if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
+                    emit anySpotlightDeviceConnectedChanged(false);
+                  }
+                });
+              });
+
               return hidppCon;
             }
           }
@@ -308,11 +327,30 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       const auto &first_ev = buf[0];
       const bool isMouseMoveEvent = first_ev.type == EV_REL
                                     && (first_ev.code == REL_X || first_ev.code == REL_Y);
+
       if (isMouseMoveEvent)
       { // Skip input mapping for mouse move events completely
-        if (!m_activeTimer->isActive()) {
+
+        // Note: During a Next or Back button press the Logitech Spotlight device can send
+        // move events via hid++ notifications. It seems that just when releasing the
+        // next or back button sometimes a mouse move event 'leaks' through here as
+        // relative input event causing the spotlight to be activated.
+        // The workaround skips a first input move event from the logitech spotlight device.
+        const bool isLogitechSpotlight = connection.deviceId().vendorId == 0x46d
+          && (connection.deviceId().productId == 0xc53e || connection.deviceId().productId == 0xb503);
+        const bool logitechIsFirst = isLogitechSpotlight && workaroundLogitechFirstMoveEvent;
+
+        if (isLogitechSpotlight)
+        {
+          workaroundLogitechFirstMoveEvent = false;
+          if(!logitechIsFirst) {
+            if (!spotActive()) setSpotActive(true);
+          }
+        }
+        else if (!m_activeTimer->isActive()) {
           setSpotActive(true);
         }
+
         m_activeTimer->start();
         if (m_virtualDevice) m_virtualDevice->emitEvents(buf.data(), buf.pos());
       }
@@ -336,69 +374,10 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
 // // -------------------------------------------------------------------------------------------------
 // void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
 // {
-//   Q_UNUSED(fd);
-//   Q_UNUSED(connection);
-//   QByteArray readVal(20, 0);
-//   if (::read(fd, static_cast<void *>(readVal.data()), readVal.length()) < 0)
-//   {
-//     if (errno != EAGAIN)
-//     {
-//       const bool anyConnectedBefore = anySpotlightDeviceConnected();
-//       connection.disconnect();
-//       QTimer::singleShot(0, this, [this, devicePath=connection.path(), anyConnectedBefore](){
-//         removeDeviceConnection(devicePath);
-//         if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
-//           emit anySpotlightDeviceConnectedChanged(false);
-//         }
-//       });
-//     }
-//     return;
-//   }
-
-//   // Only process HID++ packets (hence, the packets starting with 0x10 or 0x11)
-//   if (!(readVal.at(0) == HIDPP::Bytes::SHORT_MSG || readVal.at(0) == HIDPP::Bytes::LONG_MSG)) {
-//     return;
-//   }
-
-//   logDebug(hid) << "Received" << readVal.toHex() << "from" << connection.path();
-
-//   if (readVal.at(0) == HIDPP::Bytes::SHORT_MSG)    // Logitech HIDPP SHORT message: 7 byte long
-//   {
-//     // wireless notification from USB dongle
-//     if (readVal.at(2) == HIDPP::Bytes::SHORT_WIRELESS_NOTIFICATION_CODE) {
-//       auto connection_status = readVal.at(4) & (1<<6);  // should be zero for working connection between
-//                                                         // USB dongle and Spotlight device.
-//       if (connection_status) {    // connection between USB dongle and spotlight device broke
-//         connection.setHIDppProtocol(-1);
-//       } else {                         // Logitech spotlight presenter unit got online and USB dongle acknowledged it.
-//         if (!connection.isOnline()) connection.initialize();
-//       }
-//     }
-//   }
-
-//   if (readVal.at(0) == HIDPP::Bytes::LONG_MSG)    // Logitech HIDPP LONG message: 20 byte long
-//   {
-//     // response to ping
-//     auto rootIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::Root);
-//     if (readVal.at(2) == rootIndex) {
-//       if (readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10) && readVal.at(6) == 0x5d) {
-//         auto protocolVer = static_cast<uint8_t>(readVal.at(4)) + static_cast<uint8_t>(readVal.at(5))/10.0;
-//         connection.setHIDppProtocol(protocolVer);
-//       }
-//     }
-
 //     // Wireless Notification from the Spotlight device
 //     auto wnIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::WirelessDeviceStatus);
 //     if (wnIndex && readVal.at(2) == wnIndex) {    // Logitech spotlight presenter unit got online.
 //       if (!connection.isOnline()) connection.initialize();
-//     }
-
-//     // Battery packet processing: Device responded to BatteryStatus (0x1000) packet
-//     auto batteryIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::BatteryStatus);
-//     if (batteryIndex && readVal.at(2) == batteryIndex &&
-//             readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x00)) {  // Battery information packet
-//       QByteArray batteryData(readVal.mid(4, 3));
-//       emit connection.receivedBatteryInfo(batteryData);
 //     }
 
 //     // Process reprogrammed keys : Next Hold and Back Hold
@@ -468,12 +447,6 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
 //         m_holdButtonStatus.addEvent();
 //       }
 //     }
-
-//     // Vibration response check
-//     const uint8_t pcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::PresenterControl);
-//     if (pcIndex && readVal.at(2) == pcIndex && readVal.at(3) == connection.getFeatureSet()->getRandomFunctionCode(0x10)) {
-//       logDebug(hid) << "Device acknowledged a vibration event.";
-//     }
 //   }
 // }
 
@@ -492,24 +465,6 @@ bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connect
 
   return true;
 }
-
-// // -------------------------------------------------------------------------------------------------
-// bool Spotlight::addHidppInputHandler(std::shared_ptr<SubHidppConnection> connection)
-// {
-//   if (!connection || connection->type() != ConnectionType::Hidraw
-//       || !connection->isConnected() || !connection->hasFlags(DeviceFlag::Hidpp))
-//   {
-//     return false;
-//   }
-
-//   QSocketNotifier* const readNotifier = connection->socketReadNotifier();
-//   connect(readNotifier, &QSocketNotifier::activated, this,
-//   [this, connection=std::move(connection)](int fd) {
-//     onHidppDataAvailable(fd, *connection.get());
-//   });
-
-//   return true;
-// }
 
 // -------------------------------------------------------------------------------------------------
 bool Spotlight::setupDevEventInotify()
