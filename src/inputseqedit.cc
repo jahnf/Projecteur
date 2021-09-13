@@ -8,6 +8,7 @@
 #include "logging.h"
 
 #include <QApplication>
+#include <QMenu>
 #include <QPaintEvent>
 #include <QPainterPath>
 #include <QStaticText>
@@ -400,23 +401,24 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   // Our custom drawing of the KeyEventSequence...
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
-  const auto keySeq = imModel->configData(index).deviceSequence;
-  const auto selHoldButton = [keySeq](){
-    using namespace ReservedKeyEventSequence;
-    for (auto& button : HoldButtonsInfo) {
-      if (keySeq == button.keqEventSeq) return button;
-    }
-    return ReservedKeyEventSeqInfo();
-  }();
+  const auto& keySeq = imModel->configData(index).deviceSequence;
+  const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
 
-  if (!selHoldButton.keqEventSeq.empty())
+  const auto it = std::find_if(specialKeysMap.cbegin(), specialKeysMap.cend(),
+    [&keySeq](const auto& specialKeyInfo){
+      return (keySeq == specialKeyInfo.second.keyEventSeq);
+    }
+  );
+
+  if (it != specialKeysMap.cend())
   {
-    drawPlaceHolderText(xPos, *painter, option, selHoldButton.name, false);
+    drawPlaceHolderText(xPos, *painter, option, it->second.name, false);
   }
   else
   {
-    drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).deviceSequence);
+    drawKeyEventSequence(xPos, *painter, option, keySeq);
   }
+
   if (option.state & QStyle::State_HasFocus) {
     drawCurrentIndicator(*painter, option);
   }
@@ -511,14 +513,13 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
   return QStyledItemDelegate::sizeHint(option, index);
 }
 
-#include<QMenu>
 // -------------------------------------------------------------------------------------------------
 void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel* model,
                                            const QModelIndex& index, const QPoint& globalPos)
 {
   if (!index.isValid() || !model) return;
 
-  auto reservedInputs = model->inputMapper()->getReservedInputs();
+  const auto& reservedInputs = model->inputMapper()->reservedInputs();
   if (!reservedInputs.empty())
   {
     QMenu* menu = new QMenu(parent);
@@ -526,7 +527,7 @@ void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel*
     for (const auto& button : reservedInputs) {
       const auto qaction = menu->addAction(button.name);
       connect(qaction, &QAction::triggered, this, [model, index, button](){
-        model->setInputSequence(index, button.keqEventSeq);
+        model->setInputSequence(index, button.keyEventSeq);
       });
     }
 

@@ -3,6 +3,7 @@
 
 #include "deviceinput.h"
 
+#include "enum-helper.h"
 #include "logging.h"
 #include "settings.h"
 #include "virtualdevice.h"
@@ -39,6 +40,20 @@ namespace  {
     }
     return QKeySequence();
   }
+
+  // -----------------------------------------------------------------------------------------------
+  KeyEventSequence makeSpecialKeyEventSequence(uint16_t code)
+  {
+    // Special key event with 3 button presses of the same key,
+    // which should not be able with real events
+    KeyEvent pressed {
+      {EV_KEY, code, 1},
+      {EV_KEY, code, 1},
+      {EV_KEY, code, 1},
+    };
+
+    return KeyEventSequence{std::move(pressed)};
+  };
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -91,6 +106,27 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke)
     debug.nospace() << e << ',';
   debug.nospace() << "]";
   return debug;
+}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<ScrollHorizontalAction> GlobalActions::scrollHorizontal()
+{
+  static auto scrollHorizontalAction = std::make_shared<ScrollHorizontalAction>();
+  return scrollHorizontalAction;
+}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<ScrollVerticalAction> GlobalActions::scrollVertical()
+{
+  static auto scrollVerticalAction = std::make_shared<ScrollVerticalAction>();
+  return scrollVerticalAction;
+}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<VolumeControlAction> GlobalActions::volumeControl()
+{
+  static auto volumeControlAction = std::make_shared<VolumeControlAction>();
+  return volumeControlAction;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -263,7 +299,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
         previous->nextMap.push_back(current);
       }
 
-      // if last item in key event set
+      // if last item in key event sequence
       if (i == kes.size() - 1) {
         current->action = configItem.second.action;
       }
@@ -495,6 +531,8 @@ struct InputMapper::Impl
   std::vector<input_event> m_events;
   InputMapConfig m_config;
   bool m_recordingMode = false;
+
+  ReservedInputs m_reservedInputs;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -790,3 +828,36 @@ const InputMapConfig& InputMapper::configuration() const
 {
   return impl->m_config;
 }
+
+// -------------------------------------------------------------------------------------------------
+InputMapper::ReservedInputs& InputMapper::reservedInputs()
+{
+  return impl->m_reservedInputs;
+}
+
+// -------------------------------------------------------------------------------------------------
+namespace SpecialKeys
+{
+// -------------------------------------------------------------------------------------------------
+const std::map<Key, SpecialKeyEventSeqInfo>&  keyEventSequenceMap()
+{
+  static const std::map<Key, SpecialKeyEventSeqInfo> keyMap {
+    {Key::BackHold, {"Back Hold", makeSpecialKeyEventSequence(to_integral(Key::BackHold))}},
+    {Key::NextHold, {"Next Hold", makeSpecialKeyEventSequence(to_integral(Key::NextHold))}},
+  };
+  return keyMap;
+}
+
+// -------------------------------------------------------------------------------------------------
+const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key)
+{
+  const auto it = keyEventSequenceMap().find(key);
+  if (it != keyEventSequenceMap().cend()) {
+    return it->second;
+  }
+
+  static const SpecialKeyEventSeqInfo notFound;
+  return notFound;
+}
+
+} // end namespace SpecialKeys

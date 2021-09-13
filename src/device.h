@@ -42,8 +42,6 @@ public:
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
 
-  // // TODO ... Refactor battery status handling
-
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
   void subDeviceDisconnected(const DeviceId& id, const QString& path);
@@ -57,8 +55,6 @@ protected:
   QString m_deviceName;
   std::shared_ptr<InputMapper> m_inputMapper;
   ConnectionMap m_subDeviceConnections;
-
-  // BatteryInfo m_batteryInfo; // TODO..
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -154,6 +150,7 @@ public:
                                                     const DeviceConnection& dc);
 
   SubEventConnection(Token, const DeviceId&, const DeviceScan::SubDevice&);
+  virtual ~SubEventConnection();
   bool isConnected() const;
   auto& inputBuffer() { return m_inputEventBuffer; }
 

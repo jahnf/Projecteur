@@ -10,6 +10,7 @@
 #include <map>
 #include <queue>
 #include <vector>
+#include <tuple>
 
 #include <QString>
 
@@ -92,11 +93,17 @@ namespace HIDPP {
     ChargingError  = 0x07
   };
 
+  // -------------------------------------------------------------------------------------------------
   struct BatteryInfo
   {
     uint8_t currentLevel = 0;
     uint8_t nextReportedLevel = 0;
     BatteryStatus status = BatteryStatus::Discharging;
+
+    inline bool operator==(const BatteryInfo& rhs) const {
+      return std::tie(currentLevel, nextReportedLevel, status)
+        == std::tie(rhs.currentLevel, rhs.nextReportedLevel, rhs.status);
+    }
   };
 
   // -----------------------------------------------------------------------------------------------
@@ -104,12 +111,16 @@ namespace HIDPP {
     uint8_t major = 0;
     uint8_t minor = 0;
 
-    bool smallerThan(uint8_t otherMajor, uint8_t otherMinor) const {
+    inline bool smallerThan(uint8_t otherMajor, uint8_t otherMinor) const {
       return (major < otherMajor) ? true : (minor < otherMinor) ? true : false;
     }
 
-    bool operator<(const ProtocolVersion& other) const {
+    inline bool operator<(const ProtocolVersion& other) const {
       return smallerThan(other.major, other.minor);
+    }
+
+    inline bool operator==(const ProtocolVersion& rhs) const {
+      return std::tie(major, minor)  == std::tie(rhs.major, rhs.minor);
     }
   };
 

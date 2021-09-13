@@ -174,6 +174,9 @@ SubEventConnection::SubEventConnection(Token, const DeviceId& dId, const DeviceS
   : SubDeviceConnection(dId, sd, ConnectionType::Event, ConnectionMode::ReadOnly) {}
 
 // -------------------------------------------------------------------------------------------------
+SubEventConnection::~SubEventConnection() = default;
+
+// -------------------------------------------------------------------------------------------------
 bool SubEventConnection::isConnected() const {
   return (m_readNotifier && m_readNotifier->isEnabled());
 }

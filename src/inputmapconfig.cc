@@ -207,13 +207,13 @@ void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type
     item.action = std::make_shared<ToggleSpotlightAction>();
     break;
   case Action::Type::ScrollHorizontal:
-    item.action = std::make_shared<ScrollHorizontalAction>();
+    item.action = GlobalActions::scrollHorizontal();
     break;
   case Action::Type::ScrollVertical:
-    item.action = std::make_shared<ScrollVerticalAction>();
+    item.action = GlobalActions::scrollVertical();
     break;
   case Action::Type::VolumeControl:
-    item.action = std::make_shared<VolumeControlAction>();
+    item.action = GlobalActions::volumeControl();
     break;
   }
 

@@ -8,45 +8,22 @@
 #include <memory>
 #include <vector>
 
+#include "asynchronous.h"
 #include "devicescan.h"
-#include "deviceinput.h"
 
 class QTimer;
 class Settings;
 class VirtualDevice;
 class DeviceConnection;
 class SubEventConnection;
+class SubHidppConnection;
 
-// -----------------------------------------------------------------------------------------------
-struct HoldButtonStatus {
-  enum class HoldButtonType : uint8_t { None, Next, Back };
+struct HoldButtonStatus;
 
-  void setButton(HoldButtonType b){ _button = b; _numEvents=0; };
-  auto getButton() const { return _button; }
-  int numEvents() const { return _numEvents; };
-  void addEvent(){ _numEvents++; };
-  void reset(){ setButton(HoldButtonType::None); };
-  auto keyEventSeq() {
-    using namespace ReservedKeyEventSequence;
-    switch (_button){
-      case HoldButtonType::Next:
-        return NextHoldInfo.keqEventSeq;
-      case HoldButtonType::Back:
-        return BackHoldInfo.keqEventSeq;
-      case HoldButtonType::None:
-        return KeyEventSequence();
-      }
-    return KeyEventSequence();
-  };
-
-private:
-  HoldButtonType _button = HoldButtonType::None;
-  unsigned long _numEvents = 0;
-};
 
 /// Class handling spotlight device connections and indicating if a device is sending
 /// sending mouse move events.
-class Spotlight : public QObject
+class Spotlight : public QObject, public async::Async<Spotlight>
 {
   Q_OBJECT
 
@@ -85,6 +62,7 @@ private:
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
   bool addInputEventHandler(std::shared_ptr<SubEventConnection> connection);
+  void registerForNotifications(SubHidppConnection* connection);
 
   bool setupDevEventInotify();
   int connectDevices();
@@ -100,5 +78,5 @@ private:
   bool m_spotActive = false;
   std::shared_ptr<VirtualDevice> m_virtualDevice;
   Settings* m_settings = nullptr;
-  HoldButtonStatus m_holdButtonStatus;
+  std::unique_ptr<HoldButtonStatus> m_holdButtonStatus;
 };

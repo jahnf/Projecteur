@@ -3,7 +3,7 @@
 
 #include "spotlight.h"
 
-#include "device.h"
+#include "deviceinput.h"
 #include "device-hidpp.h"
 #include "logging.h"
 #include "settings.h"
@@ -27,7 +27,35 @@ namespace {
 
   // See details on workaround in onEventDataAvailable
   bool workaroundLogitechFirstMoveEvent = true;
+
 } // --- end anonymous namespace
+
+
+// -------------------------------------------------------------------------------------------------
+struct HoldButtonStatus {
+  enum class HoldButtonType : uint8_t { None, Next, Back };
+
+  void setButton(HoldButtonType b){ _button = b; _numEvents=0; };
+  auto getButton() const { return _button; }
+  int numEvents() const { return _numEvents; };
+  void addEvent(){ _numEvents++; };
+  void reset(){ setButton(HoldButtonType::None); };
+  auto keyEventSeq() {
+    switch (_button){
+      case HoldButtonType::Next:
+        return SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold).keyEventSeq;
+      case HoldButtonType::Back:
+        return SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold).keyEventSeq;
+      case HoldButtonType::None:
+        return KeyEventSequence();
+      }
+    return KeyEventSequence();
+  };
+
+private:
+  HoldButtonType _button = HoldButtonType::None;
+  unsigned long _numEvents = 0;
+};
 
 // -------------------------------------------------------------------------------------------------
 Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
@@ -36,6 +64,7 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   , m_activeTimer(new QTimer(this))
   , m_connectionTimer(new QTimer(this))
   , m_settings(settings)
+  , m_holdButtonStatus(std::make_unique<HoldButtonStatus>())
 {
   m_activeTimer->setSingleShot(true);
   m_activeTimer->setInterval(600);
@@ -53,7 +82,8 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   }
 
   m_connectionTimer->setSingleShot(true);
-  // From detecting a change from inotify, the device needs some time to be ready for open
+  // From detecting a change with inotify, the device needs some time to be ready for open,
+  // otherwise opening the device will fail.
   // TODO: This interval seems to work, but it is arbitrary - there should be a better way.
   m_connectionTimer->setInterval(800);
 
@@ -152,8 +182,15 @@ int Spotlight::connectDevices()
           {
             if (auto hidppCon = SubHidppConnection::create(scanSubDevice, *dc))
             {
-              // Remove device on socketReadError
               QPointer<SubHidppConnection> connPtr(hidppCon.get());
+
+              connect(&*hidppCon, &SubHidppConnection::featureSetInitialized, this,
+              [this, connPtr](){
+                if (!connPtr) { return; }
+                this->registerForNotifications(connPtr.data());
+              });
+
+              // Remove device on socketReadError
               connect(&*hidppCon, &SubHidppConnection::socketReadError, this, [this, connPtr](){
                 if (!connPtr) return;
                 const bool anyConnectedBefore = anySpotlightDeviceConnected();
@@ -193,7 +230,7 @@ int Spotlight::connectDevices()
 
         connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
         {
-          if (!(action->isRepeated()) && m_holdButtonStatus.numEvents() > 0) return;
+          if (!(action->isRepeated()) && m_holdButtonStatus->numEvents() > 0) return;
 
           if (action->type() == Action::Type::CyclePresets)
           {
@@ -216,14 +253,16 @@ int Spotlight::connectDevices()
           {
             if (!m_virtualDevice) return;
 
-            int param = 0;
-            if (action->type() == Action::Type::ScrollHorizontal) param = static_cast<ScrollHorizontalAction*>(action.get())->param;
-            if (action->type() == Action::Type::ScrollVertical) param = static_cast<ScrollVerticalAction*>(action.get())->param;
+            const int param = (action->type() == Action::Type::ScrollHorizontal)
+              ? static_cast<ScrollHorizontalAction*>(action.get())->param
+              : static_cast<ScrollVerticalAction*>(action.get())->param;
 
-            uint16_t wheelCode = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
-            const std::vector<input_event> scrollInputEvents = {{{}, EV_REL, wheelCode, param}, {{}, EV_SYN, SYN_REPORT, 0},};
-
-            if (param) m_virtualDevice->emitEvents(scrollInputEvents);
+            if (param)
+            {
+              const uint16_t wheelCode = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
+              const std::vector<input_event> scrollInputEvents = {{{}, EV_REL, wheelCode, param}, {{}, EV_SYN, SYN_REPORT, 0},};
+              m_virtualDevice->emitEvents(scrollInputEvents);
+            }
           }
           else if (action->type() == Action::Type::VolumeControl)
           {
@@ -231,7 +270,7 @@ int Spotlight::connectDevices()
 
             auto param = static_cast<VolumeControlAction*>(action.get())->param;
             uint16_t keyCode = (param > 0)? KEY_VOLUMEUP: KEY_VOLUMEDOWN;
-            const std::vector<input_event> curVolInputEvents = {{{}, EV_KEY, keyCode, abs(param)}, {{}, EV_SYN, SYN_REPORT, 0},
+            const std::vector<input_event> curVolInputEvents = {{{}, EV_KEY, keyCode, 1}, {{}, EV_SYN, SYN_REPORT, 0},
                                                                 {{}, EV_KEY, keyCode, 0}, {{}, EV_SYN, SYN_REPORT, 0},};
             if (param) m_virtualDevice->emitEvents(curVolInputEvents);
           }
@@ -371,84 +410,82 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
   } // end while loop
 }
 
-// // -------------------------------------------------------------------------------------------------
-// void Spotlight::onHidppDataAvailable(int fd, SubHidppConnection& connection)
-// {
-//     // Wireless Notification from the Spotlight device
-//     auto wnIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::WirelessDeviceStatus);
-//     if (wnIndex && readVal.at(2) == wnIndex) {    // Logitech spotlight presenter unit got online.
-//       if (!connection.isOnline()) connection.initialize();
-//     }
+// -------------------------------------------------------------------------------------------------
+void Spotlight::registerForNotifications(SubHidppConnection* connection)
+{
+  using namespace HIDPP;
 
-//     // Process reprogrammed keys : Next Hold and Back Hold
-//     auto rcIndex = connection.getFeatureSet()->getFeatureIndex(FeatureCode::ReprogramControlsV4);
-//     if (rcIndex && readVal.at(2) == rcIndex)     // Button (for which hold events are on) related message.
-//     {
-//       auto eventCode = static_cast<uint8_t>(readVal.at(3));
-//       auto buttonCode = static_cast<uint8_t>(readVal.at(5));
-//       if (eventCode == 0x00) {  // hold start/stop events
-//         switch (buttonCode) {
-//           case 0xda:
-//             logDebug(hid) << "Next Hold Event ";
-//             m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Next);
-//             break;
-//           case 0xdc:
-//             logDebug(hid) << "Back Hold Event ";
-//             m_holdButtonStatus.setButton(HoldButtonStatus::HoldButtonType::Back);
-//             break;
-//           case 0x00:
-//             // hold event over.
-//             logDebug(hid) << "Hold Event over.";
-//             m_holdButtonStatus.reset();
-//         }
-//       }
-//       else if (eventCode == 0x10) {   // mouse move event
-//         // Mouse data is sent as 4 byte information starting at 5th byte and ending at 8th.
-//         // out of these 6th byte and 8th bytes are x and y relative change, respectively.
-//         // Not sure about meaning of 5th and 7th bytes. However during testing
-//         // the 5th byte shows horizonal scroll towards right if rel value is -1 otherwise left scroll (0)
-//         // the 7th byte shows vertical scroll towards up if rel value is -1 otherwise down scroll (0)
-//         auto byteToRel = [](int i){return ( (i<128) ? i : 256-i);};   // convert the byte to relative motion in x or y
-//         int x = byteToRel(readVal.at(5));
-//         int y = byteToRel(readVal.at(7));
+  // Logitech button next and back press and hold + movement
+  if (const auto rcIndex = connection->featureSet().featureIndex(FeatureCode::ReprogramControlsV4))
+  {
+    connection->registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg)
+    {
+      // Logitech Spotlight:
+      //   * Next Button = 0xda
+      //   * Back Button = 0xdc
+      // Byte 5 and 7 indicate pressed buttons
+      // Back and next can be pressed at the same time
 
-//         //auto action = connection.inputMapper()->getAction(m_holdButtonStatus.keyEventSeq());
-//         auto action = std::shared_ptr<Action>{};
+      constexpr uint8_t ButtonNext = 0xda;
+      constexpr uint8_t ButtonBack = 0xdc;
+      const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
+      const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
 
-//         if (action && !action->empty())
-//         {
-//           auto getReducedParam = [](int param, int limit=2){  // reduce the values from Spotlight device for better scroll behavior
-//             int minVal=5;
-//             if (abs(param) < minVal) return 0;        // ignore small device movement
+      if (isNextPressed) {
+        m_holdButtonStatus->setButton(HoldButtonStatus::HoldButtonType::Next);
+      } else if (isBackPressed) {
+        m_holdButtonStatus->setButton(HoldButtonStatus::HoldButtonType::Back);
+      } else {
+        m_holdButtonStatus->reset();
+      }
+    }), 0 /* function 0 */);
 
-//             auto sign = (param == 0)? 0: ((param > 0)? 1:-1);
-//             return ((abs(param) > minVal*limit)? sign*minVal*limit : param)/minVal;    // limit return value between -limit to limit
-//           };
 
-//           if (action->type() == Action::Type::ScrollHorizontal)
-//           {
-//             const auto scrollHAction = static_cast<ScrollHorizontalAction*>(action.get());
-//             scrollHAction->param = -(getReducedParam(x));
-//           }
-//           if (action->type() == Action::Type::ScrollVertical)
-//           {
-//             const auto scrollVAction = static_cast<ScrollVerticalAction*>(action.get());
-//             scrollVAction->param = getReducedParam(y);
-//           }
-//           if(action->type() == Action::Type::VolumeControl)
-//           {
-//             const auto volumeControlAction = static_cast<VolumeControlAction*>(action.get());
-//             volumeControlAction->param = -getReducedParam(y, 3);
-//           }
+    connection->registerNotificationCallback(this, rcIndex,
+    makeSafeCallback([this, connection](Message&& msg)
+    {
+      // byte 4 : -1 for left movement, 0 for right movement
+      // byte 5 : horizontal movement speed -128 to 127
+      // byte 6 : -1 for up movement, 0 for down movement
+      // byte 7 : vertical movement speed -128 to 127
 
-//           // feed the keystroke to InputMapper and let it trigger the associated action
-//           for (auto key_event: m_holdButtonStatus.keyEventSeq()) connection.inputMapper()->addEvents(key_event);
-//         }
-//         m_holdButtonStatus.addEvent();
-//       }
-//     }
-//   }
-// }
+      static const auto intcast = [](uint8_t v) -> int{ return static_cast<int8_t>(v); };
+      // logDebug(hid) << tr("4 = %1, 5 = %2, 6 = %3, 7 = %4")
+      //                 .arg(intcast(msg[4]), 4)
+      //                 .arg(intcast(msg[5]), 4)
+      //                 .arg(intcast(msg[6]), 4)
+      //                 .arg(intcast(msg[7]), 4);
+
+      const int x = intcast(msg[5]);
+      const int y = intcast(msg[7]);
+
+      static const auto getReducedParam = [](int param, int limit=2){  // reduce the values from Spotlight device for better scroll behavior
+        constexpr int minVal = 5;
+        if (abs(param) < minVal) return 0;        // ignore small device movement
+
+        const auto sign = (param == 0) ? 0 : ((param > 0) ? 1 :-1);
+        return ((abs(param) > minVal*limit)? sign*minVal*limit : param)/minVal;    // limit return value between -limit to limit
+      };
+
+      static const auto scrollHAction = GlobalActions::scrollHorizontal();
+      scrollHAction->param = -(getReducedParam(x));
+
+      static const auto scrollVAction = GlobalActions::scrollVertical();
+      scrollVAction->param = getReducedParam(y);
+
+      static const auto volumeControlAction = GlobalActions::volumeControl();
+      volumeControlAction->param = -getReducedParam(y, 3);
+
+      // feed the keystroke to InputMapper and let it trigger the associated action
+      for (auto key_event: m_holdButtonStatus->keyEventSeq()) {
+        connection->inputMapper()->addEvents(key_event);
+      }
+
+      m_holdButtonStatus->addEvent();
+
+    }), 1 /* function 1 */);
+  }
+}
 
 // -------------------------------------------------------------------------------------------------
 bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connection)

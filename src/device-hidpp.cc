@@ -176,7 +176,7 @@ void SubHidppConnection::sendRequest(HIDPP::Message msg, RequestResultCallback r
 
       if (it->callBack) { it->callBack(result, HIDPP::Message()); }
       m_requests.erase(it);
-    }, false));
+    }));
 
     // Place request in request list with a timeout
     m_requests.emplace_back(RequestEntry{
@@ -232,7 +232,7 @@ void SubHidppConnection::sendDataBatch(DataBatch dataBatch, DataBatchResultCallb
 
       // continue processing the rest of the batch
       sendDataBatch(std::move(batch), std::move(batchCb), coe, std::move(results));
-    }, false));
+    }));
   });
 }
 
@@ -280,7 +280,7 @@ void SubHidppConnection::sendRequestBatch(RequestBatch requestBatch, RequestBatc
 
       // continue processing the rest of the batch
       sendRequestBatch(std::move(batch), std::move(batchCb), coe, std::move(results));
-    }, false));
+    }, true));
   });
 }
 
@@ -461,6 +461,15 @@ void SubHidppConnection::setPresenterState(PresenterState ps)
 }
 
 // -------------------------------------------------------------------------------------------------
+void SubHidppConnection::setBatteryInfo(const HIDPP::BatteryInfo& bi)
+{
+  if (m_batteryInfo == bi) return;
+
+  m_batteryInfo = bi;
+  emit batteryInfoChanged(m_batteryInfo);
+}
+
+// -------------------------------------------------------------------------------------------------
 void SubHidppConnection::initReceiver(std::function<void(ReceiverState)> cb)
 {
   postSelf([this, cb=std::move(cb)](){
@@ -594,14 +603,15 @@ void SubHidppConnection::initPresenter(std::function<void(PresenterState)> cb)
                 logDebug(hid) << tr("InitFeature result %1 => %2").arg(toString(res.first)).arg(toString(res.second));
               }
             }
+            emit featureSetInitialized();
             setPresenterState(PresenterState::Initialized_Online);
             if (cb) cb(m_presenterState);
-          }, false));
+          }));
           return;
         }
       }
       if (cb) cb(m_presenterState);
-    }, false));
+    }));
   });
 }
 
@@ -694,12 +704,12 @@ void SubHidppConnection::updateDeviceFlags()
   }
 
   if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::ReprogramControlsV4)) {
-    auto& reservedInputs = m_inputMapper->getReservedInputs();
+    auto& reservedInputs = m_inputMapper->reservedInputs();
     reservedInputs.clear();
     featureFlagsSet |= DeviceFlags::NextHold;
     featureFlagsSet |= DeviceFlags::BackHold;
-    reservedInputs.emplace_back(ReservedKeyEventSequence::NextHoldInfo);
-    reservedInputs.emplace_back(ReservedKeyEventSequence::BackHoldInfo);
+    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold));
+    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold));
     logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
                      .arg(path()).arg(toString(HIDPP::FeatureCode::ReprogramControlsV4));
   }
@@ -745,7 +755,7 @@ void SubHidppConnection::registerForFeatureNotifications()
       logDebug(hid) << tr("Buttons pressed: Next = %1, Back = %2")
                         .arg(isNextPressed).arg(isBackPressed) << msg.hex();
 
-    }, false), 0 /* function 0 */);
+    }), 0 /* function 0 */);
 
     registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg)
     {
@@ -763,14 +773,15 @@ void SubHidppConnection::registerForFeatureNotifications()
       //                 .arg(cast(msg[5]), 4)
       //                 .arg(cast(msg[6]), 4)
       //                 .arg(cast(msg[7]), 4);
-    }, false), 1 /* function 1 */);
+    }), 1 /* function 1 */);
   }
 
   if (const auto batIndex = m_featureSet.featureIndex(FeatureCode::BatteryStatus))
   {
-    // TODO register for BatteryLevelStatusBroadcastEvent
     // A device can send a battery status spontaneously to the software.
-  }
+    registerNotificationCallback(this, batIndex, makeSafeCallback([this](Message&& msg) {
+      setBatteryInfo(BatteryInfo{msg[4], msg[5], to_enum<BatteryStatus>(msg[6])});
+    }), 0 /* function 0 */);  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -797,9 +808,9 @@ void SubHidppConnection::registerForUsbNotifications()
       logInfo(hid) << tr("Device '%1' came online.").arg(path());
       checkAndUpdatePresenterState(makeSafeCallback([this](PresenterState /* ps */) {
         //...
-      }, false));
+      }));
     }
-  }, false));
+  }));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -817,8 +828,8 @@ void SubHidppConnection::subDeviceInit()
     // presenter device HID++ features and more
     checkAndUpdatePresenterState(makeSafeCallback([this](PresenterState /* ps */) {
       //...
-    }, false));
-  }, false));
+    }));
+  }));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -834,6 +845,25 @@ SubHidppConnection::PresenterState SubHidppConnection::presenterState() const {
 // -------------------------------------------------------------------------------------------------
 HIDPP::ProtocolVersion SubHidppConnection::protocolVersion() const {
   return m_protocolVersion;
+}
+
+// -------------------------------------------------------------------------------------------------
+void SubHidppConnection::triggerBattyerInfoUpdate()
+{
+  using namespace HIDPP;
+  getBatteryLevelStatus(makeSafeCallback([this](MsgResult res, BatteryInfo&& bi)
+  {
+    if (res != MsgResult::Ok) {
+      return;
+    }
+
+    setBatteryInfo(bi);
+  }));
+}
+
+// -------------------------------------------------------------------------------------------------
+const HIDPP::BatteryInfo& SubHidppConnection::batteryInfo() const {
+  return m_batteryInfo;
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -940,14 +970,14 @@ void SubHidppConnection::checkAndUpdatePresenterState(std::function<void(Present
           }
           setPresenterState(PresenterState::Initialized_Online);
           if (cb) cb(m_presenterState);
-        }, false));
+        }));
       }
       else if (m_presenterState == PresenterState::Initialized_Online)
       {
         setPresenterState(PresenterState::Initialized_Online);
         if (cb) cb(m_presenterState);
       }
-    }, false));
+    }));
   });
 }
 

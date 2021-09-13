@@ -96,10 +96,10 @@ struct remove_member<R (C::*)(Args...) const> {
 /// Create a safe function object, guaranteed to be invoked in the context of
 /// the given QObject context.
 template <typename F, typename R, typename... Args>
-auto makeSafeCallback_impl(QObject* context, F&& f, std::function<R(Args...)>, bool forceQueued)
+auto makeSafeCallback_impl(QObject* context, F&& f, std::function<R(Args...)>, bool autoConnection)
 {
   QPointer<QObject> ctxPtr(context);
-  return [ctxPtr, forceQueued, f=std::forward<F>(f)](Args&&... args) mutable
+  return [ctxPtr, autoConnection, f=std::forward<F>(f)](Args&&... args) mutable
   {
     // Check if context object is still valid
     if (ctxPtr.isNull()) {
@@ -109,7 +109,7 @@ auto makeSafeCallback_impl(QObject* context, F&& f, std::function<R(Args...)>, b
     #if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
     QMetaObject::invokeMethod(ctxPtr,
       capture_call(std::forward<F>(f), std::forward<Args>(args)...),
-      forceQueued ? Qt::QueuedConnection : Qt::AutoConnection);
+      autoConnection ? Qt::AutoConnection : Qt::QueuedConnection);
     // Note: if forceQueued is false and current thread is the same as
     // the context thread -> execute directly
     #else
@@ -122,10 +122,10 @@ auto makeSafeCallback_impl(QObject* context, F&& f, std::function<R(Args...)>, b
 /// Create a safe function object, guaranteed to be invoked in the context of
 /// the given QObject context.
 template <typename F>
-auto makeSafeCallback(QObject* context, F&& f, bool forceQueued = true) {
+auto makeSafeCallback(QObject* context, F&& f, bool autoConnection) {
   using sig = decltype(&F::operator());
   using ft = std::function<typename remove_member<sig>::type>;
-  return async::makeSafeCallback_impl(context, std::forward<F>(f), ft{}, forceQueued);
+  return async::makeSafeCallback_impl(context, std::forward<F>(f), ft{}, autoConnection);
 }
 
 /// Deriving from this class will makeSafeCallback and postSelf methods for QObject based
@@ -144,8 +144,8 @@ class Async
 protected:
   /// Returns a function object that is guaranteed to be invoked in the own thread context.
   template <typename F>
-  auto makeSafeCallback(F&& f, bool forceQueued = true) {
-    return async::makeSafeCallback(static_cast<T*>(this), std::forward<F>(f), forceQueued);
+  auto makeSafeCallback(F&& f, bool autoConnection = true) {
+    return async::makeSafeCallback(static_cast<T*>(this), std::forward<F>(f), autoConnection);
   }
 
   /// Post a function to the own event loop.

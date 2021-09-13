@@ -65,11 +65,13 @@ public:
 
   PresenterState presenterState() const;
   ReceiverState receiverState() const;
+  const HIDPP::FeatureSet& featureSet() { return m_featureSet; }
+
+  HIDPP::ProtocolVersion protocolVersion() const;
+  void triggerBattyerInfoUpdate();
+  const HIDPP::BatteryInfo& batteryInfo() const;
 
   void sendPing(RequestResultCallback cb);
-  HIDPP::ProtocolVersion protocolVersion() const;
-
-  void getBatteryLevelStatus(std::function<void(MsgResult, HIDPP::BatteryInfo&&)> cb);
   void sendVibrateCommand(uint8_t intensity, uint8_t length, RequestResultCallback cb);
   /// Set device pointer speed - speed needs to be in the range [0-9]
   void setPointerSpeed(uint8_t speed, RequestResultCallback cb);
@@ -77,6 +79,9 @@ public:
 signals:
   void receiverStateChanged(ReceiverState);
   void presenterStateChanged(PresenterState);
+  void featureSetInitialized();
+
+  void batteryInfoChanged(const HIDPP::BatteryInfo&);
 
 private:
   void subDeviceInit();
@@ -88,8 +93,11 @@ private:
   /// Initializes features. Returns a map of initalized features and the result from it.
   void initFeatures(std::function<void(std::map<HIDPP::FeatureCode, MsgResult>&&)> cb);
 
+  void getBatteryLevelStatus(std::function<void(MsgResult, HIDPP::BatteryInfo&&)> cb);
+
   void setReceiverState(ReceiverState rs);
   void setPresenterState(PresenterState ps);
+  void setBatteryInfo(const HIDPP::BatteryInfo& bi);
 
   void onHidppDataAvailable(int fd);
 
@@ -106,6 +114,7 @@ private:
 
   HIDPP::FeatureSet m_featureSet;
   HIDPP::ProtocolVersion m_protocolVersion;
+  HIDPP::BatteryInfo m_batteryInfo;
 
   ReceiverState m_receiverState = ReceiverState::Uninitialized;
   PresenterState m_presenterState = PresenterState::Uninitialized;

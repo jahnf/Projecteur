@@ -349,11 +349,12 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   const auto& item = model->configData(index);
   if (!item.action) return;
 
-  const bool showRepeatedActions = std::any_of(
-              ReservedKeyEventSequence::HoldButtonsInfo.cbegin(),
-              ReservedKeyEventSequence::HoldButtonsInfo.cend(),
-              [item](const auto& button){
-      return (item.deviceSequence == button.keqEventSeq);});
+  const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
+  const bool showRepeatedActions = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
+    [&item](const auto& specialKeyInfo){
+      return (item.deviceSequence == specialKeyInfo.second.keyEventSeq);
+    }
+  );
 
   struct actionEntry {
     Action::Type type;

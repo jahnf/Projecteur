@@ -2,8 +2,6 @@
 // - See LICENSE.md and README.md
 #pragma once
 
-#include <linux/input.h>
-
 #include <memory>
 #include <vector>
 
@@ -78,39 +76,25 @@ QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
 
 // -------------------------------------------------------------------------------------------------
-// Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not valid
-// input event (input_event in linux/input.h) in conventional sense. Rather they are communicated
+// Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not a valid
+// input event (input_event in linux/input.h) in a conventional sense. They are communicated
 // via HID++ messages from the device. To use to InputMapper architechture in that case we need to
 // reserve some KeyEventSequence for such events. These KeyEventSequence should be designed in
-// such a way that they cannot interfare with other valid input events from the device.
-namespace ReservedKeyEventSequence {
-  const auto genKeyEventsWithoutSYN = [](std::vector<uint16_t> codes){
-    KeyEventSequence ks;
-    for (auto code: codes)
-    {
-      KeyEvent pressed; KeyEvent released;
-      pressed.emplace_back(EV_KEY, code, 1);
-      released.emplace_back(EV_KEY, code, 0);
-      ks.emplace_back(std::move(pressed));
-      ks.emplace_back(std::move(released));
-    }
-    return ks;
+// such a way that they cannot interfere with other valid input events from the device.
+namespace SpecialKeys
+{
+  enum class Key : uint16_t {
+    NextHold = 0x0ff0,
+    BackHold = 0x0ff1,
   };
 
-  struct ReservedKeyEventSeqInfo {QString name;
-                                  KeyEventSequence keqEventSeq = {};
-                                 };
+  struct SpecialKeyEventSeqInfo {
+    QString name;
+    KeyEventSequence keyEventSeq;
+  };
 
-  // Use four key codes for Next and Back Hold event
-  const ReservedKeyEventSeqInfo NextHoldInfo = {"Next Hold",
-                                                genKeyEventsWithoutSYN({KEY_H, KEY_N, KEY_X, KEY_T})};  //HNXT: Reserved for Next Hold event
-  const ReservedKeyEventSeqInfo BackHoldInfo = {"Back Hold",
-                                                genKeyEventsWithoutSYN({KEY_H, KEY_B, KEY_C, KEY_K})};  //HBCK: Reserved for Back Hold event
-
-  const std::array<ReservedKeyEventSeqInfo, 2> HoldButtonsInfo {{NextHoldInfo, BackHoldInfo}};
-
-  // Currently HoldButtonsInfo are the only reserved keys. May change in the future.
-  const auto ReservedKeyEvents = HoldButtonsInfo;
+  const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key);
+  const std::map<Key, SpecialKeyEventSeqInfo>& keyEventSequenceMap();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -279,6 +263,13 @@ struct VolumeControlAction : public Action
 };
 
 // -------------------------------------------------------------------------------------------------
+namespace GlobalActions {
+  std::shared_ptr<ScrollHorizontalAction> scrollHorizontal();
+  std::shared_ptr<ScrollVerticalAction> scrollVertical();
+  std::shared_ptr<VolumeControlAction> volumeControl();
+}
+
+// -------------------------------------------------------------------------------------------------
 struct MappedAction
 {
   bool operator==(const MappedAction& o) const;
@@ -291,9 +282,6 @@ QDataStream& operator<<(QDataStream& s, const MappedAction& mia);
 
 // -------------------------------------------------------------------------------------------------
 class InputMapConfig : public std::map<KeyEventSequence, MappedAction>{};
-
-// -------------------------------------------------------------------------------------------------
-using ReservedInput = std::vector<struct ReservedKeyEventSequence::ReservedKeyEventSeqInfo>;
 
 // -------------------------------------------------------------------------------------------------
 class InputMapper : public QObject
@@ -316,7 +304,8 @@ public:
   int keyEventInterval() const;
   void setKeyEventInterval(int interval);
 
-  auto& getReservedInputs() { return reservedInputs; }
+  using ReservedInputs = std::vector<SpecialKeys::SpecialKeyEventSeqInfo>;
+  ReservedInputs& reservedInputs();
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
   bool hasVirtualDevice() const;
@@ -339,6 +328,5 @@ signals:
 private:
   struct Impl;
   std::unique_ptr<Impl> impl;
-  ReservedInput reservedInputs;
   QTimer* m_repeatedActionTimer = nullptr;  // Timer for introducing time gap between repeated ations
 };
