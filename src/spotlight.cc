@@ -32,29 +32,46 @@ namespace {
 
 
 // -------------------------------------------------------------------------------------------------
-struct HoldButtonStatus {
-  enum class HoldButtonType : uint8_t { None, Next, Back };
+// Hold button state. Very much Logitech Spotlight specific.
+struct HoldButtonStatus
+{
+  enum class Button : uint16_t {
+    Next = 0x0e10, // must be in SpecialKeys user range
+    Back = 0x0e11, // must be in SpecialKeys user range
+  };
 
-  void setButton(HoldButtonType b){ _button = b; _numEvents=0; };
-  auto getButton() const { return _button; }
-  int numEvents() const { return _numEvents; };
-  void addEvent(){ _numEvents++; };
-  void reset(){ setButton(HoldButtonType::None); };
-  auto keyEventSeq() {
-    switch (_button){
-      case HoldButtonType::Next:
-        return SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold).keyEventSeq;
-      case HoldButtonType::Back:
-        return SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold).keyEventSeq;
-      case HoldButtonType::None:
-        return KeyEventSequence();
-      }
-    return KeyEventSequence();
+  void setButtonsPressed(bool nextPressed, bool backPressed)
+  {
+    if (!m_nextPressed && nextPressed) {
+      m_moveKeyEvSeq = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove).keyEventSeq;
+    } else if (!m_backPressed && backPressed) {
+      m_moveKeyEvSeq = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove).keyEventSeq;
+    } else if (m_nextPressed && !nextPressed && backPressed) {
+      m_moveKeyEvSeq = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove).keyEventSeq;
+    } else if (m_backPressed && !backPressed && nextPressed) {
+      m_moveKeyEvSeq = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove).keyEventSeq;
+    }
+
+    m_nextPressed = nextPressed;
+    m_backPressed = backPressed;
+
+    if (!nextPressed && !backPressed) m_moveKeyEvSeq.clear();
+  }
+
+  bool nextPressed() const { return m_nextPressed; }
+  bool backPressed() const { return m_backPressed; }
+
+  void reset() { m_nextPressed = m_backPressed = false; m_moveKeyEvSeq.clear(); };
+
+  const KeyEventSequence& moveKeyEventSeq() const {
+    return m_moveKeyEvSeq;
   };
 
 private:
-  HoldButtonType _button = HoldButtonType::None;
-  unsigned long _numEvents = 0;
+  bool m_nextPressed = false;
+  bool m_backPressed = false;
+
+  KeyEventSequence m_moveKeyEvSeq;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -230,7 +247,7 @@ int Spotlight::connectDevices()
 
         connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
         {
-          if (!(action->isRepeated()) && m_holdButtonStatus->numEvents() > 0) return;
+          // TODO allow hold button move events only with specific actions
 
           if (action->type() == Action::Type::CyclePresets)
           {
@@ -418,7 +435,8 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
   // Logitech button next and back press and hold + movement
   if (const auto rcIndex = connection->featureSet().featureIndex(FeatureCode::ReprogramControlsV4))
   {
-    connection->registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg)
+    connection->registerNotificationCallback(this, rcIndex, makeSafeCallback(
+    [this, connection](Message&& msg)
     {
       // Logitech Spotlight:
       //   * Next Button = 0xda
@@ -431,15 +449,21 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
       const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
 
-      if (isNextPressed) {
-        m_holdButtonStatus->setButton(HoldButtonStatus::HoldButtonType::Next);
-      } else if (isBackPressed) {
-        m_holdButtonStatus->setButton(HoldButtonStatus::HoldButtonType::Back);
-      } else {
-        m_holdButtonStatus->reset();
+      if (!m_holdButtonStatus->nextPressed() && isNextPressed
+          && !m_holdButtonStatus->backPressed() && isBackPressed) {
+        // TODO KeyEvnt with both presses at the same time
       }
-    }), 0 /* function 0 */);
 
+      if (!m_holdButtonStatus->nextPressed() && isNextPressed) {
+        connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Next), 1}});
+      }
+
+      if (!m_holdButtonStatus->backPressed() && isBackPressed) {
+        connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Back), 1}});
+      }
+
+      m_holdButtonStatus->setButtonsPressed(isNextPressed, isBackPressed);
+    }), 0 /* function 0 */);
 
     connection->registerNotificationCallback(this, rcIndex,
     makeSafeCallback([this, connection](Message&& msg)
@@ -476,13 +500,13 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       static const auto volumeControlAction = GlobalActions::volumeControl();
       volumeControlAction->param = -getReducedParam(y, 3);
 
-      // feed the keystroke to InputMapper and let it trigger the associated action
-      for (auto key_event: m_holdButtonStatus->keyEventSeq()) {
-        connection->inputMapper()->addEvents(key_event);
+      if (!connection->inputMapper()->recordingMode())
+      {
+        // feed the keystroke to InputMapper and let it trigger the associated action
+        for (auto key_event : m_holdButtonStatus->moveKeyEventSeq()) {
+          connection->inputMapper()->addEvents(key_event);
+        }
       }
-
-      m_holdButtonStatus->addEvent();
-
     }), 1 /* function 1 */);
   }
 }

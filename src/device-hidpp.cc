@@ -708,8 +708,8 @@ void SubHidppConnection::updateDeviceFlags()
     reservedInputs.clear();
     featureFlagsSet |= DeviceFlags::NextHold;
     featureFlagsSet |= DeviceFlags::BackHold;
-    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold));
-    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold));
+    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove));
+    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove));
     logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
                      .arg(path()).arg(toString(HIDPP::FeatureCode::ReprogramControlsV4));
   }

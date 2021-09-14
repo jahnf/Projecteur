@@ -78,14 +78,17 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke);
 // -------------------------------------------------------------------------------------------------
 // Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not a valid
 // input event (input_event in linux/input.h) in a conventional sense. They are communicated
-// via HID++ messages from the device. To use to InputMapper architechture in that case we need to
-// reserve some KeyEventSequence for such events. These KeyEventSequence should be designed in
+// via HID++ messages from the device. Using the input mapper we need to
+// reserve some KeyEventSequence for theese events. These KeyEventSequence should be designed in
 // such a way that they cannot interfere with other valid input events from the device.
 namespace SpecialKeys
 {
+  constexpr uint16_t range = 0x0f00;  // 0x0f00 - 0x0fff
+  constexpr uint16_t userRange = 0x0e00; // 0x0e00 - 0x0eff
+
   enum class Key : uint16_t {
-    NextHold = 0x0ff0,
-    BackHold = 0x0ff1,
+    NextHoldMove = 0x0ff0,
+    BackHoldMove = 0x0ff1,
   };
 
   struct SpecialKeyEventSeqInfo {

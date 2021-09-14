@@ -20,7 +20,6 @@ class SubHidppConnection;
 
 struct HoldButtonStatus;
 
-
 /// Class handling spotlight device connections and indicating if a device is sending
 /// sending mouse move events.
 class Spotlight : public QObject, public async::Async<Spotlight>

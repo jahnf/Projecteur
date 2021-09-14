@@ -550,6 +550,7 @@ InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev
 void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r)
 {
   if (!action || action->empty()) return;
+
   if (action->isRepeated())
   {
     if(m_parent->m_repeatedActionTimer->isActive()) return;
@@ -557,7 +558,7 @@ void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, Device
   }
 
   logDebug(input) << "Input map action, type = " << int(action->type())
-                  << ", partial_hit = " << (r == DeviceKeyMap::Result::PartialHit);
+                  << ", partial_hit = " << (r == DeviceKeyMap::Result::PartialHit) << action->isRepeated();
 
   if (action->type() == Action::Type::KeySequence)
   {
@@ -841,9 +842,10 @@ namespace SpecialKeys
 // -------------------------------------------------------------------------------------------------
 const std::map<Key, SpecialKeyEventSeqInfo>&  keyEventSequenceMap()
 {
+  // TODO Make names translateable
   static const std::map<Key, SpecialKeyEventSeqInfo> keyMap {
-    {Key::BackHold, {"Back Hold", makeSpecialKeyEventSequence(to_integral(Key::BackHold))}},
-    {Key::NextHold, {"Next Hold", makeSpecialKeyEventSequence(to_integral(Key::NextHold))}},
+    {Key::BackHoldMove, {"Back Hold Move", makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove))}},
+    {Key::NextHoldMove, {"Next Hold Move", makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove))}},
   };
   return keyMap;
 }
