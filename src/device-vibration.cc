@@ -419,5 +419,8 @@ void VibrationSettingsWidget::sendVibrateCommand()
 
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
-  m_subDeviceConnection->sendVibrateCommand(vint, vlen, {});
+  m_subDeviceConnection->sendVibrateCommand(vint, vlen,
+  [](HidppConnectionInterface::MsgResult /* result */, HIDPP::Message&& /* msg */) {
+    // TODO debug log vibrate command reply?
+  });
 }

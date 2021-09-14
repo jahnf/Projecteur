@@ -831,7 +831,7 @@ const InputMapConfig& InputMapper::configuration() const
 }
 
 // -------------------------------------------------------------------------------------------------
-InputMapper::ReservedInputs& InputMapper::reservedInputs()
+InputMapper::ReservedInputs& InputMapper::specialInputs()
 {
   return impl->m_reservedInputs;
 }

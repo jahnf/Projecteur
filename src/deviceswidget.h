@@ -2,22 +2,21 @@
 // - See LICENSE.md and README.md
 #pragma once
 
-#include "device.h"
+#include "device-defs.h"
 
 #include <QPointer>
 #include <QWidget>
 
+class DeviceConnection;
 class InputMapper;
 class MultiTimerWidget;
 class QComboBox;
+class QTabWidget;
 class Settings;
 class Spotlight;
 class VibrationSettingsWidget;
+class SubDeviceConnection;
 class TimerTabWidget;
-
-class QTabWidget;
-class QTimer;
-class QTextEdit;
 
 // -------------------------------------------------------------------------------------------------
 class DevicesWidget : public QWidget
@@ -48,7 +47,7 @@ private:
   QWidget* m_deviceDetailsTabWidget = nullptr;
 
   // TODO Put into separate DeviceDetailsWidget
-  QTextEdit* m_deviceDetailsTextEdit = nullptr;
+  // QTextEdit* m_deviceDetailsTextEdit = nullptr;
 
   QPointer<InputMapper> m_inputMapper;
 };
@@ -70,4 +69,17 @@ private:
   Settings* const m_settings = nullptr;
   MultiTimerWidget* m_multiTimerWidget = nullptr;
   VibrationSettingsWidget* m_vibrationSettingsWidget = nullptr;
+};
+
+// -------------------------------------------------------------------------------------------------
+class DeviceInfoWidget : public QWidget
+{
+  Q_OBJECT
+
+public:
+  DeviceInfoWidget(QWidget* parent = nullptr);
+  void setDeviceConnection(DeviceConnection* connection);
+
+private:
+  QPointer<DeviceConnection> m_connection;
 };

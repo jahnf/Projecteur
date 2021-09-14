@@ -308,7 +308,7 @@ public:
   void setKeyEventInterval(int interval);
 
   using ReservedInputs = std::vector<SpecialKeys::SpecialKeyEventSeqInfo>;
-  ReservedInputs& reservedInputs();
+  ReservedInputs& specialInputs();
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
   bool hasVirtualDevice() const;

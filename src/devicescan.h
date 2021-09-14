@@ -19,28 +19,28 @@ struct SupportedDevice
   QString name = {};
 };
 
-// -------------------------------------------------------------------------------------------------
-struct DeviceId
-{
-  uint16_t vendorId = 0;
-  uint16_t productId = 0;
-  BusType busType = BusType::Unknown;
-  QString phys; // should be sufficient to differentiate between two devices of the same type
-                // - not tested, don't have two devices of any type currently.
+// // -------------------------------------------------------------------------------------------------
+// struct DeviceId
+// {
+//   uint16_t vendorId = 0;
+//   uint16_t productId = 0;
+//   BusType busType = BusType::Unknown;
+//   QString phys; // should be sufficient to differentiate between two devices of the same type
+//                 // - not tested, don't have two devices of any type currently.
 
-  inline bool operator==(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, busType, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
-  }
+//   inline bool operator==(const DeviceId& rhs) const {
+//     return std::tie(vendorId, productId, busType, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
+//   }
 
-  inline bool operator!=(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, busType, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
-  }
+//   inline bool operator!=(const DeviceId& rhs) const {
+//     return std::tie(vendorId, productId, busType, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
+//   }
 
-  inline bool operator<(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, busType, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
-  }
-};
-Q_DECLARE_METATYPE(DeviceId);
+//   inline bool operator<(const DeviceId& rhs) const {
+//     return std::tie(vendorId, productId, busType, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.busType, rhs.phys);
+//   }
+// };
+// Q_DECLARE_METATYPE(DeviceId);
 
 // -------------------------------------------------------------------------------------------------
 namespace DeviceScan

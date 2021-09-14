@@ -163,6 +163,26 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
       --m_duplicates[c.deviceSequence];
       ++m_duplicates[kes];
       c.deviceSequence = kes;
+
+      const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
+      const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
+        [&c](const auto& specialKeyInfo){
+          return (c.deviceSequence == specialKeyInfo.second.keyEventSeq);
+        }
+      );
+
+      const bool isMoveAction =
+        (c.action->type() == Action::Type::ScrollHorizontal
+        || c.action->type() == Action::Type::ScrollVertical
+        || c.action->type() == Action::Type::VolumeControl);
+
+      if (!isSpecialMoveInput && isMoveAction) {
+        setItemActionType(index, Action::Type::KeySequence);
+      }
+      else if (isSpecialMoveInput && !isMoveAction) {
+        setItemActionType(index, Action::Type::ScrollVertical);
+      }
+
       configureInputMapper();
       updateDuplicates();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});

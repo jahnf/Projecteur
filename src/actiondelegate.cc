@@ -350,7 +350,7 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   if (!item.action) return;
 
   const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
-  const bool showRepeatedActions = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
+  const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
     [&item](const auto& specialKeyInfo){
       return (item.deviceSequence == specialKeyInfo.second.keyEventSeq);
     }
@@ -396,7 +396,8 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   QMenu* menu = new QMenu(parent);
 
   for (const auto& entry : items) {
-    if (!entry.isRepeated || (entry.isRepeated && showRepeatedActions)) {
+    if ((isSpecialMoveInput && entry.isRepeated)
+        || (!isSpecialMoveInput && !entry.isRepeated)) {
       const auto qaction = menu->addAction(entry.icon, entry.text);
       connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
         model->setItemActionType(index, type);

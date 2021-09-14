@@ -704,12 +704,12 @@ void SubHidppConnection::updateDeviceFlags()
   }
 
   if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::ReprogramControlsV4)) {
-    auto& reservedInputs = m_inputMapper->reservedInputs();
-    reservedInputs.clear();
+    auto& specialInputs = m_inputMapper->specialInputs();
+    specialInputs.clear();
     featureFlagsSet |= DeviceFlags::NextHold;
     featureFlagsSet |= DeviceFlags::BackHold;
-    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove));
-    reservedInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove));
+    specialInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove));
+    specialInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove));
     logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
                      .arg(path()).arg(toString(HIDPP::FeatureCode::ReprogramControlsV4));
   }

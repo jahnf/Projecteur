@@ -519,15 +519,35 @@ void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel*
 {
   if (!index.isValid() || !model) return;
 
-  const auto& reservedInputs = model->inputMapper()->reservedInputs();
-  if (!reservedInputs.empty())
+  const auto& specialInputs = model->inputMapper()->specialInputs();
+  if (!specialInputs.empty())
   {
     QMenu* menu = new QMenu(parent);
 
-    for (const auto& button : reservedInputs) {
+    for (const auto& button : specialInputs) {
       const auto qaction = menu->addAction(button.name);
       connect(qaction, &QAction::triggered, this, [model, index, button](){
         model->setInputSequence(index, button.keyEventSeq);
+        const auto& currentItem = model->configData(index);
+        if (!currentItem.action) {
+          model->setItemActionType(index, Action::Type::ScrollHorizontal);
+        }
+        else
+        {
+          switch (currentItem.action->type())
+          {
+            case Action::Type::ScrollHorizontal:   // [[fallthrough]];
+            case Action::Type::ScrollVertical:     // [[fallthrough]];
+            case Action::Type::VolumeControl: {
+              // scrolling and volume control allowed for special input
+              break;
+            }
+            default: {
+              model->setItemActionType(index, Action::Type::ScrollVertical);
+              break;
+            }
+          }
+        }
       });
     }
 

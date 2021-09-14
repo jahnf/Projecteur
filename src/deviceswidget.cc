@@ -250,18 +250,12 @@ void DevicesWidget::updateDeviceDetails(Spotlight* /* spotlight */)
 // -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
 {
-  const auto diWidget = new QWidget(this);
-  const auto layout = new QHBoxLayout(diWidget);
-  if (!m_deviceDetailsTextEdit) m_deviceDetailsTextEdit = new QTextEdit(this);
-  m_deviceDetailsTextEdit->setReadOnly(true);
-  m_deviceDetailsTextEdit->setText("");
+  const auto diWidget = new DeviceInfoWidget(this);
 
-  updateDeviceDetails(spotlight);
-  connect(this, &DevicesWidget::currentDeviceChanged, this, [this, spotlight](){updateDeviceDetails(spotlight);});
-  // TODO connect to deviceflag and battery status changes for the current device
-  // => only update info widget if something changes
-
-  layout->addWidget(m_deviceDetailsTextEdit);
+  connect(this, &DevicesWidget::currentDeviceChanged, this,
+  [this, diWidget, spotlight](const DeviceId& dId) {
+    diWidget->setDeviceConnection(spotlight->deviceConnection(dId).get());
+  });
   return diWidget;
 }
 
@@ -528,4 +522,17 @@ void TimerTabWidget::loadSettings(const DeviceId& deviceId)
 // -------------------------------------------------------------------------------------------------
 void TimerTabWidget::setSubDeviceConnection(SubDeviceConnection* sdc) {
   m_vibrationSettingsWidget->setSubDeviceConnection(sdc);
+}
+
+// -------------------------------------------------------------------------------------------------
+DeviceInfoWidget::DeviceInfoWidget(QWidget* parent)
+  : QWidget(parent)
+{}
+
+void DeviceInfoWidget::setDeviceConnection(DeviceConnection* connection)
+{
+  if (m_connection == connection) return;
+
+  m_connection = connection;
+  // TODO Update device information - connect signals.
 }
