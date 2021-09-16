@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "inputmapconfig.h"
 
 #include "actiondelegate.h"
@@ -161,6 +163,26 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
       --m_duplicates[c.deviceSequence];
       ++m_duplicates[kes];
       c.deviceSequence = kes;
+
+      const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
+      const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
+        [&c](const auto& specialKeyInfo){
+          return (c.deviceSequence == specialKeyInfo.second.keyEventSeq);
+        }
+      );
+
+      const bool isMoveAction =
+        (c.action->type() == Action::Type::ScrollHorizontal
+        || c.action->type() == Action::Type::ScrollVertical
+        || c.action->type() == Action::Type::VolumeControl);
+
+      if (!isSpecialMoveInput && isMoveAction) {
+        setItemActionType(index, Action::Type::KeySequence);
+      }
+      else if (isSpecialMoveInput && !isMoveAction) {
+        setItemActionType(index, Action::Type::ScrollVertical);
+      }
+
       configureInputMapper();
       updateDuplicates();
       emit dataChanged(index, index, {Qt::DisplayRole, Roles::InputSeqRole});
@@ -203,6 +225,15 @@ void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type
     break;
   case Action::Type::ToggleSpotlight:
     item.action = std::make_shared<ToggleSpotlightAction>();
+    break;
+  case Action::Type::ScrollHorizontal:
+    item.action = GlobalActions::scrollHorizontal();
+    break;
+  case Action::Type::ScrollVertical:
+    item.action = GlobalActions::scrollVertical();
+    break;
+  case Action::Type::VolumeControl:
+    item.action = GlobalActions::volumeControl();
     break;
   }
 
@@ -271,12 +302,11 @@ void InputMapConfigModel::updateDuplicates()
   }
 }
 
-#include <QMenu>
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 InputMapConfigView::InputMapConfigView(QWidget* parent)
-  : QTableView(parent)
-    , m_actionTypeDelegate(new ActionTypeDelegate(this))
+  : QTableView(parent),
+    m_actionTypeDelegate(new ActionTypeDelegate(this))
 {
   verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
 
@@ -296,21 +326,25 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
 
   connect(this, &QWidget::customContextMenuRequested, this,
-  [this, actionDelegate](const QPoint& pos)
+  [this, imSeqDelegate, actionDelegate](const QPoint& pos)
   {
     const auto idx = indexAt(pos);
     if (!idx.isValid()) return;
 
-    if (idx.column() == InputMapConfigModel::ActionCol)
+    switch(idx.column())
     {
-      actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                        idx, this->viewport()->mapToGlobal(pos));
-    }
-    else if (idx.column() == InputMapConfigModel::ActionTypeCol)
-    {
-      m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
-                                              idx, this->viewport()->mapToGlobal(pos));
-    }
+      case InputMapConfigModel::InputSeqCol:
+        imSeqDelegate->inputSeqContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                                  idx, this->viewport()->mapToGlobal(pos));
+        break;
+      case InputMapConfigModel::ActionTypeCol:
+        m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                                idx, this->viewport()->mapToGlobal(pos));
+        break;
+      case InputMapConfigModel::ActionCol:
+        actionDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
+                                          idx, this->viewport()->mapToGlobal(pos));
+    };
   });
 
   connect(this, &QTableView::doubleClicked, this, [this](const QModelIndex& idx)

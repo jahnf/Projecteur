@@ -1,7 +1,10 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "device-vibration.h"
 
-#include "device.h"
+#include "device-hidpp.h"
+#include "hidpp.h"
 #include "iconwidgets.h"
 #include "logging.h"
 
@@ -18,9 +21,6 @@
 
 #include <array>
 #include <chrono>
-#include <unistd.h>
-
-DECLARE_LOGGING_CATEGORY(device)
 
 // -------------------------------------------------------------------------------------------------
 namespace {
@@ -407,28 +407,20 @@ void VibrationSettingsWidget::setIntensity(uint8_t intensity)
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
 {
-  m_subDeviceConnection = sdc;
+  m_subDeviceConnection = qobject_cast<SubHidppConnection*>(sdc);
 }
 
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::sendVibrateCommand()
 {
   if (!m_subDeviceConnection) return;
-  if ((m_subDeviceConnection->flags() & DeviceFlag::Vibrate) != DeviceFlag::Vibrate) return;
   if (!m_subDeviceConnection->isConnected()) return;
+  if (!m_subDeviceConnection->hasFlags(DeviceFlag::Vibrate)) return;
 
-  // TODO generalize features and protocol for proprietary device features like vibration
-  //      for not only the Spotlight device.
-  //
-  // Spotlight:
-  //                                                    len         intensity
-  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
-  const uint8_t vibrateCmd[] = {0x10, 0x01, 0x09, 0x1a, vlen, 0xe8, vint};
-
-  const auto res = m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
-  if (res != sizeof(vibrateCmd)) {
-    logWarn(device) << "Could not write vibrate command to device socket.";
-  }
+  m_subDeviceConnection->sendVibrateCommand(vint, vlen,
+  [](HidppConnectionInterface::MsgResult /* result */, HIDPP::Message&& /* msg */) {
+    // TODO debug log vibrate command reply?
+  });
 }

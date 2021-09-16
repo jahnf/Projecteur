@@ -11,4 +11,5 @@ namespace @TARGET@ {
   const char* version_fullhash();
   bool version_isdirty();
   const char* version_branch();
+  const char* version_buildtype();
 }

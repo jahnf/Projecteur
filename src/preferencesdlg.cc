@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "preferencesdlg.h"
 
 #include "projecteur-GitVersion.h"  // auto generated version information
@@ -79,7 +81,8 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
 
   const auto tabWidget = new QTabWidget(this);
   tabWidget->addTab(settingsWidget, tr("Spotlight"));
-  tabWidget->addTab(new DevicesWidget(settings, spotlight, this), tr("Devices"));
+  m_deviceswidget = new DevicesWidget(settings, spotlight, this);
+  tabWidget->addTab(m_deviceswidget, tr("Devices"));
   tabWidget->addTab(createLogTabWidget(), tr("Log"));
 
   const auto overlayCheckBox = new QCheckBox(this);
@@ -97,7 +100,6 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
 
   connect(overlayCheckBox, &QCheckBox::toggled, this, [settings](bool checked){
     settings->setOverlayDisabled(!checked);
-
   });
 
   connect(settings, &Settings::overlayDisabledChanged, this,

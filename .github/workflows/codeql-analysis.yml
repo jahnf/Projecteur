@@ -9,16 +9,17 @@ on:
 
 jobs:
   analyse:
+    if: ${{ github.repository == 'jahnf/Projecteur' }}
     name: Analyse
     runs-on: ubuntu-20.04
 
     steps:
     - name: Install dependencies
-      run: |       
+      run: |
         sudo apt-get --no-install-recommends install pkg-config qtdeclarative5-dev \
           qttools5-dev-tools qttools5-dev \
           qt5-default libqt5x11extras5-dev
-        
+
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
@@ -41,7 +42,7 @@ jobs:
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
-      with: 
+      with:
         queries: +security-and-quality
 
     - name: Build project

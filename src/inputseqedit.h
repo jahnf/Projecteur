@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include "deviceinput.h"
@@ -8,6 +9,7 @@
 
 // -------------------------------------------------------------------------------------------------
 class QStyleOptionFrame;
+class InputMapConfigModel;
 
 // -------------------------------------------------------------------------------------------------
 class InputSeqEdit : public QWidget
@@ -68,6 +70,8 @@ public:
   QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+  void inputSeqContextMenu(QWidget* parent, InputMapConfigModel* model, const QModelIndex& index,
+                           const QPoint& globalPos);
 
   static void drawCurrentIndicator(QPainter &p, const QStyleOption& option);
 

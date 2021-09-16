@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <memory>
@@ -9,6 +10,7 @@
 #include <QObject>
 
 class VirtualDevice;
+class QTimer;
 
 // -------------------------------------------------------------------------------------------------
 /// This is basically the input_event struct from linux/input.h without the time member
@@ -72,6 +74,31 @@ QDataStream& operator>>(QDataStream& s, std::vector<T>& container)
 // -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
+
+// -------------------------------------------------------------------------------------------------
+// Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not a valid
+// input event (input_event in linux/input.h) in a conventional sense. They are communicated
+// via HID++ messages from the device. Using the input mapper we need to
+// reserve some KeyEventSequence for theese events. These KeyEventSequence should be designed in
+// such a way that they cannot interfere with other valid input events from the device.
+namespace SpecialKeys
+{
+  constexpr uint16_t range = 0x0f00;  // 0x0f00 - 0x0fff
+  constexpr uint16_t userRange = 0x0e00; // 0x0e00 - 0x0eff
+
+  enum class Key : uint16_t {
+    NextHoldMove = 0x0ff0,
+    BackHoldMove = 0x0ff1,
+  };
+
+  struct SpecialKeyEventSeqInfo {
+    QString name;
+    KeyEventSequence keyEventSeq;
+  };
+
+  const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key);
+  const std::map<Key, SpecialKeyEventSeqInfo>& keyEventSequenceMap();
+}
 
 // -------------------------------------------------------------------------------------------------
 class NativeKeySequence
@@ -143,6 +170,9 @@ struct Action
     KeySequence = 1,
     CyclePresets = 2,
     ToggleSpotlight = 3,
+    ScrollHorizontal = 11,
+    ScrollVertical = 12,
+    VolumeControl = 13,
   };
 
   virtual ~Action() = default;
@@ -190,6 +220,52 @@ struct ToggleSpotlightAction : public Action
 };
 
 // -------------------------------------------------------------------------------------------------
+struct ScrollHorizontalAction : public Action
+{
+  Type type() const override { return Type::ScrollHorizontal; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const ScrollHorizontalAction&) const { return true; }
+  bool placeholder = false;
+
+  int param = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct ScrollVerticalAction : public Action
+{
+  Type type() const override { return Type::ScrollVertical; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const ScrollVerticalAction&) const { return true; }
+  bool placeholder = false;
+
+  int param = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct VolumeControlAction : public Action
+{
+  Type type() const override { return Type::VolumeControl; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const VolumeControlAction&) const { return true; }
+  bool placeholder = false;
+
+  int param = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+namespace GlobalActions {
+  std::shared_ptr<ScrollHorizontalAction> scrollHorizontal();
+  std::shared_ptr<ScrollVerticalAction> scrollVertical();
+  std::shared_ptr<VolumeControlAction> volumeControl();
+}
+
+// -------------------------------------------------------------------------------------------------
 struct MappedAction
 {
   bool operator==(const MappedAction& o) const;
@@ -216,12 +292,16 @@ public:
 
   // input_events = complete sequence including SYN event
   void addEvents(const struct input_event input_events[], size_t num);
+  void addEvents(KeyEvent key_events);
 
   bool recordingMode() const;
   void setRecordingMode(bool recording);
 
   int keyEventInterval() const;
   void setKeyEventInterval(int interval);
+
+  using ReservedInputs = std::vector<SpecialKeys::SpecialKeyEventSeqInfo>;
+  ReservedInputs& specialInputs();
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
   bool hasVirtualDevice() const;

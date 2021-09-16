@@ -49,7 +49,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
-* Vibration (Timer) Support for the Logitech Spotlight (USB)
+* Vibration (Timer) Support for the Logitech Spotlight
 * Usable without a presenter device (e.g. for online presentations)
 
 ### Screenshots
@@ -91,9 +91,23 @@ For more details: Have a look at the source code ;)
 Button mapping works by **grabbing** all device events of connected
 devices and forwarding them to a virtual _'uinput'_ device if not configured
 differently by the button mapping configuration. If a mapped configuration for
-a button exists, _Projecteur_ will inject the mapped keyboard events instead.
+a button exists, _Projecteur_ will inject the mapped action instead.
 (You can still disable device grabbing with the `--disable-uinput` command
 line option - button mapping will be disabled then.)
+
+Input events from the presenter device can be mapped to different actions.
+The _Key Sequence_ action is particularly powerful as it can emit any user-defined
+keystroke. These keystrokes can invoke shortcut in presentation software
+(or any other software) being used.
+
+#### Hold Button Mapping for Logitech Spotlight
+
+Logitech Spotlight can send Hold event for Next and Back buttons as HID++
+messages. For mapping those inputs, please ensure that the device is active
+by pressing any button, then go to Input Mapping tab under Devices tab in
+Preferences dialog box and right click in first column (Input Sequence) for
+any entry. Additional mapped actions (e.g. _Vertical Scrolling_ or _Volume control_)
+can be selected for these special hold events.
 
 ## Download
 

@@ -1,8 +1,11 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
+
 #include "spotlight.h"
 
 #include <QApplication>
+#include <QPointer>
 
 #include <map>
 #include <memory>
@@ -16,7 +19,6 @@ class QMenu;
 class QQmlApplicationEngine;
 class QQmlComponent;
 class QSystemTrayIcon;
-class Settings;
 class Settings;
 
 class ProjecteurApplication : public QApplication
@@ -71,7 +73,7 @@ private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
   std::unique_ptr<QMenu> m_trayMenu;
   std::unique_ptr<PreferencesDialog> m_dialog;
-  std::unique_ptr<AboutDialog> m_aboutDialog;
+  QPointer<AboutDialog> m_aboutDialog;
   QLocalServer* const m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;

@@ -30,12 +30,13 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
 find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
 find_package(Qt5 QUIET COMPONENTS X11Extras)
 set(HAS_Qt5_X11Extras ${Qt5_FOUND})
 find_package(Qt5 QUIET COMPONENTS DBus)
 set(HAS_Qt5_DBus ${Qt5_FOUND})
+find_package(Qt5 QUIET COMPONENTS QuickCompiler)
+set(HAS_Qt5_QuickCompiler ${Qt5_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -45,16 +46,36 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
                   "please use a different Qt Version.")
 endif()
 
+if (HAS_Qt5_QuickCompiler)
+  # Off by default, since this ties the application strictly to the Qt version
+  # it is built with, see https://doc.qt.io/qt-5.12/qtquick-deployment.html#compiling-qml-ahead-of-time
+  option(USE_QTQUICK_COMPILER "Use the QtQuickCompiler" OFF)
+
+  if (USE_QTQUICK_COMPILER)
+    message(STATUS "Using QtQuick Compiler.")
+    qtquick_compiler_add_resources(RESOURCES qml/qml.qrc)
+    # Avoid CMake policy CMP0071 warning
+    foreach(resfile IN LISTS RESOURCES)
+      set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
+    endforeach()
+  else()
+    qt5_add_resources(RESOURCES qml/qml.qrc)
+  endif()
+endif()
+qt5_add_resources(RESOURCES resources.qrc)
+
 add_executable(projecteur
   src/main.cc               src/enum-helper.h
   src/aboutdlg.cc           src/aboutdlg.h
   src/actiondelegate.cc     src/actiondelegate.h
   src/colorselector.cc      src/colorselector.h
   src/device.cc             src/device.h
+  src/device-hidpp.cc       src/device-hidpp.h
   src/device-vibration.cc   src/device-vibration.h
   src/deviceinput.cc        src/deviceinput.h
   src/devicescan.cc         src/devicescan.h
   src/deviceswidget.cc      src/deviceswidget.h
+  src/hidpp.cc              src/hidpp.h
   src/linuxdesktop.cc       src/linuxdesktop.h
   src/iconwidgets.cc        src/iconwidgets.h
   src/imageitem.cc          src/imageitem.h
@@ -69,7 +90,7 @@ add_executable(projecteur
   src/spotlight.cc          src/spotlight.h
   src/spotshapes.cc         src/spotshapes.h
   src/virtualdevice.h       src/virtualdevice.cc
-  resources.qrc             qml/qml.qrc)
+  ${RESOURCES})
 
 target_include_directories(projecteur PRIVATE src)
 

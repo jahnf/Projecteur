@@ -64,6 +64,7 @@ function(get_version_info prefix directory)
   set(${prefix}_VERSION_STRING 0.0.0-unknown)
   set(${prefix}_VERSION_STRING_FULL 0.0.0-unknown)
   set(${prefix}_VERSION_ISDIRTY 0 PARENT_SCOPE)
+  set(${prefix}_VERSION_BUILDTYPE "${CMAKE_BUILD_TYPE}" PARENT_SCOPE)
   set(${prefix}_VERSION_DATE_MONTH_YEAR "" PARENT_SCOPE)
 
   if("${${prefix}_OR_VERSION_MAJOR}" STREQUAL "")
@@ -75,6 +76,8 @@ function(get_version_info prefix directory)
   if("${${prefix}_OR_VERSION_PATCH}" STREQUAL "")
     set(${prefix}_OR_VERSION_PATCH 0)
   endif()
+
+  set(${prefix}_VERSION_BUILDTYPE "${CMAKE_BUILD_TYPE}")
 
   find_package(Git)
   if(GIT_FOUND)
@@ -354,6 +357,7 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_STRING "0.0-unknown.0")
   set(VERSION_STRING_FULL "0.0.0-unknown.0")
   set(VERSION_ISDIRTY 0)
+  set(VERSION_BUILDTYPE "unknown")
   set(VERSION_BRANCH unknown)
   set(output_dir "${CMAKE_CURRENT_BINARY_DIR}/version/${targetid}")
 
@@ -462,6 +466,7 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_STRING ${${prefix}_VERSION_STRING})
   set(VERSION_STRING_FULL ${${prefix}_VERSION_STRING_FULL})
   set(VERSION_ISDIRTY ${${prefix}_VERSION_ISDIRTY})
+  set(VERSION_BUILDTYPE ${${prefix}_VERSION_BUILDTYPE})
   set(VERSION_BRANCH ${${prefix}_VERSION_BRANCH})
   set(VERSION_DATE_MONTH_YEAR ${${prefix}_VERSION_DATE_MONTH_YEAR})
 
@@ -481,6 +486,7 @@ function(add_version_info_custom_prefix target prefix directory)
     VERSION_STRING "${VERSION_STRING}"
     VERSION_STRING_FULL "${VERSION_STRING_FULL}"
     VERSION_ISDIRTY "${VERSION_ISDIRTY}"
+    VERSION_BUILDTYPE "${VERSION_BUILDTYPE}"
     VERSION_BRANCH "${VERSION_BRANCH}"
     VERSION_DATE_MONTH_YEAR "${VERSION_DATE_MONTH_YEAR}"
   )

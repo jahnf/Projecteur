@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "virtualdevice.h"
 
 #include "logging.h"
@@ -95,6 +97,8 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
 
 void VirtualDevice::emitEvents(const struct input_event input_events[], size_t num)
 {
+  if (!num) return;
+
   if (const ssize_t sz = sizeof(input_event) * num) {
     const auto bytesWritten = write(m_uinpFd, input_events, sz);
     if (bytesWritten != sz) {
@@ -105,11 +109,6 @@ void VirtualDevice::emitEvents(const struct input_event input_events[], size_t n
 
 void VirtualDevice::emitEvents(const std::vector<struct input_event>& events)
 {
-  if (const ssize_t sz = sizeof(input_event) * events.size()) {
-    const auto bytesWritten = write(m_uinpFd, events.data(), sz);
-    if (bytesWritten != sz) {
-      logError(virtualdevice) << VirtualDevice_::tr("Error while writing to virtual device.");
-    }
-  }
+  emitEvents(events.data(), events.size());
 }
 

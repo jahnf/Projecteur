@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "projecteurapp.h"
 #include "projecteur-GitVersion.h"
 
@@ -12,6 +14,7 @@
 #include <QQmlDebuggingEnabler>
 #endif
 
+#include <csignal>
 #include <iostream>
 #include <iomanip>
 
@@ -39,6 +42,14 @@ namespace {
     auto& operator<<(const T& a) const { return std::cerr << a; }
     ~error() { std::cerr << std::endl; }
   };
+
+  void ctrl_c_signal_handler(int sig)
+  {
+    if (sig == SIGINT) {
+      print() << "...";
+      if (qApp) QCoreApplication::quit();
+    }
+  }
 }
 
 int main(int argc, char *argv[])
@@ -206,6 +217,7 @@ int main(int argc, char *argv[])
       {
         print() << "  - compiler: " << XSTRINGIFY(CXX_COMPILER_ID) << " "
                                     << XSTRINGIFY(CXX_COMPILER_VERSION);
+        print() << "  - build-type: " << projecteur::version_buildtype();
         print() << "  - qt-version: (build: " << QT_VERSION_STR << ", runtime: " << qVersion() << ")";
 
         const auto result = DeviceScan::getDevices(options.additionalDevices);
@@ -231,9 +243,9 @@ int main(int argc, char *argv[])
               << Main::tr(" * Found %1 supported devices. (%2 readable, %3 writable)")
                  .arg(result.devices.size()).arg(result.numDevicesReadable).arg(result.numDevicesWritable);
 
-      const auto busTypeToString = [](DeviceScan::Device::BusType type) -> QString {
-        if (type == DeviceScan::Device::BusType::Usb) return "USB";
-        if (type == DeviceScan::Device::BusType::Bluetooth) return "Bluetooth";
+      const auto busTypeToString = [](BusType type) -> QString {
+        if (type == BusType::Usb) return "USB";
+        if (type == BusType::Bluetooth) return "Bluetooth";
         return "unknown";
       };
 
@@ -266,7 +278,7 @@ int main(int argc, char *argv[])
         print() << "     " << "vendorId:  " << logging::hexId(device.id.vendorId);
         print() << "     " << "productId: " << logging::hexId(device.id.productId);
         print() << "     " << "phys:      " << device.id.phys;
-        print() << "     " << "busType:   " << busTypeToString(device.busType);
+        print() << "     " << "busType:   " << busTypeToString(device.id.busType);
         print() << "     " << "devices:   " << subDeviceList.join(", ");
         print() << "     " << "readable:  " << (allReadable ? "true" : "false");
         print() << "     " << "writable:  " << (allWriteable ? "true" : "false");
@@ -325,5 +337,6 @@ int main(int argc, char *argv[])
   }
 
   ProjecteurApplication app(argc, argv, options);
+  signal(SIGINT, ctrl_c_signal_handler);
   return app.exec();
 }

@@ -1,6 +1,7 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 
-// Virtual Device to emit customized events from Projecteur device
+// Virtual Device to emit custom events from Projecteur.
 // The spotlight.cc grabs mouse inputs from Logitech Spotlight device.
 // This module is used when the input events are supposed to be forwarded to the system.
 

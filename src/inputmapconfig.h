@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/
+// - See LICENSE.md and README.md
 #pragma once
 
 #include "deviceinput.h"
@@ -8,9 +9,12 @@
 #include <QTableView>
 
 // -------------------------------------------------------------------------------------------------
+
 class ActionTypeDelegate;
+class InputSeqDelegate;
 
 // -------------------------------------------------------------------------------------------------
+/// Item for the input map model.
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
   std::shared_ptr<Action> action;
@@ -18,6 +22,7 @@ struct InputMapModelItem {
 };
 
 // -------------------------------------------------------------------------------------------------
+/// Input map configuration table model.
 class InputMapConfigModel : public QAbstractTableModel
 {
   Q_OBJECT
@@ -59,6 +64,7 @@ private:
 };
 
 // -------------------------------------------------------------------------------------------------
+/// Input map configuration view.
 struct InputMapConfigView : public QTableView
 {
   Q_OBJECT

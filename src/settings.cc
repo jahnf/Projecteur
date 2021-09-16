@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "settings.h"
 
 #include "device.h"
@@ -842,7 +844,15 @@ InputMapConfig Settings::getDeviceInputMapConfig(const DeviceId& dId)
     if (!seq.canConvert<KeyEventSequence>()) continue;
     const auto conf = m_settings->value("mappedAction");
     if (!conf.canConvert<MappedAction>()) continue;
-    cfg.emplace(qvariant_cast<KeyEventSequence>(seq), qvariant_cast<MappedAction>(conf));
+    auto mappedAction = qvariant_cast<MappedAction>(conf);
+    if (mappedAction.action->type() == Action::Type::ScrollHorizontal) {
+      mappedAction.action = GlobalActions::scrollHorizontal();
+    } else if (mappedAction.action->type() == Action::Type::ScrollVertical) {
+      mappedAction.action = GlobalActions::scrollVertical();
+    } else if (mappedAction.action->type() == Action::Type::VolumeControl) {
+      mappedAction.action = GlobalActions::volumeControl();
+    }
+    cfg.emplace(qvariant_cast<KeyEventSequence>(seq), std::move(mappedAction));
   }
   m_settings->endArray();
 
