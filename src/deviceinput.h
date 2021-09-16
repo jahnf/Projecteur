@@ -181,7 +181,6 @@ struct Action
   virtual QDataStream& save(QDataStream&) const = 0;
   virtual QDataStream& load(QDataStream&) = 0;
   virtual bool empty() const = 0;
-  virtual bool isRepeated() const = 0;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -193,7 +192,6 @@ struct KeySequenceAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << keySequence; }
   QDataStream& load(QDataStream& s) override { return s >> keySequence; }
   bool empty() const override { return keySequence.empty(); }
-  bool isRepeated() const override { return false; }
   bool operator==(const KeySequenceAction& o) const { return keySequence == o.keySequence; }
 
   NativeKeySequence keySequence;
@@ -206,7 +204,6 @@ struct CyclePresetsAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
-  bool isRepeated() const override { return false; }
   bool operator==(const CyclePresetsAction&) const { return true; }
   bool placeholder = false;
 };
@@ -218,7 +215,6 @@ struct ToggleSpotlightAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
-  bool isRepeated() const override { return false; }
   bool operator==(const ToggleSpotlightAction&) const { return true; }
   bool placeholder = false;
 };
@@ -230,7 +226,6 @@ struct ScrollHorizontalAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
-  bool isRepeated() const override { return true; }
   bool operator==(const ScrollHorizontalAction&) const { return true; }
   bool placeholder = false;
 
@@ -244,7 +239,6 @@ struct ScrollVerticalAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
-  bool isRepeated() const override { return true; }
   bool operator==(const ScrollVerticalAction&) const { return true; }
   bool placeholder = false;
 
@@ -258,7 +252,6 @@ struct VolumeControlAction : public Action
   QDataStream& save(QDataStream& s) const override { return s << placeholder; }
   QDataStream& load(QDataStream& s) override { return s >> placeholder; }
   bool empty() const override { return false; }
-  bool isRepeated() const override { return true; }
   bool operator==(const VolumeControlAction&) const { return true; }
   bool placeholder = false;
 
@@ -331,5 +324,4 @@ signals:
 private:
   struct Impl;
   std::unique_ptr<Impl> impl;
-  QTimer* m_repeatedActionTimer = nullptr;  // Timer for introducing time gap between repeated ations
 };

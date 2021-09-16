@@ -41,6 +41,7 @@ public:
   void addSubDevice(std::shared_ptr<SubDeviceConnection>);
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
+  std::shared_ptr<SubDeviceConnection> subDevice(const QString& devicePath) const;
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
@@ -74,6 +75,11 @@ enum class DeviceFlag : uint32_t {
   PointerSpeed   = 1 << 20, ///< Device allows changing pointer speed.
 };
 ENUM(DeviceFlag, DeviceFlags)
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(DeviceFlag flag, bool withClass = true);
+QString toString(DeviceFlags flags, const QString& separator, bool withClass = true);
+QStringList toStringList(DeviceFlags flags, bool withClass = true);
 
 // -------------------------------------------------------------------------------------------------
 struct SubDeviceConnectionDetails {

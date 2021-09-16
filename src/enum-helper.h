@@ -39,3 +39,7 @@ constexpr auto to_enum(T v) {
   using PLURALNAME = ENUMCLASS;
 
 #define ENUM_CASE_STRINGIFY(x) case x: return #x
+#define ENUM_CASE_STRINGIFY2(c, n) case c::n: return #n
+#define ENUM_CASE_STRINGIFY3(c, n, b) case c::n: return b ? #c"::"#n : #n
+
+#define ENUM_STRINGIFY3(c, n, b) (b ? #c"::"#n : #n)

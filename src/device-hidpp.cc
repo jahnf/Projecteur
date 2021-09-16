@@ -30,28 +30,28 @@ SubHidppConnection::SubHidppConnection(SubHidrawConnection::Token token,
 SubHidppConnection::~SubHidppConnection() = default;
 
 // -------------------------------------------------------------------------------------------------
-const char* toString(SubHidppConnection::ReceiverState s)
+const char* toString(SubHidppConnection::ReceiverState s, bool withClass)
 {
   using ReceiverState = SubHidppConnection::ReceiverState;
   switch (s) {
-    ENUM_CASE_STRINGIFY(ReceiverState::Uninitialized);
-    ENUM_CASE_STRINGIFY(ReceiverState::Initializing);
-    ENUM_CASE_STRINGIFY(ReceiverState::Initialized);
-    ENUM_CASE_STRINGIFY(ReceiverState::Error);
+    ENUM_CASE_STRINGIFY3(ReceiverState, Uninitialized, withClass);
+    ENUM_CASE_STRINGIFY3(ReceiverState, Initializing, withClass);
+    ENUM_CASE_STRINGIFY3(ReceiverState, Initialized, withClass);
+    ENUM_CASE_STRINGIFY3(ReceiverState, Error, withClass);
   }
   return "ReceiverState::(unknown)";
 }
 
-const char* toString(SubHidppConnection::PresenterState s)
+const char* toString(SubHidppConnection::PresenterState s, bool withClass)
 {
   using PresenterState = SubHidppConnection::PresenterState;
   switch (s) {
-    ENUM_CASE_STRINGIFY(PresenterState::Uninitialized);
-    ENUM_CASE_STRINGIFY(PresenterState::Uninitialized_Offline);
-    ENUM_CASE_STRINGIFY(PresenterState::Initializing);
-    ENUM_CASE_STRINGIFY(PresenterState::Initialized_Online);
-    ENUM_CASE_STRINGIFY(PresenterState::Initialized_Offline);
-    ENUM_CASE_STRINGIFY(PresenterState::Error);
+    ENUM_CASE_STRINGIFY3(PresenterState, Uninitialized, withClass);
+    ENUM_CASE_STRINGIFY3(PresenterState, Uninitialized_Offline, withClass);
+    ENUM_CASE_STRINGIFY3(PresenterState, Initializing, withClass);
+    ENUM_CASE_STRINGIFY3(PresenterState, Initialized_Online, withClass);
+    ENUM_CASE_STRINGIFY3(PresenterState, Initialized_Offline, withClass);
+    ENUM_CASE_STRINGIFY3(PresenterState, Error, withClass);
   }
   return "PresenterState::(unknown)";
 }
@@ -408,7 +408,7 @@ void SubHidppConnection::getBatteryLevelStatus(
   {
     if (!cb) return;
 
-    auto batteryInfo = (res == MsgResult::Ok) ? BatteryInfo{}
+    auto batteryInfo = (res != MsgResult::Ok) ? BatteryInfo{}
                                               : BatteryInfo{msg[4],
                                                             msg[5],
                                                             to_enum<BatteryStatus>(msg[6])};
@@ -741,7 +741,6 @@ void SubHidppConnection::registerForFeatureNotifications()
   {
     registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg)
     {
-      // TODO implement button hold states
       // Logitech Spotlight:
       //   * Next Button = 0xda
       //   * Back Button = 0xdc
@@ -753,27 +752,19 @@ void SubHidppConnection::registerForFeatureNotifications()
       const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
       const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
       logDebug(hid) << tr("Buttons pressed: Next = %1, Back = %2")
-                        .arg(isNextPressed).arg(isBackPressed) << msg.hex();
+                       .arg(isNextPressed).arg(isBackPressed);
 
     }), 0 /* function 0 */);
 
-    registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg)
-    {
-      // TODO Implement hold and move logic and bindings
-      Q_UNUSED(msg);
+    // Handling of move events by button hold is done in spotlight.cc
+    // The following commented out code is kept as example
 
-      // byte 4 : -1 for left movement, 0 for right movement
-      // byte 5 : horizontal movement speed -128 to 127
-      // byte 6 : -1 for up movement, 0 for down movement
-      // byte 7 : vertical movement speed -128 to 127
-
-      // auto cast = [](uint8_t v) -> int{ return static_cast<int8_t>(v); };
-      // logDebug(hid) << tr("4 = %1, 5 = %2, 6 = %3, 7 = %4")
-      //                 .arg(cast(msg[4]), 4)
-      //                 .arg(cast(msg[5]), 4)
-      //                 .arg(cast(msg[6]), 4)
-      //                 .arg(cast(msg[7]), 4);
-    }), 1 /* function 1 */);
+    // registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg) {
+    //   byte 4 : -1 for left movement, 0 for right movement
+    //   byte 5 : horizontal movement speed -128 to 127
+    //   byte 6 : -1 for up movement, 0 for down movement
+    //   byte 7 : vertical movement speed -128 to 127
+    // }), 1 /* function 1 */);
   }
 
   if (const auto batIndex = m_featureSet.featureIndex(FeatureCode::BatteryStatus))
@@ -796,7 +787,10 @@ void SubHidppConnection::registerForUsbNotifications()
       .arg(toString(HIDPP::Notification::DeviceConnection)).arg(linkEstablished);
 
     if (!linkEstablished) {
-      // TODO no link to device => depending on current state set new presenter state
+      if (m_presenterState == PresenterState::Initialized_Online) {
+        setPresenterState(PresenterState::Initialized_Offline);
+      }
+      logInfo(hid) << tr("HID++ device '%1' went offline.").arg(path());
       return;
     }
 
@@ -805,7 +799,7 @@ void SubHidppConnection::registerForUsbNotifications()
         || m_presenterState == PresenterState::Uninitialized
         || m_presenterState == PresenterState::Error)
     {
-      logInfo(hid) << tr("Device '%1' came online.").arg(path());
+      logInfo(hid) << tr("HID++ device '%1' came online.").arg(path());
       checkAndUpdatePresenterState(makeSafeCallback([this](PresenterState /* ps */) {
         //...
       }));

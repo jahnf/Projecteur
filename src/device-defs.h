@@ -16,6 +16,11 @@ enum class ConnectionType : uint8_t { Event, Hidraw };
 enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 
 // -------------------------------------------------------------------------------------------------
+const char* toString(BusType bt, bool withClass = true);
+const char* toString(ConnectionType ct, bool withClass = true);
+const char* toString(ConnectionMode cm, bool withClass = true);
+
+// -------------------------------------------------------------------------------------------------
 struct DeviceId
 {
   uint16_t vendorId = 0;

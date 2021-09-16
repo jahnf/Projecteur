@@ -74,6 +74,7 @@ private:
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;
+  QTimer* m_holdMoveEventTimer = nullptr;
   bool m_spotActive = false;
   std::shared_ptr<VirtualDevice> m_virtualDevice;
   Settings* m_settings = nullptr;

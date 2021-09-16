@@ -3,6 +3,7 @@
 
 #include "device.h"
 
+#include "enum-helper.h"
 #include "deviceinput.h"
 #include "devicescan.h"
 #include "hidpp.h"
@@ -24,6 +25,38 @@ namespace  {
 
   const auto hexId = logging::hexId;
   // class i18n : public QObject {}; // for i18n and logging
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(BusType bt, bool withClass)
+{
+  switch (bt) {
+    ENUM_CASE_STRINGIFY3(BusType, Unknown, withClass);
+    ENUM_CASE_STRINGIFY3(BusType, Usb, withClass);
+    ENUM_CASE_STRINGIFY3(BusType, Bluetooth, withClass);
+  }
+  return withClass ? "BusType::(unknown)" : "(unkown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(ConnectionType ct, bool withClass)
+{
+  switch (ct) {
+    ENUM_CASE_STRINGIFY3(ConnectionType, Event, withClass);
+    ENUM_CASE_STRINGIFY3(ConnectionType, Hidraw, withClass);
+  }
+  return withClass ? "ConnectionType::(unknown)" : "(unkown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(ConnectionMode cm, bool withClass)
+{
+  switch (cm) {
+    ENUM_CASE_STRINGIFY3(ConnectionMode, ReadOnly, withClass);
+    ENUM_CASE_STRINGIFY3(ConnectionMode, WriteOnly, withClass);
+    ENUM_CASE_STRINGIFY3(ConnectionMode, ReadWrite, withClass);
+  }
+  return withClass ? "ConnectionMode::(unknown)" : "(unkown)";
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -76,45 +109,22 @@ bool DeviceConnection::removeSubDevice(const QString& path)
   return false;
 }
 
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<SubDeviceConnection> DeviceConnection::subDevice(const QString& devicePath) const
+{
+  const auto it = m_subDeviceConnections.find(devicePath);
+  if (it == m_subDeviceConnections.cend()) {
+    return {};
+  }
+
+  return it->second;
+}
 
 // -------------------------------------------------------------------------------------------------
 bool DeviceConnection::hasHidppSupport() const {
   // HID++ only for Logitech devices
   return m_deviceId.vendorId == 0x046d;
 }
-
-// // -------------------------------------------------------------------------------------------------
-// void DeviceConnection::queryBatteryStatus()
-// {
-//   for (const auto& sd: subDevices())
-//   {
-//     if (sd.second->type() == ConnectionType::Hidraw
-//         && sd.second->mode() == ConnectionMode::ReadWrite)
-//     {
-//       if (sd.second->hasFlags(DeviceFlag::ReportBattery)) sd.second->queryBatteryStatus();
-//     }
-//   }
-// }
-
-// // -------------------------------------------------------------------------------------------------
-// void DeviceConnection::setBatteryInfo(const QByteArray& batteryData)
-// {
-//   // TODO Refactor battery handling
-//   const bool hasBattery =
-//     std::any_of(m_subDeviceConnections.cbegin(), m_subDeviceConnections.cend(), [](const auto& sd) {
-//       return sd.second->hasFlags(DeviceFlag::ReportBattery);
-//     });
-
-//   if (hasBattery && batteryData.length() == 3)
-//   {
-//     // Battery percent is only meaningful when battery is discharging. However, save them anyway.
-//     m_batteryInfo.currentLevel
-//       = static_cast<uint8_t>(batteryData.at(0) <= 100 ? batteryData.at(0) : 100);
-//     m_batteryInfo.nextReportedLevel
-//       = static_cast<uint8_t>(batteryData.at(1) <= 100 ? batteryData.at(1): 100);
-//     m_batteryInfo.status = static_cast<BatteryStatus>((batteryData.at(2) <= 0x07) ? batteryData.at(2): 0x07);
-//   }
-// }
 
 // -------------------------------------------------------------------------------------------------
 SubDeviceConnectionDetails::SubDeviceConnectionDetails(const DeviceId& dId, const DeviceScan::SubDevice& sd,
@@ -419,4 +429,50 @@ void SubHidrawConnection::onHidrawDataAvailable(int fd)
   // For generic hidraw devices without known protocols, just print out the
   // received data into the debug log
   logDebug(hid) << "Received" << readVal.toHex() << "from" << path();
+}
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(DeviceFlag f, bool withClass)
+{
+  switch(f) {
+    ENUM_CASE_STRINGIFY3(DeviceFlag, NoFlags, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, NonBlocking, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, SynEvents, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, RepEvents, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, RelativeEvents, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, KeyEvents, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, Hidpp, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, Vibrate, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, ReportBattery, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, NextHold, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, BackHold, withClass);
+    ENUM_CASE_STRINGIFY3(DeviceFlag, PointerSpeed, withClass);
+  }
+  return withClass ? "DeviceFlag::(unknown)" : "(unknown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+QString toString(DeviceFlags flags, const QString& separator, bool withClass)
+{
+  return toStringList(flags, withClass).join(separator);
+}
+
+// -------------------------------------------------------------------------------------------------
+QStringList toStringList(DeviceFlags flags, bool withClass)
+{
+  if (flags == DeviceFlags::NoFlags) {
+    return QStringList{ ENUM_STRINGIFY3(DeviceFlag, NoFlags, withClass) };
+  }
+
+  QStringList list;
+
+  for (size_t i = 0; i < sizeof(std::underlying_type_t<DeviceFlag>) * 8; ++i)
+  {
+    const std::underlying_type_t<DeviceFlag> singleFlag = 1 << i;
+    if ((to_integral(flags) & singleFlag) == singleFlag) {
+      list.push_back(toString(to_enum<DeviceFlag>(singleFlag)));
+    }
+  }
+
+  return list;
 }

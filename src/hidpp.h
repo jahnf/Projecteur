@@ -90,7 +90,9 @@ namespace HIDPP {
     SlowCharging   = 0x04,
     InvalidBattery = 0x05,
     ThermalError   = 0x06,
-    ChargingError  = 0x07
+    ChargingError  = 0x07,
+
+    Uninitialized  = 0xff // Custom value of Projecteur
   };
 
   // -------------------------------------------------------------------------------------------------
@@ -98,7 +100,7 @@ namespace HIDPP {
   {
     uint8_t currentLevel = 0;
     uint8_t nextReportedLevel = 0;
-    BatteryStatus status = BatteryStatus::Discharging;
+    BatteryStatus status = BatteryStatus::Uninitialized;
 
     inline bool operator==(const BatteryInfo& rhs) const {
       return std::tie(currentLevel, nextReportedLevel, status)

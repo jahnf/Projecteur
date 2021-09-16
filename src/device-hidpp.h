@@ -133,5 +133,5 @@ private:
   std::unordered_map<uint8_t, std::list<Subscriber>> m_notificationSubscribers;
 };
 
-const char* toString(SubHidppConnection::ReceiverState rs);
-const char* toString(SubHidppConnection::PresenterState ps);
+const char* toString(SubHidppConnection::ReceiverState rs, bool withClass = true);
+const char* toString(SubHidppConnection::PresenterState ps, bool withClass = true);

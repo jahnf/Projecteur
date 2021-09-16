@@ -98,11 +98,6 @@ PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
   mainVBox->addWidget(tabWidget);
   mainVBox->addLayout(btnHBox);
 
-  // Update battery information when dialog is shown
-  connect(this, &PreferencesDialog::dialogActiveChanged, this,
-          [this, spotlight](bool active){
-      if (active) m_deviceswidget->updateDeviceDetails(spotlight);});
-
   connect(overlayCheckBox, &QCheckBox::toggled, this, [settings](bool checked){
     settings->setOverlayDisabled(!checked);
   });

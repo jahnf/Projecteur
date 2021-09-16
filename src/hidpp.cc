@@ -696,6 +696,7 @@ const char* toString(HIDPP::BatteryStatus bs)
     ENUM_CASE_STRINGIFY(BatteryStatus::InvalidBattery);
     ENUM_CASE_STRINGIFY(BatteryStatus::SlowCharging);
     ENUM_CASE_STRINGIFY(BatteryStatus::ThermalError);
+    ENUM_CASE_STRINGIFY(BatteryStatus::Uninitialized);
   };
   return "BatteryStatus::(unknown)";
 }

@@ -7,15 +7,21 @@
 #include <QPointer>
 #include <QWidget>
 
+#include <map>
+#include <vector>
+#include <utility>
+
 class DeviceConnection;
 class InputMapper;
 class MultiTimerWidget;
 class QComboBox;
 class QTabWidget;
+class QTextEdit;
 class Settings;
 class Spotlight;
 class VibrationSettingsWidget;
 class SubDeviceConnection;
+class SubHidppConnection;
 class TimerTabWidget;
 
 // -------------------------------------------------------------------------------------------------
@@ -26,7 +32,6 @@ class DevicesWidget : public QWidget
 public:
   explicit DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
   const DeviceId currentDeviceId() const;
-  void updateDeviceDetails(Spotlight* spotlight);
 
 signals:
   void currentDeviceChanged(const DeviceId&);
@@ -45,9 +50,6 @@ private:
   TimerTabWidget* m_timerTabWidget = nullptr;
   QPointer<QObject> m_timerTabContext;
   QWidget* m_deviceDetailsTabWidget = nullptr;
-
-  // TODO Put into separate DeviceDetailsWidget
-  // QTextEdit* m_deviceDetailsTextEdit = nullptr;
 
   QPointer<InputMapper> m_inputMapper;
 };
@@ -81,5 +83,48 @@ public:
   void setDeviceConnection(DeviceConnection* connection);
 
 private:
+  void initSubdeviceInfo();
+  void updateSubdeviceInfo(SubDeviceConnection* sdc);
+  void connectToSubdeviceUpdates(SubDeviceConnection* sdc);
+  void connectToBatteryUpdates(SubHidppConnection* hdc);
+  void updateHidppInfo(SubHidppConnection* hdc);
+  void updateBatteryInfo(SubHidppConnection* hdc);
+
+  void delayedTextEditUpdate();
+  void updateTextEdit();
+
+  QTextEdit* m_textEdit = nullptr;
+  QTimer* m_delayedUpdateTimer = nullptr;
+  QTimer* m_batteryInfoTimer = nullptr;
+
+  std::vector<std::pair<QString, QString>> m_deviceBaseInfo;
+
+  struct SubDeviceInfo {
+    QString info;
+    bool isHidpp = false;
+    bool hasBatteryInfo = false;
+  };
+
+  std::map<QString, SubDeviceInfo> m_subDevices;
+  QString m_batteryInfo;
+
+  struct HidppInfo {
+    QString receiverState;
+    QString presenterState;
+    QString protocolVersion;
+    QStringList hidppFlags;
+
+    void clear()
+    {
+      receiverState.clear();
+      presenterState.clear();
+      protocolVersion.clear();
+      hidppFlags.clear();
+    }
+  };
+
+  HidppInfo m_hidppInfo;
+
+  QPointer<QObject> m_connectionContext;
   QPointer<DeviceConnection> m_connection;
 };

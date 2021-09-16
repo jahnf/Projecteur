@@ -95,16 +95,10 @@ a button exists, _Projecteur_ will inject the mapped action instead.
 (You can still disable device grabbing with the `--disable-uinput` command
 line option - button mapping will be disabled then.)
 
-Multiple mapped actions like Key Sequence, Cycle Preset etc. exist. The Key
-Sequence action is particularly powerful as it can emit any user-defined
+Input events from the presenter device can be mapped to different actions.
+The _Key Sequence_ action is particularly powerful as it can emit any user-defined
 keystroke. These keystrokes can invoke shortcut in presentation software
-being used. Some relevant shortcuts for presentations (support to these
-shortcuts may vary between presentation softwares) are:
-
- * b or .     : Toggle blank screen
- * w or ,     : Toggle white screen
- * F5         : Start presentation from the first slide
- * Shift + F5 : Start presentation from the current slide
+(or any other software) being used.
 
 #### Hold Button Mapping for Logitech Spotlight
 
@@ -112,8 +106,8 @@ Logitech Spotlight can send Hold event for Next and Back buttons as HID++
 messages. For mapping those inputs, please ensure that the device is active
 by pressing any button, then go to Input Mapping tab under Devices tab in
 Preferences dialog box and right click in first column (Input Sequence) for
-any entry. Additional mapped actions (like Scrolling, volume control) can
-be selected for such hold events.
+any entry. Additional mapped actions (e.g. _Vertical Scrolling_ or _Volume control_)
+can be selected for these special hold events.
 
 ## Download
 

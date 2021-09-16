@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QVarLengthArray>
 
+#include <cmath>
 #include <fcntl.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
@@ -80,6 +81,7 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   , m_options(std::move(options))
   , m_activeTimer(new QTimer(this))
   , m_connectionTimer(new QTimer(this))
+  , m_holdMoveEventTimer(new QTimer(this))
   , m_settings(settings)
   , m_holdButtonStatus(std::make_unique<HoldButtonStatus>())
 {
@@ -108,6 +110,9 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
     logDebug(device) << tr("New connection check triggered");
     connectDevices();
   });
+
+  m_holdMoveEventTimer->setSingleShot(true);
+  m_holdMoveEventTimer->setInterval(30);
 
   // Try to find already attached device(s) and connect to it.
   connectDevices();
@@ -223,8 +228,23 @@ int Spotlight::connectDevices()
               return hidppCon;
             }
           }
-          else {
-            return SubHidrawConnection::create(scanSubDevice, *dc);
+          else if (auto hidrawConn = SubHidrawConnection::create(scanSubDevice, *dc))
+          {
+            QPointer<SubHidrawConnection> connPtr(hidrawConn.get());
+            // Remove device on socketReadError
+            connect(&*hidrawConn, &SubHidrawConnection::socketReadError, this, [this, connPtr](){
+              if (!connPtr) return;
+              const bool anyConnectedBefore = anySpotlightDeviceConnected();
+              connPtr->disconnect();
+              QTimer::singleShot(0, this, [this, devicePath=connPtr->path(), anyConnectedBefore](){
+                removeDeviceConnection(devicePath);
+                if (!anySpotlightDeviceConnected() && anyConnectedBefore) {
+                  emit anySpotlightDeviceConnectedChanged(false);
+                }
+              });
+            });
+
+            return hidrawConn;
           }
         }
         return std::shared_ptr<SubDeviceConnection>();
@@ -468,44 +488,51 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
     connection->registerNotificationCallback(this, rcIndex,
     makeSafeCallback([this, connection](Message&& msg)
     {
+      // Block some of the move events
+      // TODO This works quiet okay in combination with adjusting x and y values,
+      // but needs to be a more solid option to accumulate the mass of move events
+      // and consolidate them to a number of meaningful action special key events.
+      if (m_holdMoveEventTimer->isActive()) return;
+      m_holdMoveEventTimer->start();
+
       // byte 4 : -1 for left movement, 0 for right movement
       // byte 5 : horizontal movement speed -128 to 127
       // byte 6 : -1 for up movement, 0 for down movement
       // byte 7 : vertical movement speed -128 to 127
 
       static const auto intcast = [](uint8_t v) -> int{ return static_cast<int8_t>(v); };
-      // logDebug(hid) << tr("4 = %1, 5 = %2, 6 = %3, 7 = %4")
-      //                 .arg(intcast(msg[4]), 4)
-      //                 .arg(intcast(msg[5]), 4)
-      //                 .arg(intcast(msg[6]), 4)
-      //                 .arg(intcast(msg[7]), 4);
 
       const int x = intcast(msg[5]);
       const int y = intcast(msg[7]);
 
-      static const auto getReducedParam = [](int param, int limit=2){  // reduce the values from Spotlight device for better scroll behavior
-        constexpr int minVal = 5;
-        if (abs(param) < minVal) return 0;        // ignore small device movement
-
-        const auto sign = (param == 0) ? 0 : ((param > 0) ? 1 :-1);
-        return ((abs(param) > minVal*limit)? sign*minVal*limit : param)/minVal;    // limit return value between -limit to limit
+      static const auto getReducedParam = [](int param) -> int{
+        constexpr int divider = 5;
+        constexpr int minimum = 5;
+        constexpr int maximum = 10;
+        if (std::abs(param) < minimum) return 0;
+        const auto sign = (param == 0) ? 0 : ((param > 0) ? 1 : -1);
+        return std::floor(1.0 * ((abs(param) > maximum)? sign * maximum : param) / divider);
       };
 
+      const int adjustedX = getReducedParam(x);
+      const int adjustedY = getReducedParam(y);
+
+      if (adjustedX == 0 && adjustedY == 0) return;
+
       static const auto scrollHAction = GlobalActions::scrollHorizontal();
-      scrollHAction->param = -(getReducedParam(x));
+      scrollHAction->param = -adjustedX;
 
       static const auto scrollVAction = GlobalActions::scrollVertical();
-      scrollVAction->param = getReducedParam(y);
+      scrollVAction->param = adjustedY;
 
       static const auto volumeControlAction = GlobalActions::volumeControl();
-      volumeControlAction->param = -getReducedParam(y, 3);
+      volumeControlAction->param = -adjustedY;
 
       if (!connection->inputMapper()->recordingMode())
       {
-        // feed the keystroke to InputMapper and let it trigger the associated action
-        for (auto key_event : m_holdButtonStatus->moveKeyEventSeq()) {
-          connection->inputMapper()->addEvents(key_event);
-        }
+          for (auto key_event : m_holdButtonStatus->moveKeyEventSeq()) {
+            connection->inputMapper()->addEvents(key_event);
+          }
       }
     }), 1 /* function 1 */);
   }

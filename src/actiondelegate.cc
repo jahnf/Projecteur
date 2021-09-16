@@ -360,17 +360,17 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
     Action::Type type;
     QChar symbol;
     QString text;
-    bool isRepeated;
+    bool isMoveAction;
     QIcon icon = {};
   };
 
   static std::vector<actionEntry> items {
-    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence"), KeySequenceAction().isRepeated()},
-    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets"), CyclePresetsAction().isRepeated()},
-    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight"), ToggleSpotlightAction().isRepeated()},
-    {Action::Type::ScrollHorizontal, Font::Icon::cursor_21_rotated, tr("Scroll Horizontal"), ScrollHorizontalAction().isRepeated()},
-    {Action::Type::ScrollVertical, Font::Icon::cursor_21, tr("Scroll Vertical"), ScrollVerticalAction().isRepeated()},
-    {Action::Type::VolumeControl, Font::Icon::audio_6, tr("Volume Control"), VolumeControlAction().isRepeated()},
+    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence"), false},
+    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets"), false},
+    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight"), false},
+    {Action::Type::ScrollHorizontal, Font::Icon::cursor_21_rotated, tr("Scroll Horizontal"), true},
+    {Action::Type::ScrollVertical, Font::Icon::cursor_21, tr("Scroll Vertical"), true},
+    {Action::Type::VolumeControl, Font::Icon::audio_6, tr("Volume Control"), true},
   };
 
   static bool initIcons = []()
@@ -396,8 +396,8 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   QMenu* menu = new QMenu(parent);
 
   for (const auto& entry : items) {
-    if ((isSpecialMoveInput && entry.isRepeated)
-        || (!isSpecialMoveInput && !entry.isRepeated)) {
+    if ((isSpecialMoveInput && entry.isMoveAction)
+        || (!isSpecialMoveInput && !entry.isMoveAction)) {
       const auto qaction = menu->addAction(entry.icon, entry.text);
       connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
         model->setItemActionType(index, type);
