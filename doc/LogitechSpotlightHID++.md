@@ -144,7 +144,7 @@ The FeatureSet table for a device may change with a firmware update. The
 application should cache FeatureSet table along with Firmware version and only
 read FeatureSet table again if the firmware version has changed. This logic for
 getting FeatureSet table from device is implemented in
-`populateFeatureTable` method in `FeatureSet` class in [hidpp.h](../src/hidpp.h).
+`initFromDevice` method in `FeatureSet` class in [hidpp.h](../src/hidpp.h).
 
 # Resetting Logitech Spotlight device
 
@@ -160,7 +160,7 @@ Spotlight device can be reset with following HID++ message from the application:
 ```
 
   2. Load the FeatureSet table for the device (from pre-existing cache or from
-  the device if firmware version has changed by calling `populateFeatureTable`
+  the device if firmware version has changed by calling `initFromDevice`
   method in `FeatureSet` class in [hidpp.h](../src/hidpp.h)).
 
   3. Reset the Spotlight device with the Feature index for Reset Feature Code
@@ -188,14 +188,12 @@ following HID++ commands:
 {0x10, 0x01, 0x0a, 0x1d, 0x14, 0x00, 0x00}
 ```
 
-These initialization steps are implemented in `initialize` method of
-`SubHidppConnection` class in [device.h](../src/device.h). After reprogramming
-the Next and Back buttons, the first and second response of the spotlight
-device contains relative mouse move data through HID++ messages
-(not regular input events to the OS). These events are handled in `onHidppDataAvailable`
-method in `Spotlight` class in [spotlight.h](../src/spotlight.h). Special
-'repeated' actions (like scrolling and volume control) can utilize the relative
-mouse movement data received in the responses.
+These initialization steps are implemented in `initReceiver` and `initPresenter`
+methods of `SubHidppConnection` class in [device-hidpp.h](../src/device-hidpp.h).
+After reprogramming the Next and Back buttons, the spotlight device will send
+mouse movement data when either of these button are long-pressed and device is
+moved. The processing of these events are discussed in the
+[following section](#response-to-`next-hold`-and-`back-hold`-keys).
 
 For completeness, it should be noted that the official Logitech Spotlight
 software reprogram the click and double click events too by following HID++
@@ -265,10 +263,10 @@ All of the HID++ commands listed above result in response messages from the
 Spotlight device. For most messages, these responses from device are just the
 acknowledgements of the HID++ commands sent by the application. However, some
 responses from the Spotlight device contain useful information. These responses
-are processed in the  `onHidppDataAvailable` method in the `Spotlight` class
-in [spotlight.h](../src/spotlight.h). Description of HID++ messages from device
-to reprogrammed keys (`Next Hold` and `Back Hold`) are provided in following
-sub-section:
+are processed in the  `onHidppDataAvailable` method in the `SubHidppConnection`
+class in [device-hidpp.h](../src/device-hidpp.h). Description of HID++ messages
+from device to reprogrammed keys (`Next Hold` and `Back Hold`) are provided in
+following sub-section:
 
 ## Response to `Next Hold` and `Back Hold` keys
 
@@ -286,6 +284,10 @@ data as HID++ messages. These messages are of form
 In the four bytes (for mouse data), the second and last bytes are relative `x`
 and `y` values. These relative `x` and `y` values are used for Scrolling and
 Volume Control Actions in Projecteur.
+
+The relevant functions for processing `Next Hold` and `Back Hold` are provided
+in `registerForNotifications` method in the `Spotlight` class
+([spotlight.h](../src/spotlight.h)).
 
 # Further information
 
