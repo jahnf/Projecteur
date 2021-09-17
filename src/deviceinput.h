@@ -184,6 +184,9 @@ struct Action
 };
 
 // -------------------------------------------------------------------------------------------------
+const char* toString(Action::Type at, bool withClass = true);
+
+// -------------------------------------------------------------------------------------------------
 struct KeySequenceAction : public Action
 {
   KeySequenceAction() = default;

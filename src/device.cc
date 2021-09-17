@@ -263,11 +263,13 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   connection->m_readNotifier = std::make_unique<QSocketNotifier>(evfd, QSocketNotifier::Read);
   QSocketNotifier* const notifier = connection->m_readNotifier.get();
   // Auto clean up and close descriptor on destruction of notifier
-  connect(notifier, &QSocketNotifier::destroyed, [grabbed = connection->m_details.grabbed, notifier]() {
+  connect(notifier, &QSocketNotifier::destroyed,
+  [grabbed = connection->m_details.grabbed, evfd, path=sd.deviceFile]() {
     if (grabbed) {
-      ioctl(static_cast<int>(notifier->socket()), EVIOCGRAB, 0);
+      ioctl(evfd, EVIOCGRAB, 0);
     }
-    ::close(static_cast<int>(notifier->socket()));
+    logDebug(device) << tr("Closing file descriptor for '%1'").arg(path);
+    ::close(evfd);
   });
 
   connection->m_inputMapper = dc.inputMapper();
@@ -303,7 +305,7 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
   if (devfd == -1) return std::shared_ptr<SubHidrawConnection>();
 
   auto connection = std::make_shared<SubHidrawConnection>(Token{}, dc.deviceId(), sd);
-  connection->createSocketNotifiers(devfd);
+  connection->createSocketNotifiers(devfd, sd.deviceFile);
 
   connect(connection->socketReadNotifier(), &QSocketNotifier::activated,
           &*connection, &SubHidrawConnection::onHidrawDataAvailable);
@@ -376,7 +378,6 @@ ssize_t SubHidrawConnection::sendData(const void* msg, size_t msgLen)
   constexpr ssize_t errorResult = -1;
 
   if (mode() != ConnectionMode::ReadWrite || !m_writeNotifier) { return errorResult; }
-  // TODO check against m_writeNotifier?
   const auto res = ::write(m_writeNotifier->socket(), msg, msgLen);
 
   if (static_cast<size_t>(res) == msgLen) {
@@ -390,7 +391,7 @@ ssize_t SubHidrawConnection::sendData(const void* msg, size_t msgLen)
 }
 
 // -------------------------------------------------------------------------------------------------
-void SubHidrawConnection::createSocketNotifiers(int fd)
+void SubHidrawConnection::createSocketNotifiers(int fd, const QString& path)
 {
   fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
   if ((fcntl(fd, F_GETFL, 0) & O_NONBLOCK) == O_NONBLOCK) {
@@ -400,17 +401,29 @@ void SubHidrawConnection::createSocketNotifiers(int fd)
   // Create read and write socket notifiers
   m_readNotifier = std::make_unique<QSocketNotifier>(fd, QSocketNotifier::Read);
   QSocketNotifier *const readNotifier = m_readNotifier.get();
+  auto fdPtr = std::make_shared<int>(fd);
+
   // Auto clean up and close descriptor on destruction of notifier
-  connect(readNotifier, &QSocketNotifier::destroyed, [readNotifier]() {
-    ::close(static_cast<int>(readNotifier->socket()));
+  connect(readNotifier, &QSocketNotifier::destroyed, [fdPtr, path]()
+  {
+    if (fdPtr && *fdPtr != -1) {
+      logDebug(device) << tr("Closing file descriptor for '%1'").arg(path);
+      ::close(*fdPtr);
+      *fdPtr = -1;
+    }
   });
 
   m_writeNotifier = std::make_unique<QSocketNotifier>(fd, QSocketNotifier::Write);
   QSocketNotifier *const writeNotifier = m_writeNotifier.get();
   writeNotifier->setEnabled(false); // Disable write notifier by default
   // Auto clean up and close descriptor on destruction of notifier
-  connect(writeNotifier, &QSocketNotifier::destroyed, [writeNotifier]() {
-    ::close(static_cast<int>(writeNotifier->socket()));
+  connect(writeNotifier, &QSocketNotifier::destroyed, [fdPtr, path]()
+  {
+    if (fdPtr && *fdPtr != -1) {
+      logDebug(device) << tr("Closing file descriptor for '%1'").arg(path);
+      ::close(*fdPtr);
+      *fdPtr = -1;
+    }
   });
 }
 

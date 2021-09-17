@@ -510,6 +510,22 @@ const NativeKeySequence& NativeKeySequence::predefined::meta()
   return ks;
 }
 
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(Action::Type at, bool withClass)
+{
+  using Type = Action::Type;
+  switch (at) {
+    ENUM_CASE_STRINGIFY3(Type, KeySequence, withClass);
+    ENUM_CASE_STRINGIFY3(Type, CyclePresets, withClass);
+    ENUM_CASE_STRINGIFY3(Type, ToggleSpotlight, withClass);
+    ENUM_CASE_STRINGIFY3(Type, ScrollHorizontal, withClass);
+    ENUM_CASE_STRINGIFY3(Type, ScrollVertical, withClass);
+    ENUM_CASE_STRINGIFY3(Type, VolumeControl, withClass);
+  }
+  return withClass ? "Type::(unknown)" : "(unkown)";
+}
+
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
 struct InputMapper::Impl
@@ -551,8 +567,8 @@ void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, Device
 {
   if (!action || action->empty()) return;
 
-  logDebug(input) << "Input map action, type = " << int(action->type())
-                  << ", partial_hit = " << (r == DeviceKeyMap::Result::PartialHit);
+  logDebug(input) << "Input map execAction, type =" << toString(action->type())
+                  << ", partial_hit =" << (r == DeviceKeyMap::Result::PartialHit);
 
   if (action->type() == Action::Type::KeySequence)
   {
@@ -830,10 +846,11 @@ namespace SpecialKeys
 // -------------------------------------------------------------------------------------------------
 const std::map<Key, SpecialKeyEventSeqInfo>&  keyEventSequenceMap()
 {
-  // TODO Make names translateable
   static const std::map<Key, SpecialKeyEventSeqInfo> keyMap {
-    {Key::BackHoldMove, {"Back Hold Move", makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove))}},
-    {Key::NextHoldMove, {"Next Hold Move", makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove))}},
+    {Key::BackHoldMove, {InputMapper::tr("Back Hold Move"),
+      makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove))}},
+    {Key::NextHoldMove, {InputMapper::tr("Next Hold Move"),
+      makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove))}},
   };
   return keyMap;
 }

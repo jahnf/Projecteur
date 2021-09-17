@@ -349,7 +349,7 @@ std::shared_ptr<SubHidppConnection> SubHidppConnection::create(const DeviceScan:
   auto connection = std::make_shared<SubHidppConnection>(Token{}, dc.deviceId(), sd);
   if (dc.hasHidppSupport()) connection->m_details.deviceFlags |= DeviceFlag::Hidpp;
 
-  connection->createSocketNotifiers(devfd);
+  connection->createSocketNotifiers(devfd, sd.deviceFile);
   connection->m_inputMapper = dc.inputMapper();
 
   connect(connection->socketReadNotifier(), &QSocketNotifier::activated, &*connection,
@@ -371,10 +371,7 @@ void SubHidppConnection::sendVibrateCommand(uint8_t intensity, uint8_t length,
     return;
   }
 
-  // TODO generalize features and protocol for proprietary device features like vibration
-  //      for not only the Spotlight device.
-  //
-  // Spotlight:
+  // Logitech Spotlight:
   //                                        present
   //                                        controlID   len         intensity
   // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1d, 0x00, 0xe8, 0x80};
@@ -625,7 +622,6 @@ void SubHidppConnection::initFeatures(
   RequestBatch batch;
   auto resultMap = std::make_shared<ResultMap>();
 
-  // TODO: Is resetting the device necessary?
   // Reset spotlight device, if supported
   if (const auto resetFeatureIndex = m_featureSet.featureIndex(FeatureCode::Reset))
   {

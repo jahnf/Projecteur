@@ -22,6 +22,8 @@
 #include <array>
 #include <chrono>
 
+DECLARE_LOGGING_CATEGORY(hid)
+
 // -------------------------------------------------------------------------------------------------
 namespace {
   constexpr int numTimers = 3;
@@ -420,7 +422,8 @@ void VibrationSettingsWidget::sendVibrateCommand()
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
   m_subDeviceConnection->sendVibrateCommand(vint, vlen,
-  [](HidppConnectionInterface::MsgResult /* result */, HIDPP::Message&& /* msg */) {
-    // TODO debug log vibrate command reply?
+  [](HidppConnectionInterface::MsgResult result, HIDPP::Message&& msg) {
+    logDebug(hid) << tr("Vibrate command returned: %1 (%2)")
+                     .arg(toString(result)).arg(msg.hex());
   });
 }

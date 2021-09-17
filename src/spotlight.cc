@@ -267,8 +267,6 @@ int Spotlight::connectDevices()
 
         connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
         {
-          // TODO allow hold button move events only with specific actions
-
           if (action->type() == Action::Type::CyclePresets)
           {
             auto it = std::find(m_settings->presets().cbegin(), m_settings->presets().cend(), lastPreset);
@@ -468,11 +466,6 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       constexpr uint8_t ButtonBack = 0xdc;
       const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
       const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
-
-      if (!m_holdButtonStatus->nextPressed() && isNextPressed
-          && !m_holdButtonStatus->backPressed() && isBackPressed) {
-        // TODO KeyEvnt with both presses at the same time
-      }
 
       if (!m_holdButtonStatus->nextPressed() && isNextPressed) {
         connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Next), 1}});

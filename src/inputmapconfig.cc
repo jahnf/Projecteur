@@ -196,7 +196,8 @@ void InputMapConfigModel::setKeySequence(const QModelIndex& index, const NativeK
   if (index.row() < static_cast<int>(m_configItems.size()))
   {
     auto& c = m_configItems[index.row()];
-    // TODO if action is currently not a keysequence action.. -> just change action type?
+    // If the current action is not a keysequence action
+    // -> setting the key sequence is currently ignored.
     if (auto action = std::dynamic_pointer_cast<KeySequenceAction>(c.action))
     {
       if (action->keySequence != ks) {

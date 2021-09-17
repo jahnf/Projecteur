@@ -47,7 +47,7 @@ namespace {
     static auto const pressChar = QChar(0x2193); // ↓
     static auto const releaseChar = QChar(0x2191); // ↑
 
-    // TODO some devices (e.g. August WP 200) have buttons that send a key combination
+    // TODO Some devices (e.g. August WP 200) have buttons that send a key combination
     //      (modifiers + key) - this is ignored completely right now.
     const auto text = QString("[%1%2%3")
                          .arg(ke.back().code != SYN_REPORT ? ke.back().code : ke.front().code, 0, 16)
@@ -507,7 +507,7 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
 {
   if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
-    // TODO calc size hint from KeyEventSequence.....
+    // TODO Calculate size hint from KeyEventSequence.....
     return QStyledItemDelegate::sizeHint(option, index);
   }
   return QStyledItemDelegate::sizeHint(option, index);

@@ -194,7 +194,7 @@ public:
   ssize_t sendData(const void* msg, size_t msgLen) override;
 
 protected:
-  void createSocketNotifiers(int fd);
+  void createSocketNotifiers(int fd, const QString& path);
   static int openHidrawSubDevice(const DeviceScan::SubDevice& sd, const DeviceId& devId);
   std::unique_ptr<QSocketNotifier> m_writeNotifier;
 

@@ -62,7 +62,7 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
   uinp.id.version = virtualVersionId;
 
   // Setup the uinput device
-  // TODO Are the following Key and Event bits sufficient? Do we need more? (see all in Linux's input-event-codes.h)
+  // (see all in Linux's input-event-codes.h)
   ioctl(fd, UI_SET_EVBIT, EV_SYN);
   ioctl(fd, UI_SET_EVBIT, EV_KEY);
   ioctl(fd, UI_SET_EVBIT, EV_REL);
