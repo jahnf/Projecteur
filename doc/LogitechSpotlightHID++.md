@@ -193,7 +193,7 @@ methods of `SubHidppConnection` class in [device-hidpp.h](../src/device-hidpp.h)
 After reprogramming the Next and Back buttons, the spotlight device will send
 mouse movement data when either of these button are long-pressed and device is
 moved. The processing of these events are discussed in the
-[following section](#response-to-`next-hold`-and-`back-hold`-keys).
+[following section](#response-to-next-hold-and-back-hold-keys).
 
 For completeness, it should be noted that the official Logitech Spotlight
 software reprogram the click and double click events too by following HID++
