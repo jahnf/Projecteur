@@ -98,16 +98,32 @@ line option - button mapping will be disabled then.)
 Input events from the presenter device can be mapped to different actions.
 The _Key Sequence_ action is particularly powerful as it can emit any user-defined
 keystroke. These keystrokes can invoke shortcut in presentation software
-(or any other software) being used.
+(or any other software) being used. Similarly, the _Cycle Preset_ action can be
+used for cycling different spotlight presets. However, it should be noted that
+presets might get reordered after program restart. If user want to maintain the
+order of presets, please prepend the name of preset with number. For example,
+in stead of naming `Pointer` and `Highlight`, name them `1.Pointer` and
+`2.Highlight` to maintain the order.
 
-#### Hold Button Mapping for Logitech Spotlight
+#### Button Mapping for Logitech Spotlight
 
 Logitech Spotlight can send Hold event for Next and Back buttons as HID++
-messages. For mapping those inputs, please ensure that the device is active
-by pressing any button, then go to Input Mapping tab under Devices tab in
-Preferences dialog box and right click in first column (Input Sequence) for
-any entry. Additional mapped actions (e.g. _Vertical Scrolling_ or _Volume control_)
-can be selected for these special hold events.
+messages. Using this device feature, this program provides three different
+usage of the Next or Hold button.
+
+	1. Button Tap
+	2. Long-Press Event (but not longer than Input Sequence Interval
+			setting in Input Mapper tab)
+	3. Button Hold followed by device movement or Hold Move Event
+
+In Input Mapper tab (Devices tab in Preferences dialog box), the first two
+button usage (_i.e._ tap and long-press) can be mapped directly by tapping or
+long pressing the relevant button. For mapping the third button usage (_i.e._
+Hold Move Event), please ensure that the device is active by pressing any button,
+and then right click in first column (Input Sequence) for any entry and select
+the relevant option. Additional mapped actions (e.g. _Vertical Scrolling_,
+_Horizontal Scrolling_, or _Volume control_) can be selected for these hold
+move events.
 
 ## Download
 

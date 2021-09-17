@@ -37,8 +37,9 @@ namespace {
 struct HoldButtonStatus
 {
   enum class Button : uint16_t {
-    Next = 0x0e10, // must be in SpecialKeys user range
-    Back = 0x0e11, // must be in SpecialKeys user range
+    Next       = 0x0e10, // must be in SpecialKeys user range
+    Back       = 0x0e11, // must be in SpecialKeys user range
+    BtnRelease = 0x0e12, // must be in SpecialKeys user range
   };
 
   void setButtonsPressed(bool nextPressed, bool backPressed)
@@ -466,20 +467,33 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
 
       constexpr uint8_t ButtonNext = 0xda;
       constexpr uint8_t ButtonBack = 0xdc;
-      const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
-      const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
+      const auto isNextPressed = msg[4] == 0 && (msg[5] == ButtonNext || msg[7] == ButtonNext);
+      const auto isBackPressed = msg[4] == 0 && (msg[5] == ButtonBack || msg[7] == ButtonBack);
+      const auto isBtnReleased = msg[4] == 0 && msg[5] == 0;
 
       if (!m_holdButtonStatus->nextPressed() && isNextPressed
           && !m_holdButtonStatus->backPressed() && isBackPressed) {
-        // TODO KeyEvnt with both presses at the same time
+        // TODO KeyEvent with both presses at the same time
       }
 
       if (!m_holdButtonStatus->nextPressed() && isNextPressed) {
         connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Next), 1}});
+        if (connection->inputMapper()->recordingMode()) {
+          connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::BtnRelease), 1}});
+        }
       }
 
       if (!m_holdButtonStatus->backPressed() && isBackPressed) {
         connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Back), 1}});
+        if (connection->inputMapper()->recordingMode()) {
+          connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::BtnRelease), 1}});
+        }
+      }
+
+      if ((m_holdButtonStatus->backPressed() or m_holdButtonStatus->nextPressed()) && isBtnReleased) {
+        if (!connection->inputMapper()->recordingMode() && !m_holdMoveEventTimer->isActive()) {
+          connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::BtnRelease), 1}});
+        }
       }
 
       m_holdButtonStatus->setButtonsPressed(isNextPressed, isBackPressed);
