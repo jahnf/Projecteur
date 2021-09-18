@@ -346,7 +346,10 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
   const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
     [&item](const auto& specialKeyInfo){
-      return (item.deviceSequence == specialKeyInfo.second.keyEventSeq);
+      if (item.deviceSequence == specialKeyInfo.second.keyEventSeq) {
+        return specialKeyInfo.second.isMoveEvent;
+      }
+      return false;
     }
   );
 
