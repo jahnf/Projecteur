@@ -6,6 +6,7 @@
 #include "deviceinput.h"
 #include "inputmapconfig.h"
 #include "logging.h"
+#include "common-input-seq.h"
 
 #include <QApplication>
 #include <QMenu>
@@ -403,6 +404,20 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   const int xPos = (option.rect.height()-fm.height()) / 2;
   const auto& keySeq = imModel->configData(index).deviceSequence;
   const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
+  const auto& commonKeysInfo = CommonKeyEventSeqInfo::commonInputSeq;
+
+  // Separate out events of type EV_KEY only
+  const auto keySeqOnlyEV_KEY = [keySeq](){
+    KeyEventSequence kes_comparision;
+    for (auto ke: keySeq) {
+      KeyEvent temp_ke;
+      for (auto k: ke){
+        if (k.type == EV_KEY) temp_ke.emplace_back(k);
+      }
+      kes_comparision.emplace_back(temp_ke);
+    }
+    return kes_comparision;
+  }();
 
   const auto it = std::find_if(specialKeysMap.cbegin(), specialKeysMap.cend(),
     [&keySeq](const auto& specialKeyInfo){
@@ -416,7 +431,36 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   }
   else
   {
-    drawKeyEventSequence(xPos, *painter, option, keySeq);
+    size_t i = 0, old_i = 0;
+    int xPosition = xPos;
+    while (i < keySeqOnlyEV_KEY.size())
+    {
+      for (auto& kes: commonKeysInfo) {
+        if (kes.keyEventSeq.size() > keySeqOnlyEV_KEY.size() - i) continue;
+        auto KeqSeqPart = KeyEventSequence(keySeqOnlyEV_KEY.begin()+i,
+                                           keySeqOnlyEV_KEY.begin()+i+kes.keyEventSeq.size());
+        if (KeqSeqPart == kes.keyEventSeq) {
+          i += KeqSeqPart.size();
+          xPosition += drawPlaceHolderText(xPosition, *painter, option, kes.name, false);
+          break;
+        }
+      }
+      if (old_i == i) {
+        if (i+1 < keySeqOnlyEV_KEY.size() && isButtonTap(keySeqOnlyEV_KEY.at(i), keySeqOnlyEV_KEY.at(i+1))) {
+          xPosition += drawKeyEventSequence(xPosition, *painter, option, {keySeqOnlyEV_KEY.at(i), keySeqOnlyEV_KEY.at(i+1)});
+          i += 2;
+        }
+        else
+        {
+          xPosition += drawKeyEventSequence(xPosition, *painter, option, {keySeqOnlyEV_KEY.at(i)});
+          i++;
+        }
+      }
+      if (i < keySeqOnlyEV_KEY.size()) {
+        xPosition += drawPlaceHolderText(xPosition, *painter, option, ", ", false);
+      }
+      old_i = i;
+    }
   }
 
   if (option.state & QStyle::State_HasFocus) {
@@ -525,30 +569,32 @@ void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel*
     QMenu* menu = new QMenu(parent);
 
     for (const auto& button : specialInputs) {
-      const auto qaction = menu->addAction(button.name);
-      connect(qaction, &QAction::triggered, this, [model, index, button](){
-        model->setInputSequence(index, button.keyEventSeq);
-        const auto& currentItem = model->configData(index);
-        if (!currentItem.action) {
-          model->setItemActionType(index, Action::Type::ScrollHorizontal);
-        }
-        else
-        {
-          switch (currentItem.action->type())
+      if (button.isMoveEvent) {
+        const auto qaction = menu->addAction(button.name);
+        connect(qaction, &QAction::triggered, this, [model, index, button](){
+          model->setInputSequence(index, button.keyEventSeq);
+          const auto& currentItem = model->configData(index);
+          if (!currentItem.action) {
+            model->setItemActionType(index, Action::Type::ScrollVertical);
+          }
+          else
           {
-            case Action::Type::ScrollHorizontal:   // [[fallthrough]];
-            case Action::Type::ScrollVertical:     // [[fallthrough]];
-            case Action::Type::VolumeControl: {
-              // scrolling and volume control allowed for special input
-              break;
-            }
-            default: {
-              model->setItemActionType(index, Action::Type::ScrollVertical);
-              break;
+            switch (currentItem.action->type())
+            {
+              case Action::Type::ScrollHorizontal:   // [[fallthrough]];
+              case Action::Type::ScrollVertical:     // [[fallthrough]];
+              case Action::Type::VolumeControl: {
+                // scrolling and volume control allowed for special input
+                break;
+              }
+              default: {
+                model->setItemActionType(index, Action::Type::ScrollVertical);
+                break;
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
 
     menu->exec(globalPos);

@@ -87,13 +87,16 @@ namespace SpecialKeys
   constexpr uint16_t userRange = 0x0e00; // 0x0e00 - 0x0eff
 
   enum class Key : uint16_t {
-    NextHoldMove = 0x0ff0,
-    BackHoldMove = 0x0ff1,
+    NextHold = 0x0e10,      // must be in SpecialKeys user range
+    BackHold = 0x0e11,      // must be in SpecialKeys user range
+    NextHoldMove = 0x0ff0,  // must be in SpecialKeys range
+    BackHoldMove = 0x0ff1,  // must be in SpecialKeys range
   };
 
   struct SpecialKeyEventSeqInfo {
     QString name;
     KeyEventSequence keyEventSeq;
+    bool isMoveEvent = false;
   };
 
   const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key);

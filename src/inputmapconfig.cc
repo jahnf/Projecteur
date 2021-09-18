@@ -167,7 +167,10 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
       const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
       const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
         [&c](const auto& specialKeyInfo){
-          return (c.deviceSequence == specialKeyInfo.second.keyEventSeq);
+          if (c.deviceSequence == specialKeyInfo.second.keyEventSeq) {
+            return specialKeyInfo.second.isMoveEvent;
+          }
+          return false;
         }
       );
 

@@ -36,10 +36,7 @@ namespace {
 // Hold button state. Very much Logitech Spotlight specific.
 struct HoldButtonStatus
 {
-  enum class Button : uint16_t {
-    Next = 0x0e10, // must be in SpecialKeys user range
-    Back = 0x0e11, // must be in SpecialKeys user range
-  };
+
 
   void setButtonsPressed(bool nextPressed, bool backPressed)
   {
@@ -468,11 +465,15 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
 
       if (!m_holdButtonStatus->nextPressed() && isNextPressed) {
-        connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Next), 1}});
+        for (auto ke: SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold).keyEventSeq) {
+          connection->inputMapper()->addEvents(ke);
+        }
       }
 
       if (!m_holdButtonStatus->backPressed() && isBackPressed) {
-        connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Back), 1}});
+        for (auto ke: SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold).keyEventSeq) {
+          connection->inputMapper()->addEvents(ke);
+        }
       }
 
       m_holdButtonStatus->setButtonsPressed(isNextPressed, isBackPressed);

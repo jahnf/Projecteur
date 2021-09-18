@@ -844,13 +844,23 @@ InputMapper::ReservedInputs& InputMapper::specialInputs()
 namespace SpecialKeys
 {
 // -------------------------------------------------------------------------------------------------
+// Functions that provide all special event sequences for a device.
+// Currently, special event seqences are only defined for
+// Logitech Spotlight device. Please note that all special key event
+// sequences are not necessarily be move type Key Seqeuce.
+// Move type Key Sequences for the device are stored in
+// InputMapper::Impl::m_reservedInputs by SubHidppConnection::updateDeviceFlags.
 const std::map<Key, SpecialKeyEventSeqInfo>&  keyEventSequenceMap()
 {
   static const std::map<Key, SpecialKeyEventSeqInfo> keyMap {
-    {Key::BackHoldMove, {InputMapper::tr("Back Hold Move"),
-      makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove))}},
+    {Key::NextHold, {InputMapper::tr("Next Hold"),
+      makeSpecialKeyEventSequence(to_integral(Key::NextHold))}},
+    {Key::BackHold, {InputMapper::tr("Back Hold"),
+      makeSpecialKeyEventSequence(to_integral(Key::BackHold))}},
     {Key::NextHoldMove, {InputMapper::tr("Next Hold Move"),
-      makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove))}},
+      makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove)), true}},
+    {Key::BackHoldMove, {InputMapper::tr("Back Hold Move"),
+      makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove)), true}},
   };
   return keyMap;
 }

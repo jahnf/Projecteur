@@ -90,6 +90,7 @@ add_executable(projecteur
   src/spotlight.cc          src/spotlight.h
   src/spotshapes.cc         src/spotshapes.h
   src/virtualdevice.h       src/virtualdevice.cc
+  src/common-input-seq.h
   ${RESOURCES})
 
 target_include_directories(projecteur PRIVATE src)
