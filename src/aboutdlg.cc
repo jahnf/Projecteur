@@ -233,18 +233,21 @@ QWidget* AboutDialog::createThirdPartyLicensesWidget()
   for (const auto& tpl : thirdPartyProjects)
   {
     html += "<li>";
-    if (tpl.projectUrl.size())
+    if (tpl.projectUrl.size()) {
       html += QString("<b><a href=\"%1\">%2</a></b>").arg(tpl.projectUrl, tpl.projectName);
-    else
+    } else {
       html += QString("<b>%1</b>").arg(tpl.projectName);
+    }
 
-    if (tpl.copyrightNotice.size())
+    if (tpl.copyrightNotice.size()) {
       html += "<br/><tt>" + tpl.copyrightNotice + "</tt>";
+    }
 
-    if (tpl.licenseUrl.size())
+    if (tpl.licenseUrl.size()) {
       html += QString("<br/><a href=\"%1\">%2</a>").arg(tpl.licenseUrl, tpl.licenseName);
-    else
+    } else {
       html += QString("<br/><i>License</i>: %1").arg(tpl.licenseName);
+    }
 
     html += "</li>";
   }

@@ -2,8 +2,9 @@
 // - See LICENSE.md and README.md
 
 #include "hidpp.h"
-#include "logging.h"
+
 #include "enum-helper.h"
+#include "logging.h"
 
 #include <unistd.h>
 
@@ -16,7 +17,7 @@ namespace {
   // -----------------------------------------------------------------------------------------------
   namespace Defaults {
     constexpr uint8_t HidppSoftwareId = 7;
-  }
+  } // end namespace Defaults
 
   // -----------------------------------------------------------------------------------------------
   // -- HID++ message offsets
@@ -38,13 +39,13 @@ namespace {
     constexpr uint32_t FwPrefix = FwType + 1;
     constexpr uint32_t FwVersion = FwPrefix + 3;
     constexpr uint32_t FwBuild = FwVersion + 2;
-  }
+  } // end namespace Offset
 
   // -----------------------------------------------------------------------------------------------
   namespace Defines {
     constexpr uint8_t ErrorShort = 0x8f;
     constexpr uint8_t ErrorLong = 0xff;
-  }
+  } // end namespace Defines
 
   // -----------------------------------------------------------------------------------------------
   uint8_t funcSwIdToByte(uint8_t function, uint8_t swId) {
@@ -116,13 +117,13 @@ Message::Message(Type type, uint8_t deviceIndex, uint8_t featureIndex, uint8_t f
                  uint8_t swId, Data payload)
   : Message(Data{to_integral(type), deviceIndex, featureIndex, funcSwIdToByte(function, swId)})
 {
-  if (type == Type::Invalid) return;
+  if (type == Type::Invalid) { return; }
 
   m_data.reserve(m_data.size() + payload.size());
   std::move(payload.begin(), payload.end(), std::back_inserter(m_data));
 
-  if (type == Type::Long) m_data.resize(20, 0x0);
-  else if (type == Type::Short) m_data.resize(7, 0x0);
+  if (type == Type::Long) { m_data.resize(LONG_MSG_SIZE, 0x0); }
+  else if (type == Type::Short) { m_data.resize(SHORT_MSG_SIZE, 0x0); }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -144,16 +145,16 @@ Message::Message(Type type, uint8_t deviceIndex, Data payload)
 // -------------------------------------------------------------------------------------------------
 size_t Message::size() const
 {
-  if (isLong()) return 20;
-  if (isShort()) return 7;
+  if (isLong()) { return LONG_MSG_SIZE; }
+  if (isShort()) { return SHORT_MSG_SIZE; }
   return 0;
 }
 
 // -------------------------------------------------------------------------------------------------
 Message::Type Message::type() const
 {
-  if (isLong()) return Type::Long;
-  if (isShort()) return Type::Short;
+  if (isLong()) { return Type::Long; }
+  if (isShort()) { return Type::Short; }
   return Type::Invalid;
 }
 
@@ -162,12 +163,12 @@ bool Message::isValid() const { return isLong() || isShort(); }
 
 // -------------------------------------------------------------------------------------------------
 bool Message::isShort() const {
-  return (m_data.size() >= 7 && m_data[Offset::Type] == to_integral(Message::Type::Short));
+  return (m_data.size() >= SHORT_MSG_SIZE && m_data[Offset::Type] == to_integral(Message::Type::Short));
 }
 
 // -------------------------------------------------------------------------------------------------
 bool Message::isLong() const {
-  return (m_data.size() >= 20 && m_data[Offset::Type] == to_integral(Message::Type::Long));
+  return (m_data.size() >= LONG_MSG_SIZE && m_data[Offset::Type] == to_integral(Message::Type::Long));
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -176,9 +177,11 @@ bool Message::isError() const
   if (isShort() && m_data[Offset::SubId] == Defines::ErrorShort) {
     return true;
   }
-  else if (isLong() && m_data[Offset::SubId] == Defines::ErrorLong) {
+
+  if (isLong() && m_data[Offset::SubId] == Defines::ErrorLong) {
     return true;
   }
+
   return false;
 }
 
@@ -270,7 +273,7 @@ void Message::setSoftwareId(uint8_t softwareId) {
 // -------------------------------------------------------------------------------------------------
 bool Message::isResponseTo(const Message& other) const
 {
-  if (!isValid() || !other.isValid()) return false;
+  if (!isValid() || !other.isValid()) { return false; }
 
   return deviceIndex() == other.deviceIndex()
          && subId() == other.subId()
@@ -280,7 +283,7 @@ bool Message::isResponseTo(const Message& other) const
 // -------------------------------------------------------------------------------------------------
 bool Message::isErrorResponseTo(const Message& other) const
 {
-  if (!isValid() || !other.isValid()) return false;
+  if (!isValid() || !other.isValid()) { return false; }
 
   return deviceIndex() == other.deviceIndex()
          && errorSubId() == other.subId()
@@ -290,10 +293,10 @@ bool Message::isErrorResponseTo(const Message& other) const
 // -------------------------------------------------------------------------------------------------
 Message& Message::convertToLong()
 {
-  if (!isShort()) return *this;
+  if (!isShort()) { return *this; }
 
   // Resize data vector, pad with zeroes.
-  m_data.resize(20, 0);
+  m_data.resize(LONG_MSG_SIZE, 0);
   m_data[Offset::Type] = to_integral(Type::Long);
   return *this;
 }
@@ -325,7 +328,7 @@ FeatureSet::State FeatureSet::state() const {
 // -------------------------------------------------------------------------------------------------
 void FeatureSet::setState(State s)
 {
-  if (s == m_state) return;
+  if (s == m_state) { return; }
 
   m_state = s;
   emit stateChanged(m_state);
@@ -334,26 +337,26 @@ void FeatureSet::setState(State s)
 // -------------------------------------------------------------------------------------------------
 void FeatureSet::getFeatureIndex(FeatureCode fc, std::function<void(MsgResult, uint8_t)> cb)
 {
-  postSelf([this, fc, cb=std::move(cb)]()
+  postSelf([this, fc, cb=std::move(cb)]() mutable
   {
     if (m_connection == nullptr)
     {
-      if (cb) cb(MsgResult::WriteError, 0);
+      if (cb) { cb(MsgResult::WriteError, 0); }
       return;
     }
 
-    const uint8_t fcLSB = static_cast<uint8_t>(to_integral(fc) >> 8);
-    const uint8_t fcMSB = static_cast<uint8_t>(to_integral(fc) & 0x00ff);
+    const auto fcLSB = static_cast<uint8_t>(to_integral(fc) >> 8);
+    const auto fcMSB = static_cast<uint8_t>(to_integral(fc) & 0x00ff);
 
     Message featureIndexReqMsg(Message::Type::Long, DeviceIndex::WirelessDevice1,
                                Message::Data{fcLSB, fcMSB});
 
     m_connection->sendRequest(std::move(featureIndexReqMsg),
-    [cb=std::move(cb), fc, fcLSB, fcMSB](MsgResult result, Message&& msg)
+    [cb=std::move(cb), fc](MsgResult result, Message&& msg)
     {
       logDebug(hid) << tr("getFeatureIndex(%1) => %2, %3")
                        .arg(to_integral(fc)).arg(toString(result)).arg(msg[4]);
-      if (cb) cb(result, (result != MsgResult::Ok) ? 0 : msg[4]);
+      if (cb) { cb(result, (result != MsgResult::Ok) ? 0 : msg[4]); }
     });
   });
 }
@@ -362,11 +365,11 @@ void FeatureSet::getFeatureIndex(FeatureCode fc, std::function<void(MsgResult, u
 void FeatureSet::getFeatureCount(std::function<void(MsgResult, uint8_t, uint8_t)> cb)
 {
   getFeatureIndex(FeatureCode::FeatureSet, makeSafeCallback(
-  [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex)
+  [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex) mutable
   {
     if (res != MsgResult::Ok)
     {
-      if (cb) cb(res, 0, 0);
+      if (cb) { cb(res, 0, 0); }
       return;
     }
 
@@ -374,7 +377,7 @@ void FeatureSet::getFeatureCount(std::function<void(MsgResult, uint8_t, uint8_t)
 
     m_connection->sendRequest(std::move(featureCountReqMsg),
     [featureIndex, cb=std::move(cb)](MsgResult result, Message&& msg) {
-      if (cb) cb(result, featureIndex, (result != MsgResult::Ok) ? 0 : msg[4]);
+      if (cb) { cb(result, featureIndex, (result != MsgResult::Ok) ? 0 : msg[4]); }
     });
   }));
 }
@@ -383,11 +386,11 @@ void FeatureSet::getFeatureCount(std::function<void(MsgResult, uint8_t, uint8_t)
 void FeatureSet::getFirmwareCount(std::function<void(MsgResult, uint8_t, uint8_t)> cb)
 {
   getFeatureIndex(FeatureCode::FirmwareVersion, makeSafeCallback(
-  [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex)
+  [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex) mutable
   {
     if (res != MsgResult::Ok)
     {
-      if (cb) cb(res, 0, 0);
+      if (cb) { cb(res, 0, 0); }
       return;
     }
 
@@ -398,7 +401,7 @@ void FeatureSet::getFirmwareCount(std::function<void(MsgResult, uint8_t, uint8_t
     {
       logDebug(hid) << tr("getFirmwareCount() => %1, featureIndex = %2, count = %3")
                        .arg(toString(result)).arg(featureIndex).arg(msg[4]);
-      if (cb) cb(result, featureIndex, (result != MsgResult::Ok) ? 0 : msg[4]);
+      if (cb) { cb(result, featureIndex, (result != MsgResult::Ok) ? 0 : msg[4]); }
     });
   }));
 }
@@ -409,7 +412,7 @@ void FeatureSet::getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
 {
   if (m_connection == nullptr)
   {
-    if (cb) cb(MsgResult::WriteError, FirmwareInfo());
+    if (cb) { cb(MsgResult::WriteError, FirmwareInfo()); }
     return;
   }
 
@@ -418,7 +421,7 @@ void FeatureSet::getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
 
   m_connection->sendRequest(std::move(fwVerReqMessage),
   [cb=std::move(cb)](MsgResult res, Message&& msg) {
-    if (cb) cb(res, FirmwareInfo(std::move(msg)));
+    if (cb) { cb(res, FirmwareInfo(std::move(msg))); }
   });
 }
 
@@ -426,11 +429,11 @@ void FeatureSet::getFirmwareInfo(uint8_t fwIndex, uint8_t entity,
 void FeatureSet::getMainFirmwareInfo(std::function<void(MsgResult, FirmwareInfo&&)> cb)
 {
   getFirmwareCount(makeSafeCallback(
-  [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count)
+  [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count) mutable
   {
     if (res != MsgResult::Ok)
     {
-      if (cb) cb(res, FirmwareInfo());
+      if (cb) { cb(res, FirmwareInfo()); }
       return;
     }
     getMainFirmwareInfo(featureIndex, count, 0, std::move(cb));
@@ -442,7 +445,7 @@ void FeatureSet::getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t curre
                                      std::function<void(MsgResult, FirmwareInfo&&)> cb)
 {
   getFirmwareInfo(fwIndex, current, makeSafeCallback(
-  [this, current, max, fwIndex, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi)
+  [this, current, max, fwIndex, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi) mutable
   {
     logDebug(hid) << tr("getFirmwareInfo(%1, %2, %3) => %4, fi.type = %5, fi.ver = %6, fi.pref = %7")
                      .arg(fwIndex).arg(max).arg(current).arg(toString(res))
@@ -450,12 +453,12 @@ void FeatureSet::getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t curre
 
     if (res == MsgResult::Ok && fi.firmwareType() == FirmwareInfo::FirmwareType::MainApp)
     {
-      if (cb) cb(res, std::move(fi));
+      if (cb) { cb(res, std::move(fi)); }
       return;
     }
 
     if (max == current + 1) {
-      if (cb) cb(res, FirmwareInfo());
+      if (cb) { cb(res, FirmwareInfo()); }
       return;
     }
 
@@ -466,17 +469,17 @@ void FeatureSet::getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t curre
 // -------------------------------------------------------------------------------------------------
 void FeatureSet::initFromDevice(std::function<void(State)> cb)
 {
-  postSelf([this, cb=std::move(cb)]()
+  postSelf([this, cb=std::move(cb)]() mutable
   {
     if (m_connection == nullptr || m_state == State::Initialized || m_state == State::Initializing)
     {
-      if (cb) cb(m_state);
+      if (cb) { cb(m_state); }
       return;
     }
 
     setState(State::Initializing);
 
-    getMainFirmwareInfo(makeSafeCallback([this, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi)
+    getMainFirmwareInfo(makeSafeCallback([this, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi) mutable
     {
       logDebug(hid) << tr("getMainFirmwareInfo() => %1, fi.type = %2").arg(toString(res))
       .arg(to_integral(fi.firmwareType()));
@@ -489,7 +492,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
       Q_UNUSED(res);
 
       getFeatureCount(makeSafeCallback(
-      [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count)
+      [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count) mutable
       {
         logDebug(hid) << tr("getFeatureCount() => %1, featureIndex = %2, count = %3")
                          .arg(toString(res)).arg(featureIndex).arg(count);
@@ -497,7 +500,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
         if (res != MsgResult::Ok)
         {
           setState(State::Error);
-          if (cb) cb(m_state);
+          if (cb) { cb(m_state); }
           return;
         }
 
@@ -513,7 +516,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
             setState(State::Initialized);
           }
 
-          if (cb) cb(m_state);
+          if (cb) { cb(m_state); }
         })); // getFeatureIds (table)
       })); // getFeatureCount
     })); // getMainFwInfo
@@ -526,13 +529,13 @@ void FeatureSet::getFeatureIds(uint8_t featureSetIndex, uint8_t count,
 {
   if (m_connection == nullptr)
   {
-    if (cb) cb(MsgResult::WriteError, FeatureTable{}); // empty featuretable
+    if (cb) { cb(MsgResult::WriteError, FeatureTable{}); } // empty featuretable
     return;
   }
 
   if (count == 0)
   {
-    if (cb) cb(MsgResult::Ok, FeatureTable{}); // no count, empty featuretable
+    if (cb) { cb(MsgResult::Ok, FeatureTable{}); }// no count, empty featuretable
     return;
   }
 
@@ -541,20 +544,18 @@ void FeatureSet::getFeatureIds(uint8_t featureSetIndex, uint8_t count,
   HidppConnectionInterface::RequestBatch batch;
   for (uint8_t featureIndex = 1; featureIndex <= count; ++featureIndex)
   {
-    // featureIdReqMsg[Offset::Payload] = featureIndex;
     batch.emplace(HidppConnectionInterface::RequestBatchItem {
       Message(Message::Type::Long, DeviceIndex::WirelessDevice1, featureSetIndex, 1,
               Message::Data{featureIndex}),
       [featureTable, featureIndex](MsgResult res, Message&& msg)
       {
-        if (res != MsgResult::Ok) return;
+        if (res != MsgResult::Ok) { return; }
         const uint16_t featureCode = (static_cast<uint16_t>(msg[4]) << 8)
                                      | static_cast<uint8_t>(msg[5]);
         const uint8_t featureType = msg[6];
         const bool softwareHidden = (featureType & (1<<6));
         const bool obsoleteFeature = (featureType & (1<<7));
         if (!softwareHidden && !obsoleteFeature) {
-          // logDebug(hid) << tr("featureCode %1 -> index %2").arg(featureCode).arg(featureIndex);
           featureTable->emplace(featureCode, featureIndex);
         }
       }
@@ -563,7 +564,7 @@ void FeatureSet::getFeatureIds(uint8_t featureSetIndex, uint8_t count,
 
   m_connection->sendRequestBatch(std::move(batch),
   [featureTable, cb=std::move(cb)](std::vector<MsgResult>&& results) {
-    if (cb) cb(results.back(), std::move(*featureTable));
+    if (cb) { cb(results.back(), std::move(*featureTable)); }
   });
 }
 
@@ -592,7 +593,7 @@ FirmwareInfo::FirmwareInfo(Message&& msg)
 // -------------------------------------------------------------------------------------------------
 FirmwareInfo::FirmwareType FirmwareInfo::firmwareType() const
 {
-  if (!m_rawMsg.isLong()) return FirmwareType::Invalid;
+  if (!m_rawMsg.isLong()) { return FirmwareType::Invalid; }
 
   switch(m_rawMsg[Offset::Payload] & 0xf)
   {
