@@ -349,7 +349,7 @@ void FeatureSet::getFeatureIndex(FeatureCode fc, std::function<void(MsgResult, u
                                Message::Data{fcLSB, fcMSB});
 
     m_connection->sendRequest(std::move(featureIndexReqMsg),
-    [cb=std::move(cb), fc, fcLSB, fcMSB](MsgResult result, Message&& msg)
+    [cb=std::move(cb), fc](MsgResult result, Message&& msg)
     {
       logDebug(hid) << tr("getFeatureIndex(%1) => %2, %3")
                        .arg(to_integral(fc)).arg(toString(result)).arg(msg[4]);

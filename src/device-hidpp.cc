@@ -735,7 +735,7 @@ void SubHidppConnection::registerForFeatureNotifications()
   // Logitech button next and back press and hold + movement
   if (const auto rcIndex = m_featureSet.featureIndex(FeatureCode::ReprogramControlsV4))
   {
-    registerNotificationCallback(this, rcIndex, makeSafeCallback([this](Message&& msg)
+    registerNotificationCallback(this, rcIndex, makeSafeCallback([](Message&& msg)
     {
       // Logitech Spotlight:
       //   * Next Button = 0xda
@@ -796,7 +796,7 @@ void SubHidppConnection::registerForUsbNotifications()
         || m_presenterState == PresenterState::Error)
     {
       logInfo(hid) << tr("HID++ device '%1' came online.").arg(path());
-      checkAndUpdatePresenterState(makeSafeCallback([this](PresenterState /* ps */) {
+      checkAndUpdatePresenterState(makeSafeCallback([](PresenterState /* ps */) {
         //...
       }));
     }
@@ -816,7 +816,7 @@ void SubHidppConnection::subDeviceInit()
     Q_UNUSED(rs);
     // Independent of the receiver init result, try to initialize the
     // presenter device HID++ features and more
-    checkAndUpdatePresenterState(makeSafeCallback([this](PresenterState /* ps */) {
+    checkAndUpdatePresenterState(makeSafeCallback([](PresenterState /* ps */) {
       //...
     }));
   }));

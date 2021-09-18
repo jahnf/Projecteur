@@ -212,7 +212,6 @@ namespace HIDPP {
     bool isErrorResponseTo(const Message& other) const;
 
     auto data() { return m_data.data(); }
-    const auto data() const { return m_data.data(); }
     auto dataSize() { return m_data.size(); }
     auto& operator[](size_t i) { return m_data.operator[](i); }
     const auto& operator[](size_t i) const { return m_data.operator[](i); }
