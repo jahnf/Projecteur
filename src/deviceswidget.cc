@@ -129,7 +129,7 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
   const auto diWidget = new DeviceInfoWidget(this);
 
   connect(this, &DevicesWidget::currentDeviceChanged, this,
-  [this, diWidget, spotlight](const DeviceId& dId) {
+  [diWidget, spotlight](const DeviceId& dId) {
     diWidget->setDeviceConnection(spotlight->deviceConnection(dId).get());
   });
 
@@ -499,7 +499,7 @@ void DeviceInfoWidget::connectToBatteryUpdates(SubHidppConnection* hdc)
       delayedTextEditUpdate();
     });
 
-    connect(m_batteryInfoTimer, &QTimer::timeout, m_connectionContext, [this, hdc]() {
+    connect(m_batteryInfoTimer, &QTimer::timeout, m_connectionContext, [hdc]() {
       hdc->triggerBattyerInfoUpdate();
     });
   }
