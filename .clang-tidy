@@ -1,0 +1,27 @@
+---
+Checks: >
+ *,-fuchsia*,-android-*,
+ -modernize-pass-by-value,-modernize-use-trailing-return-type,
+ -llvmlibc-restrict-system-libc-headers,-llvmlibc-*,
+ -altera-unroll-loops,-altera-struct-pack-align,
+ -cppcoreguidelines-owning-memory,
+ -cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,
+ -llvm-qualified-auto,-readability-qualified-auto,
+ -cppcoreguidelines-avoid-magic-numbers,
+ -google-build-using-namespace,
+ -cppcoreguidelines-pro-type-vararg,-hicpp-vararg,
+ -cppcoreguidelines-pro-type-static-cast-downcast,
+ -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+ -readability-implicit-bool-conversion,
+ -hicpp-signed-bitwise,
+ -cppcoreguidelines-avoid-c-arrays,-hicpp-avoid-c-arrays,-modernize-avoid-c-arrays,
+ -google-default-arguments
+
+WarningsAsErrors: false
+CheckOptions:
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true
+  - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
+    value: true
+  - key: readability-magic-numbers.IgnoredIntegerValues
+    value: '1;2;3;4;5;6;10;24;60;100;1000;'

@@ -12,4 +12,4 @@ namespace @TARGET@ {
   bool version_isdirty();
   const char* version_branch();
   const char* version_buildtype();
-}
+} // end namespace @TARGET@

@@ -131,6 +131,9 @@ namespace HIDPP {
   class Message final
   {
   public:
+    static constexpr int SHORT_MSG_SIZE = 7;
+    static constexpr int LONG_MSG_SIZE = 20;
+
     using Data = std::vector<uint8_t>;
 
     /// HID++ message type.
@@ -212,7 +215,6 @@ namespace HIDPP {
     bool isErrorResponseTo(const Message& other) const;
 
     auto data() { return m_data.data(); }
-    const auto data() const { return m_data.data(); }
     auto dataSize() { return m_data.size(); }
     auto& operator[](size_t i) { return m_data.operator[](i); }
     const auto& operator[](size_t i) const { return m_data.operator[](i); }

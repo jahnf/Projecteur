@@ -20,7 +20,7 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeR
 project(Projecteur LANGUAGES CXX)
 
 add_compile_options(-Wall -Wextra -Werror)
-#set(CMAKE_CXX_CLANG_TIDY "clang-tidy-9;-checks=*,-fuchsia*,-modernize-pass-by-value")
+#set(CMAKE_CXX_CLANG_TIDY clang-tidy-12)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
