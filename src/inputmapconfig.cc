@@ -13,7 +13,7 @@
 // -------------------------------------------------------------------------------------------------
 namespace  {
   const InputMapModelItem invalidItem_;
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 InputMapConfigModel::InputMapConfigModel(QObject* parent)
@@ -41,10 +41,9 @@ int InputMapConfigModel::columnCount(const QModelIndex& /*parent*/) const
 // -------------------------------------------------------------------------------------------------
 Qt::ItemFlags InputMapConfigModel::flags(const QModelIndex &index) const
 {
-  if (index.column() == InputSeqCol)
+  if (index.column() == InputSeqCol || index.column() == ActionCol) {
     return (QAbstractTableModel::flags(index) | Qt::ItemIsEditable);
-  else if (index.column() == ActionCol)
-    return (QAbstractTableModel::flags(index) | Qt::ItemIsEditable);
+  }
 
   return QAbstractTableModel::flags(index) & ~Qt::ItemIsEditable;
 }
@@ -68,6 +67,7 @@ QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientatio
     case InputSeqCol: return tr("Input Sequence");
     case ActionTypeCol: return "Type";
     case ActionCol: return tr("Mapped Action");
+    default: return "Invalid";
     }
   }
   else if (orientation == Qt::Vertical)
@@ -85,8 +85,9 @@ QVariant InputMapConfigModel::headerData(int section, Qt::Orientation orientatio
 // -------------------------------------------------------------------------------------------------
 const InputMapModelItem& InputMapConfigModel::configData(const QModelIndex& index) const
 {
-  if (index.row() >= static_cast<int>(m_configItems.size()))
+  if (index.row() >= static_cast<int>(m_configItems.size())) {
     return invalidItem_;
+  }
 
   return m_configItems[index.row()];
 }
@@ -94,7 +95,7 @@ const InputMapModelItem& InputMapConfigModel::configData(const QModelIndex& inde
 // -------------------------------------------------------------------------------------------------
 void InputMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
 {
-  if (fromRow > toRow) return;
+  if (fromRow > toRow) { return; }
 
   beginRemoveRows(QModelIndex(), fromRow, toRow);
   for (int i = toRow; i >= fromRow && i < m_configItems.size(); --i) {
@@ -107,7 +108,7 @@ void InputMapConfigModel::removeConfigItemRows(int fromRow, int toRow)
 // -------------------------------------------------------------------------------------------------
 int InputMapConfigModel::addNewItem(std::shared_ptr<Action> action)
 {
-  if (!action) return -1;
+  if (!action) { return -1; }
 
   const auto row = m_configItems.size();
   beginInsertRows(QModelIndex(), row, row);
@@ -128,7 +129,7 @@ void InputMapConfigModel::configureInputMapper()
 // -------------------------------------------------------------------------------------------------
 void InputMapConfigModel::removeConfigItemRows(std::vector<int> rows)
 {
-  if (rows.empty()) return;
+  if (rows.empty()) { return; }
   std::sort(rows.rbegin(), rows.rend());
 
   int seq_last = rows.front();
@@ -212,9 +213,9 @@ void InputMapConfigModel::setKeySequence(const QModelIndex& index, const NativeK
 // -------------------------------------------------------------------------------------------------
 void InputMapConfigModel::setItemActionType(const QModelIndex& idx, Action::Type type)
 {
-  if (idx.row() >= m_configItems.size()) return;
+  if (idx.row() >= m_configItems.size()) { return; }
   auto& item = m_configItems[idx.row()];
-  if (item.action->type() == type) return;
+  if (item.action->type() == type) { return; }
 
   switch(type)
   {
@@ -265,7 +266,7 @@ InputMapConfig InputMapConfigModel::configuration() const
 
   for (const auto& item : m_configItems)
   {
-    if (item.deviceSequence.size() == 0) continue;
+    if (item.deviceSequence.empty()) { continue; }
     config.emplace(item.deviceSequence, MappedAction{item.action});
   }
 
@@ -330,7 +331,7 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
   [this, imSeqDelegate, actionDelegate](const QPoint& pos)
   {
     const auto idx = indexAt(pos);
-    if (!idx.isValid()) return;
+    if (!idx.isValid()) { return; }
 
     switch(idx.column())
     {
@@ -350,7 +351,7 @@ InputMapConfigView::InputMapConfigView(QWidget* parent)
 
   connect(this, &QTableView::doubleClicked, this, [this](const QModelIndex& idx)
   {
-    if (!idx.isValid()) return;
+    if (!idx.isValid()) { return; }
     if (idx.column() == InputMapConfigModel::ActionTypeCol) {
       const auto pos = viewport()->mapToGlobal(visualRect(currentIndex()).bottomLeft());
       m_actionTypeDelegate->actionContextMenu(this, qobject_cast<InputMapConfigModel*>(model()),
@@ -389,15 +390,16 @@ void InputMapConfigView::keyPressEvent(QKeyEvent* e)
     }
     break;
   case Qt::Key_Delete:
-    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model()))
-    switch (currentIndex().column())
-    {
-    case InputMapConfigModel::InputSeqCol:
-      imModel->setInputSequence(currentIndex(), KeyEventSequence{});
-      return;
-    case InputMapConfigModel::ActionCol:
-      imModel->setKeySequence(currentIndex(), NativeKeySequence());
-      return;
+    if (const auto imModel = qobject_cast<InputMapConfigModel*>(model())) {
+      switch (currentIndex().column())
+      {
+      case InputMapConfigModel::InputSeqCol:
+        imModel->setInputSequence(currentIndex(), KeyEventSequence{});
+        return;
+      case InputMapConfigModel::ActionCol:
+        imModel->setKeySequence(currentIndex(), NativeKeySequence());
+        return;
+      }
     }
     break;
   case Qt::Key_Tab:

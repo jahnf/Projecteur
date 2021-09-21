@@ -70,7 +70,7 @@ namespace logging {
 
   void registerTextEdit(QPlainTextEdit* textEdit);
 
-  QString hexId(unsigned short id);
+  QString hexId(uint16_t id);
 }
 
 

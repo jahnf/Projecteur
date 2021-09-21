@@ -31,7 +31,7 @@ class DevicesWidget : public QWidget
 
 public:
   explicit DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent = nullptr);
-  const DeviceId currentDeviceId() const;
+  DeviceId currentDeviceId() const;
 
 signals:
   void currentDeviceChanged(const DeviceId&);

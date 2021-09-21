@@ -15,11 +15,11 @@ LOGGING_CATEGORY(virtualdevice, "virtualdevice")
 
 namespace  {
   class VirtualDevice_ : public QObject {}; // for i18n and logging
-}
+} // end anonymous namespace
 
 struct VirtualDevice::Token {};
 
-VirtualDevice::VirtualDevice(Token, int fd)
+VirtualDevice::VirtualDevice(Token /* token */, int fd)
   : m_uinpFd(fd)
 {}
 
@@ -97,7 +97,7 @@ std::shared_ptr<VirtualDevice> VirtualDevice::create(const char* name,
 
 void VirtualDevice::emitEvents(const struct input_event input_events[], size_t num)
 {
-  if (!num) return;
+  if (!num) { return; }
 
   if (const ssize_t sz = sizeof(input_event) * num) {
     const auto bytesWritten = write(m_uinpFd, input_events, sz);

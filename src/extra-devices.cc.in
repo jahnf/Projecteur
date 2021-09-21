@@ -13,7 +13,7 @@ namespace {
   // List of supported extra-devices
   const std::vector<SupportedDevice> supportedExtraDevices { // @SUPPORTED_EXTRA_DEVICES@
   };
-}
+} // end anonymous namespace
 
 // Function declaration to check for extra devices, definition in generated source
 bool isExtraDeviceSupported(quint16 vendorId, quint16 productId)

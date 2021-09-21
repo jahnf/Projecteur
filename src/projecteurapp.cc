@@ -35,7 +35,7 @@ namespace {
   QString localServerName() {
     return QCoreApplication::applicationName() + "_local_socket";
   }
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Options& options)
@@ -46,7 +46,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   , m_linuxDesktop(new LinuxDesktop(this))
   , m_xcbOnWayland(QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland())
 {
-  if (screens().size() < 1)
+  if (screens().empty())
   {
     const auto title = tr("No Screens detected");
     const auto text = tr("screens().size() returned a size < 1. Exiting.");
@@ -65,10 +65,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
                               m_settings);
 
   m_settings->setOverlayDisabled(options.disableOverlay);
-  m_dialog.reset(new PreferencesDialog(m_settings, m_spotlight,
-                                       options.dialogMinimizeOnly
-                                       ? PreferencesDialog::Mode::MinimizeOnlyDialog
-                                       : PreferencesDialog::Mode::ClosableDialog));
+  m_dialog = std::make_unique<PreferencesDialog>(m_settings, m_spotlight,
+                                                  options.dialogMinimizeOnly
+                                                  ? PreferencesDialog::Mode::MinimizeOnlyDialog
+                                                  : PreferencesDialog::Mode::ClosableDialog);
 
   connect(&*m_dialog, &PreferencesDialog::testButtonClicked, this, [this](){
     m_spotlight->setSpotActive(true);
@@ -117,15 +117,16 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   connect(m_settings, &Settings::multiScreenOverlayEnabledChanged, this, [this](){ setupScreenOverlays(); });
   connect(m_settings, &Settings::overlayDisabledChanged, this, [this](bool disabled){
     if (disabled) {
-      if (m_spotlight->spotActive()) m_spotlight->setSpotActive(false);
-      else emit m_spotlight->spotActiveChanged(false);
+      if (m_spotlight->spotActive()) { m_spotlight->setSpotActive(false); }
+      else { emit m_spotlight->spotActiveChanged(false); }
     }
     else {
       QTimer::singleShot(0, this, [this](){
-        if (m_spotlight->spotActive())
+        if (m_spotlight->spotActive()) {
           emit m_spotlight->spotActiveChanged(true);
-        else
+        } else {
           m_spotlight->setSpotActive(true);
+        }
       });
     }
   });
@@ -134,6 +135,136 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   connect(this, &ProjecteurApplication::screenAdded, this, [this](){ setupScreenOverlays(); });
   connect(this, &ProjecteurApplication::screenRemoved, this, [this](){ setupScreenOverlays(); });
 
+  // Setup the tray icon and menu
+  setupTrayIcon();
+
+  connect(this, &ProjecteurApplication::aboutToQuit, this, [this](){
+    for (const auto window : m_overlayWindows) { window->close(); }
+    m_overlayWindows.clear();
+  });
+
+  // Setup the spotlight connections.
+  setupSpotlight();
+
+  // Open local server for local IPC commands, e.g. from other command line instances
+  QLocalServer::removeServer(localServerName());
+  if (m_localServer->listen(localServerName()))
+  {
+    connect(m_localServer, &QLocalServer::newConnection, this, [this]()
+    {
+      while(QLocalSocket *clientConnection = m_localServer->nextPendingConnection())
+      {
+        connect(clientConnection, &QLocalSocket::readyRead, this, [this, clientConnection]() {
+          this->readCommand(clientConnection);
+        });
+        connect(clientConnection, &QLocalSocket::disconnected, this, [this, clientConnection]() {
+          const auto it = m_commandConnections.find(clientConnection);
+          if (it != m_commandConnections.end())
+          {
+            quint32& commandSize = it->second;
+            while (clientConnection->bytesAvailable() && commandSize <= clientConnection->bytesAvailable()) {
+              this->readCommand(clientConnection);
+            }
+            m_commandConnections.erase(it);
+          }
+          clientConnection->close();
+          clientConnection->deleteLater();
+        });
+
+        // Timeout timer - if after 5 seconds the connection is still open just disconnect...
+        const auto clientConnPtr = QPointer<QLocalSocket>(clientConnection);
+        QTimer::singleShot(5000, clientConnection, [clientConnPtr](){
+          if (clientConnPtr) {
+            // time out
+            clientConnPtr->disconnectFromServer();
+          }
+        });
+
+        m_commandConnections.emplace(clientConnection, 0);
+      }
+    });
+  }
+  else
+  {
+    logError(cmdserver) << tr("Error starting local socket for inter-process communication.");
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+ProjecteurApplication::~ProjecteurApplication()
+{
+  if (m_localServer) { m_localServer->close(); }
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::setupSpotlight()
+{
+  // Handling of spotlight window when mouse move events from spotlight device are detected
+  connect(m_spotlight, &Spotlight::spotActiveChanged, this,
+  [this](bool active)
+  {
+    if (active && !m_settings->overlayDisabled())
+    {
+      if (!m_settings->multiScreenOverlayEnabled()) { setScreenForCursorPos(); }
+
+      for (const auto window : m_overlayWindows)
+      {
+        window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
+        window->setFlags(window->flags() & ~Qt::SplashScreen);
+        window->setFlags(window->flags() | Qt::ToolTip);
+        window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
+
+        if (window->screen())
+        {
+          if (m_settings->zoomEnabled()) {
+            window->setProperty("desktopPixmap", m_linuxDesktop->grabScreen(window->screen()));
+          }
+
+          const auto screenGeometry = window->screen()->geometry();
+          if (window->geometry() != screenGeometry) {
+            window->setGeometry(screenGeometry);
+          }
+          window->setPosition(screenGeometry.topLeft());
+        }
+        window->showFullScreen();
+        window->raise();
+      }
+      m_overlayVisible = true;
+      emit overlayVisibleChanged(true);
+    }
+    else
+    {
+      m_overlayVisible = false;
+      emit overlayVisibleChanged(false);
+      for (const auto window : m_overlayWindows)
+      {
+        window->setFlags(window->flags() | Qt::WindowTransparentForInput);
+        window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
+        // Workaround for 'xcb' on Wayland session (default on Ubuntu)
+        // .. the window in that case is not transparent for inputs and cannot be clicked through.
+        // --> hide the window, although animations will not be visible
+        if (m_xcbOnWayland) { window->hide(); }
+      }
+      if (m_xcbOnWayland && m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
+                         && m_dialog->isMinimized()) { // keep Window minimized...
+        //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
+        m_dialog->showNormal();
+        m_dialog->setWindowState(Qt::WindowMinimized);
+      }
+    }
+  });
+
+  connect(m_spotlight, &Spotlight::spotActiveChanged, this, [this](bool active){
+    if (!active && m_dialog->isVisible()) {
+      m_dialog->raise();
+      m_dialog->activateWindow();
+    }
+  });
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::setupTrayIcon()
+{
   // add and connect 'Preferences' tray menu action
   const auto actionPref = m_trayMenu->addAction(tr("&Preferences..."));
   connect(actionPref, &QAction::triggered, this, [this](){
@@ -146,7 +277,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   {
     if (!m_aboutDialog) {
       m_aboutDialog = new AboutDialog();
-      connect(m_aboutDialog, &QDialog::finished, this, [this](int){
+      connect(m_aboutDialog, &QDialog::finished, this, [this](int /* result */) {
         m_aboutDialog->deleteLater(); // No need to keep about dialog in memory, not that important
       });
     }
@@ -198,122 +329,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     logDebug(mainapp) << tr("Exit request from preferences dialog.");
     actionQuit->trigger();
   });
-
-  connect(this, &ProjecteurApplication::aboutToQuit, this, [this](){
-    for (const auto window : m_overlayWindows) { window->close(); }
-    m_overlayWindows.clear();
-  });
-
-  // Handling of spotlight window when mouse move events from spotlight device are detected
-  connect(m_spotlight, &Spotlight::spotActiveChanged, this,
-  [this](bool active)
-  {
-    if (active && !m_settings->overlayDisabled())
-    {
-      if (!m_settings->multiScreenOverlayEnabled()) setScreenForCursorPos();
-
-      for (const auto window : m_overlayWindows)
-      {
-        window->setFlags(window->flags() | Qt::WindowStaysOnTopHint);
-        window->setFlags(window->flags() & ~Qt::SplashScreen);
-        window->setFlags(window->flags() | Qt::ToolTip);
-        window->setFlags(window->flags() & ~Qt::WindowTransparentForInput);
-
-        if (window->screen())
-        {
-          if (m_settings->zoomEnabled()) {
-            window->setProperty("desktopPixmap", m_linuxDesktop->grabScreen(window->screen()));
-          }
-
-          const auto screenGeometry = window->screen()->geometry();
-          if (window->geometry() != screenGeometry) {
-            window->setGeometry(screenGeometry);
-          }
-          window->setPosition(screenGeometry.topLeft());
-        }
-        window->showFullScreen();
-        window->raise();
-      }
-      m_overlayVisible = true;
-      emit overlayVisibleChanged(true);
-    }
-    else
-    {
-      m_overlayVisible = false;
-      emit overlayVisibleChanged(false);
-      for (const auto window : m_overlayWindows)
-      {
-        window->setFlags(window->flags() | Qt::WindowTransparentForInput);
-        window->setFlags(window->flags() & ~Qt::WindowStaysOnTopHint);
-        // Workaround for 'xcb' on Wayland session (default on Ubuntu)
-        // .. the window in that case is not transparent for inputs and cannot be clicked through.
-        // --> hide the window, although animations will not be visible
-        if (m_xcbOnWayland) window->hide();
-      }
-      if (m_xcbOnWayland && m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog
-                         && m_dialog->isMinimized()) { // keep Window minimized...
-        //Workaround for QTBUG-76354 (https://bugreports.qt.io/browse/QTBUG-76354)
-        m_dialog->showNormal();
-        m_dialog->setWindowState(Qt::WindowMinimized);
-      }
-    }
-  });
-
-  connect(m_spotlight, &Spotlight::spotActiveChanged, this, [this](bool active){
-    if (!active && m_dialog->isVisible()) {
-      m_dialog->raise();
-      m_dialog->activateWindow();
-    }
-  });
-
-  // Open local server for local IPC commands, e.g. from other command line instances
-  QLocalServer::removeServer(localServerName());
-  if (m_localServer->listen(localServerName()))
-  {
-    connect(m_localServer, &QLocalServer::newConnection, this, [this]()
-    {
-      while(QLocalSocket *clientConnection = m_localServer->nextPendingConnection())
-      {
-        connect(clientConnection, &QLocalSocket::readyRead, this, [this, clientConnection]() {
-          this->readCommand(clientConnection);
-        });
-        connect(clientConnection, &QLocalSocket::disconnected, this, [this, clientConnection]() {
-          const auto it = m_commandConnections.find(clientConnection);
-          if (it != m_commandConnections.end())
-          {
-            quint32& commandSize = it->second;
-            while (clientConnection->bytesAvailable() && commandSize <= clientConnection->bytesAvailable()) {
-              this->readCommand(clientConnection);
-            }
-            m_commandConnections.erase(it);
-          }
-          clientConnection->close();
-          clientConnection->deleteLater();
-        });
-
-        // Timeout timer - if after 5 seconds the connection is still open just disconnect...
-        const auto clientConnPtr = QPointer<QLocalSocket>(clientConnection);
-        QTimer::singleShot(5000, clientConnection, [clientConnPtr](){
-          if (clientConnPtr) {
-            // time out
-            clientConnPtr->disconnectFromServer();
-          }
-        });
-
-        m_commandConnections.emplace(clientConnection, 0);
-      }
-    });
-  }
-  else
-  {
-    logError(cmdserver) << tr("Error starting local socket for inter-process communication.");
-  }
-}
-
-// -------------------------------------------------------------------------------------------------
-ProjecteurApplication::~ProjecteurApplication()
-{
-  if (m_localServer) m_localServer->close();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -353,8 +368,9 @@ void ProjecteurApplication::cursorPositionChanged(const QPoint& pos)
 // -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::updateOverlayWindow(QWindow* window, QScreen* screen)
 {
-  if (screen == nullptr)
+  if (screen == nullptr) {
     return;
+  }
 
   if (window->screen() == screen && screen->geometry() == window->geometry()) {
     return;
@@ -388,10 +404,11 @@ void ProjecteurApplication::updateOverlayWindow(QWindow* window, QScreen* screen
 
   if (wasVisible && wasSpotActive) {
     QTimer::singleShot(0, this, [this](){
-      if (m_spotlight->spotActive())
+      if (m_spotlight->spotActive()) {
         emit m_spotlight->spotActiveChanged(true);
-      else
+      } else {
         m_spotlight->setSpotActive(true);
+      }
     });
   }
 }
@@ -423,7 +440,7 @@ void ProjecteurApplication::setupScreenOverlays()
   m_screenWindowMap.clear();
 
   const auto currentScreens = screens();
-  if (currentScreens.size() == 0)
+  if (currentScreens.empty())
   {
     for (const auto window : m_overlayWindows) { window->deleteLater(); }
     m_overlayWindows.clear();
@@ -439,7 +456,7 @@ void ProjecteurApplication::setupScreenOverlays()
       if (m_settings->multiScreenOverlayEnabled())
       {
         const auto it = m_screenWindowMap.find(screen);
-        if (it == m_screenWindowMap.cend()) return;
+        if (it == m_screenWindowMap.cend()) { return; }
         updateOverlayWindow(it->second, it->first);
       }
       else {
@@ -483,10 +500,11 @@ void ProjecteurApplication::setupScreenOverlays()
   // make sure it will be activated again.
   if (wasSpotActive) {
     QTimer::singleShot(0, this, [this](){
-      if (m_spotlight->spotActive())
+      if (m_spotlight->spotActive()) {
         emit m_spotlight->spotActiveChanged(true);
-      else
+      } else {
         m_spotlight->setSpotActive(true);
+      }
     });
   }
 }
@@ -500,7 +518,7 @@ quint64 ProjecteurApplication::currentSpotScreen() const
 // -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::setCurrentSpotScreen(quint64 screen)
 {
-  if (m_currentSpotScreen == screen) return;
+  if (m_currentSpotScreen == screen) { return; }
   m_currentSpotScreen = screen;
   emit currentSpotScreenChanged(m_currentSpotScreen);
 }
@@ -514,7 +532,7 @@ QPoint ProjecteurApplication::currentCursorPos() const
 // -------------------------------------------------------------------------------------------------
 void ProjecteurApplication::setCurrentCursorPos(const QPoint& pos)
 {
-  if (pos == m_currentCursorPos) return;
+  if (pos == m_currentCursorPos) { return; }
   m_currentCursorPos = pos;
   emit currentCursorPosChanged(m_currentCursorPos);
 }
@@ -531,8 +549,9 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
 
   // Read size of command (always quint32) if not already done.
   if (commandSize == 0) {
-    if (clientConnection->bytesAvailable() < static_cast<int>(sizeof(quint32)))
+    if (clientConnection->bytesAvailable() < static_cast<int>(sizeof(quint32))) {
       return;
+    }
 
     QDataStream in(clientConnection);
     in >> commandSize;
@@ -578,7 +597,7 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
   else if (cmdKey == "preset")
   {
     logDebug(cmdserver) << tr("Received command preset = %1").arg(cmdValue);
-    if (!cmdValue.isEmpty()) m_settings->loadPreset(cmdValue);
+    if (!cmdValue.isEmpty()) { m_settings->loadPreset(cmdValue); }
   }
   else if (cmdValue.size())
   {
@@ -608,13 +627,14 @@ void ProjecteurApplication::showPreferences(bool show)
     m_dialog->show();
     m_dialog->raise();
     static const bool qtPlatformIsWayland = QGuiApplication::platformName().toLower().startsWith("wayland");
-    if (!qtPlatformIsWayland) m_dialog->activateWindow();
+    if (!qtPlatformIsWayland) { m_dialog->activateWindow(); }
   }
   else {
-    if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog)
+    if (m_dialog->mode() == PreferencesDialog::Mode::MinimizeOnlyDialog) {
       m_dialog->showMinimized();
-    else
+    } else {
       m_dialog->hide();
+    }
   }
 }
 
@@ -647,7 +667,7 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCom
   {
     for (const auto& ipcCommand : ipcCommands)
     {
-      if (ipcCommand.isEmpty()) continue;
+      if (ipcCommand.isEmpty()) { continue; }
 
       const QByteArray commandBlock = [&ipcCommand]()
       {

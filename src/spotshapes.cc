@@ -3,8 +3,8 @@
 
 #include "spotshapes.h"
 
-#include <QSGGeometryNode>
 #include <QSGFlatColorMaterial>
+#include <QSGGeometryNode>
 
 #include <cmath>
 
@@ -14,7 +14,7 @@ namespace {
     SpotShapeNGon::qmlRegister();
     return true;
   }();
-}
+} // end anonymous namespace
 
 SpotShapeStar::SpotShapeStar(QQuickItem* parent) : QQuickItem (parent)
 {
@@ -56,7 +56,7 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
     geometryNode->setGeometry(geometry);
     geometryNode->setFlag(QSGNode::OwnsGeometry, true);
 
-    QSGFlatColorMaterial* const material = new QSGFlatColorMaterial();
+    auto* const material = new QSGFlatColorMaterial();
     material->setColor(m_color);
     geometryNode->setMaterial(material);
     geometryNode->setFlag(QSGNode::OwnsMaterial);
@@ -73,9 +73,9 @@ QSGNode* SpotShapeStar::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
 
   QSGGeometry::Point2D* const vertices = geometryNode->geometry()->vertexDataAsPoint2D();
   const int numSegments = m_points * 2;
-  const float cx = static_cast<float>(width()/2); // center X
-  const float cy = static_cast<float>(height()/2); // center Y
-  const float deltaRad = static_cast<float>((360.0 / m_points) * (M_PI/180.0));
+  const auto cx = static_cast<float>(width()/2); // center X
+  const auto cy = static_cast<float>(height()/2); // center Y
+  const auto deltaRad = static_cast<float>((360.0 / m_points) * (M_PI/180.0));
   float theta = -static_cast<float>(90.0 * M_PI/180.0);
 
   vertices[0].set(cx, cy);
@@ -241,9 +241,9 @@ QSGNode* SpotShapeNGon::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* u
   }
 
   QSGGeometry::Point2D* const vertices = geometryNode->geometry()->vertexDataAsPoint2D();
-  const float cx = static_cast<float>(width()/2); // center X
-  const float cy = static_cast<float>(height()/2); // center Y
-  const float deltaRad = static_cast<float>((360.0 / m_sides) * (M_PI/180.0));
+  const auto cx = static_cast<float>(width()/2); // center X
+  const auto cy = static_cast<float>(height()/2); // center Y
+  const auto deltaRad = static_cast<float>((360.0 / m_sides) * (M_PI/180.0));
   float theta = -static_cast<float>(90.0 * M_PI/180.0);
 
   vertices[0].set(cx, cy);

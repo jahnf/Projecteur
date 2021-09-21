@@ -69,6 +69,9 @@ private:
   QPoint currentCursorPos() const;
   void setCurrentCursorPos(const QPoint& pos);
 
+  void setupTrayIcon();
+  void setupSpotlight();
+
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
   std::unique_ptr<QMenu> m_trayMenu;

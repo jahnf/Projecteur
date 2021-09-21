@@ -11,9 +11,9 @@
 #include "logging.h"
 #include "settings.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
-#include <QCheckBox>
 #include <QDateTime>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
@@ -53,7 +53,7 @@ namespace {
     { CURSOR_PATH "cursor-uparrow.png", {"Up Arrow Cursor", Qt::UpArrowCursor}},
     { CURSOR_PATH "cursor-whatsthis.png", {"What't This Cursor", Qt::WhatsThisCursor}},
   };
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 PreferencesDialog::PreferencesDialog(Settings* settings, Spotlight* spotlight,
@@ -190,8 +190,9 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
     deleteBtn->setEnabled(index > 0);
     m_presetCombo->setStyle(index == 0 ? &*m_presetComboStyle : normalComboStyle);
 
-    if (index > 0 && !m_presetCombo->currentText().isEmpty())
+    if (index > 0 && !m_presetCombo->currentText().isEmpty()) {
       settings->loadPreset(m_presetCombo->currentText());
+    }
   });
 
   connect(newBtn, &QPushButton::clicked, this, [newBtn, settings, this]()
@@ -232,7 +233,7 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 
   connect(deleteBtn, &QPushButton::clicked, this, [this, settings]()
   {
-    if (m_presetCombo->currentIndex() < 0) return;
+    if (m_presetCombo->currentIndex() < 0) { return; }
     settings->removePreset(m_presetCombo->currentText());
   });
 
@@ -367,7 +368,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
   // Function for updating all spotlight shape related widgets
   auto updateShapeSettingsWidgets = [settings, shapeCombo, shapeRotationSb, shapeRotationLabel, spotGrid, this]()
   {
-    if (shapeCombo->currentIndex() == -1) return;
+    if (shapeCombo->currentIndex() == -1) { return; }
     const QString shapeQml = shapeCombo->itemData(shapeCombo->currentIndex()).toString();
     const auto& shapes = settings->spotShapes();
     auto it = std::find_if(shapes.cbegin(), shapes.cend(), [&shapeQml](const Settings::SpotShape& s) {
@@ -400,7 +401,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
       int row = startRow;
       for (const auto& s : it->shapeSettings())
       {
-        if (row >= startRow + maxRows) break;
+        if (row >= startRow + maxRows) { break; }
         spotGrid->addWidget(new QLabel(s.displayName(), this),row, 0);
         if (s.defaultValue().type() == QVariant::Int)
         {
@@ -421,7 +422,7 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
             connect(pm, &QQmlPropertyMap::valueChanged, spinbox,
             [s, spinbox, this](const QString& key, const QVariant& value)
             {
-              if (key != s.settingsKey() || !value.isValid()) return;
+              if (key != s.settingsKey() || !value.isValid()) { return; }
               spinbox->setValue(value.toInt());
               resetPresetCombo();
             });
@@ -725,7 +726,7 @@ QWidget* PreferencesDialog::createLogTabWidget()
     QString logFilter(tr("Log files (*.log *.txt)"));
     const auto logFile = QFileDialog::getSaveFileName(this, tr("Save log file"),
                                                       defaultFile, logFilter, &logFilter);
-    if (logFile.isEmpty())  return;
+    if (logFile.isEmpty())  { return; }
     saveDir = QFileInfo(logFile).path();
 
     QFile f(logFile);
@@ -763,8 +764,9 @@ QWidget* PreferencesDialog::createLogTabWidget()
 // -------------------------------------------------------------------------------------------------
 void PreferencesDialog::setMode(Mode dialogMode)
 {
-  if (m_dialogMode == dialogMode)
+  if (m_dialogMode == dialogMode) {
     return;
+  }
 
   setDialogMode(dialogMode);
 }
@@ -794,14 +796,15 @@ void PreferencesDialog::setDialogMode(Mode dialogMode)
 // -------------------------------------------------------------------------------------------------
 void PreferencesDialog::resetPresetCombo()
 {
-  if (m_presetCombo) m_presetCombo->setCurrentIndex(0);
+  if (m_presetCombo) { m_presetCombo->setCurrentIndex(0); }
 }
 
 // -------------------------------------------------------------------------------------------------
 void PreferencesDialog::setDialogActive(bool active)
 {
-  if (active == m_active)
+  if (active == m_active) {
     return;
+  }
 
   m_active = active;
   emit dialogActiveChanged(active);
@@ -820,7 +823,7 @@ bool PreferencesDialog::event(QEvent* e)
 }
 
 // -------------------------------------------------------------------------------------------------
-void PreferencesDialog::closeEvent(QCloseEvent*)
+void PreferencesDialog::closeEvent(QCloseEvent* /* ev */)
 {
   if (m_dialogMode == Mode::MinimizeOnlyDialog) {
     emit exitApplicationRequested();
