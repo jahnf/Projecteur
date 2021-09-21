@@ -190,7 +190,7 @@ namespace {
   struct ProjecteurCmdLineParser
   {
     QCommandLineParser parser;
-    // parser.setApplicationDescription(Main::tr("Linux/X11 application for the Logitech Spotlight device."));
+
     const QCommandLineOption versionOption_ = {QStringList{ "v", "version"}, Main::tr("Print application version.")};
     const QCommandLineOption fullVersionOption_ = QCommandLineOption{QStringList{ "f", "fullversion" }};
     const QCommandLineOption helpOption_ = {QStringList{ "h", "help"}, Main::tr("Show command line usage.")};
@@ -211,6 +211,7 @@ namespace {
     // ---------------------------------------------------------------------------------------------
     ProjecteurCmdLineParser()
     {
+      parser.setApplicationDescription(Main::tr("Linux/X11 application for the Logitech Spotlight device."));
       parser.addOptions({versionOption_, helpOption_, fullHelpOption_, commandOption_,
                         cfgFileOption_, fullVersionOption_, deviceInfoOption_, logLvlOption_,
                         disableUInputOption_, showDlgOnStartOption_, dialogMinOnlyOption_,
