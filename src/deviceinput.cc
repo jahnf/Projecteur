@@ -20,8 +20,8 @@ LOGGING_CATEGORY(input, "input")
 
 namespace  {
   // -----------------------------------------------------------------------------------------------
-  static auto registered_ = qRegisterMetaTypeStreamOperators<KeyEventSequence>()
-                            && qRegisterMetaTypeStreamOperators<MappedAction>();
+  const auto registered_ = qRegisterMetaTypeStreamOperators<KeyEventSequence>()
+                           && qRegisterMetaTypeStreamOperators<MappedAction>();
 
   // -----------------------------------------------------------------------------------------------
   void addKeyToString(QString& str, const QString& key)
@@ -54,7 +54,7 @@ namespace  {
 
     return KeyEventSequence{std::move(pressed)};
   };
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 DeviceInputEvent::DeviceInputEvent(const struct input_event& ie)
@@ -90,10 +90,10 @@ QDataStream& operator>>(QDataStream& s, DeviceInputEvent& die) {
 }
 
 // -------------------------------------------------------------------------------------------------
-QDebug operator<<(QDebug debug, const DeviceInputEvent &d)
+QDebug operator<<(QDebug debug, const DeviceInputEvent &ie)
 {
   QDebugStateSaver saver(debug);
-  debug.nospace() << '{' << d.type << ", " << d.code << ", " << d.value << '}';
+  debug.nospace() << '{' << ie.type << ", " << ie.code << ", " << ie.value << '}';
   return debug;
 }
 
@@ -102,8 +102,9 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke)
 {
   QDebugStateSaver saver(debug);
   debug.nospace() << "[";
-  for (const auto& e : ke)
+  for (const auto& e : ke) {
     debug.nospace() << e << ',';
+  }
   debug.nospace() << "]";
   return debug;
 }
@@ -130,10 +131,15 @@ std::shared_ptr<VolumeControlAction> GlobalActions::volumeControl()
 }
 
 // -------------------------------------------------------------------------------------------------
-QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
-  std::underlying_type_t<Action::Type> type;
-  s >> type;
-  switch (static_cast<Action::Type>(type))
+QDataStream& operator>>(QDataStream& s, MappedAction& mia)
+{
+  const auto type = [&s](){
+    auto type = to_integral(Action::Type::KeySequence);
+    s >> type;
+    return type;
+  }();
+
+  switch (to_enum<Action::Type>(type))
   {
   case Action::Type::KeySequence:
     mia.action = std::make_shared<KeySequenceAction>();
@@ -160,9 +166,9 @@ QDataStream& operator>>(QDataStream& s, MappedAction& mia) {
 // -------------------------------------------------------------------------------------------------
 bool MappedAction::operator==(const MappedAction& o) const
 {
-  if (!action && !o.action) return true;
-  if (!action || !o.action) return false;
-  if (action->type() != o.action->type()) return false;
+  if (!action && !o.action) { return true; }
+  if (!action || !o.action) { return false; }
+  if (action->type() != o.action->type()) { return false; }
 
   switch(action->type()) {
   case Action::Type::KeySequence:
@@ -197,7 +203,7 @@ QDataStream& operator<<(QDataStream& s, const MappedAction& mia) {
 // -------------------------------------------------------------------------------------------------
 namespace  {
   struct KeyEventItem {
-    KeyEventItem(KeyEvent ke = {}) : keyEvent(std::move(ke)) {}
+    explicit KeyEventItem(KeyEvent ke = {}) : keyEvent(std::move(ke)) {}
     const KeyEvent keyEvent;
     std::shared_ptr<Action> action;
     std::vector<KeyEventItem*> nextMap;
@@ -205,7 +211,7 @@ namespace  {
 
   struct DeviceKeyMap
   {
-    DeviceKeyMap(const InputMapConfig& config = {}) { reconfigure(config); }
+    explicit DeviceKeyMap(const InputMapConfig& config = {}) { reconfigure(config); }
 
     enum Result : uint8_t {
       Miss, Valid, Hit, PartialHit
@@ -216,20 +222,20 @@ namespace  {
     auto state() const { return m_pos; }
     void resetState();
     void reconfigure(const InputMapConfig& config = {});
-    bool hasConfig() const { return m_rootItem.nextMap.size(); }
+    bool hasConfig() const { return !m_rootItem.nextMap.empty(); }
 
   private:
     std::list<KeyEventItem> m_items;
     KeyEventItem m_rootItem;
     const KeyEventItem* m_pos = &m_rootItem;
   };
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[], size_t num)
 {
-  if (!hasConfig()) return Result::Miss;
-  if (!m_pos) return Result::Miss;
+  if (!hasConfig()) { return Result::Miss; }
+  if (!m_pos) { return Result::Miss; }
 
   const auto ke = KeyEvent(KeyEvent(input_events, input_events + num));
   const auto& nextMap = m_pos->nextMap;
@@ -238,7 +244,7 @@ DeviceKeyMap::Result DeviceKeyMap::feed(const struct input_event input_events[],
     return next && ke == next->keyEvent;
   });
 
-  if (find_it == nextMap.cend()) return Result::Miss;
+  if (find_it == nextMap.cend()) { return Result::Miss; }
 
   m_pos = (*find_it);
 
@@ -273,7 +279,7 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
   for (const auto& configItem : config)
   {
     // sanity check
-    if (!configItem.second.action) continue;
+    if (!configItem.second.action) { continue; }
 
     KeyEventItem* previous = nullptr;
     KeyEventItem* current = &m_rootItem;
@@ -286,14 +292,14 @@ void DeviceKeyMap::reconfigure(const InputMapConfig& config)
         return (item && item->keyEvent == keyEvent);
       });
 
+      previous = current;
+
       if (it != current->nextMap.cend()) {
-        previous = current;
         current = *it;
       }
       else {
         // Create new item if not found
         m_items.emplace_back(KeyEventItem{keyEvent});
-        previous = current;
         current = &m_items.back();
         // link previous to current
         previous->nextMap.push_back(current);
@@ -358,10 +364,10 @@ QString NativeKeySequence::toString() const
   const size_t size = count();
   for (size_t i = 0; i < size; ++i)
   {
-    if (i > 0) seqString += QLatin1String(", ");
+    if (i > 0) { seqString += QLatin1String(", "); }
     seqString += toString(m_keySequence[i],
                           (i < m_nativeModifiers.size()) ? m_nativeModifiers[i]
-                                                         : (uint16_t)Modifier::NoModifier);
+                                                         : to_integral(Modifier::NoModifier));
   }
   return seqString;
 }
@@ -434,10 +440,10 @@ QString NativeKeySequence::toString(const std::vector<int>& qtKeys,
   const auto size = qtKeys.size();
   for (size_t i = 0; i < size; ++i)
   {
-    if (i > 0) seqString += QLatin1String(", ");
+    if (i > 0) { seqString += QLatin1String(", "); }
     seqString += toString(qtKeys[i],
                           (i < nativeModifiers.size()) ? nativeModifiers[i]
-                                                       : (uint16_t)Modifier::NoModifier);
+                                                       : to_integral(Modifier::NoModifier));
   }
   return seqString;
 }
@@ -557,15 +563,16 @@ InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev
   , m_vdev(std::move(vdev))
   , m_seqTimer(new QTimer(parent))
 {
+  constexpr int defaultSequenceIntervalMs = 250;
   m_seqTimer->setSingleShot(true);
-  m_seqTimer->setInterval(250);
+  m_seqTimer->setInterval(defaultSequenceIntervalMs);
   connect(m_seqTimer, &QTimer::timeout, parent, [this](){ sequenceTimeout(); });
 }
 
 // -------------------------------------------------------------------------------------------------
 void InputMapper::Impl::execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r)
 {
-  if (!action || action->empty()) return;
+  if (!action || action->empty()) { return; }
 
   logDebug(input) << "Input map execAction, type =" << toString(action->type())
                   << ", partial_hit =" << (r == DeviceKeyMap::Result::PartialHit);
@@ -594,7 +601,7 @@ void InputMapper::Impl::sequenceTimeout()
   if (m_lastState.first == DeviceKeyMap::Result::Valid) {
     // Last input event was part of a valid key sequence, but timeout hit
     // So we emit our stored event so far to the virtual device
-    if (m_vdev && m_events.size())
+    if (m_vdev && !m_events.empty())
     {
       m_vdev->emitEvents(m_events);
     }
@@ -607,7 +614,7 @@ void InputMapper::Impl::sequenceTimeout()
     {
       execAction(m_lastState.second->action, DeviceKeyMap::Result::PartialHit);
     }
-    else if (m_vdev && m_events.size())
+    else if (m_vdev && !m_events.empty())
     {
       m_vdev->emitEvents(m_events);
       m_events.resize(0);
@@ -626,15 +633,15 @@ void InputMapper::Impl::resetState()
 // -------------------------------------------------------------------------------------------------
 void InputMapper::Impl::emitNativeKeySequence(const NativeKeySequence& ks)
 {
-  if (!m_vdev) return;
+  if (!m_vdev) { return; }
 
   std::vector<input_event> events;
   events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
   for (const auto& ke : ks.nativeSequence())
   {
-    for (const auto& ie : ke)
+    for (const auto& ie : ke) {
       events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
-
+    }
     m_vdev->emitEvents(events);
     events.resize(0);
   }
@@ -660,7 +667,7 @@ InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* 
 {}
 
 // -------------------------------------------------------------------------------------------------
-InputMapper::~InputMapper() {}
+InputMapper::~InputMapper() = default;
 
 // -------------------------------------------------------------------------------------------------
 std::shared_ptr<VirtualDevice> InputMapper::virtualDevice() const
@@ -683,13 +690,12 @@ bool InputMapper::recordingMode() const
 // -------------------------------------------------------------------------------------------------
 void InputMapper::setRecordingMode(bool recording)
 {
-  if (impl->m_recordingMode == recording)
-    return;
+  if (impl->m_recordingMode == recording) { return; }
 
   const auto wasRecording = (impl->m_recordingMode && impl->m_seqTimer->isActive());
   impl->m_recordingMode = recording;
 
-  if (wasRecording) emit recordingFinished(true);
+  if (wasRecording) { emit recordingFinished(true); }
   impl->m_seqTimer->stop();
   resetState();
   emit recordingModeChanged(impl->m_recordingMode);
@@ -711,7 +717,7 @@ void InputMapper::setKeyEventInterval(int interval)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::addEvents(const input_event* input_events, size_t num)
 {
-  if (num == 0 || (!impl->m_vdev)) return;
+  if (num == 0 || (!impl->m_vdev)) { return; }
 
   // If no key mapping is configured ...
   if (!impl->m_recordingMode && !impl->m_keymap.hasConfig()) {
@@ -723,7 +729,9 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   if (input_events[num-1].type != EV_SYN) {
     logWarning(input) << tr("Input mapper expects events separated by SYN event.");
     return;
-  } else if (num == 1) {
+  }
+
+  if (num == 1) {
     logWarning(input) << tr("Ignoring single SYN event received.");
     return;
   }
@@ -782,20 +790,20 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::addEvents(KeyEvent key_event)
 {
-  if (key_event.empty()) addEvents({}, 0);
+  if (key_event.empty()) { addEvents({}, 0); }
 
-  static const auto to_input_event = [](DeviceInputEvent de){
+  static const auto to_input_event = [](const DeviceInputEvent& de){
     struct input_event ie = {{}, de.type, de.code, de.value};
     return ie;
   };
 
   // If key_event do not have SYN event at end, add SYN event before sending to inputMapper.
-  if (key_event.back().type != EV_SYN) key_event.emplace_back(EV_SYN, SYN_REPORT, 0);
+  if (key_event.back().type != EV_SYN) { key_event.emplace_back(EV_SYN, SYN_REPORT, 0); }
 
   std::vector<struct input_event> events;
   events.reserve(key_event.size());
-  for (size_t i=0; i < key_event.size(); i++) {
-    events.emplace_back(to_input_event(key_event[i]));
+  for (const auto& dev_input_event : key_event) {
+    events.emplace_back(to_input_event(dev_input_event));
   }
   addEvents(events.data(), events.size());
 }
@@ -809,7 +817,7 @@ void InputMapper::resetState()
 // -------------------------------------------------------------------------------------------------
 void InputMapper::setConfiguration(const InputMapConfig& config)
 {
-  if (config == impl->m_config) return;
+  if (config == impl->m_config) { return; }
 
   impl->m_config = config;
   impl->resetState();
@@ -820,7 +828,7 @@ void InputMapper::setConfiguration(const InputMapConfig& config)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::setConfiguration(InputMapConfig&& config)
 {
-  if (config == impl->m_config) return;
+  if (config == impl->m_config) { return; }
 
   impl->m_config.swap(config);
   impl->resetState();

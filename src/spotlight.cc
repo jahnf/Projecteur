@@ -3,8 +3,8 @@
 
 #include "spotlight.h"
 
-#include "deviceinput.h"
 #include "device-hidpp.h"
+#include "deviceinput.h"
 #include "logging.h"
 #include "settings.h"
 #include "virtualdevice.h"
@@ -29,7 +29,7 @@ namespace {
   // See details on workaround in onEventDataAvailable
   bool workaroundLogitechFirstMoveEvent = true;
 
-} // --- end anonymous namespace
+} // end anonymous namespace
 
 
 // -------------------------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ struct HoldButtonStatus
     m_nextPressed = nextPressed;
     m_backPressed = backPressed;
 
-    if (!nextPressed && !backPressed) m_moveKeyEvSeq.clear();
+    if (!nextPressed && !backPressed) { m_moveKeyEvSeq.clear(); }
   }
 
   bool nextPressed() const { return m_nextPressed; }
@@ -85,8 +85,9 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   , m_settings(settings)
   , m_holdButtonStatus(std::make_unique<HoldButtonStatus>())
 {
+  constexpr int spotlightActiveTimoutMs = 600;
   m_activeTimer->setSingleShot(true);
-  m_activeTimer->setInterval(600);
+  m_activeTimer->setInterval(spotlightActiveTimoutMs);
 
   connect(m_activeTimer, &QTimer::timeout, this, [this](){
     setSpotActive(false);
@@ -104,7 +105,8 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   // From detecting a change with inotify, the device needs some time to be ready for open,
   // otherwise opening the device will fail.
   // TODO: This interval seems to work, but it is arbitrary - there should be a better way.
-  m_connectionTimer->setInterval(800);
+  constexpr int delayedConnectionTimerIntervalMs = 800;
+  m_connectionTimer->setInterval(delayedConnectionTimerIntervalMs);
 
   connect(m_connectionTimer, &QTimer::timeout, this, [this]() {
     logDebug(device) << tr("New connection check triggered");
@@ -126,7 +128,7 @@ Spotlight::~Spotlight() = default;
 bool Spotlight::anySpotlightDeviceConnected() const
 {
   for (const auto& dc : m_deviceConnections) {
-    if (dc.second->subDeviceCount()) return true;
+    if (dc.second->subDeviceCount()) { return true; }
   }
   return false;
 }
@@ -136,7 +138,7 @@ uint32_t Spotlight::connectedDeviceCount() const
 {
   uint32_t count = 0;
   for (const auto& dc : m_deviceConnections) {
-    if (dc.second->subDeviceCount()) ++count;
+    if (dc.second->subDeviceCount()) { ++count; }
   }
   return count;
 }
@@ -144,9 +146,9 @@ uint32_t Spotlight::connectedDeviceCount() const
 // -------------------------------------------------------------------------------------------------
 void Spotlight::setSpotActive(bool active)
 {
-  if (m_spotActive == active) return;
+  if (m_spotActive == active) { return; }
   m_spotActive = active;
-  if (!m_spotActive) m_activeTimer->stop();
+  if (!m_spotActive) { m_activeTimer->stop(); }
   emit spotActiveChanged(m_spotActive);
 }
 
@@ -189,14 +191,14 @@ int Spotlight::connectDevices()
           .arg(dc->deviceName(), hexId(dev.id.vendorId), hexId(dev.id.productId), scanSubDevice.deviceFile);
         continue;
       }
-      if (dc->hasSubDevice(scanSubDevice.deviceFile)) continue;
+      if (dc->hasSubDevice(scanSubDevice.deviceFile)) { continue; }
 
       std::shared_ptr<SubDeviceConnection> subDeviceConnection =
       [&scanSubDevice, &dc, this]() -> std::shared_ptr<SubDeviceConnection>
       { // Input event sub devices
         if (scanSubDevice.type == DeviceScan::SubDevice::Type::Event) {
           auto devCon = SubEventConnection::create(scanSubDevice, *dc);
-          if (addInputEventHandler(devCon)) return devCon;
+          if (addInputEventHandler(devCon)) { return devCon; }
         } // Hidraw sub devices
         else if (scanSubDevice.type == DeviceScan::SubDevice::Type::Hidraw)
         {
@@ -214,7 +216,7 @@ int Spotlight::connectDevices()
 
               // Remove device on socketReadError
               connect(&*hidppCon, &SubHidppConnection::socketReadError, this, [this, connPtr](){
-                if (!connPtr) return;
+                if (!connPtr) { return; }
                 const bool anyConnectedBefore = anySpotlightDeviceConnected();
                 connPtr->disconnect();
                 QTimer::singleShot(0, this, [this, devicePath=connPtr->path(), anyConnectedBefore](){
@@ -233,7 +235,7 @@ int Spotlight::connectDevices()
             QPointer<SubHidrawConnection> connPtr(hidrawConn.get());
             // Remove device on socketReadError
             connect(&*hidrawConn, &SubHidrawConnection::socketReadError, this, [this, connPtr](){
-              if (!connPtr) return;
+              if (!connPtr) { return; }
               const bool anyConnectedBefore = anySpotlightDeviceConnected();
               connPtr->disconnect();
               QTimer::singleShot(0, this, [this, devicePath=connPtr->path(), anyConnectedBefore](){
@@ -250,7 +252,7 @@ int Spotlight::connectDevices()
         return std::shared_ptr<SubDeviceConnection>();
       }();
 
-      if (!subDeviceConnection) continue;
+      if (!subDeviceConnection) { continue; }
 
       if (dc->subDeviceCount() == 0) {
         // Load Input mapping settings when first sub-device gets added.
@@ -265,7 +267,7 @@ int Spotlight::connectDevices()
 
         static QString lastPreset;
 
-        connect(im, &InputMapper::actionMapped, this, [this](std::shared_ptr<Action> action)
+        connect(im, &InputMapper::actionMapped, this, [this](const std::shared_ptr<Action>& action)
         {
           if (action->type() == Action::Type::CyclePresets)
           {
@@ -286,7 +288,7 @@ int Spotlight::connectDevices()
           }
           else if (action->type() == Action::Type::ScrollHorizontal || action->type() == Action::Type::ScrollVertical)
           {
-            if (!m_virtualDevice) return;
+            if (!m_virtualDevice) { return; }
 
             const int param = (action->type() == Action::Type::ScrollHorizontal)
               ? static_cast<ScrollHorizontalAction*>(action.get())->param
@@ -301,13 +303,13 @@ int Spotlight::connectDevices()
           }
           else if (action->type() == Action::Type::VolumeControl)
           {
-            if (!m_virtualDevice) return;
+            if (!m_virtualDevice) { return; }
 
             auto param = static_cast<VolumeControlAction*>(action.get())->param;
             uint16_t keyCode = (param > 0)? KEY_VOLUMEUP: KEY_VOLUMEDOWN;
             const std::vector<input_event> curVolInputEvents = {{{}, EV_KEY, keyCode, 1}, {{}, EV_SYN, SYN_REPORT, 0},
                                                                 {{}, EV_KEY, keyCode, 0}, {{}, EV_SYN, SYN_REPORT, 0},};
-            if (param) m_virtualDevice->emitEvents(curVolInputEvents);
+            if (param) { m_virtualDevice->emitEvents(curVolInputEvents); }
           }
         });
 
@@ -324,7 +326,7 @@ int Spotlight::connectDevices()
           logInfo(device) << tr("Connected device: %1 (%2:%3)")
                              .arg(devName, hexId(id.vendorId), hexId(id.productId));
           emit deviceConnected(id, devName);
-          if (!anyConnectedBefore) emit anySpotlightDeviceConnectedChanged(true);
+          if (!anyConnectedBefore) { emit anySpotlightDeviceConnectedChanged(true); }
         });
       }
 
@@ -418,7 +420,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
         {
           workaroundLogitechFirstMoveEvent = false;
           if(!logitechIsFirst) {
-            if (!spotActive()) setSpotActive(true);
+            if (!spotActive()) { setSpotActive(true); }
           }
         }
         else if (!m_activeTimer->isActive()) {
@@ -426,7 +428,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
         }
 
         m_activeTimer->start();
-        if (m_virtualDevice) m_virtualDevice->emitEvents(buf.data(), buf.pos());
+        if (m_virtualDevice) { m_virtualDevice->emitEvents(buf.data(), buf.pos()); }
       }
       else
       { // Forward events to input mapper for the device
@@ -441,7 +443,7 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
       buf.reset();
     }
 
-    if (!isNonBlocking) break;
+    if (!isNonBlocking) { break; }
   } // end while loop
 }
 
@@ -485,7 +487,7 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       // TODO This works quiet okay in combination with adjusting x and y values,
       // but needs to be a more solid option to accumulate the mass of move events
       // and consolidate them to a number of meaningful action special key events.
-      if (m_holdMoveEventTimer->isActive()) return;
+      if (m_holdMoveEventTimer->isActive()) { return; }
       m_holdMoveEventTimer->start();
 
       // byte 4 : -1 for left movement, 0 for right movement
@@ -502,7 +504,7 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
         constexpr int divider = 5;
         constexpr int minimum = 5;
         constexpr int maximum = 10;
-        if (std::abs(param) < minimum) return 0;
+        if (std::abs(param) < minimum) { return 0; }
         const auto sign = (param == 0) ? 0 : ((param > 0) ? 1 : -1);
         return std::floor(1.0 * ((abs(param) > maximum)? sign * maximum : param) / divider);
       };
@@ -510,7 +512,7 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const int adjustedX = getReducedParam(x);
       const int adjustedY = getReducedParam(y);
 
-      if (adjustedX == 0 && adjustedY == 0) return;
+      if (adjustedX == 0 && adjustedY == 0) { return; }
 
       static const auto scrollHAction = GlobalActions::scrollHorizontal();
       scrollHAction->param = -adjustedX;
@@ -523,7 +525,7 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
 
       if (!connection->inputMapper()->recordingMode())
       {
-          for (auto key_event : m_holdButtonStatus->moveKeyEventSeq()) {
+          for (const auto& key_event : m_holdButtonStatus->moveKeyEventSeq()) {
             connection->inputMapper()->addEvents(key_event);
           }
       }
@@ -541,7 +543,7 @@ bool Spotlight::addInputEventHandler(std::shared_ptr<SubEventConnection> connect
   QSocketNotifier* const readNotifier = connection->socketReadNotifier();
   connect(readNotifier, &QSocketNotifier::activated, this,
   [this, connection=std::move(connection)](int fd) {
-    onEventDataAvailable(fd, *connection.get());
+    onEventDataAvailable(fd, *connection);
   });
 
   return true;

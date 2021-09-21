@@ -607,7 +607,7 @@ FirmwareInfo::FirmwareType FirmwareInfo::firmwareType() const
 // -------------------------------------------------------------------------------------------------
 QString FirmwareInfo::firmwarePrefix() const
 {
-  if (!m_rawMsg.isLong()) return QString();
+  if (!m_rawMsg.isLong()) { return QString(); }
 
   return QString(
     QByteArray::fromRawData(reinterpret_cast<const char*>(&m_rawMsg[Offset::FwPrefix]), 3)
@@ -617,7 +617,7 @@ QString FirmwareInfo::firmwarePrefix() const
 // -------------------------------------------------------------------------------------------------
 uint16_t FirmwareInfo::firmwareVersion() const
 {
-  if (!m_rawMsg.isLong()) return 0;
+  if (!m_rawMsg.isLong()) { return 0; }
 
   const auto& fwVersionMsb = m_rawMsg[Offset::FwVersion];
   const auto& fwVersionLsb = m_rawMsg[Offset::FwVersion+1];
@@ -632,7 +632,7 @@ uint16_t FirmwareInfo::firmwareVersion() const
 // -------------------------------------------------------------------------------------------------
 uint16_t FirmwareInfo::firmwareBuild() const
 {
-  if (!m_rawMsg.isLong()) return 0;
+  if (!m_rawMsg.isLong()) { return 0; }
 
   const auto& fwBuildMsb = m_rawMsg[Offset::FwBuild];
   const auto& fwBuildLsb = m_rawMsg[Offset::FwBuild+1];

@@ -35,9 +35,9 @@ namespace  {
       const int w = std::max(opt.fontMetrics.width(ActionDelegate::tr("None")) + 2 * horizontalMargin,
                              opt.fontMetrics.width(action->keySequence.toString()));
     #endif
-      return QSize(w, h);
+      return { w, h };
     }
-  }
+  } // end namespace keysequence
 
   namespace cyclepresets {
     // ---------------------------------------------------------------------------------------------
@@ -49,11 +49,10 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const CyclePresetsAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const CyclePresetsAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace cyclepresets
 
   namespace togglespotlight {
     // ---------------------------------------------------------------------------------------------
@@ -65,11 +64,10 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ToggleSpotlightAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ToggleSpotlightAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace togglespotlight
 
   namespace scrollhorizontal {
     // ---------------------------------------------------------------------------------------------
@@ -81,11 +79,10 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollHorizontalAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollHorizontalAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace scrollhorizontal
 
   namespace scrollvertical {
     // ---------------------------------------------------------------------------------------------
@@ -97,11 +94,10 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollVerticalAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollVerticalAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace scrollvertical
 
   namespace volumecontrol {
     // ---------------------------------------------------------------------------------------------
@@ -113,11 +109,10 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const VolumeControlAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const VolumeControlAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace volumecontrol
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -164,7 +159,8 @@ void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option
 QSize ActionDelegate::sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& index) const
 {
   const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
-  if (!imModel) return QStyledItemDelegate::sizeHint(opt, index);
+  if (!imModel) { return QStyledItemDelegate::sizeHint(opt, index); }
+
   const auto& item = imModel->configData(index);
   if (!item.action) { return QStyledItemDelegate::sizeHint(opt, index); }
 
@@ -198,16 +194,12 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const Action* action) con
     connect(editor, &NativeKeySeqEdit::editingFinished, this, &ActionDelegate::commitAndCloseEditor);
     return editor;
   }
-  case Action::Type::CyclePresets: // None for now...
-    break;
-  case Action::Type::ToggleSpotlight: // None for now...
-    break;
-  case Action::Type::ScrollHorizontal: // None for now...
-    break;
-  case Action::Type::ScrollVertical: // None for now...
-    break;
-  case Action::Type::VolumeControl: // None for now...
-    break;
+  case Action::Type::CyclePresets:     // [[fallthrough]];
+  case Action::Type::ToggleSpotlight:  // [[fallthrough]];
+  case Action::Type::ScrollHorizontal: // [[fallthrough]];
+  case Action::Type::ScrollVertical:   // [[fallthrough]];
+  case Action::Type::VolumeControl:
+    break; // No editor
   }
   return nullptr;
 }
@@ -218,7 +210,7 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const QStyleOptionViewIte
 
 {
   const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
-  if (!imModel) return nullptr;
+  if (!imModel) { return nullptr; }
   const auto& item = imModel->configData(index);
   if (!item.action) { return nullptr; }
 
@@ -264,7 +256,7 @@ bool ActionDelegate::eventFilter(QObject* obj, QEvent* ev)
   {
     // Let all key press events pass through to the editor,
     // otherwise some keys cannot be recorded as a key sequence (e.g. [Tab] and [Esc])
-    if (qobject_cast<NativeKeySeqEdit*>(obj)) return false;
+    if (qobject_cast<NativeKeySeqEdit*>(obj)) { return false; }
   }
   return QStyledItemDelegate::eventFilter(obj,ev);
 }
@@ -286,11 +278,11 @@ void ActionDelegate::commitAndCloseEditor_()
 void ActionDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel* model,
                                        const QModelIndex& index, const QPoint& globalPos)
 {
-  if (!index.isValid() || !model) return;
+  if (!index.isValid() || !model) { return; }
   const auto& item = model->configData(index);
-  if (!item.action || item.action->type() != Action::Type::KeySequence) return;
+  if (!item.action || item.action->type() != Action::Type::KeySequence) { return; }
 
-  QMenu* menu = new QMenu(parent);
+  auto* const menu = new QMenu(parent);
   const std::vector<const NativeKeySequence*> predefinedKeys = {
     &NativeKeySequence::predefined::altTab(),
     &NativeKeySequence::predefined::altF4(),
@@ -333,8 +325,9 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
     return 0;
   }();
 
-  if (symbol != 0)
+  if (symbol != 0) {
     drawActionTypeSymbol(0, *painter, option, symbol);
+  }
 
   if (option.state & QStyle::State_HasFocus) {
     InputSeqDelegate::drawCurrentIndicator(*painter, option);
@@ -345,9 +338,10 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
 void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel* model,
                                            const QModelIndex& index, const QPoint& globalPos)
 {
-  if (!index.isValid() || !model) return;
+  if (!index.isValid() || !model) { return; }
+
   const auto& item = model->configData(index);
-  if (!item.action) return;
+  if (!item.action) { return; }
 
   const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
   const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
@@ -393,7 +387,7 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
     return true;
   }();
 
-  QMenu* menu = new QMenu(parent);
+  auto* const menu = new QMenu(parent);
 
   for (const auto& entry : items) {
     if ((isSpecialMoveInput && entry.isMoveAction)
@@ -423,10 +417,11 @@ int ActionTypeDelegate::drawActionTypeSymbol(int startX, QPainter& p,
   p.setFont(iconFont);
   p.setRenderHint(QPainter::Antialiasing, true);
 
-  if (option.state & QStyle::State_Selected)
+  if (option.state & QStyle::State_Selected) {
     p.setPen(option.palette.color(QPalette::HighlightedText));
-  else
+  } else {
     p.setPen(option.palette.color(QPalette::Text));
+  }
 
   QRect br;
   p.drawText(r, Qt::AlignHCenter | Qt::AlignVCenter, QString(symbol), &br);

@@ -105,11 +105,13 @@ LinuxDesktop::LinuxDesktop(QObject* parent)
 
 QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
 {
-  if (screen == nullptr)
+  if (screen == nullptr) {
     return QPixmap();
+  }
 
-  if (isWayland())
+  if (isWayland()) {
     return grabScreenWayland(screen);
+  }
 
   #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
     const bool isVirtualDesktop = QApplication::primaryScreen()->virtualSiblings().size() > 1;
@@ -117,8 +119,9 @@ QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
     const bool isVirtualDesktop = QApplication::desktop()->isVirtualDesktop();
   #endif
 
-  if (isVirtualDesktop)
+  if (isVirtualDesktop) {
     return grabScreenVirtualDesktop(screen);
+  }
 
   // everything else.. usually X11
   return screen->grabWindow(0);

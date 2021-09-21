@@ -12,10 +12,12 @@ Checks: >
  -cppcoreguidelines-pro-type-vararg,-hicpp-vararg,
  -cppcoreguidelines-pro-type-static-cast-downcast,
  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
- -readability-implicit-bool-conversion,
- -hicpp-signed-bitwise,
+ -readability-implicit-bool-conversion, - readability-container-size-empty,
+ -hicpp-signed-bitwise, -cppcoreguidelines-macro-usage,
  -cppcoreguidelines-avoid-c-arrays,-hicpp-avoid-c-arrays,-modernize-avoid-c-arrays,
- -google-default-arguments
+ -google-default-arguments,-google-readability-todo,
+ -hicpp-uppercase-literal-suffix,-readability-uppercase-literal-suffix,
+ -clang-analyzer-core.CallAndMessage, -readability-static-accessed-through-instance
 
 WarningsAsErrors: false
 CheckOptions:

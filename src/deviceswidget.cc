@@ -20,9 +20,9 @@
 #include <QStackedLayout>
 #include <QStyle>
 #include <QTabWidget>
-#include <QTimer>
 #include <QTextEdit>
 #include <QTextList>
+#include <QTimer>
 
 DECLARE_LOGGING_CATEGORY(preferences)
 
@@ -45,7 +45,7 @@ namespace {
     }
     return false;
   }
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 DevicesWidget::DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* parent)
@@ -69,10 +69,11 @@ DevicesWidget::DevicesWidget(Settings* settings, Spotlight* spotlight, QWidget* 
 }
 
 // -------------------------------------------------------------------------------------------------
-const DeviceId DevicesWidget::currentDeviceId() const
+DeviceId DevicesWidget::currentDeviceId() const
 {
-  if (m_devicesCombo->currentIndex() < 0)
+  if (m_devicesCombo->currentIndex() < 0) {
     return invalidDeviceId;
+  }
 
   return qvariant_cast<DeviceId>(m_devicesCombo->currentData());
 }
@@ -171,7 +172,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
 
   const auto tblView = new InputMapConfigView(imWidget);
   const auto imModel = new InputMapConfigModel(m_inputMapper, imWidget);
-  if (m_inputMapper) imModel->setConfiguration(m_inputMapper->configuration());
+  if (m_inputMapper) { imModel->setConfiguration(m_inputMapper->configuration()); }
 
   tblView->setModel(imModel);
   const auto selectionModel = tblView->selectionModel();
@@ -339,7 +340,7 @@ void DevicesWidget::updateTimerTab(Spotlight* spotlight)
   auto getVibrateConnection = [](const std::shared_ptr<DeviceConnection>& conn) {
     if (conn) {
       for (const auto& item : conn->subDevices()) {
-        if (item.second->hasFlags(DeviceFlag::Vibrate)) return item.second;
+        if (item.second->hasFlags(DeviceFlag::Vibrate)) { return item.second; }
       }
     }
     return std::shared_ptr<SubDeviceConnection>{};
@@ -348,7 +349,7 @@ void DevicesWidget::updateTimerTab(Spotlight* spotlight)
   const auto currentConn = spotlight->deviceConnection(currentDeviceId());
   const auto vibrateConn = getVibrateConnection(currentConn);
 
-  if (m_timerTabContext) m_timerTabContext->deleteLater();
+  if (m_timerTabContext) { m_timerTabContext->deleteLater(); }
 
   if (vibrateConn)
   {
@@ -365,8 +366,8 @@ void DevicesWidget::updateTimerTab(Spotlight* spotlight)
   if (currentConn) {
     m_timerTabContext = QPointer<QObject>(new QObject(this));
     connect(&*currentConn, &DeviceConnection::subDeviceFlagsChanged, m_timerTabContext,
-    [currId=currentDeviceId(), spotlight, this](const DeviceId& id, const QString&) {
-      if (currId != id) return;
+    [currId=currentDeviceId(), spotlight, this](const DeviceId& id, const QString& /* path */) {
+      if (currId != id) { return; }
       updateTimerTab(spotlight);
     });
   }
@@ -413,8 +414,9 @@ DeviceInfoWidget::DeviceInfoWidget(QWidget* parent)
   const auto layout = new QVBoxLayout(this);
   layout->addWidget(m_textEdit);
 
+  constexpr int delayedUpdateTimerInterval = 150;
   m_delayedUpdateTimer->setSingleShot(true);
-  m_delayedUpdateTimer->setInterval(150);
+  m_delayedUpdateTimer->setInterval(delayedUpdateTimerInterval);
   connect(m_delayedUpdateTimer, &QTimer::timeout, this, &DeviceInfoWidget::updateTextEdit);
 
   m_batteryInfoTimer->setSingleShot(false);
@@ -430,7 +432,7 @@ void DeviceInfoWidget::delayedTextEditUpdate() {
 // -------------------------------------------------------------------------------------------------
 void DeviceInfoWidget::setDeviceConnection(DeviceConnection* connection)
 {
-  if (m_connection == connection) return;
+  if (m_connection == connection) { return; }
   if (m_connectionContext) { m_connectionContext->deleteLater(); }
 
   m_connection = connection;
@@ -453,7 +455,7 @@ void DeviceInfoWidget::setDeviceConnection(DeviceConnection* connection)
   m_deviceBaseInfo.emplace_back("Bus Type", toString(m_connection->deviceId().busType, false));
 
   connect(m_connection, &DeviceConnection::subDeviceConnected, m_connectionContext,
-  [this](const DeviceId&, const QString& path)
+  [this](const DeviceId& /* deviceId */, const QString& path)
   {
     if (const auto sdc = m_connection->subDevice(path))
     {
@@ -464,7 +466,7 @@ void DeviceInfoWidget::setDeviceConnection(DeviceConnection* connection)
   });
 
   connect(m_connection, &DeviceConnection::subDeviceConnected, m_connectionContext,
-  [this](const DeviceId&, const QString& path)
+  [this](const DeviceId& /* deviceId */, const QString& path)
   {
     const auto it = m_subDevices.find(path);
     if (it == m_subDevices.cend()) {
@@ -681,7 +683,7 @@ void DeviceInfoWidget::initSubdeviceInfo()
   for (const auto& sd : m_connection->subDevices())
   {
     const auto& sdc = sd.second;
-    if (sdc->path().isEmpty()) continue;
+    if (sdc->path().isEmpty()) { continue; }
     updateSubdeviceInfo(sdc.get());
     connectToSubdeviceUpdates(sdc.get());
 
@@ -717,7 +719,7 @@ void DeviceInfoWidget::updateHidppInfo(SubHidppConnection* hdc)
                          , DeviceFlag::BackHold
                          , DeviceFlag::PointerSpeed })
   {
-    if (hdc->hasFlags(flag)) m_hidppInfo.hidppFlags.push_back(toString(flag, false));
+    if (hdc->hasFlags(flag)) { m_hidppInfo.hidppFlags.push_back(toString(flag, false)); }
   }
 }
 

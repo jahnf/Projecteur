@@ -19,7 +19,8 @@
 namespace {
   // -----------------------------------------------------------------------------------------------
   constexpr int maxKeyCount = 4; // Same as QKeySequence
-}
+  constexpr int keySeqInterval = 950;
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
@@ -33,14 +34,12 @@ NativeKeySeqEdit::NativeKeySeqEdit(QWidget* parent)
   setAttribute(Qt::WA_MacShowFocusRect, true);
 
   m_timer->setSingleShot(true);
-  m_timer->setInterval(950);
+  m_timer->setInterval(keySeqInterval);
   connect(m_timer, &QTimer::timeout, this, [this](){ setRecording(false); });
 }
 
 // -------------------------------------------------------------------------------------------------
-NativeKeySeqEdit::~NativeKeySeqEdit()
-{
-}
+NativeKeySeqEdit::~NativeKeySeqEdit() = default;
 
 // -------------------------------------------------------------------------------------------------
 const NativeKeySequence& NativeKeySeqEdit::keySequence() const
@@ -51,7 +50,7 @@ const NativeKeySequence& NativeKeySeqEdit::keySequence() const
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::setKeySequence(const NativeKeySequence& nks)
 {
-  if (nks == m_nativeSequence) return;
+  if (nks == m_nativeSequence) { return; }
 
   m_nativeSequence = nks;
   update();
@@ -61,7 +60,7 @@ void NativeKeySeqEdit::setKeySequence(const NativeKeySequence& nks)
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::clear()
 {
-  if (m_nativeSequence.count() == 0) return;
+  if (m_nativeSequence.count() == 0) { return; }
 
   m_nativeSequence.clear();
   update();
@@ -106,7 +105,7 @@ QSize NativeKeySeqEdit::sizeHint() const
 }
 
 // -------------------------------------------------------------------------------------------------
-void NativeKeySeqEdit::paintEvent(QPaintEvent*)
+void NativeKeySeqEdit::paintEvent(QPaintEvent* /* event */)
 {
   const QStyleOptionFrame option = styleOption();
 
@@ -153,7 +152,7 @@ void NativeKeySeqEdit::reset()
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::setRecording(bool doRecord)
 {
-  if (m_recording == doRecord) return;
+  if (m_recording == doRecord) { return; }
 
   m_recording = doRecord;
 
@@ -268,11 +267,13 @@ void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
       setRecording(true);
       return;
     }
-    else if (e->key() == Qt::Key_Delete)
+
+    if (e->key() == Qt::Key_Delete)
     {
       clear();
       return;
     }
+
     QWidget::keyPressEvent(e);
     return;
   }
@@ -318,11 +319,11 @@ void NativeKeySeqEdit::focusOutEvent(QFocusEvent* e)
 int NativeKeySeqEdit::getQtModifiers(Qt::KeyboardModifiers state)
 {
   int result = 0;
-  if (state & Qt::ControlModifier)    result |= Qt::ControlModifier;
-  if (state & Qt::MetaModifier)       result |= Qt::MetaModifier;
-  if (state & Qt::AltModifier)        result |= Qt::AltModifier;
-  if (state & Qt::ShiftModifier)      result |= Qt::ShiftModifier;
-  if (state & Qt::GroupSwitchModifier)  result |= Qt::GroupSwitchModifier;
+  if (state & Qt::ControlModifier)     { result |= Qt::ControlModifier; }
+  if (state & Qt::MetaModifier)        {  result |= Qt::MetaModifier; }
+  if (state & Qt::AltModifier)         {  result |= Qt::AltModifier; }
+  if (state & Qt::ShiftModifier)       {  result |= Qt::ShiftModifier; }
+  if (state & Qt::GroupSwitchModifier) { result |= Qt::GroupSwitchModifier; }
   return result;
 }
 
@@ -368,10 +369,11 @@ int NativeKeySeqEdit::drawText(int startX, QPainter& p, const QStyleOption& opti
                        option.rect.bottomRight());
   p.save();
 
-  if (option.state & QStyle::State_Selected)
+  if (option.state & QStyle::State_Selected) {
     p.setPen(option.palette.color(QPalette::HighlightedText));
-  else
+  } else {
     p.setPen(option.palette.color(QPalette::Text));
+  }
 
   QRect br;
   p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);

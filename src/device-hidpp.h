@@ -47,7 +47,7 @@ public:
   void sendData(HIDPP::Message msg, SendResultCallback resultCb) override;
   void sendDataBatch(DataBatch dataBatch, DataBatchResultCallback cb,
                      bool continueOnError = false) override;
-  void sendRequest(std::vector<uint8_t> msg, RequestResultCallback responseCb) override;
+  void sendRequest(std::vector<uint8_t> data, RequestResultCallback responseCb) override;
   void sendRequest(HIDPP::Message msg, RequestResultCallback responseCb) override;
   void sendRequestBatch(RequestBatch requestBatch, RequestBatchResultCallback cb,
                         bool continueOnError = false) override;
@@ -107,7 +107,7 @@ private:
 
   void clearTimedOutRequests();
 
-  void sendDataBatch(DataBatch requestBatch, DataBatchResultCallback cb, bool continueOnError,
+  void sendDataBatch(DataBatch dataBatch, DataBatchResultCallback cb, bool continueOnError,
                      std::vector<MsgResult> results);
   void sendRequestBatch(RequestBatch requestBatch, RequestBatchResultCallback cb,
                         bool continueOnError, std::vector<MsgResult> results);

@@ -3,9 +3,9 @@
 
 #include "device.h"
 
-#include "enum-helper.h"
 #include "deviceinput.h"
 #include "devicescan.h"
+#include "enum-helper.h"
 #include "hidpp.h"
 #include "logging.h"
 
@@ -25,7 +25,7 @@ namespace  {
 
   const auto hexId = logging::hexId;
   // class i18n : public QObject {}; // for i18n and logging
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 const char* toString(BusType bt, bool withClass)
@@ -81,7 +81,7 @@ bool DeviceConnection::hasSubDevice(const QString& path) const
 // -------------------------------------------------------------------------------------------------
 void DeviceConnection::addSubDevice(std::shared_ptr<SubDeviceConnection> sdc)
 {
-  if (!sdc) return;
+  if (!sdc) { return; }
 
   const auto path = sdc->path();
   connect(&*sdc, &SubDeviceConnection::flagsChanged, this, [this, path](){
@@ -180,7 +180,8 @@ QSocketNotifier* SubDeviceConnection::socketReadNotifier() {
 }
 
 // -------------------------------------------------------------------------------------------------
-SubEventConnection::SubEventConnection(Token, const DeviceId& dId, const DeviceScan::SubDevice& sd)
+SubEventConnection::SubEventConnection(Token /* token */,
+                                       const DeviceId& dId, const DeviceScan::SubDevice& sd)
   : SubDeviceConnection(dId, sd, ConnectionType::Event, ConnectionMode::ReadOnly) {}
 
 // -------------------------------------------------------------------------------------------------
@@ -225,9 +226,9 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
 
   auto connection = std::make_shared<SubEventConnection>(Token{}, dc.deviceId(), sd);
 
-  if (!!(bitmask & (1 << EV_SYN))) connection->m_details.deviceFlags |= DeviceFlag::SynEvents;
-  if (!!(bitmask & (1 << EV_REP))) connection->m_details.deviceFlags |= DeviceFlag::RepEvents;
-  if (!!(bitmask & (1 << EV_KEY))) connection->m_details.deviceFlags |= DeviceFlag::KeyEvents;
+  if (!!(bitmask & (1 << EV_SYN))) { connection->m_details.deviceFlags |= DeviceFlag::SynEvents; }
+  if (!!(bitmask & (1 << EV_REP))) { connection->m_details.deviceFlags |= DeviceFlag::RepEvents; }
+  if (!!(bitmask & (1 << EV_KEY))) { connection->m_details.deviceFlags |= DeviceFlag::KeyEvents; }
   if (!!(bitmask & (1 << EV_REL)))
   {
     unsigned long relEvents = 0;
@@ -277,7 +278,8 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
 }
 
 // -------------------------------------------------------------------------------------------------
-SubHidrawConnection::SubHidrawConnection(Token, const DeviceId& dId, const DeviceScan::SubDevice& sd)
+SubHidrawConnection::SubHidrawConnection(Token /* token */,
+                                         const DeviceId& dId, const DeviceScan::SubDevice& sd)
   : SubDeviceConnection(dId, sd, ConnectionType::Hidraw, ConnectionMode::ReadWrite) {}
 
 // -------------------------------------------------------------------------------------------------
@@ -302,7 +304,7 @@ std::shared_ptr<SubHidrawConnection> SubHidrawConnection::create(const DeviceSca
                                                                  const DeviceConnection& dc)
 {
   const int devfd = openHidrawSubDevice(sd, dc.deviceId());
-  if (devfd == -1) return std::shared_ptr<SubHidrawConnection>();
+  if (devfd == -1) { return std::shared_ptr<SubHidrawConnection>(); }
 
   auto connection = std::make_shared<SubHidrawConnection>(Token{}, dc.deviceId(), sd);
   connection->createSocketNotifiers(devfd, sd.deviceFile);
@@ -354,8 +356,8 @@ int SubHidrawConnection::openHidrawSubDevice(const DeviceScan::SubDevice& sd, co
   };
 
   // Check against given device id
-  if (static_cast<unsigned short>(devinfo.vendor) != devId.vendorId
-      || static_cast<unsigned short>(devinfo.product) != devId.productId)
+  if (static_cast<uint16_t>(devinfo.vendor) != devId.vendorId
+      || static_cast<uint16_t>(devinfo.product) != devId.productId)
   {
     logDebug(device) << tr("Device id mismatch: %1 (%2:%3)")
                           .arg(sd.deviceFile, hexId(devinfo.vendor), hexId(devinfo.product));

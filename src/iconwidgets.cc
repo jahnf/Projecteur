@@ -12,7 +12,7 @@ namespace  {
   bool isDark(const QColor& c) { return !isLight(c); }
 
   constexpr int defaultIconLabelSize = 32;
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 IconButton::IconButton(Font::Icon symbol, QWidget* parent)

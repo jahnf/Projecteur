@@ -293,7 +293,7 @@ void SubHidppConnection::registerNotificationCallback(QObject* obj, uint8_t feat
 {
   if (obj == nullptr || !cb) { return; }
 
-  postSelf([this, obj, featureIndex, function, cb=std::move(cb)]()
+  postSelf([this, obj, featureIndex, function, cb=std::move(cb)]() mutable
   {
     auto& callbackList = m_notificationSubscribers[featureIndex];
     callbackList.emplace_back(Subscriber{obj, function, std::move(cb)});
