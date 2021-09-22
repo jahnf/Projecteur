@@ -31,8 +31,10 @@
 #include <QTabWidget>
 #include <QTimer>
 
-#if HAS_Qt5_X11Extras
-#include <QX11Info>
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+  #if HAS_Qt_X11Extras
+  #include <QX11Info>
+  #endif
 #endif
 
 #include <map>
@@ -147,7 +149,7 @@ QWidget* PreferencesDialog::createSettingsTabWidget(Settings* settings)
   const auto mainVBox = new QVBoxLayout(widget);
   mainVBox->addLayout(mainHBox);
   mainVBox->addWidget(presetSelector);
-#if HAS_Qt5_X11Extras
+#if HAS_Qt_X11Extras
   mainVBox->addWidget(createCompositorWarningWidget());
 #endif
   mainVBox->addLayout(hbox);
@@ -255,7 +257,7 @@ QWidget* PreferencesDialog::createPresetSelector(Settings* settings)
 }
 
 // -------------------------------------------------------------------------------------------------
-#if HAS_Qt5_X11Extras
+#if HAS_Qt_X11Extras
 QWidget* PreferencesDialog::createCompositorWarningWidget()
 {
   if (!QX11Info::isPlatformX11())
@@ -403,7 +405,11 @@ QGroupBox* PreferencesDialog::createShapeGroupBox(Settings* settings)
       {
         if (row >= startRow + maxRows) { break; }
         spotGrid->addWidget(new QLabel(s.displayName(), this),row, 0);
+        #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
         if (s.defaultValue().type() == QVariant::Int)
+        #else
+        if (s.defaultValue().metaType().id() == QMetaType::Int)
+        #endif
         {
           const auto spinbox = new QSpinBox(this);
           spinbox->setMaximum(s.maxValue().toInt());

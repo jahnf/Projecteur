@@ -100,8 +100,12 @@ QSize NativeKeySeqEdit::sizeHint() const
                            opt.fontMetrics.width(m_nativeSequence.toString()));
   #endif
 
+  #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
   return (style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h).
                                     expandedTo(QApplication::globalStrut()), this));
+  #else
+  return style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h), this);
+  #endif
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -6,13 +6,15 @@
 #include "logging.h"
 
 #include <QApplication>
-#include <QDesktopWidget>
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+  #include <QDesktopWidget>
+#endif
 #include <QDir>
 #include <QFile>
 #include <QProcessEnvironment>
 #include <QScreen>
 
-#if HAS_Qt5_DBus
+#if HAS_Qt_DBus
 #include <QDBusInterface>
 #include <QDBusReply>
 #endif
@@ -20,7 +22,7 @@
 LOGGING_CATEGORY(desktop, "desktop")
 
 namespace {
-#if HAS_Qt5_DBus
+#if HAS_Qt_DBus
   // -----------------------------------------------------------------------------------------------
   QPixmap grabScreenDBusGnome()
   {
@@ -55,7 +57,7 @@ namespace {
     }
     return pm;
   }
-#endif // HAS_Qt5_DBus
+#endif // HAS_Qt_DBus
 
   // -----------------------------------------------------------------------------------------------
   QPixmap grabScreenVirtualDesktop(QScreen* screen)
@@ -65,8 +67,12 @@ namespace {
       g = g.united(s->geometry());
     }
 
+    #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
     QPixmap pm(QApplication::primaryScreen()->grabWindow(
                  QApplication::desktop()->winId(), g.x(), g.y(), g.width(), g.height()));
+    #else
+    QPixmap pm(QApplication::primaryScreen()->grabWindow(0, g.x(), g.y(), g.width(), g.height()));
+    #endif
 
     if (!pm.isNull())
     {
@@ -129,7 +135,7 @@ QPixmap LinuxDesktop::grabScreen(QScreen* screen) const
 
 QPixmap LinuxDesktop::grabScreenWayland(QScreen* screen) const
 {
-#if HAS_Qt5_DBus
+#if HAS_Qt_DBus
   QPixmap pm;
   switch (type())
   {

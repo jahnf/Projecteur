@@ -189,8 +189,13 @@ QSize InputSeqEdit::sizeHint() const
   #endif
 
   const QStyleOptionFrame option = styleOption();
+
+  #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
   return (style()->sizeFromContents(QStyle::CT_LineEdit, &option, QSize(w, h).
                                     expandedTo(QApplication::globalStrut()), this));
+  #else
+  return style()->sizeFromContents(QStyle::CT_LineEdit, &option, QSize(w, h), this);
+  #endif
 }
 
 // -------------------------------------------------------------------------------------------------
