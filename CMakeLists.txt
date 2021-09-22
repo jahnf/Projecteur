@@ -26,17 +26,47 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
 include(Translation)
 
-set(CMAKE_CXX_STANDARD 14)
+set(QtVersionOptions "Auto" "5" "6")
+set(PROJECTEUR_QT_VERSION "Auto" CACHE STRING "Choose the Qt version")
+set_property(CACHE PROJECTEUR_QT_VERSION PROPERTY STRINGS ${QtVersionOptions})
+
+list(FIND QtVersionOptions ${PROJECTEUR_QT_VERSION} index)
+if(index EQUAL -1)
+    message(FATAL_ERROR "PROJECTEUR_QT_VERSION must be one of ${QtVersionOptions}")
+endif()
+
+if ("${PROJECTEUR_QT_VERSION}" STREQUAL "Auto")
+  find_package(QT NAMES Qt6 Qt5 RCOMPONENTS Core REQUIRED)
+else()
+  set(QT_VERSION_MAJOR ${PROJECTEUR_QT_VERSION})
+endif()
+
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
+set(QT_PACKAGE_NAME Qt${QT_VERSION_MAJOR})
+
+message(STATUS "Using Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
+
+if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+  set(CMAKE_CXX_STANDARD 14)
+else()
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
-find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
-find_package(Qt5 QUIET COMPONENTS X11Extras)
-set(HAS_Qt5_X11Extras ${Qt5_FOUND})
-find_package(Qt5 QUIET COMPONENTS DBus)
-set(HAS_Qt5_DBus ${Qt5_FOUND})
-find_package(Qt5 QUIET COMPONENTS QuickCompiler)
-set(HAS_Qt5_QuickCompiler ${Qt5_FOUND})
+
+find_package(${QT_PACKAGE_NAME} 5.7 REQUIRED COMPONENTS Core Gui Quick Widgets)
+
+if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+  find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS X11Extras)
+  set(HAS_Qt_X11Extras ${${QT_PACKAGE_NAME}_FOUND})
+else()
+  set(HAS_Qt_X11Extras 0)
+endif()
+
+find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS DBus)
+set(HAS_Qt_DBus ${${QT_PACKAGE_NAME}_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -46,7 +76,7 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
                   "please use a different Qt Version.")
 endif()
 
-if (HAS_Qt5_QuickCompiler)
+if (HAS_Qt_QuickCompiler)
   # Off by default, since this ties the application strictly to the Qt version
   # it is built with, see https://doc.qt.io/qt-5.12/qtquick-deployment.html#compiling-qml-ahead-of-time
   option(USE_QTQUICK_COMPILER "Use the QtQuickCompiler" OFF)
@@ -59,10 +89,19 @@ if (HAS_Qt5_QuickCompiler)
       set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
     endforeach()
   else()
-    qt5_add_resources(RESOURCES qml/qml.qrc)
+    if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+      qt5_add_resources(RESOURCES qml/qml.qrc)
+    else()
+      qt6_add_resources(RESOURCES qml/qml.qrc)
+    endif()
   endif()
 endif()
-qt5_add_resources(RESOURCES resources.qrc)
+
+if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+  qt5_add_resources(RESOURCES resources.qrc)
+else()
+  qt6_add_resources(RESOURCES resources.qrc)
+endif()
 
 add_executable(projecteur
   src/main.cc               src/enum-helper.h
@@ -95,19 +134,21 @@ add_executable(projecteur
 target_include_directories(projecteur PRIVATE src)
 
 target_link_libraries(projecteur
-  PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
+  PRIVATE ${QT_PACKAGE_NAME}::Core ${QT_PACKAGE_NAME}::Quick ${QT_PACKAGE_NAME}::Widgets
 )
 
-if(HAS_Qt5_X11Extras)
-  target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
-  target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+if(HAS_Qt_X11Extras)
+  if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+    target_link_libraries(projecteur PRIVATE ${QT_PACKAGE_NAME}::X11Extras)
+  endif()
+  target_compile_definitions(projecteur PRIVATE HAS_Qt_X11Extras=1)
 else()
   message(STATUS "Compiling without Qt5::X11Extras.")
 endif()
 
-if(HAS_Qt5_DBus)
-  target_link_libraries(projecteur PRIVATE Qt5::DBus)
-  target_compile_definitions(projecteur PRIVATE HAS_Qt5_DBus=1)
+if(HAS_Qt_DBus)
+  target_link_libraries(projecteur PRIVATE ${QT_PACKAGE_NAME}::DBus)
+  target_compile_definitions(projecteur PRIVATE HAS_Qt_DBus=1)
 else()
   message(STATUS "Compiling without Qt5::DBus.")
 endif()

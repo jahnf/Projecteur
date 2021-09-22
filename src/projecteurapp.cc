@@ -11,7 +11,10 @@
 #include "settings.h"
 #include "spotlight.h"
 
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
 #include <QDesktopWidget>
+#endif
+
 #include <QFontDatabase>
 #include <QLocalServer>
 #include <QLocalSocket>

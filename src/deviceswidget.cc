@@ -141,7 +141,7 @@ QWidget* DevicesWidget::createDeviceInfoWidget(Spotlight* spotlight)
 // -------------------------------------------------------------------------------------------------
 QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /*spotlight*/)
 {
-  const auto delShortcut = new QShortcut( QKeySequence(Qt::ShiftModifier + Qt::Key_Delete), this);
+  const auto delShortcut = new QShortcut( QKeySequence(Qt::ShiftModifier | Qt::Key_Delete), this);
 
   const auto imWidget = new QWidget(this);
   const auto layout = new QVBoxLayout(imWidget);

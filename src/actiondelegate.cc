@@ -313,16 +313,16 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
   const auto& item = imModel->configData(index);
   if (!item.action) { return; }
 
-  const auto symbol = [&item]() -> unsigned int {
+  const auto symbol = [&item]() -> QChar {
     switch(item.action->type()) {
-    case Action::Type::KeySequence: return Font::Icon::keyboard_4;
-    case Action::Type::CyclePresets: return Font::Icon::connection_8;
-    case Action::Type::ToggleSpotlight: return Font::Icon::power_on_off_11;
-    case Action::Type::ScrollHorizontal: return Font::Icon::cursor_21_rotated;
-    case Action::Type::ScrollVertical: return Font::Icon::cursor_21;
-    case Action::Type::VolumeControl: return Font::Icon::audio_6;
+    case Action::Type::KeySequence: return QChar(Font::Icon::keyboard_4);
+    case Action::Type::CyclePresets: return QChar(Font::Icon::connection_8);
+    case Action::Type::ToggleSpotlight: return QChar(Font::Icon::power_on_off_11);
+    case Action::Type::ScrollHorizontal: return QChar(Font::Icon::cursor_21_rotated);
+    case Action::Type::ScrollVertical: return QChar(Font::Icon::cursor_21);
+    case Action::Type::VolumeControl: return QChar(Font::Icon::audio_6);
     }
-    return 0;
+    return QChar(0);
   }();
 
   if (symbol != 0) {
@@ -359,12 +359,12 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   };
 
   static std::vector<actionEntry> items {
-    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence"), false},
-    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets"), false},
-    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight"), false},
-    {Action::Type::ScrollHorizontal, Font::Icon::cursor_21_rotated, tr("Scroll Horizontal"), true},
-    {Action::Type::ScrollVertical, Font::Icon::cursor_21, tr("Scroll Vertical"), true},
-    {Action::Type::VolumeControl, Font::Icon::audio_6, tr("Volume Control"), true},
+    {Action::Type::KeySequence, QChar(Font::Icon::keyboard_4), tr("Key Sequence"), false},
+    {Action::Type::CyclePresets, QChar(Font::Icon::connection_8), tr("Cycle Presets"), false},
+    {Action::Type::ToggleSpotlight, QChar(Font::Icon::power_on_off_11), tr("Toggle Spotlight"), false},
+    {Action::Type::ScrollHorizontal, QChar(Font::Icon::cursor_21_rotated), tr("Scroll Horizontal"), true},
+    {Action::Type::ScrollVertical, QChar(Font::Icon::cursor_21), tr("Scroll Vertical"), true},
+    {Action::Type::VolumeControl, QChar(Font::Icon::audio_6), tr("Volume Control"), true},
   };
 
   static bool initIcons = []()

@@ -20,8 +20,11 @@ LOGGING_CATEGORY(input, "input")
 
 namespace  {
   // -----------------------------------------------------------------------------------------------
+  #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
   const auto registered_ = qRegisterMetaTypeStreamOperators<KeyEventSequence>()
                            && qRegisterMetaTypeStreamOperators<MappedAction>();
+  #endif
+
 
   // -----------------------------------------------------------------------------------------------
   void addKeyToString(QString& str, const QString& key)
@@ -31,7 +34,8 @@ namespace  {
   }
 
   // -----------------------------------------------------------------------------------------------
-  QKeySequence makeQKeySequence(const std::vector<int>& keys) {
+  QKeySequence makeQKeySequence(const std::vector<int>& keys)
+  {
     switch (keys.size()) {
     case 4: return QKeySequence(keys[0], keys[1], keys[2], keys[3]);
     case 3: return QKeySequence(keys[0], keys[1], keys[2]);
@@ -365,7 +369,14 @@ QString NativeKeySequence::toString() const
   for (size_t i = 0; i < size; ++i)
   {
     if (i > 0) { seqString += QLatin1String(", "); }
-    seqString += toString(m_keySequence[i],
+
+    #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+    const auto key = m_keySequence[i];
+    #else
+    const auto key = m_keySequence[i].key();
+    #endif
+
+    seqString += toString(key,
                           (i < m_nativeModifiers.size()) ? m_nativeModifiers[i]
                                                          : to_integral(Modifier::NoModifier));
   }

@@ -127,11 +127,11 @@ namespace {
       const auto line = in.readLine();
       for (const auto property : properties)
       {
-        if (line.startsWith(property) && line.size() > property->size() && line[property->size()] == '=')
+        if (line.startsWith(*property) && line.size() > property->size() && line[property->size()] == '=')
         {
           const QString value = line.mid(property->size() + 1);
 
-          if (property == hid_id)
+          if (*property == hid_id)
           {
             const auto ids = value.split(':');
             const auto busType = ids.empty() ? 0: ids[0].toUShort(nullptr, 16);
@@ -144,11 +144,11 @@ namespace {
             spotlightDevice.id.vendorId = ids.size() > 1 ? ids[1].toUShort(nullptr, 16) : 0;
             spotlightDevice.id.productId = ids.size() > 2 ? ids[2].toUShort(nullptr, 16) : 0;
           }
-          else if (property == hid_name)
+          else if (*property == hid_name)
           {
             spotlightDevice.name = value;
           }
-          else if (property == hid_phys)
+          else if (*property == hid_phys)
           {
             spotlightDevice.id.phys = value.split('/').first();
           }

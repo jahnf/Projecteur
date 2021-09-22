@@ -197,7 +197,12 @@ void Settings::initializeStringProperties()
     {
       const auto pm = shapeSettings(shape.name());
       if (!pm || !pm->property(shapeSetting.settingsKey().toLocal8Bit()).isValid()) { continue; }
+
+      #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
       if (shapeSetting.defaultValue().type() != QVariant::Int) { continue; }
+      #else
+      if (shapeSetting.defaultValue().metaType().id() != QMetaType::Int) { continue; }
+      #endif
 
       const auto stringProperty = QString("spot.shape.%1.%2").arg(shape.name().toLower())
                                                              .arg(shapeSetting.settingsKey().toLower());
@@ -341,10 +346,17 @@ void Settings::shapeSettingsLoad(const QString& preset)
         const QString settingsKey = section + QString("Shape.%1/%2").arg(shape.name()).arg(key);
         const QVariant loadedValue = m_settings->value(settingsKey, settingDefinition.defaultValue());
 
+        #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
         if (settingDefinition.defaultValue().type() == QVariant::Int // Currently only int shape settings supported
             && settingDefinition.defaultValue() != loadedValue) {
           logDebug(lcSettings) << QString("spot.shape.%1.%2 = ").arg(shape.name().toLower(), key) << loadedValue.toInt();
         }
+        #else
+        if (settingDefinition.defaultValue().metaType().id() == QMetaType::Int // Currently only int shape settings supported
+            && settingDefinition.defaultValue() != loadedValue) {
+          logDebug(lcSettings) << QString("spot.shape.%1.%2 = ").arg(shape.name().toLower(), key) << loadedValue.toInt();
+        }
+        #endif
 
         if (propertyMap->property(key.toLocal8Bit()).isValid()) {
           propertyMap->setProperty(key.toLocal8Bit(), loadedValue);
@@ -394,7 +406,11 @@ void Settings::shapeSettingsInitialize()
 
         if (it != s.cend())
         {
+          #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
           if (it->defaultValue().type() == QVariant::Int) // Currently only int shape settings supported
+          #else
+          if (it->defaultValue().metaType().id() == QMetaType::Int)
+          #endif
           {
             const auto setValue = value.toInt();
             const auto min = it->minValue().toInt();

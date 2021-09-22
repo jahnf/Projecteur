@@ -49,7 +49,7 @@ struct TimerWidget::Impl
     const auto layout = new QHBoxLayout(parent);
     layout->addWidget(checkbox);
     layout->addWidget(stack);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
 
     stack->addWidget(editor);
     stack->addWidget(overlay);
