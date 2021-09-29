@@ -107,7 +107,12 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   if (m_windowQmlComponent->status() != QQmlComponent::Status::Ready) {
     const auto title = tr("Overlay window error.");
     const auto text = tr("Qml component has status '%1'. Exiting.").arg(m_windowQmlComponent->status());
+
     logError(mainapp) << title << ";" << text;
+    for (const auto& error : m_windowQmlComponent->errors()) {
+      logError(mainapp) << error.toString();
+    }
+
     QMessageBox::critical(nullptr, title, text);
     QTimer::singleShot(0, this, [this](){ this->exit(2); });
     return;

@@ -2,7 +2,7 @@
 import QtQuick 2.3
 import QtQuick.Window 2.2
 
-import QtGraphicalEffects 1.0
+import Qt5Compat.GraphicalEffects
 
 import Projecteur.Utils 1.0 as Utils
 

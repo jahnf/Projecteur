@@ -67,6 +67,8 @@ endif()
 
 find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS DBus)
 set(HAS_Qt_DBus ${${QT_PACKAGE_NAME}_FOUND})
+find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS QuickCompiler)
+set(HAS_Qt_QuickCompiler ${${QT_PACKAGE_NAME}_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -80,20 +82,22 @@ if (HAS_Qt_QuickCompiler)
   # Off by default, since this ties the application strictly to the Qt version
   # it is built with, see https://doc.qt.io/qt-5.12/qtquick-deployment.html#compiling-qml-ahead-of-time
   option(USE_QTQUICK_COMPILER "Use the QtQuickCompiler" OFF)
+else()
+  set(USE_QTQUICK_COMPILER OFF)
+endif()
 
-  if (USE_QTQUICK_COMPILER)
-    message(STATUS "Using QtQuick Compiler.")
-    qtquick_compiler_add_resources(RESOURCES qml/qml.qrc)
-    # Avoid CMake policy CMP0071 warning
-    foreach(resfile IN LISTS RESOURCES)
-      set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
-    endforeach()
+if (USE_QTQUICK_COMPILER)
+  message(STATUS "Using QtQuick Compiler.")
+  qtquick_compiler_add_resources(RESOURCES qml/qml.qrc)
+  # Avoid CMake policy CMP0071 warning
+  foreach(resfile IN LISTS RESOURCES)
+    set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
+  endforeach()
+else()
+  if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+    qt5_add_resources(RESOURCES qml/qml.qrc)
   else()
-    if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
-      qt5_add_resources(RESOURCES qml/qml.qrc)
-    else()
-      qt6_add_resources(RESOURCES qml/qml.qrc)
-    endif()
+    qt6_add_resources(RESOURCES qml/qml-qt6.qrc)
   endif()
 endif()
 
