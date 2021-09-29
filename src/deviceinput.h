@@ -41,14 +41,6 @@ QDataStream& operator<<(QDataStream& s, const DeviceInputEvent& die);
 QDataStream& operator>>(QDataStream& s, DeviceInputEvent& die);
 
 // -------------------------------------------------------------------------------------------------
-/// KeyEvent is a sequence of DeviceInputEvent.
-using KeyEvent = std::vector<DeviceInputEvent>;
-
-/// KeyEventSequence is a sequence of KeyEvents.
-using KeyEventSequence = std::vector<KeyEvent>;
-Q_DECLARE_METATYPE(KeyEventSequence);
-
-// -------------------------------------------------------------------------------------------------
 template<typename T>
 QDataStream& operator<<(QDataStream& s, const std::vector<T>& container)
 {
@@ -70,6 +62,14 @@ QDataStream& operator>>(QDataStream& s, std::vector<T>& container)
   }
   return s;
 }
+
+// -------------------------------------------------------------------------------------------------
+/// KeyEvent is a sequence of DeviceInputEvent.
+using KeyEvent = std::vector<DeviceInputEvent>;
+
+/// KeyEventSequence is a sequence of KeyEvents.
+using KeyEventSequence = std::vector<KeyEvent>;
+Q_DECLARE_METATYPE(KeyEventSequence);
 
 // -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
