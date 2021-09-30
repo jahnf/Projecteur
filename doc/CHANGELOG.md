@@ -6,8 +6,6 @@
 
 - Logitech Spotlight Bluetooth vibration & hidraw support ([#140][p140]);
 - Logitech Spotlight Scrolling and Audio Volume functionality ([#85][i85]);
-- Bug fix for high CPU load in certain situations ([#133][i133])
-- Bug fix for wrong button mapping for inputs with same length ([#144][i144])
 - Added automated builds for Fedora 34, Debian 11 (Bullseye) and OpenSUSE 15.3 ([#148][i148])
 - Bug fix for crash when closing the about dialog.
 
@@ -16,10 +14,18 @@ support.
 
 [p140]: https://github.com/jahnf/Projecteur/pull/140
 [i85]:  https://github.com/jahnf/Projecteur/issues/85
-[i133]: https://github.com/jahnf/Projecteur/issues/133
-[i144]: https://github.com/jahnf/Projecteur/issues/144
 [i148]: https://github.com/jahnf/Projecteur/issues/148
 [c-mayanksuman]: https://github.com/mayanksuman
+
+## v0.9.2
+
+### Changes/Updates:
+
+- Bug fix for high CPU load in certain situations ([#133][i133])
+- Bug fix for wrong button mapping for inputs with same length ([#144][i144])
+
+[i133]: https://github.com/jahnf/Projecteur/issues/133
+[i144]: https://github.com/jahnf/Projecteur/issues/144
 
 ## v0.9.1
 
