@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.9.2
+
+### Fixes:
+
+- Bug fix for high CPU load in certain situations ([#133][i133])
+- Bug fix for wrong button mapping for inputs with same length ([#144][i144])
+
+[i133]: https://github.com/jahnf/Projecteur/issues/133
+[i144]: https://github.com/jahnf/Projecteur/issues/144
+
+## v0.9.1
+
+### Fixes:
+
+- Fixes for automatically generated RPM Packages (especially Fedora)
+- Fixes for version numbers in generated packages (DEB and RPM)
+
 ## v0.9
 
 ### Changes/Updates:
