@@ -75,7 +75,7 @@ Window {
                 onClicked: { ProjecteurApp.spotlightWindowClicked() }
                 onExited: { ProjecteurApp.cursorExitedWindow() }
                 onEntered: { ProjecteurApp.cursorEntered(screenId) }
-                onPositionChanged: (mouse) => {
+                onPositionChanged: {
 
                     if (Settings.multiScreenOverlayEnabled) {
                         ProjecteurApp.cursorPositionChanged(
