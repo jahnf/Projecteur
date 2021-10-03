@@ -22,22 +22,22 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Table of Contents
 
-  * [Motivation](#motivation)
-  * [Features](#features)
-  * [Supported Environments](#supported-environments)
-  * [How it works](#how-it-works)
-  * [Download](#download)
-  * [Building](#building)
-  * [Installation/Running](#installationrunning)
-      * [Pre-requisites](#pre-requisites)
-      * [Application Menu](#application-menu)
-      * [Command Line Interface](#command-line-interface)
-      * [Scriptability / Keyboard shortcuts](#scriptability)
-      * [Using Projecteur without a device](#using-projecteur-without-a-device)
-      * [Device Support](#device-support)
-      * [Troubleshooting](#troubleshooting)
-  * [Changelog](#changelog)
-  * [License](#license)
+* [Motivation](#motivation)
+* [Features](#features)
+* [Supported Environments](#supported-environments)
+* [How it works](#how-it-works)
+* [Download](#download)
+* [Building](#building)
+* [Installation/Running](#installationrunning)
+  * [Pre-requisites](#pre-requisites)
+  * [Application Menu](#application-menu)
+  * [Command Line Interface](#command-line-interface)
+  * [Scriptability / Keyboard shortcuts](#scriptability)
+  * [Using Projecteur without a device](#using-projecteur-without-a-device)
+  * [Device Support](#device-support)
+  * [Troubleshooting](#troubleshooting)
+* [Changelog](#changelog)
+* [License](#license)
 
 ## Features
 
@@ -49,6 +49,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
+  * Audio Volume / Horizontal and Vertical Scrolling (Logitech Spotlight).
 * Vibration (Timer) Support for the Logitech Spotlight
 * Usable without a presenter device (e.g. for online presentations)
 
@@ -100,10 +101,8 @@ The _Key Sequence_ action is particularly powerful as it can emit any user-defin
 keystroke. These keystrokes can invoke shortcut in presentation software
 (or any other software) being used. Similarly, the _Cycle Preset_ action can be
 used for cycling different spotlight presets. However, it should be noted that
-presets might get reordered after program restart. If user want to maintain the
-order of presets, please prepend the name of preset with number. For example,
-in stead of naming `Pointer` and `Highlight`, name them `1.Pointer` and
-`2.Highlight` to maintain the order.
+presets are ordered alphabetically on program start. To retain a certain
+order of your presets, you can prepend the preset name with a number.
 
 #### Hold Button Mapping for Logitech Spotlight
 
@@ -111,12 +110,12 @@ Logitech Spotlight can send Hold event for Next and Back buttons as HID++
 messages. Using this device feature, this program provides three different
 usage of the Next or Hold button.
 
-	1. Button Tap
-	2. Long-Press Event
-	3. Button Hold followed by device movement or Hold Move Event
+1. Button Tap
+2. Long-Press Event
+3. Button Hold and Move Event
 
-In Input Mapper tab (Devices tab in Preferences dialog box), the first two
-button usage (_i.e._ tap and long-press) can be mapped directly by tapping or
+On the Input Mapper tab (Devices tab in Preferences dialog box), the first two
+button usages (_i.e._ tap and long-press) can be mapped directly by tapping or
 long pressing the relevant button. For mapping the third button usage (_i.e._
 Hold Move Event), please ensure that the device is active by pressing any button,
 and then right click in first column (Input Sequence) for any entry and select
@@ -259,6 +258,9 @@ your screen in a video call without additional presenter hardware, you can assig
 shortcuts in your window manager (e.g. GNOME) to run the commands `projecteur -c spot=on`
 and `projecteur -c spot=off` or `projecteur -c spot=toggle`, and therefore
 turning the spot on and off with a keyboard shortcut.
+
+A complete list the properties that can be set via the command line, can be
+listed with the `--help-all` command line option.
 
 ### Using Projecteur without a device
 
