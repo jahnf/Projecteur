@@ -215,7 +215,8 @@ namespace HIDPP {
     bool isErrorResponseTo(const Message& other) const;
 
     auto data() { return m_data.data(); }
-    auto dataSize() { return m_data.size(); }
+    const auto data() const { return m_data.data(); }
+    auto dataSize() const { return m_data.size(); }
     auto& operator[](size_t i) { return m_data.operator[](i); }
     const auto& operator[](size_t i) const { return m_data.operator[](i); }
     QString hex() const;
@@ -314,12 +315,14 @@ namespace HIDPP {
     FirmwareInfo(const FirmwareInfo&) = default;
     FirmwareInfo(FirmwareInfo&&) = default;
     FirmwareInfo& operator=(FirmwareInfo&&) = default;
+    bool operator==(const FirmwareInfo& other) const { return m_rawMsg == other.m_rawMsg; }
 
     FirmwareType firmwareType() const;
     QString firmwarePrefix() const;
     uint16_t firmwareVersion() const;
     uint16_t firmwareBuild() const;
     bool isValid() const { return firmwareType() != FirmwareType::Invalid; }
+    const HIDPP::Message& msg() const { return m_rawMsg; }
 
   private:
     HIDPP::Message m_rawMsg;
@@ -333,11 +336,12 @@ namespace HIDPP {
     Q_OBJECT
 
   public:
+    using FeatureTable = std::map<uint16_t, uint8_t>;
     enum class State : uint8_t { Uninitialized, Initializing, Initialized, Error };
 
     FeatureSet(HidppConnectionInterface* connection, QObject* parent = nullptr);
 
-    void initFromDevice(std::function<void(State)> cb);
+    void initFromDevice(DeviceId dId, std::function<void(State)> cb);
     State state() const;
 
     uint8_t featureIndex(FeatureCode fc) const;
@@ -349,7 +353,6 @@ namespace HIDPP {
 
   private:
     using MsgResult = HidppConnectionInterface::MsgResult;
-    using FeatureTable = std::map<uint16_t, uint8_t>;
 
     void getFeatureIndex(FeatureCode fc, std::function<void(MsgResult, uint8_t)> cb);
     void getFeatureCount(std::function<void(MsgResult, uint8_t featureIndex, uint8_t count)> cb);
@@ -372,9 +375,20 @@ namespace HIDPP {
   };
 } //end namespace HIDPP
 
+// -------------------------------------------------------------------------------------------------
 const char* toString(HidppConnectionInterface::MsgResult r);
 const char* toString(HIDPP::Error e);
 const char* toString(HIDPP::FeatureSet::State s);
 const char* toString(HIDPP::FeatureCode fc);
 const char* toString(HIDPP::BatteryStatus bs);
 const char* toString(HIDPP::Notification n);
+
+// -------------------------------------------------------------------------------------------------
+Q_DECLARE_METATYPE(HIDPP::FeatureSet::FeatureTable);
+QDataStream& operator<<(QDataStream& s, const HIDPP::FeatureSet::FeatureTable& ft);
+QDataStream& operator>>(QDataStream& s, HIDPP::FeatureSet::FeatureTable& ft);
+
+// -------------------------------------------------------------------------------------------------
+Q_DECLARE_METATYPE(HIDPP::FirmwareInfo);
+QDataStream& operator<<(QDataStream& s, const HIDPP::FirmwareInfo& fi);
+QDataStream& operator>>(QDataStream& s, HIDPP::FirmwareInfo& fi);
