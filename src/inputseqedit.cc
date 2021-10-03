@@ -209,11 +209,12 @@ void InputSeqEdit::paintEvent(QPaintEvent* /* paintEvent */)
   const bool recording = m_inputMapper && m_inputMapper->recordingMode();
 
   const auto& fm = option.fontMetrics;
-  const int xPos = (option.rect.height()-fm.height()) / 2;
+  int xPos = (option.rect.height()-fm.height()) / 2;
 
   if (recording)
   {
-    drawRecordingSymbol(xPos, p, option);
+    const auto spacingX = QStaticText(" ").size().width();
+    xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedSequence.empty()) {
       drawPlaceHolderText(xPos, p, option, tr("Press device button(s)..."));
     } else {
