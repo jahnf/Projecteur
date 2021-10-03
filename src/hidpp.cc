@@ -11,9 +11,25 @@
 #include <memory>
 #include <random>
 
+#include <QDataStream>
+#include <QDir>
+#include <QSettings>
+#include <QStandardPaths>
+
 DECLARE_LOGGING_CATEGORY(hid)
 
 namespace {
+  // -----------------------------------------------------------------------------------------------
+  #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+  const auto registered_ = qRegisterMetaTypeStreamOperators<HIDPP::FirmwareInfo>()
+                             && qRegisterMetaTypeStreamOperators<HIDPP::FeatureSet::FeatureTable>();
+  #endif
+
+  // -----------------------------------------------------------------------------------------------
+  constexpr char featureSetFilename[] = "DeviceFeatureSet.conf";
+  constexpr char firmwareKey[] = "firmwareVersion";
+  constexpr char featureTableKey[] = "featureTable";
+
   // -----------------------------------------------------------------------------------------------
   namespace Defaults {
     constexpr uint8_t HidppSoftwareId = 7;
@@ -58,6 +74,12 @@ namespace {
     static std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<uint8_t> distribution;
     return distribution(gen);
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  QString settingsKey(const DeviceId& dId, const QString& key) {
+    return QString("Device_%1_%2/%3")
+      .arg(logging::hexId(dId.vendorId), logging::hexId(dId.productId), key);
   }
 }  // end anonymous namespace
 
@@ -467,9 +489,9 @@ void FeatureSet::getMainFirmwareInfo(uint8_t fwIndex, uint8_t max, uint8_t curre
 }
 
 // -------------------------------------------------------------------------------------------------
-void FeatureSet::initFromDevice(std::function<void(State)> cb)
+void FeatureSet::initFromDevice(DeviceId dId, std::function<void(State)> cb)
 {
-  postSelf([this, cb=std::move(cb)]() mutable
+  postSelf([this, dId, cb=std::move(cb)]() mutable
   {
     if (m_connection == nullptr || m_state == State::Initialized || m_state == State::Initializing)
     {
@@ -479,7 +501,8 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
 
     setState(State::Initializing);
 
-    getMainFirmwareInfo(makeSafeCallback([this, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi) mutable
+    getMainFirmwareInfo(makeSafeCallback(
+    [this, dId, cb=std::move(cb)](MsgResult res, FirmwareInfo&& fi) mutable
     {
       logDebug(hid) << tr("getMainFirmwareInfo() => %1, fi.type = %2").arg(toString(res))
       .arg(to_integral(fi.firmwareType()));
@@ -488,11 +511,35 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
         m_mainFirmwareInfo = std::move(fi);
       }
 
-      // Independent from firmware result try to get features
-      Q_UNUSED(res);
+      // --- Try to load feature set from cache file
+      const auto cacheFile = QStandardPaths::locate(
+        QStandardPaths::StandardLocation::AppLocalDataLocation, featureSetFilename);
+
+      if (!cacheFile.isEmpty() && res == MsgResult::Ok && m_mainFirmwareInfo.isValid())
+      {
+        // load feature set and return
+        QSettings settings(cacheFile, QSettings::NativeFormat);
+        const auto fw = settings.value(settingsKey(dId, firmwareKey));
+        if (fw.canConvert<FirmwareInfo>())
+        {
+          auto cacheFirmwareInfo = fw.value<FirmwareInfo>();
+          if (cacheFirmwareInfo == m_mainFirmwareInfo)
+          {
+            const auto table = settings.value(settingsKey(dId, featureTableKey));
+            if (table.canConvert<FeatureTable>())
+            {
+              m_featureTable = table.value<FeatureTable>();
+              logDebug(hid) << tr("Loaded feature set with %1 entries from local cache").arg(m_featureTable.size());
+              setState(State::Initialized);
+              if (cb) { cb(m_state); }
+              return;
+            }
+          }
+        }
+      }
 
       getFeatureCount(makeSafeCallback(
-      [this, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count) mutable
+      [this, dId, cb=std::move(cb)](MsgResult res, uint8_t featureIndex, uint8_t count) mutable
       {
         logDebug(hid) << tr("getFeatureCount() => %1, featureIndex = %2, count = %3")
                          .arg(toString(res)).arg(featureIndex).arg(count);
@@ -505,7 +552,7 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
         }
 
         getFeatureIds(featureIndex, count, makeSafeCallback(
-        [this, cb=std::move(cb)](MsgResult res, FeatureTable&& ft)
+        [this, dId, cb=std::move(cb)](MsgResult res, FeatureTable&& ft)
         {
           if (res != MsgResult::Ok) {
             setState(State::Error);
@@ -514,6 +561,18 @@ void FeatureSet::initFromDevice(std::function<void(State)> cb)
           {
             m_featureTable = std::move(ft);
             setState(State::Initialized);
+
+            // Store feature table in cache file
+            const auto dataPath = QStandardPaths::writableLocation(
+              QStandardPaths::StandardLocation::AppLocalDataLocation);
+
+            if (!dataPath.isEmpty() && m_mainFirmwareInfo.isValid())
+            {
+              const auto cacheFile = QDir(dataPath).filePath(featureSetFilename);
+              QSettings settings(cacheFile, QSettings::NativeFormat);
+              settings.setValue(settingsKey(dId, firmwareKey), QVariant::fromValue(m_mainFirmwareInfo));
+              settings.setValue(settingsKey(dId, featureTableKey), QVariant::fromValue(m_featureTable));
+            }
           }
 
           if (cb) { cb(m_state); }
@@ -712,4 +771,47 @@ const char* toString(HIDPP::Notification n)
     ENUM_CASE_STRINGIFY(Notification::DeviceConnection);
   };
   return "Notification::(unknown)";
+}
+
+// -------------------------------------------------------------------------------------------------
+QDataStream& operator<<(QDataStream& s, const HIDPP::FeatureSet::FeatureTable& ft)
+{
+  s << static_cast<quint64>(ft.size());
+  for (const auto& entry : ft) {
+    s << entry.first << entry.second;
+  }
+  return s;
+}
+
+// -------------------------------------------------------------------------------------------------
+QDataStream& operator>>(QDataStream& s, HIDPP::FeatureSet::FeatureTable& ft)
+{
+  quint64 size{};
+  s >> size;
+  for (quint64 i = 0; i < size; ++i) {
+    HIDPP::FeatureSet::FeatureTable::key_type key;
+    HIDPP::FeatureSet::FeatureTable::mapped_type value;
+    s >> key;
+    s >> value;
+    ft.emplace(key, value);
+  }
+  return s;
+}
+
+// -------------------------------------------------------------------------------------------------
+QDataStream& operator<<(QDataStream& s, const HIDPP::FirmwareInfo& fi)
+{
+  const auto& msg = fi.msg();
+  const auto data = QByteArray::fromRawData(reinterpret_cast<const char*>(msg.data()), msg.dataSize());
+  s << data;
+  return s;
+}
+
+// -------------------------------------------------------------------------------------------------
+QDataStream& operator>>(QDataStream& s, HIDPP::FirmwareInfo& fi)
+{
+  QByteArray data;
+  s >> data;
+  fi = HIDPP::FirmwareInfo(std::vector<unsigned char>(data.begin(), data.end()));
+  return s;
 }

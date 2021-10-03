@@ -571,7 +571,7 @@ void SubHidppConnection::initPresenter(std::function<void(PresenterState)> cb)
 
     setPresenterState(PresenterState::Initializing);
 
-    m_featureSet.initFromDevice(makeSafeCallback(
+    m_featureSet.initFromDevice(deviceId(), makeSafeCallback(
     [this, cb=std::move(cb)](HIDPP::FeatureSet::State state) mutable
     {
       using FState = HIDPP::FeatureSet::State;
