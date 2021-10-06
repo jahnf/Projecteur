@@ -83,22 +83,19 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke);
 // such a way that they cannot interfere with other valid input events from the device.
 namespace SpecialKeys
 {
-  constexpr uint16_t range = 0x0f00;  // 0x0f00 - 0x0fff
-  constexpr uint16_t userRange = 0x0e00; // 0x0e00 - 0x0eff
-
   enum class Key : uint16_t {
-    NextHold = 0x0e10,      // must be in SpecialKeys user range
-    BackHold = 0x0e11,      // must be in SpecialKeys user range
-    NextHoldMove = 0x0ff0,  // must be in SpecialKeys range
-    BackHoldMove = 0x0ff1,  // must be in SpecialKeys range
+    NextHold = 0x0e10,
+    BackHold = 0x0e11,
+    NextHoldMove = 0x0ff0,
+    BackHoldMove = 0x0ff1,
   };
 
   struct SpecialKeyEventSeqInfo {
     QString name;
     KeyEventSequence keyEventSeq;
-    bool isMoveEvent = false;
   };
 
+  const SpecialKeyEventSeqInfo& logitechSpotlightHoldMove(const KeyEventSequence& inputSequence);
   const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key);
   const std::map<Key, SpecialKeyEventSeqInfo>& keyEventSequenceMap();
 }
@@ -298,7 +295,7 @@ public:
 
   // input_events = complete sequence including SYN event
   void addEvents(const struct input_event input_events[], size_t num);
-  void addEvents(KeyEvent key_events);
+  void addEvents(const KeyEvent& key_events);
 
   bool recordingMode() const;
   void setRecordingMode(bool recording);
@@ -306,8 +303,9 @@ public:
   int keyEventInterval() const;
   void setKeyEventInterval(int interval);
 
-  using ReservedInputs = std::vector<SpecialKeys::SpecialKeyEventSeqInfo>;
-  ReservedInputs& specialInputs();
+  using SpecialMoveInputs = std::vector<SpecialKeys::SpecialKeyEventSeqInfo>;
+  const SpecialMoveInputs& specialMoveInputs();
+  void setSpecialMoveInputs(SpecialMoveInputs moveInputs);
 
   std::shared_ptr<VirtualDevice> virtualDevice() const;
   bool hasVirtualDevice() const;

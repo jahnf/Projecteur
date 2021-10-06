@@ -36,8 +36,6 @@ namespace {
 // Hold button state. Very much Logitech Spotlight specific.
 struct HoldButtonStatus
 {
-
-
   void setButtonsPressed(bool nextPressed, bool backPressed)
   {
     if (!m_nextPressed && nextPressed) {
@@ -466,14 +464,18 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
       const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
 
-      if (!m_holdButtonStatus->nextPressed() && isNextPressed) {
-        for (auto ke: SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold).keyEventSeq) {
+      if (!m_holdButtonStatus->nextPressed() && isNextPressed)
+      {
+        const auto& nextHold = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold);
+        for (const auto& ke: nextHold.keyEventSeq) {
           connection->inputMapper()->addEvents(ke);
         }
       }
 
-      if (!m_holdButtonStatus->backPressed() && isBackPressed) {
-        for (auto ke: SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold).keyEventSeq) {
+      if (!m_holdButtonStatus->backPressed() && isBackPressed)
+      {
+        const auto& backHold = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold);
+        for (const auto& ke: backHold.keyEventSeq) {
           connection->inputMapper()->addEvents(ke);
         }
       }
@@ -501,7 +503,7 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const int x = intcast(msg[5]);
       const int y = intcast(msg[7]);
 
-      static const auto getReducedParam = [](int param) -> int{
+      static const auto getReducedParam = [](int param) -> int {
         constexpr int divider = 5;
         constexpr int minimum = 5;
         constexpr int maximum = 10;

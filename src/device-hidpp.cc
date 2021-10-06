@@ -701,13 +701,12 @@ void SubHidppConnection::updateDeviceFlags()
     featureFlagsUnset |= DeviceFlag::ReportBattery;
   }
 
+  InputMapper::SpecialMoveInputs specialMoveInputs;
   if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::ReprogramControlsV4)) {
-    auto& specialInputs = m_inputMapper->specialInputs();
-    specialInputs.clear();
     featureFlagsSet |= DeviceFlags::NextHold;
     featureFlagsSet |= DeviceFlags::BackHold;
-    specialInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove));
-    specialInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove));
+    specialMoveInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHoldMove));
+    specialMoveInputs.emplace_back(SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHoldMove));
     logDebug(hid) << tr("Subdevice '%1' reported %2 support.")
                      .arg(path()).arg(toString(HIDPP::FeatureCode::ReprogramControlsV4));
   }
@@ -715,6 +714,7 @@ void SubHidppConnection::updateDeviceFlags()
     featureFlagsUnset |= DeviceFlags::NextHold;
     featureFlagsUnset |= DeviceFlags::BackHold;
   }
+  m_inputMapper->setSpecialMoveInputs(std::move(specialMoveInputs));
 
   if (m_featureSet.featureCodeSupported(HIDPP::FeatureCode::PointerSpeed)) {
     featureFlagsSet |= DeviceFlags::PointerSpeed;

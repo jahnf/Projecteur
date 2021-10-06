@@ -565,7 +565,7 @@ struct InputMapper::Impl
   InputMapConfig m_config;
   bool m_recordingMode = false;
 
-  ReservedInputs m_reservedInputs;
+  SpecialMoveInputs m_specialMoveInputs;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -799,7 +799,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputMapper::addEvents(KeyEvent key_event)
+void InputMapper::addEvents(const KeyEvent& key_event)
 {
   if (key_event.empty()) { addEvents({}, 0); }
 
@@ -808,14 +808,17 @@ void InputMapper::addEvents(KeyEvent key_event)
     return ie;
   };
 
-  // If key_event do not have SYN event at end, add SYN event before sending to inputMapper.
-  if (key_event.back().type != EV_SYN) { key_event.emplace_back(EV_SYN, SYN_REPORT, 0); }
+  // // Check if key_event does have SYN event at end
+  const bool hasLastSYN = (key_event.back().type == EV_SYN);
 
   std::vector<struct input_event> events;
-  events.reserve(key_event.size());
+  events.reserve(key_event.size() + ((!hasLastSYN) ? 1 : 0));
   for (const auto& dev_input_event : key_event) {
     events.emplace_back(to_input_event(dev_input_event));
   }
+
+  if (!hasLastSYN) { events.emplace_back(input_event{{}, EV_SYN, SYN_REPORT, 0}); }
+
   addEvents(events.data(), events.size());
 }
 
@@ -854,9 +857,15 @@ const InputMapConfig& InputMapper::configuration() const
 }
 
 // -------------------------------------------------------------------------------------------------
-InputMapper::ReservedInputs& InputMapper::specialInputs()
+const InputMapper::SpecialMoveInputs& InputMapper::specialMoveInputs()
 {
-  return impl->m_reservedInputs;
+  return impl->m_specialMoveInputs;
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapper::setSpecialMoveInputs(SpecialMoveInputs moveInputs)
+{
+  impl->m_specialMoveInputs = std::move(moveInputs);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -864,22 +873,20 @@ namespace SpecialKeys
 {
 // -------------------------------------------------------------------------------------------------
 // Functions that provide all special event sequences for a device.
-// Currently, special event seqences are only defined for
-// Logitech Spotlight device. Please note that all special key event
-// sequences are not necessarily be move type Key Seqeuce.
+// Currently, special event seqences are only defined for the Logitech Spotlight device.
 // Move type Key Sequences for the device are stored in
-// InputMapper::Impl::m_reservedInputs by SubHidppConnection::updateDeviceFlags.
+// InputMapper::Impl::m_specialMoveInputs by SubHidppConnection::updateDeviceFlags.
 const std::map<Key, SpecialKeyEventSeqInfo>&  keyEventSequenceMap()
 {
   static const std::map<Key, SpecialKeyEventSeqInfo> keyMap {
     {Key::NextHold, {InputMapper::tr("Next Hold"),
-      makeSpecialKeyEventSequence(to_integral(Key::NextHold))}},
+      KeyEventSequence{{{EV_KEY, to_integral(Key::NextHold), 1}}}}},
     {Key::BackHold, {InputMapper::tr("Back Hold"),
-      makeSpecialKeyEventSequence(to_integral(Key::BackHold))}},
+      KeyEventSequence{{{EV_KEY, to_integral(Key::BackHold), 1}}}}},
     {Key::NextHoldMove, {InputMapper::tr("Next Hold Move"),
-      makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove)), true}},
+      makeSpecialKeyEventSequence(to_integral(Key::NextHoldMove)) }},
     {Key::BackHoldMove, {InputMapper::tr("Back Hold Move"),
-      makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove)), true}},
+      makeSpecialKeyEventSequence(to_integral(Key::BackHoldMove))}},
   };
   return keyMap;
 }
@@ -890,6 +897,22 @@ const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key)
   const auto it = keyEventSequenceMap().find(key);
   if (it != keyEventSequenceMap().cend()) {
     return it->second;
+  }
+
+  static const SpecialKeyEventSeqInfo notFound;
+  return notFound;
+}
+
+// -------------------------------------------------------------------------------------------------
+const SpecialKeyEventSeqInfo& logitechSpotlightHoldMove(const KeyEventSequence& inputSequence)
+{
+  const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
+  for (const auto& key : {SpecialKeys::Key::BackHoldMove, SpecialKeys::Key::NextHoldMove})
+  {
+    const auto it = specialKeysMap.find(key);
+    if (it != specialKeysMap.cend() && it->second.keyEventSeq == inputSequence) {
+      return it->second;
+    }
   }
 
   static const SpecialKeyEventSeqInfo notFound;
