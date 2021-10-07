@@ -343,13 +343,6 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   const auto& item = model->configData(index);
   if (!item.action) { return; }
 
-  const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
-  const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
-    [&item](const auto& specialKeyInfo){
-      return (item.deviceSequence == specialKeyInfo.second.keyEventSeq);
-    }
-  );
-
   struct actionEntry {
     Action::Type type;
     QChar symbol;
@@ -388,6 +381,9 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
   }();
 
   auto* const menu = new QMenu(parent);
+
+  // Check if input sequence is a back or next hold move event.
+  const bool isSpecialMoveInput = !SpecialKeys::logitechSpotlightHoldMove(item.deviceSequence).name.isEmpty();
 
   for (const auto& entry : items) {
     if ((isSpecialMoveInput && entry.isMoveAction)

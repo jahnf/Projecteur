@@ -114,6 +114,7 @@ add_executable(projecteur
   src/colorselector.cc      src/colorselector.h
   src/device.cc             src/device.h
   src/device-hidpp.cc       src/device-hidpp.h
+  src/device-key-lookup.cc  src/device-key-lookup.h
   src/device-vibration.cc   src/device-vibration.h
   src/deviceinput.cc        src/deviceinput.h
   src/devicescan.cc         src/devicescan.h

@@ -36,11 +36,6 @@ namespace {
 // Hold button state. Very much Logitech Spotlight specific.
 struct HoldButtonStatus
 {
-  enum class Button : uint16_t {
-    Next = 0x0e10, // must be in SpecialKeys user range
-    Back = 0x0e11, // must be in SpecialKeys user range
-  };
-
   void setButtonsPressed(bool nextPressed, bool backPressed)
   {
     if (!m_nextPressed && nextPressed) {
@@ -469,12 +464,20 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const auto isNextPressed = msg[5] == ButtonNext || msg[7] == ButtonNext;
       const auto isBackPressed = msg[5] == ButtonBack || msg[7] == ButtonBack;
 
-      if (!m_holdButtonStatus->nextPressed() && isNextPressed) {
-        connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Next), 1}});
+      if (!m_holdButtonStatus->nextPressed() && isNextPressed)
+      {
+        const auto& nextHold = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::NextHold);
+        for (const auto& ke: nextHold.keyEventSeq) {
+          connection->inputMapper()->addEvents(ke);
+        }
       }
 
-      if (!m_holdButtonStatus->backPressed() && isBackPressed) {
-        connection->inputMapper()->addEvents(KeyEvent{{EV_KEY, to_integral(HoldButtonStatus::Button::Back), 1}});
+      if (!m_holdButtonStatus->backPressed() && isBackPressed)
+      {
+        const auto& backHold = SpecialKeys::eventSequenceInfo(SpecialKeys::Key::BackHold);
+        for (const auto& ke: backHold.keyEventSeq) {
+          connection->inputMapper()->addEvents(ke);
+        }
       }
 
       m_holdButtonStatus->setButtonsPressed(isNextPressed, isBackPressed);
@@ -500,7 +503,7 @@ void Spotlight::registerForNotifications(SubHidppConnection* connection)
       const int x = intcast(msg[5]);
       const int y = intcast(msg[7]);
 
-      static const auto getReducedParam = [](int param) -> int{
+      static const auto getReducedParam = [](int param) -> int {
         constexpr int divider = 5;
         constexpr int minimum = 5;
         constexpr int maximum = 10;

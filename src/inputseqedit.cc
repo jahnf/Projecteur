@@ -3,6 +3,7 @@
 
 #include "inputseqedit.h"
 
+#include "device-key-lookup.h"
 #include "deviceinput.h"
 #include "inputmapconfig.h"
 #include "logging.h"
@@ -40,17 +41,20 @@ namespace {
 
   // -----------------------------------------------------------------------------------------------
   int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke,
-                   bool buttonTap = false)
+                   const DeviceId& dId, bool buttonTap = false)
   {
     if (ke.empty()) { return 0; }
 
     static auto const pressChar = QChar(0x2193); // ↓
     static auto const releaseChar = QChar(0x2191); // ↑
 
+    const auto& die = (ke.back().code != SYN_REPORT) ? ke.back() : ke.front();
+    const auto& lookupName = KeyName::lookup(dId, die);
+
     // TODO Some devices (e.g. August WP 200) have buttons that send a key combination
     //      (modifiers + key) - this is ignored completely right now.
     const auto text = QString("[%1%2%3")
-                         .arg(ke.back().code != SYN_REPORT ? ke.back().code : ke.front().code, 0, 16)
+                         .arg(lookupName.isEmpty() ? QString("%1").arg(die.code, 0, 16) : lookupName)
                          .arg(buttonTap ? pressChar
                                         : ke.back().value ? pressChar : releaseChar)
                          .arg(buttonTap ? "" : "]");
@@ -86,7 +90,8 @@ namespace {
 
   // -----------------------------------------------------------------------------------------------
   int drawKeyEventSequence(int startX, QPainter& p, const QStyleOption& option,
-                           const KeyEventSequence& kes, bool drawEmptyPlaceholder = true)
+                           const KeyEventSequence& kes, const DeviceId& dId,
+                           bool drawEmptyPlaceholder = true)
   {
     if (kes.empty())
     {
@@ -111,7 +116,7 @@ namespace {
         return false;
       }();
 
-      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it, isTap);
+      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it, dId, isTap);
     }
 
     return sequenceWidth;
@@ -141,13 +146,9 @@ namespace {
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
-InputSeqEdit::InputSeqEdit(QWidget* parent)
-  : InputSeqEdit(nullptr, parent)
-{}
-
-// -------------------------------------------------------------------------------------------------
-InputSeqEdit::InputSeqEdit(InputMapper* im, QWidget* parent)
+InputSeqEdit::InputSeqEdit(InputMapper* im, const DeviceId& dId, QWidget* parent)
   : QWidget(parent)
+  , m_deviceId(dId)
 {
   setInputMapper(im);
 
@@ -218,11 +219,11 @@ void InputSeqEdit::paintEvent(QPaintEvent* /* paintEvent */)
     if (m_recordedSequence.empty()) {
       drawPlaceHolderText(xPos, p, option, tr("Press device button(s)..."));
     } else {
-      drawKeyEventSequence(xPos, p, option, m_recordedSequence, false);
+      drawKeyEventSequence(xPos, p, option, m_recordedSequence, m_deviceId, false);
     }
   }
   else {
-    drawKeyEventSequence(xPos, p, option, m_inputSequence);
+    drawKeyEventSequence(xPos, p, option, m_inputSequence, m_deviceId);
   }
 }
 
@@ -311,7 +312,7 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
 {
   if (m_inputMapper == im) { return; }
 
-  auto removeIm = [this](){
+  const auto removeIm = [this](){
     if (m_inputMapper) {
       m_inputMapper->disconnect(this);
       this->disconnect(m_inputMapper);
@@ -409,21 +410,13 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
   const auto& keySeq = imModel->configData(index).deviceSequence;
-  const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
+  const auto& holdMoveEvent = SpecialKeys::logitechSpotlightHoldMove(keySeq);
 
-  const auto it = std::find_if(specialKeysMap.cbegin(), specialKeysMap.cend(),
-    [&keySeq](const auto& specialKeyInfo){
-      return (keySeq == specialKeyInfo.second.keyEventSeq);
-    }
-  );
-
-  if (it != specialKeysMap.cend())
-  {
-    drawPlaceHolderText(xPos, *painter, option, it->second.name, false);
+  if (!holdMoveEvent.name.isEmpty()) {
+    drawPlaceHolderText(xPos, *painter, option, holdMoveEvent.name, false);
   }
-  else
-  {
-    drawKeyEventSequence(xPos, *painter, option, keySeq);
+  else {
+    drawKeyEventSequence(xPos, *painter, option, keySeq, imModel->deviceId());
   }
 
   if (option.state & QStyle::State_HasFocus) {
@@ -461,7 +454,7 @@ QWidget* InputSeqDelegate::createEditor(QWidget* parent,
   if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
     if (imModel->inputMapper()) { imModel->inputMapper()->setRecordingMode(false); }
-    auto *editor = new InputSeqEdit(imModel->inputMapper(), parent);
+    auto *editor = new InputSeqEdit(imModel->inputMapper(), imModel->deviceId(), parent);
     connect(editor, &InputSeqEdit::editingFinished, this, &InputSeqDelegate::commitAndCloseEditor);
     if (imModel->inputMapper()) { imModel->inputMapper()->setRecordingMode(true); }
     return editor;
@@ -526,18 +519,19 @@ void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel*
 {
   if (!index.isValid() || !model) { return; }
 
-  const auto& specialInputs = model->inputMapper()->specialInputs();
-  if (!specialInputs.empty())
+  const auto& specialMoveInputs = model->inputMapper()->specialMoveInputs();
+  if (!specialMoveInputs.empty())
   {
     auto* const menu = new QMenu(parent);
 
-    for (const auto& button : specialInputs) {
-      const auto qaction = menu->addAction(button.name);
-      connect(qaction, &QAction::triggered, this, [model, index, button](){
-        model->setInputSequence(index, button.keyEventSeq);
+    for (const auto& input : specialMoveInputs)
+    {
+      const auto qaction = menu->addAction(input.name);
+      connect(qaction, &QAction::triggered, this, [model, index, inputSeq=input.keyEventSeq](){
+        model->setInputSequence(index, inputSeq);
         const auto& currentItem = model->configData(index);
         if (!currentItem.action) {
-          model->setItemActionType(index, Action::Type::ScrollHorizontal);
+          model->setItemActionType(index, Action::Type::ScrollVertical);
         }
         else
         {

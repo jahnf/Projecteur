@@ -171,7 +171,7 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   intervalLayout->addWidget(intervalUnitLbl);
 
   const auto tblView = new InputMapConfigView(imWidget);
-  const auto imModel = new InputMapConfigModel(m_inputMapper, imWidget);
+  const auto imModel = new InputMapConfigModel(m_inputMapper, currentDeviceId(), imWidget);
   if (m_inputMapper) { imModel->setConfiguration(m_inputMapper->configuration()); }
 
   tblView->setModel(imModel);
@@ -183,11 +183,13 @@ QWidget* DevicesWidget::createInputMapperWidget(Settings* settings, Spotlight* /
   updateImWidget();
 
   connect(this, &DevicesWidget::currentDeviceChanged, this,
-  [this, imModel, intervalSb, updateImWidget=std::move(updateImWidget)](){
+  [this, imModel, intervalSb, updateImWidget=std::move(updateImWidget)](const DeviceId& dId)
+  {
     imModel->setInputMapper(m_inputMapper);
     if (m_inputMapper) {
       intervalSb->setValue(m_inputMapper->keyEventInterval());
       imModel->setConfiguration(m_inputMapper->configuration());
+      imModel->setDeviceId(dId);
     }
     updateImWidget();
   });

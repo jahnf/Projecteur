@@ -16,13 +16,9 @@ namespace  {
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
-InputMapConfigModel::InputMapConfigModel(QObject* parent)
-  : InputMapConfigModel(nullptr, parent)
-{}
-
-// -------------------------------------------------------------------------------------------------
-InputMapConfigModel::InputMapConfigModel(InputMapper* im, QObject* parent)
+InputMapConfigModel::InputMapConfigModel(InputMapper* im, const DeviceId& dId, QObject* parent)
   : QAbstractTableModel(parent)
+  , m_currentDeviceId(dId)
   , m_inputMapper(im)
 {}
 
@@ -165,12 +161,7 @@ void InputMapConfigModel::setInputSequence(const QModelIndex& index, const KeyEv
       ++m_duplicates[kes];
       c.deviceSequence = kes;
 
-      const auto& specialKeysMap = SpecialKeys::keyEventSequenceMap();
-      const bool isSpecialMoveInput = std::any_of(specialKeysMap.cbegin(), specialKeysMap.cend(),
-        [&c](const auto& specialKeyInfo){
-          return (c.deviceSequence == specialKeyInfo.second.keyEventSeq);
-        }
-      );
+      const bool isSpecialMoveInput = !SpecialKeys::logitechSpotlightHoldMove(c.deviceSequence).name.isEmpty();
 
       const bool isMoveAction =
         (c.action->type() == Action::Type::ScrollHorizontal
@@ -287,6 +278,18 @@ void InputMapConfigModel::setConfiguration(const InputMapConfig& config)
   }
 
   endResetModel();
+}
+
+// -------------------------------------------------------------------------------------------------
+const DeviceId& InputMapConfigModel::deviceId() const
+{
+  return m_currentDeviceId;
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputMapConfigModel::setDeviceId(const DeviceId& dId)
+{
+  m_currentDeviceId = dId;
 }
 
 // -------------------------------------------------------------------------------------------------
