@@ -78,7 +78,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
-                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome"
+                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome":
+                              m_linuxDesktop->type() == LinuxDesktop::Type::Sway ? "Sway"
                                                                                   : tr("Unknown");
 
   logDebug(mainapp) << tr("Qt platform plugin: %1;").arg(QGuiApplication::platformName())

@@ -328,6 +328,7 @@ namespace {
 // -------------------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
+  QCoreApplication::setOrganizationName("projecteur");
   QCoreApplication::setApplicationName("Projecteur");
   QCoreApplication::setApplicationVersion(projecteur::version_string());
   ProjecteurApplication::Options options;
