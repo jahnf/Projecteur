@@ -44,7 +44,7 @@ namespace {
 ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Options& options)
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon())
-  , m_trayMenu(new QMenu())
+  , m_trayMenu(new QMenu(qobject_cast<QWidget*>(m_trayIcon.get())))
   , m_localServer(new QLocalServer(this))
   , m_linuxDesktop(new LinuxDesktop(this))
   , m_xcbOnWayland(QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland())
@@ -78,7 +78,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
-                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome"
+                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome":
+                              m_linuxDesktop->type() == LinuxDesktop::Type::Sway ? "Sway"
                                                                                   : tr("Unknown");
 
   logDebug(mainapp) << tr("Qt platform plugin: %1;").arg(QGuiApplication::platformName())

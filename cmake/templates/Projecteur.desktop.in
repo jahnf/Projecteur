@@ -6,3 +6,7 @@ GenericName=Linux/X11 application for the Logitech Spotlight device.
 Icon=projecteur
 Terminal=false
 Categories=Office;Presentation;
+X-DBUS-StartupType=Unique
+X-DBUS-ServiceName=org.projecteur.Projecteur
+X-KDE-DBUS-Restricted-Interfaces=org.kde.kwin.Screenshot,org.kde.KWin.ScreenShot2
+
