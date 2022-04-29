@@ -28,6 +28,7 @@ jobs:
         - ubuntu-20.04
         - ubuntu-20.10
         - ubuntu-21.04
+        - ubuntu-22.04
         - opensuse-15.0
         - opensuse-15.1
         - opensuse-15.2
@@ -187,6 +188,7 @@ jobs:
         declare -A distromap=( ["debian-stretch"]="debian/stretch" ["debian-buster"]="debian/buster" \
           ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
           ["ubuntu-20.04"]="ubuntu/focal" ["ubuntu-21.04"]="ubuntu/hirsute" \
+          ["ubuntu-22.04"]="ubuntu/jammy" \
           ["opensuse-15.1"]="opensuse/15.1" ["opensuse-15.2"]="opensuse/15.2" \
           ["opensuse-15.3"]="opensuse/15.3" ["centos-8"]="el/8" \
           ["fedora-31"]="fedora/31" \
