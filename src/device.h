@@ -7,6 +7,7 @@
 
 #include "devicescan.h"
 
+#include <array>
 #include <memory>
 #include <vector>
 
