@@ -3,6 +3,8 @@
 
 #include "devicescan.h"
 
+#include <array>
+
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QTextStream>
