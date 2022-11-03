@@ -195,7 +195,7 @@ add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devices.conf
                                       src/extra-devices.cc.in 55-projecteur.rules.in
-                                      cmake/templates/Projecteur.desktop.in)
+                                      cmake/templates/projecteur.desktop.in)
 
 # Install
 #---------------------------------------------------------------------------------------------------
@@ -285,7 +285,7 @@ get_target_property(VERSION_STRING projecteur VERSION_STRING)
 get_target_property(VERSION_DATE_MONTH_YEAR projecteur VERSION_DATE_MONTH_YEAR)
 set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
-configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
+configure_file("${TMPLDIR}/projecteur.desktop.in" "projecteur.desktop" @ONLY)
 install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
 
 # Configure man page and gzip it.
