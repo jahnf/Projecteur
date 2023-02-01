@@ -277,6 +277,7 @@ Besides the _Logitech Spotlight_, the following devices are currently supported 
 * AVATTO H100 / August WP200 _(0c45:8101)_
 * August LP315 _(2312:863d)_
 * AVATTO i10 Pro _(2571:4109)_
+* August LP310 _(69a7:9803)_
 
 #### Compile Time
 
