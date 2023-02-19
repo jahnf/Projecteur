@@ -18,3 +18,4 @@ RUN dnf -y install --setopt=install_weak_deps=False --best \
   qt5-qtx11extras-devel \
   libusbx-devel
 
+RUN git config --global --add safe.directory /source
