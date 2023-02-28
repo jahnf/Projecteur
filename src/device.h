@@ -29,7 +29,9 @@ class DeviceConnection : public QObject
   Q_OBJECT
 
 public:
-  DeviceConnection(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev);
+  DeviceConnection(const DeviceId& id, const QString& name,
+    std::shared_ptr<VirtualDevice> vmouse, std::shared_ptr<VirtualDevice> vkeyboard);
+
   ~DeviceConnection();
 
   const auto& deviceName() const { return m_deviceName; }

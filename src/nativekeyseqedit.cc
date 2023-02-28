@@ -208,7 +208,7 @@ bool NativeKeySeqEdit::event(QEvent* e)
   return QWidget::event(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
 {
   int key = m_lastKey = e->key();
@@ -261,7 +261,7 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
   }
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
 {
   if (!recording())
@@ -285,7 +285,7 @@ void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
   recordKeyPressEvent(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::keyReleaseEvent(QKeyEvent* e)
 {
   if (recording())
@@ -312,14 +312,14 @@ void NativeKeySeqEdit::keyReleaseEvent(QKeyEvent* e)
   QWidget::keyReleaseEvent(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::focusOutEvent(QFocusEvent* e)
 {
   setRecording(false);
   QWidget::focusOutEvent(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 int NativeKeySeqEdit::getQtModifiers(Qt::KeyboardModifiers state)
 {
   int result = 0;
@@ -331,7 +331,7 @@ int NativeKeySeqEdit::getQtModifiers(Qt::KeyboardModifiers state)
   return result;
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 uint16_t NativeKeySeqEdit::getNativeModifiers(const std::set<int>& modifiersPressed)
 {
   using Modifier = NativeKeySequence::Modifier;

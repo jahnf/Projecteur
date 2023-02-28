@@ -79,7 +79,7 @@ QDebug operator<<(QDebug debug, const KeyEvent &ke);
 // Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not a valid
 // input event (input_event in linux/input.h) in a conventional sense. They are communicated
 // via HID++ messages from the device. Using the input mapper we need to
-// reserve some KeyEventSequence for theese events. These KeyEventSequence should be designed in
+// reserve some KeyEventSequence for these events. These KeyEventSequence should be designed in
 // such a way that they cannot interfere with other valid input events from the device.
 namespace SpecialKeys
 {
@@ -288,7 +288,11 @@ class InputMapper : public QObject
   Q_OBJECT
 
 public:
-  InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent = nullptr);
+  InputMapper(
+    std::shared_ptr<VirtualDevice> virtualMouse,
+    std::shared_ptr<VirtualDevice> virtualKeyboard,
+    QObject* parent = nullptr);
+
   ~InputMapper();
 
   void resetState(); // Reset any stored sequence state.
@@ -307,7 +311,8 @@ public:
   const SpecialMoveInputs& specialMoveInputs();
   void setSpecialMoveInputs(SpecialMoveInputs moveInputs);
 
-  std::shared_ptr<VirtualDevice> virtualDevice() const;
+  std::shared_ptr<VirtualDevice> virtualMouse() const;
+  std::shared_ptr<VirtualDevice> virtualKeyboard() const;
   bool hasVirtualDevice() const;
 
   void setConfiguration(const InputMapConfig& config);
