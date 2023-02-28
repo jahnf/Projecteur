@@ -18,7 +18,8 @@
 #include <QTextBrowser>
 
 namespace {
-  // -------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------
+  /// Contributor (name, github_name, email, url)
   struct Contributor
   {
     explicit Contributor(const QString& name = {}, const QString& github_name = {},
@@ -27,8 +28,10 @@ namespace {
 
     QString toHtml() const
     {
-      auto html = QString("<b>%1</b>").arg(name.isEmpty() ? QString("<a href=\"https://github.com/%1\">%1</a>").arg(github_name)
-                                                          : name);
+      auto html = QString("<b>%1</b>").arg(name.isEmpty()
+        ? QString("<a href=\"https://github.com/%1\">%1</a>").arg(github_name)
+        : name);
+
       if (email.size()) {
         html += QString(" &lt;%1&gt;").arg(email);
       }
@@ -48,7 +51,7 @@ namespace {
     QString url;
   };
 
-  // -------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------
   QString getContributorsHtml()
   {
     static std::vector<Contributor> contributors =
@@ -66,6 +69,9 @@ namespace {
       Contributor("Stuart Prescott", "llimeht"),
       Contributor("Crista Renouard", "Lumnicence"),
       Contributor("freddii", "freddii"),
+      Contributor("Matthias Blümel", "Blaimi"),
+      Contributor("Grzegorz Szymaszek", "gszy"),
+      Contributor("TheAssassin", "TheAssassin"),
     };
 
     static std::mt19937 g(std::random_device{}());

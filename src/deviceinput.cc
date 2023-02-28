@@ -58,6 +58,29 @@ namespace  {
 
     return KeyEventSequence{std::move(pressed)};
   };
+
+  // -----------------------------------------------------------------------------------------------
+  bool isMouseEvent(const input_event* input_events, size_t num)
+  {
+    if (num < 2) {
+      // no events, or single SYN event
+      return false;
+    }
+
+    auto const& ev = [&]() -> input_event const& {
+      if (input_events[0].type == EV_MSC) {
+        return input_events[1];
+      }
+      return input_events[0];
+    }();
+
+    if (ev.type == EV_KEY && ev.code >= BTN_MISC && ev.code < KEY_OK) {
+      return true;
+    }
+
+    return false;
+  }
+
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -547,16 +570,26 @@ const char* toString(Action::Type at, bool withClass)
 // -------------------------------------------------------------------------------------------------
 struct InputMapper::Impl
 {
-  Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev);
+  Impl(InputMapper* parent,
+       std::shared_ptr<VirtualDevice> virtualMouse,
+       std::shared_ptr<VirtualDevice> virtualKeybaord);
 
   void sequenceTimeout();
   void resetState();
   void record(const struct input_event input_events[], size_t num);
   void emitNativeKeySequence(const NativeKeySequence& ks);
   void execAction(const std::shared_ptr<Action>& action, DeviceKeyMap::Result r);
+  bool hasVirtualDevices() const;
+
+  void forwardEvents(const struct input_event input_events[], size_t num);
+  void forwardEvents(const std::vector<struct input_event>& input_events);
 
   InputMapper* m_parent = nullptr;
-  std::shared_ptr<VirtualDevice> m_vdev; // can be a nullptr if application is started without uinput
+
+  // virtual devices can be empty shared_ptr's if app is started without uinput
+  std::shared_ptr<VirtualDevice> m_vmouse;
+  std::shared_ptr<VirtualDevice> m_vkeyboard;
+
   QTimer* m_seqTimer = nullptr;
   DeviceKeyMap m_keymap;
 
@@ -569,15 +602,24 @@ struct InputMapper::Impl
 };
 
 // -------------------------------------------------------------------------------------------------
-InputMapper::Impl::Impl(InputMapper* parent, std::shared_ptr<VirtualDevice> vdev)
+InputMapper::Impl::Impl(InputMapper* parent
+  , std::shared_ptr<VirtualDevice> virtualMouse
+  , std::shared_ptr<VirtualDevice> virtualKeyboard)
   : m_parent(parent)
-  , m_vdev(std::move(vdev))
+  , m_vmouse(std::move(virtualMouse))
+  , m_vkeyboard(std::move(virtualKeyboard))
   , m_seqTimer(new QTimer(parent))
 {
   constexpr int defaultSequenceIntervalMs = 250;
   m_seqTimer->setSingleShot(true);
   m_seqTimer->setInterval(defaultSequenceIntervalMs);
   connect(m_seqTimer, &QTimer::timeout, parent, [this](){ sequenceTimeout(); });
+}
+
+// -------------------------------------------------------------------------------------------------
+bool InputMapper::Impl::hasVirtualDevices() const
+{
+  return (m_vmouse && m_vkeyboard);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -612,9 +654,9 @@ void InputMapper::Impl::sequenceTimeout()
   if (m_lastState.first == DeviceKeyMap::Result::Valid) {
     // Last input event was part of a valid key sequence, but timeout hit
     // So we emit our stored event so far to the virtual device
-    if (m_vdev && !m_events.empty())
+    if (hasVirtualDevices() && !m_events.empty())
     {
-      m_vdev->emitEvents(m_events);
+      forwardEvents(m_events);
     }
     resetState();
   }
@@ -625,9 +667,10 @@ void InputMapper::Impl::sequenceTimeout()
     {
       execAction(m_lastState.second->action, DeviceKeyMap::Result::PartialHit);
     }
-    else if (m_vdev && !m_events.empty())
+    else if (hasVirtualDevices() && !m_events.empty())
     {
-      m_vdev->emitEvents(m_events);
+      // TODO differentiate between mouse and keyboard events
+      forwardEvents(m_events);
       m_events.resize(0);
     }
     resetState();
@@ -644,7 +687,7 @@ void InputMapper::Impl::resetState()
 // -------------------------------------------------------------------------------------------------
 void InputMapper::Impl::emitNativeKeySequence(const NativeKeySequence& ks)
 {
-  if (!m_vdev) { return; }
+  if (!m_vkeyboard) { return; }
 
   std::vector<input_event> events;
   events.reserve(5); // up to 3 modifier keys + 1 key + 1 syn event
@@ -653,7 +696,7 @@ void InputMapper::Impl::emitNativeKeySequence(const NativeKeySequence& ks)
     for (const auto& ie : ke) {
       events.emplace_back(input_event{{}, ie.type, ie.code, ie.value});
     }
-    m_vdev->emitEvents(events);
+    m_vkeyboard->emitEvents(events);
     events.resize(0);
   }
 }
@@ -671,25 +714,67 @@ void InputMapper::Impl::record(const struct input_event input_events[], size_t n
 }
 
 // -------------------------------------------------------------------------------------------------
+void InputMapper::Impl::forwardEvents(const std::vector<struct input_event>& input_events)
+{
+  forwardEvents(input_events.data(), input_events.size());
+}
+
 // -------------------------------------------------------------------------------------------------
-InputMapper::InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent)
+void InputMapper::Impl::forwardEvents(const struct input_event input_events[], size_t num)
+{
+  input_event const* beg = input_events;
+  input_event const* end = input_events + num;
+
+  auto predicate = [](input_event const& e){
+    return e.type == EV_SYN;
+  };
+
+  // handle each part separated by a SYN event
+  input_event const* syn = std::find_if(beg, end, predicate);
+
+  while (syn != end) {
+    auto const len = std::distance(beg, syn) + 1;
+
+    if (isMouseEvent(beg, len)) {
+      m_vmouse->emitEvents(beg, len);
+    } else {
+      m_vkeyboard->emitEvents(beg, len);
+    }
+
+    beg = syn + 1;
+    syn = std::find_if(beg, end, predicate);
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
+InputMapper::InputMapper(
+    std::shared_ptr<VirtualDevice> virtualMouse
+  , std::shared_ptr<VirtualDevice> virtualKeyboard
+  , QObject* parent)
   : QObject(parent)
-  , impl(std::make_unique<Impl>(this, std::move(virtualDevice)))
+  , impl(std::make_unique<Impl>(this, std::move(virtualMouse), std::move(virtualKeyboard)))
 {}
 
 // -------------------------------------------------------------------------------------------------
 InputMapper::~InputMapper() = default;
 
 // -------------------------------------------------------------------------------------------------
-std::shared_ptr<VirtualDevice> InputMapper::virtualDevice() const
+std::shared_ptr<VirtualDevice> InputMapper::virtualMouse() const
 {
-  return impl->m_vdev;
+  return impl->m_vmouse;
+}
+
+// -------------------------------------------------------------------------------------------------
+std::shared_ptr<VirtualDevice> InputMapper::virtualKeyboard() const
+{
+  return impl->m_vkeyboard;
 }
 
 // -------------------------------------------------------------------------------------------------
 bool InputMapper::hasVirtualDevice() const
 {
-  return !!(impl->m_vdev);
+  return impl->hasVirtualDevices();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -728,12 +813,12 @@ void InputMapper::setKeyEventInterval(int interval)
 // -------------------------------------------------------------------------------------------------
 void InputMapper::addEvents(const input_event* input_events, size_t num)
 {
-  if (num == 0 || (!impl->m_vdev)) { return; }
+  if (num == 0 || (!hasVirtualDevice())) { return; }
 
   // If no key mapping is configured ...
   if (!impl->m_recordingMode && !impl->m_keymap.hasConfig()) {
-    // ... forward events to virtual device if it exists...
-    impl->m_vdev->emitEvents(input_events, num);
+    // ... forward events to virtual device
+    impl->forwardEvents(input_events, num);
     return;
   }
 
@@ -774,7 +859,8 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
   if (res == DeviceKeyMap::Result::Miss)
   { // key sequence miss, send all buffered events so far
     impl->m_seqTimer->stop();
-    impl->m_vdev->emitEvents(impl->m_events);
+
+    impl->forwardEvents(impl->m_events);
 
     impl->resetState();
   }
@@ -785,7 +871,7 @@ void InputMapper::addEvents(const input_event* input_events, size_t num)
       impl->execAction(pos->action, res);
     }
     else {
-      impl->m_vdev->emitEvents(impl->m_events);
+      impl->forwardEvents(impl->m_events);
     }
 
     impl->resetState();
@@ -808,7 +894,7 @@ void InputMapper::addEvents(const KeyEvent& key_event)
     return ie;
   };
 
-  // // Check if key_event does have SYN event at end
+  // Check if key_event does have SYN event at end
   const bool hasLastSYN = (key_event.back().type == EV_SYN);
 
   std::vector<struct input_event> events;

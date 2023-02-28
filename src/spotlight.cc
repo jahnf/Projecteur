@@ -90,7 +90,10 @@ Spotlight::Spotlight(QObject* parent, Options options, Settings* settings)
   });
 
   if (m_options.enableUInput) {
-    m_virtualDevice = VirtualDevice::create();
+    m_virtualMouseDevice = VirtualDevice::create(
+      VirtualDevice::Type::Mouse, "Projecteur_virtual_mouse");
+    m_virtualKeyDevice = VirtualDevice::create(
+      VirtualDevice::Type::Keyboard, "Projecteur_virtual_keyboard");
   }
   else {
     logInfo(device) << tr("Virtual device initialization was skipped.");
@@ -174,7 +177,8 @@ int Spotlight::connectDevices()
   {
     auto& dc = m_deviceConnections[dev.id];
     if (!dc) {
-      dc = std::make_shared<DeviceConnection>(dev.id, dev.getName(), m_virtualDevice);
+      dc = std::make_shared<DeviceConnection>(
+        dev.id, dev.getName(), m_virtualMouseDevice, m_virtualKeyDevice);
     }
 
     const bool anyConnectedBefore = anySpotlightDeviceConnected();
@@ -283,7 +287,7 @@ int Spotlight::connectDevices()
           }
           else if (action->type() == Action::Type::ScrollHorizontal || action->type() == Action::Type::ScrollVertical)
           {
-            if (!m_virtualDevice) { return; }
+            if (!m_virtualMouseDevice) { return; }
 
             const int param = (action->type() == Action::Type::ScrollHorizontal)
               ? static_cast<ScrollHorizontalAction*>(action.get())->param
@@ -293,18 +297,18 @@ int Spotlight::connectDevices()
             {
               const uint16_t wheelCode = (action->type() == Action::Type::ScrollHorizontal) ? REL_HWHEEL : REL_WHEEL;
               const std::vector<input_event> scrollInputEvents = {{{}, EV_REL, wheelCode, param}, {{}, EV_SYN, SYN_REPORT, 0},};
-              m_virtualDevice->emitEvents(scrollInputEvents);
+              m_virtualMouseDevice->emitEvents(scrollInputEvents);
             }
           }
           else if (action->type() == Action::Type::VolumeControl)
           {
-            if (!m_virtualDevice) { return; }
+            if (!m_virtualMouseDevice) { return; }
 
             auto param = static_cast<VolumeControlAction*>(action.get())->param;
             uint16_t keyCode = (param > 0)? KEY_VOLUMEUP: KEY_VOLUMEDOWN;
             const std::vector<input_event> curVolInputEvents = {{{}, EV_KEY, keyCode, 1}, {{}, EV_SYN, SYN_REPORT, 0},
                                                                 {{}, EV_KEY, keyCode, 0}, {{}, EV_SYN, SYN_REPORT, 0},};
-            if (param) { m_virtualDevice->emitEvents(curVolInputEvents); }
+            if (param) { m_virtualMouseDevice->emitEvents(curVolInputEvents); }
           }
         });
 
@@ -423,7 +427,10 @@ void Spotlight::onEventDataAvailable(int fd, SubEventConnection& connection)
         }
 
         m_activeTimer->start();
-        if (m_virtualDevice) { m_virtualDevice->emitEvents(buf.data(), buf.pos()); }
+        if (m_virtualMouseDevice) {
+          // forward events to virtual mouse device
+          m_virtualMouseDevice->emitEvents(buf.data(), buf.pos());
+        }
       }
       else
       { // Forward events to input mapper for the device

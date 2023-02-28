@@ -76,7 +76,8 @@ private:
   QTimer* m_connectionTimer = nullptr;
   QTimer* m_holdMoveEventTimer = nullptr;
   bool m_spotActive = false;
-  std::shared_ptr<VirtualDevice> m_virtualDevice;
+  std::shared_ptr<VirtualDevice> m_virtualMouseDevice;
+  std::shared_ptr<VirtualDevice> m_virtualKeyDevice;
   Settings* m_settings = nullptr;
   std::unique_ptr<HoldButtonStatus> m_holdButtonStatus;
 };

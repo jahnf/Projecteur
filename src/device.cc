@@ -63,10 +63,11 @@ const char* toString(ConnectionMode cm, bool withClass)
 
 // -------------------------------------------------------------------------------------------------
 DeviceConnection::DeviceConnection(const DeviceId& id, const QString& name,
-                                   std::shared_ptr<VirtualDevice> vdev)
+                                   std::shared_ptr<VirtualDevice> vmouse,
+                                   std::shared_ptr<VirtualDevice> vkeyboard)
   : m_deviceId(id)
   , m_deviceName(name)
-  , m_inputMapper(std::make_shared<InputMapper>(std::move(vdev)))
+  , m_inputMapper(std::make_shared<InputMapper>(std::move(vmouse), std::move(vkeyboard)))
 {
 }
 
@@ -245,7 +246,7 @@ std::shared_ptr<SubEventConnection> SubEventConnection::create(const DeviceScan:
   connection->m_details.grabbed = [&dc, evfd, &sd]()
   {
     // Grab device inputs if a virtual device exists.
-    if (dc.inputMapper()->virtualDevice())
+    if (dc.inputMapper()->hasVirtualDevice())
     {
       const int res = ioctl(evfd, EVIOCGRAB, 1);
       if (res == 0) { return true; }

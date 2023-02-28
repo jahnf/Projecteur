@@ -7,26 +7,36 @@
 
 # pragma once
 
+#include <QString>
+
 #include <cstdint>
 #include <memory>
 #include <vector>
 
-// Device that can act as virtual keyboard and mouse
+/// Device that can act as virtual keyboard or mouse
 class VirtualDevice
 {
 private:
   struct Token;
   int m_uinpFd = -1;
+  QString m_userName;
+  QString m_deviceName;
 
 public:
-  // Return a VirtualDevice shared_ptr or an empty shared_ptr if the creation fails.
-  static std::shared_ptr<VirtualDevice> create(const char* name = "Projecteur_input_device",
+  enum class Type {
+    Mouse,
+    Keyboard
+  };
+
+  /// Return a VirtualDevice shared_ptr or an empty shared_ptr if the creation fails.
+  static std::shared_ptr<VirtualDevice> create(Type deviceType,
+                                               const char* name = "Projecteur_input_device",
                                                uint16_t virtualVendorId = 0xfeed,
                                                uint16_t virtualProductId = 0xc0de,
                                                uint16_t virtualVersionId = 1,
                                                const char* location = "/dev/uinput");
 
-  explicit VirtualDevice(Token, int fd);
+  VirtualDevice(Token, int fd, const char* name, const char* sysfs_name);
   ~VirtualDevice();
 
   void emitEvents(const struct input_event[], size_t num);
