@@ -53,6 +53,7 @@ public slots:
   void cursorEntered(quint64 screen);
   void spotlightWindowClicked();
   void cursorPositionChanged(const QPoint& pos);
+  void quit();
 
 private slots:
   void readCommand(QLocalSocket* client);
@@ -71,13 +72,15 @@ private:
 
   void setupTrayIcon();
   void setupSpotlight();
+  void setupLocalServer();
+  void init(const Options& options);
 
 private:
   std::unique_ptr<QSystemTrayIcon> m_trayIcon;
   std::unique_ptr<QMenu> m_trayMenu;
   std::unique_ptr<PreferencesDialog> m_dialog;
   QPointer<AboutDialog> m_aboutDialog;
-  QLocalServer* const m_localServer = nullptr;
+  QLocalServer* m_localServer = nullptr;
   Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;
   LinuxDesktop* m_linuxDesktop = nullptr;

@@ -23,7 +23,6 @@
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QQmlProperty>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QSystemTrayIcon>
@@ -45,7 +44,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   : QApplication(argc, argv)
   , m_trayIcon(new QSystemTrayIcon())
   , m_trayMenu(new QMenu())
-  , m_localServer(new QLocalServer(this))
   , m_linuxDesktop(new LinuxDesktop(this))
   , m_xcbOnWayland(QGuiApplication::platformName() == "xcb" && m_linuxDesktop->isWayland())
 {
@@ -64,8 +62,22 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   m_settings = options.configFile.isEmpty() ? new Settings(this)
                                             : new Settings(options.configFile, this);
-  m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices},
-                              m_settings);
+
+  init(options);
+}
+
+// -------------------------------------------------------------------------------------------------
+ProjecteurApplication::~ProjecteurApplication()
+{
+  if (m_localServer) { m_localServer->close(); }
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::init(const Options& options)
+{
+  m_spotlight = new Spotlight(this,
+    Spotlight::Options{options.enableUInput, options.additionalDevices},
+    m_settings);
 
   m_settings->setOverlayDisabled(options.disableOverlay);
   m_dialog = std::make_unique<PreferencesDialog>(m_settings, m_spotlight,
@@ -122,7 +134,10 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   setupScreenOverlays();
 
   // React to multi-screen and overlay disabled changes in settings.
-  connect(m_settings, &Settings::multiScreenOverlayEnabledChanged, this, [this](){ setupScreenOverlays(); });
+  connect(m_settings, &Settings::multiScreenOverlayEnabledChanged, this, [this](){
+    setupScreenOverlays();
+  });
+
   connect(m_settings, &Settings::overlayDisabledChanged, this, [this](bool disabled){
     if (disabled) {
       if (m_spotlight->spotActive()) { m_spotlight->setSpotActive(false); }
@@ -153,6 +168,15 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
 
   // Setup the spotlight connections.
   setupSpotlight();
+
+  // Setup local ipc server
+  setupLocalServer();
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::setupLocalServer()
+{
+  m_localServer = new QLocalServer(this);
 
   // Open local server for local IPC commands, e.g. from other command line instances
   QLocalServer::removeServer(localServerName());
@@ -196,12 +220,6 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   {
     logError(cmdserver) << tr("Error starting local socket for inter-process communication.");
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-ProjecteurApplication::~ProjecteurApplication()
-{
-  if (m_localServer) { m_localServer->close(); }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -302,7 +320,6 @@ void ProjecteurApplication::setupTrayIcon()
   m_trayMenu->addSeparator();
   const auto actionQuit = m_trayMenu->addAction(tr("&Quit"));
   connect(actionQuit, &QAction::triggered, this, [this](){
-    m_qmlEngine->deleteLater(); // see: https://bugreports.qt.io/browse/QTBUG-81247
     this->quit();
   });
   m_trayIcon->setContextMenu(&*m_trayMenu);
@@ -371,6 +388,15 @@ void ProjecteurApplication::cursorEntered(quint64 screen)
 void ProjecteurApplication::cursorPositionChanged(const QPoint& pos)
 {
   setCurrentCursorPos(pos);
+}
+
+// -------------------------------------------------------------------------------------------------
+void ProjecteurApplication::quit()
+{
+  if (m_qmlEngine) {
+    m_qmlEngine->deleteLater(); // see: https://bugreports.qt.io/browse/QTBUG-81247
+  }
+  QApplication::quit();
 }
 
 // -------------------------------------------------------------------------------------------------

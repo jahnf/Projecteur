@@ -53,7 +53,11 @@ namespace {
   {
     if (sig == SIGINT) {
       print() << "...";
-      if (qApp) { QCoreApplication::quit(); }
+      if (auto projecteurApp = qobject_cast<ProjecteurApplication*>(qApp)) {
+        projecteurApp->quit();
+      } else if (qApp) {
+        QCoreApplication::quit();
+      }
     }
   }
 

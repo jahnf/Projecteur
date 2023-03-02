@@ -13,7 +13,6 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QPushButton>
-#include <QSocketNotifier>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QTimer>
