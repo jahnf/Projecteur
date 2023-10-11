@@ -13,7 +13,7 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="0660
 # Updated rule, thanks to Torsten Maehne (https://github.com/maehne)
 SUBSYSTEMS=="input", ENV{LIBINPUT_DEVICE_GROUP}="5/46d/b503*", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
 # Additional rule for Bluetooth sub-devices (hidraw)
-SUBSYSTEMS=="hid", KERNELS=="0005:046D:B503.*", MODE="0660", TAG+="uaccess"
+SUBSYSTEMS=="hid", KERNELS=="0005:046D:B503.*", MODE="0660", TAG+="uaccess", GROUP="input", MODE="0660"
 
 # Additional supported Bluetooth devices @EXTRA_BLUETOOTH_UDEV_RULES@
 
