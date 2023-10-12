@@ -21,6 +21,7 @@ jobs:
         - fedora-33
         - fedora-34
         - fedora-37
+        - fedora-38
         - debian-stretch
         - debian-buster
         - debian-bullseye
@@ -197,7 +198,7 @@ jobs:
           ["opensuse-15.3"]="opensuse/15.3" ["centos-8"]="el/8" \
           ["fedora-31"]="fedora/31" \
           ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" \
-          ["fedora-34"]="fedora/34" ["fedora-37"]="fedora/37" )
+          ["fedora-34"]="fedora/34" ["fedora-37"]="fedora/37" ["fedora-38"]="fedora/38" )
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
         echo DISTRO=$DISTRO
