@@ -34,6 +34,8 @@ jobs:
         - opensuse-15.1
         - opensuse-15.2
         - opensuse-15.3
+        - opensuse-15.4
+        - opensuse-15.5
         - centos-8
         os:
         - ubuntu-latest
@@ -195,7 +197,8 @@ jobs:
           ["ubuntu-20.04"]="ubuntu/focal" ["ubuntu-21.04"]="ubuntu/hirsute" \
           ["ubuntu-22.04"]="ubuntu/jammy" \
           ["opensuse-15.1"]="opensuse/15.1" ["opensuse-15.2"]="opensuse/15.2" \
-          ["opensuse-15.3"]="opensuse/15.3" ["centos-8"]="el/8" \
+          ["opensuse-15.3"]="opensuse/15.3" ["opensuse-15.4"]="opensuse/15.4" \
+          ["opensuse-15.5"]="opensuse/15.5" ["centos-8"]="el/8" \
           ["fedora-31"]="fedora/31" \
           ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" \
           ["fedora-34"]="fedora/34" ["fedora-37"]="fedora/37" ["fedora-38"]="fedora/38" )
