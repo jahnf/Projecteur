@@ -66,6 +66,9 @@ function(get_version_info prefix directory)
   set(${prefix}_VERSION_ISDIRTY 0 PARENT_SCOPE)
   set(${prefix}_VERSION_BUILDTYPE "${CMAKE_BUILD_TYPE}" PARENT_SCOPE)
   set(${prefix}_VERSION_DATE_MONTH_YEAR "" PARENT_SCOPE)
+  if("${${prefix}_VERSION_DISTANCE_OFFSET}" STREQUAL "")
+    set(${prefix}_VERSION_DISTANCE_OFFSET 0)
+  endif()
 
   if("${${prefix}_OR_VERSION_MAJOR}" STREQUAL "")
     set(${prefix}_OR_VERSION_MAJOR 0)
@@ -248,7 +251,10 @@ function(get_version_info prefix directory)
     endif()
 
     set(${prefix}_VERSION_FLAG ${${prefix}_VERSION_FLAG} PARENT_SCOPE)
-    set(${prefix}_VERSION_DISTANCE ${${prefix}_VERSION_DISTANCE} PARENT_SCOPE)
+
+    math(EXPR CALCULATED_GIT_DISTANCE "${${prefix}_VERSION_DISTANCE}+${${prefix}_VERSION_DISTANCE_OFFSET}")
+    set(${prefix}_VERSION_DISTANCE ${CALCULATED_GIT_DISTANCE})
+    set(${prefix}_VERSION_DISTANCE ${CALCULATED_GIT_DISTANCE} PARENT_SCOPE)
 
     execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
       RESULT_VARIABLE resultSH
@@ -352,6 +358,7 @@ function(add_version_info_custom_prefix target prefix directory)
   set(VERSION_PATCH 0)
   set(VERSION_FLAG unknown)
   set(VERSION_DISTANCE 0)
+  set(VERSION_DISTANCE_OFFSET 0)
   set(VERSION_SHORTHASH unknown)
   set(VERSION_FULLHASH unknown)
   set(VERSION_STRING "0.0-unknown.0")
@@ -378,7 +385,12 @@ function(add_version_info_custom_prefix target prefix directory)
   if(TARGET_VTYPE)
     set(${prefix}_FALLBACK_VERSION_TYPE ${TARGET_VTYPE})
   endif()
-
+  get_target_property(TARGET_VDIST_OFFSET ${target} VERSION_DISTANCE_OFFSET)
+  if(TARGET_VDIST_OFFSET)
+    set(VERSION_DISTANCE_OFFSET ${TARGET_VDIST_OFFSET})
+  endif()
+  set(${prefix}_VERSION_DISTANCE_OFFSET ${VERSION_DISTANCE_OFFSET})
+  
   include(ArchiveVersionInfo_${prefix} OPTIONAL RESULT_VARIABLE ARCHIVE_VERSION_PRESENT)
   if(ARCHIVE_VERSION_PRESENT AND ${prefix}_VERSION_SUCCESS)
     message(STATUS "Info: Version information from archive file.")

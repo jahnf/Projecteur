@@ -1,16 +1,18 @@
 # Projecteur Changelog
 
-## v1.0
+## v0.10.0
 
 ### Changes/Updates:
 
 - Logitech Spotlight Bluetooth vibration & hidraw support ([#140][p140]);
 - Logitech Spotlight Scrolling and Audio Volume functionality ([#85][i85]);
-- Added automated builds for Fedora 34, Debian 11 (Bullseye) and OpenSUSE 15.3 ([#148][i148])
+- Add automated builds for Fedora 34, Debian 11 (Bullseye) and OpenSUSE 15.3 ([#148][i148])
+- Add automated builds for Fedora 37 and 38 / OpenSUSE 15.4 and 15.5
+- Add automated builds for Ubuntu 23.04 and Debian Bookworm
 - Bug fix for crash when closing the about dialog.
 
-Many thanks to *[@mayanksuman][c-mayanksuman]* for Logitech Bluetooth, Scrolling and Audio volume
-support.
+Many thanks to *[@mayanksuman][c-mayanksuman]* for Logitech Bluetooth, Scrolling
+and Audio volume support.
 
 [p140]: https://github.com/jahnf/Projecteur/pull/140
 [i85]:  https://github.com/jahnf/Projecteur/issues/85
