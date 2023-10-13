@@ -172,10 +172,11 @@ target_compile_definitions(projecteur PRIVATE
 #  Update this information - the version numbers and the version type.
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES
-  VERSION_MAJOR 1
-  VERSION_MINOR 0
+  VERSION_MAJOR 0
+  VERSION_MINOR 10
   VERSION_PATCH 0
   VERSION_TYPE develop
+  VERSION_DISTANCE_OFFSET 200
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
