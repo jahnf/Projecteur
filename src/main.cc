@@ -290,6 +290,7 @@ namespace {
       print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
       if (fullHelp) {
         print() << "  preset=NAME            " << Main::tr("Set a preset.");
+        print() << "  vibrate[=I[,L]]        " << Main::tr("Send vibrate command to device with intensity,length.");
       }
       print() << "  quit                   " << Main::tr("Quit the running instance.");
 
