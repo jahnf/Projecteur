@@ -59,6 +59,7 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
     return;
   }
 
+  // don't quit application when last windows (usually preferences dialog) is closed
   setQuitOnLastWindowClosed(false);
   QFontDatabase::addApplicationFont(":/icons/projecteur-icons.ttf");
 
@@ -78,8 +79,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
   });
 
   const QString desktopEnv = m_linuxDesktop->type() == LinuxDesktop::Type::KDE ? "KDE" :
-                              m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome"
-                                                                                  : tr("Unknown");
+                             m_linuxDesktop->type() == LinuxDesktop::Type::Gnome ? "Gnome"
+                                                                                 : tr("Unknown");
 
   logDebug(mainapp) << tr("Qt platform plugin: %1;").arg(QGuiApplication::platformName())
                     << tr("Desktop Environment: %1;").arg(desktopEnv)
@@ -585,13 +586,30 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
     logDebug(cmdserver) << tr("Received quit command.");
     this->quit();
   }
+  else if (cmdKey == "spot.size.adjust")
+  {
+    bool ok = false;
+    int const sizeAdjust = cmdValue.toInt(&ok);
+    if (ok) {
+      logDebug(cmdserver) << tr("Received command spot.size.adjust = %1%2")
+                               .arg(sizeAdjust > 0 ? "+" : "")
+                               .arg(sizeAdjust);
+      m_settings->setSpotSize(m_settings->spotSize() + sizeAdjust);
+    } else {
+      logDebug(cmdserver) << tr("Received invalid value for command spot.size.adjust");
+    }
+  }
   else if (cmdKey == "spot")
   {
-    if (cmdValue.toLower() == "toggle") {
+    if (cmdValue.isEmpty()) {
+      logDebug(cmdserver) << tr("Received empty command value for command spot");
+    } else if (cmdValue.toLower() == "toggle") {
       m_spotlight->setSpotActive(!m_spotlight->spotActive());
     }
     else {
-      const bool active = (cmdValue.toLower() == "on" || cmdValue == "1" || cmdValue.toLower() == "true");
+      const bool active = (cmdValue.toLower() == "on"
+                            || cmdValue == "1"
+                            || cmdValue.toLower() == "true");
       logDebug(cmdserver) << tr("Received command spot = %1").arg(active);
       m_spotlight->setSpotActive(active);
     }
@@ -658,18 +676,20 @@ ProjecteurCommandClientApp::ProjecteurCommandClientApp(const QStringList& ipcCom
 
   QLocalSocket* const localSocket = new QLocalSocket(this);
 
-  #if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
-    connect(localSocket, &QLocalSocket::errorOccurred,
-  #else
-    connect(localSocket,
-          static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
-  #endif
-  this,
-  [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
-    logError(cmdclient) << tr("Error sending commands: %1", "%1=error message").arg(localSocket->errorString());
+  auto socketErrorFunc = [this, localSocket](QLocalSocket::LocalSocketError /*socketError*/) {
+    logError(cmdclient) << tr("Error sending commands: %1", "%1=error message")
+                             .arg(localSocket->errorString());
     localSocket->close();
     QMetaObject::invokeMethod(this, "quit", Qt::QueuedConnection);
-  });
+  };
+
+  #if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    connect(localSocket, &QLocalSocket::errorOccurred, this, std::move(socketErrorFunc));
+  #else
+    connect(localSocket,
+            static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
+            this, std::move(socketErrorFunc));
+  #endif
 
   connect(localSocket, &QLocalSocket::connected, [localSocket, &ipcCommands]()
   {
