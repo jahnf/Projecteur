@@ -20,7 +20,7 @@ _projecteur()
   case "$prev" in
     "-c")
       # Auto completion for commands and properties
-      local commands="quit spot= spot.size.adjust= settings= preset="
+      local commands="quit spot= spot.size.adjust= settings= preset= vibrate="
       commands="${commands} spot.size= spot.rotation= spot.shape= spot.shape.square.radius="
       commands="${commands} spot.multi-screen= spot.overlay="
       commands="${commands} spot.shape.star.points= spot.shape.star.innerradius= spot.shape.ngon.sides="

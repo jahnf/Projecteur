@@ -4,6 +4,7 @@
 #include "projecteurapp.h"
 
 #include "aboutdlg.h"
+#include "device-command-helper.h"
 #include "imageitem.h"
 #include "linuxdesktop.h"
 #include "logging.h"
@@ -67,6 +68,8 @@ ProjecteurApplication::ProjecteurApplication(int &argc, char **argv, const Optio
                                             : new Settings(options.configFile, this);
   m_spotlight = new Spotlight(this, Spotlight::Options{options.enableUInput, options.additionalDevices},
                               m_settings);
+
+  m_deviceCommandHelper = new DeviceCommandHelper(this, m_spotlight);
 
   m_settings->setOverlayDisabled(options.disableOverlay);
   m_dialog = std::make_unique<PreferencesDialog>(m_settings, m_spotlight,
@@ -585,6 +588,42 @@ void ProjecteurApplication::readCommand(QLocalSocket* clientConnection)
   {
     logDebug(cmdserver) << tr("Received quit command.");
     this->quit();
+  }
+  else if (cmdKey == "vibrate") // with args intensity (0-255), length (0-10)
+  {
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+      auto const args = cmdValue.split(QLatin1Char(','), Qt::SkipEmptyParts);
+    #else
+      auto const args = cmdValue.split(QLatin1Char(','), QString::SkipEmptyParts);
+    #endif
+
+    std::uint8_t const intensity = [&args]{
+      if (args.size() >= 1) {
+        bool ok = false;
+        auto intensity = args[0].toInt(&ok);
+        if (ok) {
+          return static_cast<std::uint8_t>(qMin(255, qMax(0, intensity)));
+        }
+      }
+      return std::uint8_t{128};
+    }();
+
+    std::uint8_t const length = [&args]{
+      if (args.size() >= 2) {
+        bool ok = false;
+        auto intensity = args[1].toInt(&ok);
+        if (ok) {
+          return static_cast<std::uint8_t>(qMin(10, qMax(0, intensity)));
+        }
+      }
+      return std::uint8_t{0};
+    }();
+
+    logDebug(cmdserver) << tr("Received command vibrate = intensity:%1, length:%2")
+                              .arg(intensity)
+                              .arg(length);
+
+    m_deviceCommandHelper->sendVibrateCommand(intensity, length);
   }
   else if (cmdKey == "spot.size.adjust")
   {

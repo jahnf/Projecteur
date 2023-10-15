@@ -2,7 +2,7 @@
 // - See LICENSE.md and README.md
 #pragma once
 
-#include "spotlight.h"
+#include "devicescan.h"
 
 #include <QApplication>
 #include <QPointer>
@@ -11,6 +11,7 @@
 #include <memory>
 
 class AboutDialog;
+class DeviceCommandHelper;
 class LinuxDesktop;
 class PreferencesDialog;
 class QLocalServer;
@@ -20,6 +21,7 @@ class QQmlApplicationEngine;
 class QQmlComponent;
 class QSystemTrayIcon;
 class Settings;
+class Spotlight;
 
 class ProjecteurApplication : public QApplication
 {
@@ -78,8 +80,9 @@ private:
   std::unique_ptr<PreferencesDialog> m_dialog;
   QPointer<AboutDialog> m_aboutDialog;
   QLocalServer* const m_localServer = nullptr;
-  Spotlight* m_spotlight = nullptr;
   Settings* m_settings = nullptr;
+  Spotlight* m_spotlight = nullptr;
+  DeviceCommandHelper* m_deviceCommandHelper = nullptr;
   LinuxDesktop* m_linuxDesktop = nullptr;
   QQmlApplicationEngine* m_qmlEngine = nullptr;
   QQmlComponent* m_windowQmlComponent = nullptr;

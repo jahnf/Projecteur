@@ -22,22 +22,39 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Table of Contents
 
-* [Motivation](#motivation)
-* [Features](#features)
-* [Supported Environments](#supported-environments)
-* [How it works](#how-it-works)
-* [Download](#download)
-* [Building](#building)
-* [Installation/Running](#installationrunning)
-  * [Pre-requisites](#pre-requisites)
-  * [Application Menu](#application-menu)
-  * [Command Line Interface](#command-line-interface)
-  * [Scriptability / Keyboard shortcuts](#scriptability)
-  * [Using Projecteur without a device](#using-projecteur-without-a-device)
-  * [Device Support](#device-support)
-  * [Troubleshooting](#troubleshooting)
-* [Changelog](#changelog)
-* [License](#license)
+- [Projecteur](#projecteur)
+  - [Motivation](#motivation)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [Screenshots](#screenshots)
+    - [Planned features](#planned-features)
+  - [Supported Environments](#supported-environments)
+  - [How it works](#how-it-works)
+    - [Button mapping](#button-mapping)
+      - [Hold Button Mapping for Logitech Spotlight](#hold-button-mapping-for-logitech-spotlight)
+  - [Download](#download)
+  - [Building](#building)
+    - [Requirements](#requirements)
+    - [Build Example](#build-example)
+  - [Installation/Running](#installationrunning)
+    - [Pre-requisites](#pre-requisites)
+      - [When building Projecteur yourself](#when-building-projecteur-yourself)
+    - [Application Menu](#application-menu)
+    - [Command Line Interface](#command-line-interface)
+    - [Scriptability](#scriptability)
+    - [Using Projecteur without a device](#using-projecteur-without-a-device)
+    - [Device Support](#device-support)
+      - [Compile Time](#compile-time)
+      - [Runtime](#runtime)
+    - [Troubleshooting](#troubleshooting)
+      - [Opaque Spotlight / No Transparency](#opaque-spotlight--no-transparency)
+      - [Missing System Tray](#missing-system-tray)
+      - [Zoom is not updated while spotlight is shown](#zoom-is-not-updated-while-spotlight-is-shown)
+      - [Wayland](#wayland)
+      - [Wayland Zoom](#wayland-zoom)
+      - [Device shows as not connected](#device-shows-as-not-connected)
+  - [Changelog](#changelog)
+  - [License](#license)
 
 ## Features
 
@@ -250,6 +267,9 @@ Example:
 projecteur -c border=true
 # Set the border color to red
 projecteur -c border.color=#ff0000
+# Send a vibrate command to the device with
+# intensity=128 and length=0 (only Logitech Spotlight)
+projecteur -c vibrate=128,0
 ```
 
 While _Projecteur_ does not provide global keyboard shortcuts, command line options

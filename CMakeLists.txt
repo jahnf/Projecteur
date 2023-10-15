@@ -108,32 +108,33 @@ else()
 endif()
 
 add_executable(projecteur
-  src/main.cc               src/enum-helper.h
-  src/aboutdlg.cc           src/aboutdlg.h
-  src/actiondelegate.cc     src/actiondelegate.h
-  src/colorselector.cc      src/colorselector.h
-  src/device.cc             src/device.h
-  src/device-hidpp.cc       src/device-hidpp.h
-  src/device-key-lookup.cc  src/device-key-lookup.h
-  src/device-vibration.cc   src/device-vibration.h
-  src/deviceinput.cc        src/deviceinput.h
-  src/devicescan.cc         src/devicescan.h
-  src/deviceswidget.cc      src/deviceswidget.h
-  src/hidpp.cc              src/hidpp.h
-  src/linuxdesktop.cc       src/linuxdesktop.h
-  src/iconwidgets.cc        src/iconwidgets.h
-  src/imageitem.cc          src/imageitem.h
-  src/inputmapconfig.cc     src/inputmapconfig.h
-  src/inputseqedit.cc       src/inputseqedit.h
-  src/logging.cc            src/logging.h
-  src/nativekeyseqedit.cc   src/nativekeyseqedit.h
-  src/preferencesdlg.cc     src/preferencesdlg.h
-  src/projecteurapp.cc      src/projecteurapp.h
-  src/runguard.cc           src/runguard.h
-  src/settings.cc           src/settings.h
-  src/spotlight.cc          src/spotlight.h
-  src/spotshapes.cc         src/spotshapes.h
-  src/virtualdevice.h       src/virtualdevice.cc
+  src/main.cc                  src/enum-helper.h
+  src/aboutdlg.cc              src/aboutdlg.h
+  src/actiondelegate.cc        src/actiondelegate.h
+  src/colorselector.cc         src/colorselector.h
+  src/device.cc                src/device.h
+  src/device-command-helper.cc src/device-command-helper.h
+  src/device-hidpp.cc          src/device-hidpp.h
+  src/device-key-lookup.cc     src/device-key-lookup.h
+  src/device-vibration.cc      src/device-vibration.h
+  src/deviceinput.cc           src/deviceinput.h
+  src/devicescan.cc            src/devicescan.h
+  src/deviceswidget.cc         src/deviceswidget.h
+  src/hidpp.cc                 src/hidpp.h
+  src/linuxdesktop.cc          src/linuxdesktop.h
+  src/iconwidgets.cc           src/iconwidgets.h
+  src/imageitem.cc             src/imageitem.h
+  src/inputmapconfig.cc        src/inputmapconfig.h
+  src/inputseqedit.cc          src/inputseqedit.h
+  src/logging.cc               src/logging.h
+  src/nativekeyseqedit.cc      src/nativekeyseqedit.h
+  src/preferencesdlg.cc        src/preferencesdlg.h
+  src/projecteurapp.cc         src/projecteurapp.h
+  src/runguard.cc              src/runguard.h
+  src/settings.cc              src/settings.h
+  src/spotlight.cc             src/spotlight.h
+  src/spotshapes.cc            src/spotshapes.h
+  src/virtualdevice.cc         src/virtualdevice.h
   ${RESOURCES})
 
 target_include_directories(projecteur PRIVATE src)
