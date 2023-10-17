@@ -12,6 +12,7 @@
 #include <vector>
 #include <tuple>
 
+#include <QObject>
 #include <QString>
 
 // Hidpp specific functionality

@@ -24,7 +24,6 @@ add_compile_options(-Wall -Wextra -Werror)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
-include(Translation)
 
 set(QtVersionOptions "Auto" "5" "6")
 set(PROJECTEUR_QT_VERSION "Auto" CACHE STRING "Choose the Qt version")
@@ -45,6 +44,7 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
 set(QT_PACKAGE_NAME Qt${QT_VERSION_MAJOR})
 
 message(STATUS "Using Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
+# include(Translation)
 
 if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
   set(CMAKE_CXX_STANDARD 14)
@@ -191,8 +191,8 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version-string.archlinux" "${PROJECTEUR_
 # Translation
 list(APPEND languages de fr es)
 set(ts_directories "${CMAKE_CURRENT_SOURCE_DIR}/i18n")
-add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directories}" "${languages}")
-add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
+# add_translations_target("projecteur" "${CMAKE_CURRENT_BINARY_DIR}" "${ts_directories}" "${languages}")
+# add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/i18n" "${languages}")
 
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devices.conf

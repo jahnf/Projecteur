@@ -1,6 +1,6 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
-import QtQuick 2.3
-import QtQuick.Window 2.2
+import QtQuick
+import QtQuick.Window
 
 import Qt5Compat.GraphicalEffects
 
