@@ -176,8 +176,8 @@ set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
   VERSION_MINOR 10
   VERSION_PATCH 0
-  VERSION_TYPE develop
-  VERSION_DISTANCE_OFFSET 200
+  VERSION_TYPE release
+  VERSION_DISTANCE_OFFSET 0
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
