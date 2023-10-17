@@ -397,6 +397,8 @@ function(add_version_info_custom_prefix target prefix directory)
   include(ArchiveVersionInfo_${prefix} OPTIONAL RESULT_VARIABLE ARCHIVE_VERSION_PRESENT)
   if(ARCHIVE_VERSION_PRESENT AND ${prefix}_VERSION_SUCCESS)
     message(STATUS "Info: Version information from archive file.")
+    set(${prefix}_VERSION_BUILDTYPE "${CMAKE_BUILD_TYPE}")
+    set(${prefix}_VERSION_BUILDTYPE "${CMAKE_BUILD_TYPE}" PARENT_SCOPE)
   else()
     get_version_info(${prefix} "${directory}")
     if("${${prefix}_VERSION_FULLHASH}" STREQUAL "unknown"
