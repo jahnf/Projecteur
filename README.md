@@ -233,22 +233,24 @@ commands to a running instance of _Projecteur_ and the ability to set properties
 Usage: projecteur [OPTION]...
 
 <Options>
-  -h, --help             Show command line usage.
-  --help-all             Show complete command line usage with all properties.
-  -v, --version          Print application version.
-  -f, --fullversion      Print extended version info.
-  --cfg FILE             Set custom config file.
-  -d, --device-scan      Print device-scan results.
-  -l, --log-level LEVEL  Set log level (dbg,inf,wrn,err), default is 'inf'.
-  --show-dialog          Show preferences dialog on start.
-  -m, --minimize-only    Only allow minimizing the preferences dialog.
-  -D DEVICE              Additional accepted device; DEVICE=vendorId:productId
-  -c COMMAND|PROPERTY    Send command/property to a running instance.
+  -h, --help              Show command line usage.
+  --help-all              Show complete command line usage with all properties.
+  -v, --version           Print application version.
+  -f, --fullversion       Print extended version info.
+  --cfg FILE              Set custom config file.
+  -d, --device-scan       Print device-scan results.
+  -l, --log-level LEVEL   Set log level (dbg,inf,wrn,err), default is 'inf'.
+  --show-dialog           Show preferences dialog on start.
+  -m, --minimize-only     Only allow minimizing the preferences dialog.
+  -D DEVICE               Additional accepted device; DEVICE=vendorId:productId
+  -c COMMAND|PROPERTY     Send command/property to a running instance.
 
 <Commands>
-  spot=[on|off|toggle]   Turn spotlight on/off or toggle.
-  settings=[show|hide]   Show/hide preferences dialog.
-  quit                   Quit the running instance.
+  spot=[on|off|toggle]     Turn spotlight on/off or toggle.
+  spot.size.adjust=[+|-]N  Increase or decrease spot size by N.
+  settings=[show|hide]     Show/hide preferences dialog.
+  preset=NAME              Set a preset.
+  quit                     Quit the running instance.
 ```
 
 A complete list the properties that can be set via the command line, can be listed with the

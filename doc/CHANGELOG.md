@@ -10,6 +10,8 @@
 - Add automated builds for Fedora 37 and 38 / OpenSUSE 15.4 and 15.5
 - Add automated builds for Ubuntu 23.04 and Debian Bookworm
 - Bug fix for crash when closing the about dialog.
+- Add adjust spot size command ([#209][i209])
+- Add vibrate for the command line ([#202][i202])
 
 Many thanks to *[@mayanksuman][c-mayanksuman]* for Logitech Bluetooth, Scrolling
 and Audio volume support.
@@ -17,6 +19,8 @@ and Audio volume support.
 [p140]: https://github.com/jahnf/Projecteur/pull/140
 [i85]:  https://github.com/jahnf/Projecteur/issues/85
 [i148]: https://github.com/jahnf/Projecteur/issues/148
+[i209]: https://github.com/jahnf/Projecteur/issues/209
+[i202]: https://github.com/jahnf/Projecteur/issues/202
 [c-mayanksuman]: https://github.com/mayanksuman
 
 ## v0.9.2
