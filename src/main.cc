@@ -286,13 +286,17 @@ namespace {
       }
       print() << "  -c COMMAND|PROPERTY    " << commandOption_.description() << std::endl;
       print() << "<Commands>";
-      print() << "  spot=[on|off|toggle]   " << Main::tr("Turn spotlight on/off or toggle.");
-      print() << "  settings=[show|hide]   " << Main::tr("Show/hide preferences dialog.");
+      print() << "  spot=[on|off|toggle]     " << Main::tr("Turn spotlight on/off or toggle.");
       if (fullHelp) {
-        print() << "  preset=NAME            " << Main::tr("Set a preset.");
-        print() << "  vibrate[=I[,L]]        " << Main::tr("Send vibrate command to device with intensity,length.");
+        print() << "  preset=NAME              " << Main::tr("Set a preset.");
+        print() << "  vibrate[=I[,L]]          " << Main::tr("Send vibrate command to device with intensity,length.");
+        print() << "  spot.size.adjust=[+|-]N  " << Main::tr("Increase or decrease spot size by N.");
       }
-      print() << "  quit                   " << Main::tr("Quit the running instance.");
+      print() << "  settings=[show|hide]     " << Main::tr("Show/hide preferences dialog.");
+      if (fullHelp) {
+        print() << "  preset=NAME              " << Main::tr("Set a preset.");
+      }
+      print() << "  quit                     " << Main::tr("Quit the running instance.");
 
       // Early return if the user not explicitly requested the full help
       if (!fullHelp) { return; }
