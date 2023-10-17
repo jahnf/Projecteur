@@ -1,12 +1,14 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
-#include "device.h"
+#include "device-defs.h"
 
-#include <QString>
 #include <QMetaType>
+#include <QStringList>
 
 #include <vector>
+#include <tuple>
 
 // -------------------------------------------------------------------------------------------------
 struct SupportedDevice
@@ -31,12 +33,10 @@ namespace DeviceScan
   };
 
   struct Device { // Structure for device scan results
-    enum class BusType : uint16_t { Unknown, Usb, Bluetooth };
     const QString& getName() const { return userName.size() ? userName : name; }
     QString name;
     QString userName;
     DeviceId id;
-    BusType busType = BusType::Unknown;
     std::vector<SubDevice> subDevices;
   };
 

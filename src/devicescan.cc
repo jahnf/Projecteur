@@ -1,5 +1,9 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "devicescan.h"
+
+#include <array>
 
 #include <QDirIterator>
 #include <QFileInfo>
@@ -52,16 +56,16 @@ namespace {
     [vendorId, productId](const SupportedDevice& d) {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
-    if (it != supportedDefaultDevices.cend() && it->name.size()) return it->name;
+    if (it != supportedDefaultDevices.cend() && it->name.size()) { return it->name; }
 
     auto extraName = getExtraDeviceName(vendorId, productId);
-    if (!extraName.isEmpty()) return extraName;
+    if (!extraName.isEmpty()) { return  extraName; }
 
     const auto ait = std::find_if(additionalDevices.cbegin(), additionalDevices.cend(),
     [vendorId, productId](const SupportedDevice& d) {
       return (vendorId == d.vendorId) && (productId == d.productId);
     });
-    if (ait != additionalDevices.cend() && ait->name.size()) return ait->name;
+    if (ait != additionalDevices.cend() && ait->name.size()) { return ait->name; }
     return QString();
   }
 
@@ -125,27 +129,28 @@ namespace {
       const auto line = in.readLine();
       for (const auto property : properties)
       {
-        if (line.startsWith(property) && line.size() > property->size() && line[property->size()] == '=')
+        if (line.startsWith(*property) && line.size() > property->size() && line[property->size()] == '=')
         {
           const QString value = line.mid(property->size() + 1);
 
-          if (property == hid_id)
+          if (*property == hid_id)
           {
             const auto ids = value.split(':');
-            const auto busType = ids.size() ? ids[0].toUShort(nullptr, 16) : 0;
+            const auto busType = ids.empty() ? 0: ids[0].toUShort(nullptr, 16);
             switch (busType)
             {
-              case BUS_USB: spotlightDevice.busType = DeviceScan::Device::BusType::Usb; break;
-              case BUS_BLUETOOTH: spotlightDevice.busType = DeviceScan::Device::BusType::Bluetooth; break;
+              case BUS_USB: spotlightDevice.id.busType = BusType::Usb; break;
+              case BUS_BLUETOOTH: spotlightDevice.id.busType = BusType::Bluetooth; break;
+              default: spotlightDevice.id.busType = BusType::Unknown;
             }
             spotlightDevice.id.vendorId = ids.size() > 1 ? ids[1].toUShort(nullptr, 16) : 0;
             spotlightDevice.id.productId = ids.size() > 2 ? ids[2].toUShort(nullptr, 16) : 0;
           }
-          else if (property == hid_name)
+          else if (*property == hid_name)
           {
             spotlightDevice.name = value;
           }
-          else if (property == hid_phys)
+          else if (*property == hid_phys)
           {
             spotlightDevice.id.phys = value.split('/').first();
           }
@@ -154,8 +159,7 @@ namespace {
     }
     return spotlightDevice;
   }
-
-}
+} // end anonymous namespace
 
 namespace DeviceScan {
   // -----------------------------------------------------------------------------------------------
@@ -182,15 +186,15 @@ namespace DeviceScan {
       hidIt.next();
 
       const QFileInfo uEventFile(QDir(hidIt.filePath()).filePath("uevent"));
-      if (!uEventFile.exists()) continue;
+      if (!uEventFile.exists()) { continue; }
 
       // Get basic information from uevent file
       Device newDevice = deviceFromUEventFile(uEventFile.filePath());
       const auto& deviceId = newDevice.id;
       // Skip unsupported devices
-      if (deviceId.vendorId == 0 || deviceId.productId == 0) continue;
+      if (deviceId.vendorId == 0 || deviceId.productId == 0) { continue; }
       if (!isDeviceSupported(deviceId.vendorId, deviceId.productId)
-          && !(isAdditionallySupported(deviceId.vendorId, deviceId.productId, additionalDevices))) continue;
+          && !(isAdditionallySupported(deviceId.vendorId, deviceId.productId, additionalDevices))) { continue; }
 
       // Check if device is already in list (and we have another sub-device for it)
       const auto find_it = std::find_if(result.devices.begin(), result.devices.end(),
@@ -225,7 +229,7 @@ namespace DeviceScan {
           while (dirIt.hasNext())
           {
             dirIt.next();
-            if (!dirIt.fileName().startsWith("event")) continue;
+            if (!dirIt.fileName().startsWith("event")) { continue; }
             subDevice.type = SubDevice::Type::Event;
             subDevice.deviceFile = readPropertyFromDeviceFile(QDir(dirIt.filePath()).filePath("uevent"), "DEVNAME");
             if (!subDevice.deviceFile.isEmpty()) {
@@ -234,7 +238,7 @@ namespace DeviceScan {
             }
           }
 
-          if (subDevice.deviceFile.isEmpty()) continue;
+          if (subDevice.deviceFile.isEmpty()) { continue; }
           subDevice.phys = readStringFromDeviceFile(QDir(inputIt.filePath()).filePath("phys"));
           ++eventSubDeviceCount;
 
@@ -257,10 +261,9 @@ namespace DeviceScan {
         }
       }
 
-      // For now: only check for hidraw sub-devices that have support for custom "proprietary"
-      // functionality/protocol with Projecteur built in.
-      // TODO check if _Projecteur_ supports additional "proprietary" device protocol features..
-      if (eventSubDeviceCount > 0) continue;
+      // Spotlight (Bluetooth) have hidraw interface in the same folder. However
+      // for other connection, it has separate folder for hidraw device and input device.
+      if (!(rootDevice.id.busType == BusType::Bluetooth) && eventSubDeviceCount > 0) { continue; }
 
       // Iterate over 'hidraw' sub-dircectory, check for hidraw device node
       const QFileInfo hidrawSubdir(QDir(hidIt.filePath()).filePath("hidraw"));
@@ -270,13 +273,13 @@ namespace DeviceScan {
         while (hidrawIt.hasNext())
         {
           hidrawIt.next();
-          if (!hidrawIt.fileName().startsWith("hidraw")) continue;
+          if (!hidrawIt.fileName().startsWith("hidraw")) { continue; }
           SubDevice subDevice;
           subDevice.deviceFile = readPropertyFromDeviceFile(QDir(hidrawIt.filePath()).filePath("uevent"), "DEVNAME");
           if (!subDevice.deviceFile.isEmpty()) {
             subDevice.type = SubDevice::Type::Hidraw;
             subDevice.deviceFile = QDir("/dev").filePath(subDevice.deviceFile);
-            if (subDevice.deviceFile.isEmpty()) continue;
+            if (subDevice.deviceFile.isEmpty()) { continue; }
             const QFileInfo fi(subDevice.deviceFile);
             subDevice.deviceReadable = fi.isReadable();
             subDevice.deviceWritable = fi.isWritable();
@@ -305,4 +308,4 @@ namespace DeviceScan {
 
     return result;
   }
-}
+} // end namespace DeviceScan

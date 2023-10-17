@@ -1,4 +1,6 @@
-﻿// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+﻿// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "nativekeyseqedit.h"
 
 #include "inputmapconfig.h"
@@ -17,7 +19,8 @@
 namespace {
   // -----------------------------------------------------------------------------------------------
   constexpr int maxKeyCount = 4; // Same as QKeySequence
-}
+  constexpr int keySeqInterval = 950;
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------------------
@@ -31,14 +34,12 @@ NativeKeySeqEdit::NativeKeySeqEdit(QWidget* parent)
   setAttribute(Qt::WA_MacShowFocusRect, true);
 
   m_timer->setSingleShot(true);
-  m_timer->setInterval(950);
+  m_timer->setInterval(keySeqInterval);
   connect(m_timer, &QTimer::timeout, this, [this](){ setRecording(false); });
 }
 
 // -------------------------------------------------------------------------------------------------
-NativeKeySeqEdit::~NativeKeySeqEdit()
-{
-}
+NativeKeySeqEdit::~NativeKeySeqEdit() = default;
 
 // -------------------------------------------------------------------------------------------------
 const NativeKeySequence& NativeKeySeqEdit::keySequence() const
@@ -49,7 +50,7 @@ const NativeKeySequence& NativeKeySeqEdit::keySequence() const
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::setKeySequence(const NativeKeySequence& nks)
 {
-  if (nks == m_nativeSequence) return;
+  if (nks == m_nativeSequence) { return; }
 
   m_nativeSequence = nks;
   update();
@@ -59,7 +60,7 @@ void NativeKeySeqEdit::setKeySequence(const NativeKeySequence& nks)
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::clear()
 {
-  if (m_nativeSequence.count() == 0) return;
+  if (m_nativeSequence.count() == 0) { return; }
 
   m_nativeSequence.clear();
   update();
@@ -99,12 +100,16 @@ QSize NativeKeySeqEdit::sizeHint() const
                            opt.fontMetrics.width(m_nativeSequence.toString()));
   #endif
 
+  #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
   return (style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h).
                                     expandedTo(QApplication::globalStrut()), this));
+  #else
+  return style()->sizeFromContents(QStyle::CT_LineEdit, &opt, QSize(w, h), this);
+  #endif
 }
 
 // -------------------------------------------------------------------------------------------------
-void NativeKeySeqEdit::paintEvent(QPaintEvent*)
+void NativeKeySeqEdit::paintEvent(QPaintEvent* /* event */)
 {
   const QStyleOptionFrame option = styleOption();
 
@@ -151,7 +156,7 @@ void NativeKeySeqEdit::reset()
 // -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::setRecording(bool doRecord)
 {
-  if (m_recording == doRecord) return;
+  if (m_recording == doRecord) { return; }
 
   m_recording = doRecord;
 
@@ -203,7 +208,7 @@ bool NativeKeySeqEdit::event(QEvent* e)
   return QWidget::event(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
 {
   int key = m_lastKey = e->key();
@@ -256,7 +261,7 @@ void NativeKeySeqEdit::recordKeyPressEvent(QKeyEvent* e)
   }
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
 {
   if (!recording())
@@ -266,11 +271,13 @@ void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
       setRecording(true);
       return;
     }
-    else if (e->key() == Qt::Key_Delete)
+
+    if (e->key() == Qt::Key_Delete)
     {
       clear();
       return;
     }
+
     QWidget::keyPressEvent(e);
     return;
   }
@@ -278,7 +285,7 @@ void NativeKeySeqEdit::keyPressEvent(QKeyEvent* e)
   recordKeyPressEvent(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::keyReleaseEvent(QKeyEvent* e)
 {
   if (recording())
@@ -305,26 +312,26 @@ void NativeKeySeqEdit::keyReleaseEvent(QKeyEvent* e)
   QWidget::keyReleaseEvent(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 void NativeKeySeqEdit::focusOutEvent(QFocusEvent* e)
 {
   setRecording(false);
   QWidget::focusOutEvent(e);
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 int NativeKeySeqEdit::getQtModifiers(Qt::KeyboardModifiers state)
 {
   int result = 0;
-  if (state & Qt::ControlModifier)    result |= Qt::ControlModifier;
-  if (state & Qt::MetaModifier)       result |= Qt::MetaModifier;
-  if (state & Qt::AltModifier)        result |= Qt::AltModifier;
-  if (state & Qt::ShiftModifier)      result |= Qt::ShiftModifier;
-  if (state & Qt::GroupSwitchModifier)  result |= Qt::GroupSwitchModifier;
+  if (state & Qt::ControlModifier)     { result |= Qt::ControlModifier; }
+  if (state & Qt::MetaModifier)        {  result |= Qt::MetaModifier; }
+  if (state & Qt::AltModifier)         {  result |= Qt::AltModifier; }
+  if (state & Qt::ShiftModifier)       {  result |= Qt::ShiftModifier; }
+  if (state & Qt::GroupSwitchModifier) { result |= Qt::GroupSwitchModifier; }
   return result;
 }
 
-//-------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------
 uint16_t NativeKeySeqEdit::getNativeModifiers(const std::set<int>& modifiersPressed)
 {
   using Modifier = NativeKeySequence::Modifier;
@@ -366,10 +373,11 @@ int NativeKeySeqEdit::drawText(int startX, QPainter& p, const QStyleOption& opti
                        option.rect.bottomRight());
   p.save();
 
-  if (option.state & QStyle::State_Selected)
+  if (option.state & QStyle::State_Selected) {
     p.setPen(option.palette.color(QPalette::HighlightedText));
-  else
+  } else {
     p.setPen(option.palette.color(QPalette::Text));
+  }
 
   QRect br;
   p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);

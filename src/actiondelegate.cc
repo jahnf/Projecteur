@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "actiondelegate.h"
 
 #include "inputmapconfig.h"
@@ -33,9 +35,9 @@ namespace  {
       const int w = std::max(opt.fontMetrics.width(ActionDelegate::tr("None")) + 2 * horizontalMargin,
                              opt.fontMetrics.width(action->keySequence.toString()));
     #endif
-      return QSize(w, h);
+      return { w, h };
     }
-  }
+  } // end namespace keysequence
 
   namespace cyclepresets {
     // ---------------------------------------------------------------------------------------------
@@ -47,11 +49,10 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const CyclePresetsAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const CyclePresetsAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace cyclepresets
 
   namespace togglespotlight {
     // ---------------------------------------------------------------------------------------------
@@ -63,11 +64,55 @@ namespace  {
     }
 
     // ---------------------------------------------------------------------------------------------
-    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ToggleSpotlightAction* /*action*/)
-    {
-      return QSize(100,16);
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ToggleSpotlightAction* /*action*/) {
+      return { 100, 16 };
     }
-  }
+  } // end namespace togglespotlight
+
+  namespace scrollhorizontal {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const ScrollHorizontalAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Scroll Horizontal"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollHorizontalAction* /*action*/) {
+      return { 100, 16 };
+    }
+  } // end namespace scrollhorizontal
+
+  namespace scrollvertical {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const ScrollVerticalAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Scroll Vertical"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const ScrollVerticalAction* /*action*/) {
+      return { 100, 16 };
+    }
+  } // end namespace scrollvertical
+
+  namespace volumecontrol {
+    // ---------------------------------------------------------------------------------------------
+    void paint(QPainter* p, const QStyleOptionViewItem& option, const VolumeControlAction* /*action*/)
+    {
+      const auto& fm = option.fontMetrics;
+      const int xPos = (option.rect.height()-fm.height()) / 2;
+      NativeKeySeqEdit::drawText(xPos, *p, option, ActionDelegate::tr("Volume Control"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    QSize sizeHint(const QStyleOptionViewItem& /*opt*/, const VolumeControlAction* /*action*/) {
+      return { 100, 16 };
+    }
+  } // end namespace volumecontrol
 } // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
@@ -94,6 +139,15 @@ void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option
   case Action::Type::ToggleSpotlight:
     togglespotlight::paint(painter, option, static_cast<ToggleSpotlightAction*>(item.action.get()));
     break;
+  case Action::Type::ScrollHorizontal:
+    scrollhorizontal::paint(painter, option, static_cast<ScrollHorizontalAction*>(item.action.get()));
+    break;
+  case Action::Type::ScrollVertical:
+    scrollvertical::paint(painter, option, static_cast<ScrollVerticalAction*>(item.action.get()));
+    break;
+  case Action::Type::VolumeControl:
+    volumecontrol::paint(painter, option, static_cast<VolumeControlAction*>(item.action.get()));
+    break;
   }
 
   if (option.state & QStyle::State_HasFocus) {
@@ -105,7 +159,8 @@ void ActionDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option
 QSize ActionDelegate::sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& index) const
 {
   const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
-  if (!imModel) return QStyledItemDelegate::sizeHint(opt, index);
+  if (!imModel) { return QStyledItemDelegate::sizeHint(opt, index); }
+
   const auto& item = imModel->configData(index);
   if (!item.action) { return QStyledItemDelegate::sizeHint(opt, index); }
 
@@ -117,6 +172,13 @@ QSize ActionDelegate::sizeHint(const QStyleOptionViewItem& opt, const QModelInde
     return cyclepresets::sizeHint(opt, static_cast<CyclePresetsAction*>(item.action.get()));
   case Action::Type::ToggleSpotlight:
     return togglespotlight::sizeHint(opt, static_cast<ToggleSpotlightAction*>(item.action.get()));
+  case Action::Type::ScrollHorizontal:
+    return scrollhorizontal::sizeHint(opt, static_cast<ScrollHorizontalAction*>(item.action.get()));
+  case Action::Type::ScrollVertical:
+    return scrollvertical::sizeHint(opt, static_cast<ScrollVerticalAction*>(item.action.get()));
+  case Action::Type::VolumeControl:
+    return volumecontrol::sizeHint(opt, static_cast<VolumeControlAction*>(item.action.get()));
+
   }
 
   return QStyledItemDelegate::sizeHint(opt, index);
@@ -132,10 +194,12 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const Action* action) con
     connect(editor, &NativeKeySeqEdit::editingFinished, this, &ActionDelegate::commitAndCloseEditor);
     return editor;
   }
-  case Action::Type::CyclePresets: // None for now...
-    break;
-  case Action::Type::ToggleSpotlight: // None for now...
-    break;
+  case Action::Type::CyclePresets:     // [[fallthrough]];
+  case Action::Type::ToggleSpotlight:  // [[fallthrough]];
+  case Action::Type::ScrollHorizontal: // [[fallthrough]];
+  case Action::Type::ScrollVertical:   // [[fallthrough]];
+  case Action::Type::VolumeControl:
+    break; // No editor
   }
   return nullptr;
 }
@@ -146,7 +210,7 @@ QWidget* ActionDelegate::createEditor(QWidget* parent, const QStyleOptionViewIte
 
 {
   const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model());
-  if (!imModel) return nullptr;
+  if (!imModel) { return nullptr; }
   const auto& item = imModel->configData(index);
   if (!item.action) { return nullptr; }
 
@@ -192,7 +256,7 @@ bool ActionDelegate::eventFilter(QObject* obj, QEvent* ev)
   {
     // Let all key press events pass through to the editor,
     // otherwise some keys cannot be recorded as a key sequence (e.g. [Tab] and [Esc])
-    if (qobject_cast<NativeKeySeqEdit*>(obj)) return false;
+    if (qobject_cast<NativeKeySeqEdit*>(obj)) { return false; }
   }
   return QStyledItemDelegate::eventFilter(obj,ev);
 }
@@ -214,11 +278,11 @@ void ActionDelegate::commitAndCloseEditor_()
 void ActionDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel* model,
                                        const QModelIndex& index, const QPoint& globalPos)
 {
-  if (!index.isValid() || !model) return;
+  if (!index.isValid() || !model) { return; }
   const auto& item = model->configData(index);
-  if (!item.action || item.action->type() != Action::Type::KeySequence) return;
+  if (!item.action || item.action->type() != Action::Type::KeySequence) { return; }
 
-  QMenu* menu = new QMenu(parent);
+  auto* const menu = new QMenu(parent);
   const std::vector<const NativeKeySequence*> predefinedKeys = {
     &NativeKeySequence::predefined::altTab(),
     &NativeKeySequence::predefined::altF4(),
@@ -249,17 +313,21 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
   const auto& item = imModel->configData(index);
   if (!item.action) { return; }
 
-  const auto symbol = [&item]() -> unsigned int {
+  const auto symbol = [&item]() -> QChar {
     switch(item.action->type()) {
-    case Action::Type::KeySequence: return Font::Icon::keyboard_4;
-    case Action::Type::CyclePresets: return Font::Icon::connection_8;
-    case Action::Type::ToggleSpotlight: return Font::Icon::power_on_off_11;
+    case Action::Type::KeySequence: return QChar(Font::Icon::keyboard_4);
+    case Action::Type::CyclePresets: return QChar(Font::Icon::connection_8);
+    case Action::Type::ToggleSpotlight: return QChar(Font::Icon::power_on_off_11);
+    case Action::Type::ScrollHorizontal: return QChar(Font::Icon::cursor_21_rotated);
+    case Action::Type::ScrollVertical: return QChar(Font::Icon::cursor_21);
+    case Action::Type::VolumeControl: return QChar(Font::Icon::audio_6);
     }
-    return 0;
+    return QChar(0);
   }();
 
-  if (symbol != 0)
+  if (symbol != 0) {
     drawActionTypeSymbol(0, *painter, option, symbol);
+  }
 
   if (option.state & QStyle::State_HasFocus) {
     InputSeqDelegate::drawCurrentIndicator(*painter, option);
@@ -270,21 +338,26 @@ void ActionTypeDelegate::paint(QPainter* painter, const QStyleOptionViewItem& op
 void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel* model,
                                            const QModelIndex& index, const QPoint& globalPos)
 {
-  if (!index.isValid() || !model) return;
+  if (!index.isValid() || !model) { return; }
+
   const auto& item = model->configData(index);
-  if (!item.action) return;
+  if (!item.action) { return; }
 
   struct actionEntry {
     Action::Type type;
     QChar symbol;
     QString text;
+    bool isMoveAction;
     QIcon icon = {};
   };
 
   static std::vector<actionEntry> items {
-    {Action::Type::KeySequence, Font::Icon::keyboard_4, tr("Key Sequence")},
-    {Action::Type::CyclePresets, Font::Icon::connection_8, tr("Cycle Presets")},
-    {Action::Type::ToggleSpotlight, Font::Icon::power_on_off_11, tr("Toggle Spotlight")},
+    {Action::Type::KeySequence, QChar(Font::Icon::keyboard_4), tr("Key Sequence"), false},
+    {Action::Type::CyclePresets, QChar(Font::Icon::connection_8), tr("Cycle Presets"), false},
+    {Action::Type::ToggleSpotlight, QChar(Font::Icon::power_on_off_11), tr("Toggle Spotlight"), false},
+    {Action::Type::ScrollHorizontal, QChar(Font::Icon::cursor_21_rotated), tr("Scroll Horizontal"), true},
+    {Action::Type::ScrollVertical, QChar(Font::Icon::cursor_21), tr("Scroll Vertical"), true},
+    {Action::Type::VolumeControl, QChar(Font::Icon::audio_6), tr("Volume Control"), true},
   };
 
   static bool initIcons = []()
@@ -307,13 +380,19 @@ void ActionTypeDelegate::actionContextMenu(QWidget* parent, InputMapConfigModel*
     return true;
   }();
 
-  QMenu* menu = new QMenu(parent);
+  auto* const menu = new QMenu(parent);
+
+  // Check if input sequence is a back or next hold move event.
+  const bool isSpecialMoveInput = !SpecialKeys::logitechSpotlightHoldMove(item.deviceSequence).name.isEmpty();
 
   for (const auto& entry : items) {
-    const auto qaction = menu->addAction(entry.icon, entry.text);
-    connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
-      model->setItemActionType(index, type);
-    });
+    if ((isSpecialMoveInput && entry.isMoveAction)
+        || (!isSpecialMoveInput && !entry.isMoveAction)) {
+      const auto qaction = menu->addAction(entry.icon, entry.text);
+      connect(qaction, &QAction::triggered, this, [model, index, type=entry.type](){
+        model->setItemActionType(index, type);
+      });
+    };
   }
 
   menu->exec(globalPos);
@@ -334,10 +413,11 @@ int ActionTypeDelegate::drawActionTypeSymbol(int startX, QPainter& p,
   p.setFont(iconFont);
   p.setRenderHint(QPainter::Antialiasing, true);
 
-  if (option.state & QStyle::State_Selected)
+  if (option.state & QStyle::State_Selected) {
     p.setPen(option.palette.color(QPalette::HighlightedText));
-  else
+  } else {
     p.setPen(option.palette.color(QPalette::Text));
+  }
 
   QRect br;
   p.drawText(r, Qt::AlignHCenter | Qt::AlignVCenter, QString(symbol), &br);

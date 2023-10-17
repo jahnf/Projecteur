@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <memory>
@@ -9,6 +10,7 @@
 #include <QObject>
 
 class VirtualDevice;
+class QTimer;
 
 // -------------------------------------------------------------------------------------------------
 /// This is basically the input_event struct from linux/input.h without the time member
@@ -39,14 +41,6 @@ QDataStream& operator<<(QDataStream& s, const DeviceInputEvent& die);
 QDataStream& operator>>(QDataStream& s, DeviceInputEvent& die);
 
 // -------------------------------------------------------------------------------------------------
-/// KeyEvent is a sequence of DeviceInputEvent.
-using KeyEvent = std::vector<DeviceInputEvent>;
-
-/// KeyEventSequence is a sequence of KeyEvents.
-using KeyEventSequence = std::vector<KeyEvent>;
-Q_DECLARE_METATYPE(KeyEventSequence);
-
-// -------------------------------------------------------------------------------------------------
 template<typename T>
 QDataStream& operator<<(QDataStream& s, const std::vector<T>& container)
 {
@@ -70,8 +64,41 @@ QDataStream& operator>>(QDataStream& s, std::vector<T>& container)
 }
 
 // -------------------------------------------------------------------------------------------------
+/// KeyEvent is a sequence of DeviceInputEvent.
+using KeyEvent = std::vector<DeviceInputEvent>;
+
+/// KeyEventSequence is a sequence of KeyEvents.
+using KeyEventSequence = std::vector<KeyEvent>;
+Q_DECLARE_METATYPE(KeyEventSequence);
+
+// -------------------------------------------------------------------------------------------------
 QDebug operator<<(QDebug debug, const DeviceInputEvent &ie);
 QDebug operator<<(QDebug debug, const KeyEvent &ke);
+
+// -------------------------------------------------------------------------------------------------
+// Some inputs from Logitech Spotlight device (like Next Hold and Back Hold events) are not a valid
+// input event (input_event in linux/input.h) in a conventional sense. They are communicated
+// via HID++ messages from the device. Using the input mapper we need to
+// reserve some KeyEventSequence for these events. These KeyEventSequence should be designed in
+// such a way that they cannot interfere with other valid input events from the device.
+namespace SpecialKeys
+{
+  enum class Key : uint16_t {
+    NextHold = 0x0e10,
+    BackHold = 0x0e11,
+    NextHoldMove = 0x0ff0,
+    BackHoldMove = 0x0ff1,
+  };
+
+  struct SpecialKeyEventSeqInfo {
+    QString name;
+    KeyEventSequence keyEventSeq;
+  };
+
+  const SpecialKeyEventSeqInfo& logitechSpotlightHoldMove(const KeyEventSequence& inputSequence);
+  const SpecialKeyEventSeqInfo& eventSequenceInfo(SpecialKeys::Key key);
+  const std::map<Key, SpecialKeyEventSeqInfo>& keyEventSequenceMap();
+}
 
 // -------------------------------------------------------------------------------------------------
 class NativeKeySequence
@@ -93,7 +120,7 @@ public:
   NativeKeySequence(NativeKeySequence&&) = default;
   NativeKeySequence(const NativeKeySequence&) = default;
 
-  NativeKeySequence(const std::vector<int>& qtKeys, 
+  NativeKeySequence(const std::vector<int>& qtKeys,
                     std::vector<uint16_t>&& nativeModifiers,
                     KeyEventSequence&& kes);
 
@@ -143,13 +170,21 @@ struct Action
     KeySequence = 1,
     CyclePresets = 2,
     ToggleSpotlight = 3,
+    ScrollHorizontal = 11,
+    ScrollVertical = 12,
+    VolumeControl = 13,
   };
+
+  virtual ~Action() = default;
 
   virtual Type type() const = 0;
   virtual QDataStream& save(QDataStream&) const = 0;
   virtual QDataStream& load(QDataStream&) = 0;
   virtual bool empty() const = 0;
 };
+
+// -------------------------------------------------------------------------------------------------
+const char* toString(Action::Type at, bool withClass = true);
 
 // -------------------------------------------------------------------------------------------------
 struct KeySequenceAction : public Action
@@ -188,6 +223,52 @@ struct ToggleSpotlightAction : public Action
 };
 
 // -------------------------------------------------------------------------------------------------
+struct ScrollHorizontalAction : public Action
+{
+  Type type() const override { return Type::ScrollHorizontal; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const ScrollHorizontalAction&) const { return true; }
+  bool placeholder = false;
+
+  int param = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct ScrollVerticalAction : public Action
+{
+  Type type() const override { return Type::ScrollVertical; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const ScrollVerticalAction&) const { return true; }
+  bool placeholder = false;
+
+  int param = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+struct VolumeControlAction : public Action
+{
+  Type type() const override { return Type::VolumeControl; }
+  QDataStream& save(QDataStream& s) const override { return s << placeholder; }
+  QDataStream& load(QDataStream& s) override { return s >> placeholder; }
+  bool empty() const override { return false; }
+  bool operator==(const VolumeControlAction&) const { return true; }
+  bool placeholder = false;
+
+  int param = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+namespace GlobalActions {
+  std::shared_ptr<ScrollHorizontalAction> scrollHorizontal();
+  std::shared_ptr<ScrollVerticalAction> scrollVertical();
+  std::shared_ptr<VolumeControlAction> volumeControl();
+}
+
+// -------------------------------------------------------------------------------------------------
 struct MappedAction
 {
   bool operator==(const MappedAction& o) const;
@@ -207,13 +288,18 @@ class InputMapper : public QObject
   Q_OBJECT
 
 public:
-  InputMapper(std::shared_ptr<VirtualDevice> virtualDevice, QObject* parent = nullptr);
+  InputMapper(
+    std::shared_ptr<VirtualDevice> virtualMouse,
+    std::shared_ptr<VirtualDevice> virtualKeyboard,
+    QObject* parent = nullptr);
+
   ~InputMapper();
 
   void resetState(); // Reset any stored sequence state.
 
   // input_events = complete sequence including SYN event
   void addEvents(const struct input_event input_events[], size_t num);
+  void addEvents(const KeyEvent& key_events);
 
   bool recordingMode() const;
   void setRecordingMode(bool recording);
@@ -221,7 +307,12 @@ public:
   int keyEventInterval() const;
   void setKeyEventInterval(int interval);
 
-  std::shared_ptr<VirtualDevice> virtualDevice() const;
+  using SpecialMoveInputs = std::vector<SpecialKeys::SpecialKeyEventSeqInfo>;
+  const SpecialMoveInputs& specialMoveInputs();
+  void setSpecialMoveInputs(SpecialMoveInputs moveInputs);
+
+  std::shared_ptr<VirtualDevice> virtualMouse() const;
+  std::shared_ptr<VirtualDevice> virtualKeyboard() const;
   bool hasVirtualDevice() const;
 
   void setConfiguration(const InputMapConfig& config);

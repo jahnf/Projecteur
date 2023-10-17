@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 
 #include "aboutdlg.h"
 
@@ -17,7 +18,8 @@
 #include <QTextBrowser>
 
 namespace {
-  // -------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------
+  /// Contributor (name, github_name, email, url)
   struct Contributor
   {
     explicit Contributor(const QString& name = {}, const QString& github_name = {},
@@ -26,8 +28,10 @@ namespace {
 
     QString toHtml() const
     {
-      auto html = QString("<b>%1</b>").arg(name.isEmpty() ? QString("<a href=\"https://github.com/%1\">%1</a>").arg(github_name)
-                                                          : name);
+      auto html = QString("<b>%1</b>").arg(name.isEmpty()
+        ? QString("<a href=\"https://github.com/%1\">%1</a>").arg(github_name)
+        : name);
+
       if (email.size()) {
         html += QString(" &lt;%1&gt;").arg(email);
       }
@@ -47,7 +51,7 @@ namespace {
     QString url;
   };
 
-  // -------------------------------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------------------------
   QString getContributorsHtml()
   {
     static std::vector<Contributor> contributors =
@@ -65,6 +69,9 @@ namespace {
       Contributor("Stuart Prescott", "llimeht"),
       Contributor("Crista Renouard", "Lumnicence"),
       Contributor("freddii", "freddii"),
+      Contributor("Matthias Blümel", "Blaimi"),
+      Contributor("Grzegorz Szymaszek", "gszy"),
+      Contributor("TheAssassin", "TheAssassin"),
     };
 
     static std::mt19937 g(std::random_device{}());
@@ -123,8 +130,10 @@ QWidget* AboutDialog::createVersionInfoWidget()
                                       tr("Version %1", "%1=application version number")
                                       .arg(projecteur::version_string())), this);
   vbox->addWidget(versionLabel);
-  const auto vInfo = QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2")
-                              .arg(projecteur::version_branch(), projecteur::version_shorthash());
+  const auto vInfo = QString("<i>git-branch:</i> %1<br><i>git-hash:</i> %2<br><i>build-type:</i> %3")
+                              .arg(projecteur::version_branch(),
+                                   projecteur::version_shorthash(),
+                                   projecteur::version_buildtype());
   versionLabel->setToolTip(vInfo);
 
   if (QString(projecteur::version_flag()).size() ||
@@ -230,18 +239,21 @@ QWidget* AboutDialog::createThirdPartyLicensesWidget()
   for (const auto& tpl : thirdPartyProjects)
   {
     html += "<li>";
-    if (tpl.projectUrl.size())
+    if (tpl.projectUrl.size()) {
       html += QString("<b><a href=\"%1\">%2</a></b>").arg(tpl.projectUrl, tpl.projectName);
-    else
+    } else {
       html += QString("<b>%1</b>").arg(tpl.projectName);
+    }
 
-    if (tpl.copyrightNotice.size())
+    if (tpl.copyrightNotice.size()) {
       html += "<br/><tt>" + tpl.copyrightNotice + "</tt>";
+    }
 
-    if (tpl.licenseUrl.size())
+    if (tpl.licenseUrl.size()) {
       html += QString("<br/><a href=\"%1\">%2</a>").arg(tpl.licenseUrl, tpl.licenseName);
-    else
+    } else {
       html += QString("<br/><i>License</i>: %1").arg(tpl.licenseName);
+    }
 
     html += "</li>";
   }

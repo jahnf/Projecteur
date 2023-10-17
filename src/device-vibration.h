@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <QPointer>
@@ -7,6 +8,7 @@
 
 class QSpinBox;
 class SubDeviceConnection;
+class SubHidppConnection;
 
 // -------------------------------------------------------------------------------------------------
 class TimerWidget : public QWidget
@@ -47,24 +49,24 @@ public:
   virtual ~MultiTimerWidget() override;
 
   /// Returns the number of timers
-  int timerCount() const;
+  static int timerCount();
 
-  void setTimerEnabled(int timerId, bool enabled);
-  bool timerEnabled(int timerId) const;
+  void setTimerEnabled(uint32_t timerId, bool enabled);
+  bool timerEnabled(uint32_t timerId) const;
 
-  void startTimer(int timerId);
-  void stopTimer(int timerId);
+  void startTimer(uint32_t timerId);
+  void stopTimer(uint32_t timerId);
   void stopAllTimers();
-  bool timerRunning(int timerId) const;
+  bool timerRunning(uint32_t timerId) const;
 
-  void setTimerValue(int timerId, int seconds);
-  int timerValue(int timerId) const;
+  void setTimerValue(uint32_t timerId, int seconds);
+  int timerValue(uint32_t timerId) const;
 
 signals:
   /// Emitted when a timer times out.
-  void timeout(int timerId);
-  void timerEnabledChanged(int timerId, bool enabled);
-  void timerValueChanged(int timerId, int seconds);
+  void timeout(uint32_t timerId);
+  void timerEnabledChanged(uint32_t timerId, bool enabled);
+  void timerValueChanged(uint32_t timerId, int seconds);
 
 private:
   struct Impl;
@@ -93,7 +95,7 @@ signals:
   void lengthChanged(uint8_t length);
 
 private:
-  QPointer<SubDeviceConnection> m_subDeviceConnection;
+  QPointer<SubHidppConnection> m_subDeviceConnection;
   QSpinBox* m_sbLength = nullptr;
   QSpinBox* m_sbIntensity = nullptr;
 };

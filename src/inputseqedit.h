@@ -1,6 +1,8 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
+#include "device-defs.h"
 #include "deviceinput.h"
 
 #include <QStyledItemDelegate>
@@ -8,6 +10,7 @@
 
 // -------------------------------------------------------------------------------------------------
 class QStyleOptionFrame;
+class InputMapConfigModel;
 
 // -------------------------------------------------------------------------------------------------
 class InputSeqEdit : public QWidget
@@ -15,13 +18,10 @@ class InputSeqEdit : public QWidget
   Q_OBJECT
 
 public:
-  InputSeqEdit(QWidget* parent = nullptr);
-  InputSeqEdit(InputMapper* im, QWidget* parent = nullptr);
+  InputSeqEdit(InputMapper* im, const DeviceId& dId, QWidget* parent = nullptr);
   ~InputSeqEdit();
 
   QSize sizeHint() const override;
-
-  void setInputMapper(InputMapper* im);
 
   const KeyEventSequence& inputSequence() const;
   void setInputSequence(const KeyEventSequence& is);
@@ -39,6 +39,8 @@ public:
   static int drawEmptyIndicator(int startX, QPainter& p, const QStyleOption& option);
 
 protected:
+  void setInputMapper(InputMapper* im);
+
   void paintEvent(QPaintEvent* e) override;
   void mouseDoubleClickEvent(QMouseEvent* e) override;
   void keyPressEvent(QKeyEvent* e) override;
@@ -47,6 +49,7 @@ protected:
   QStyleOptionFrame styleOption() const;
 
 private:
+  DeviceId m_deviceId;
   InputMapper* m_inputMapper = nullptr;
   KeyEventSequence m_inputSequence;
   KeyEventSequence m_recordedSequence;
@@ -68,6 +71,8 @@ public:
   QWidget *createEditor(QWidget*, const QStyleOptionViewItem&, const QModelIndex&) const override;
   void setEditorData(QWidget* editor, const QModelIndex& index) const override;
   void setModelData(QWidget* editor, QAbstractItemModel*, const QModelIndex&) const override;
+  void inputSeqContextMenu(QWidget* parent, InputMapConfigModel* model, const QModelIndex& index,
+                           const QPoint& globalPos);
 
   static void drawCurrentIndicator(QPainter &p, const QStyleOption& option);
 

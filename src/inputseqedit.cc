@@ -1,11 +1,15 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "inputseqedit.h"
 
+#include "device-key-lookup.h"
 #include "deviceinput.h"
 #include "inputmapconfig.h"
 #include "logging.h"
 
 #include <QApplication>
+#include <QMenu>
 #include <QPaintEvent>
 #include <QPainterPath>
 #include <QStaticText>
@@ -26,7 +30,7 @@ namespace {
     return std::equal(first.cbegin(), first.cend(), second.cbegin(), second.cend(),
       [](const DeviceInputEvent& e1, const DeviceInputEvent& e2)
       {
-        if (e1.type != EV_KEY) return e1 == e2; // just compare for non key events
+        if (e1.type != EV_KEY) { return e1 == e2; } // just compare for non key events
 
         return (e2.type == EV_KEY // special handling for key events...
                 && e1.code == e2.code
@@ -37,17 +41,20 @@ namespace {
 
   // -----------------------------------------------------------------------------------------------
   int drawKeyEvent(int startX, QPainter& p, const QStyleOption& option, const KeyEvent& ke,
-                   bool buttonTap = false)
+                   const DeviceId& dId, bool buttonTap = false)
   {
-    if (ke.empty()) return 0;
+    if (ke.empty()) { return 0; }
 
     static auto const pressChar = QChar(0x2193); // ↓
     static auto const releaseChar = QChar(0x2191); // ↑
 
-    // TODO some devices (e.g. August WP 200) have buttons that send a key combination
+    const auto& die = (ke.back().code != SYN_REPORT) ? ke.back() : ke.front();
+    const auto& lookupName = KeyName::lookup(dId, die);
+
+    // TODO Some devices (e.g. August WP 200) have buttons that send a key combination
     //      (modifiers + key) - this is ignored completely right now.
     const auto text = QString("[%1%2%3")
-                         .arg(ke.back().code, 0, 16)
+                         .arg(lookupName.isEmpty() ? QString("%1").arg(die.code, 0, 16) : lookupName)
                          .arg(buttonTap ? pressChar
                                         : ke.back().value ? pressChar : releaseChar)
                          .arg(buttonTap ? "" : "]");
@@ -57,10 +64,11 @@ namespace {
 
     p.save();
 
-    if (option.state & QStyle::State_Selected)
+    if (option.state & QStyle::State_Selected) {
       p.setPen(option.palette.color(QPalette::HighlightedText));
-    else
+    } else {
       p.setPen(option.palette.color(QPalette::Text));
+    }
 
     QRect br;
     p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
@@ -82,7 +90,8 @@ namespace {
 
   // -----------------------------------------------------------------------------------------------
   int drawKeyEventSequence(int startX, QPainter& p, const QStyleOption& option,
-                           const KeyEventSequence& kes, bool drawEmptyPlaceholder = true)
+                           const KeyEventSequence& kes, const DeviceId& dId,
+                           bool drawEmptyPlaceholder = true)
   {
     if (kes.empty())
     {
@@ -94,8 +103,8 @@ namespace {
     const int paddingX = static_cast<int>(QStaticText(" ").size().width());
     for (auto it = kes.cbegin(); it!=kes.cend(); ++it)
     {
-      if (it != kes.cbegin()) sequenceWidth += paddingX;
-      if (startX + sequenceWidth >= option.rect.width()) break;
+      if (it != kes.cbegin()) { sequenceWidth += paddingX; }
+      if (startX + sequenceWidth >= option.rect.width()) { break; }
 
       const bool isTap = [&]()
       { // Check if this event and the next event represent a button press & release
@@ -107,21 +116,39 @@ namespace {
         return false;
       }();
 
-      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it, isTap);
+      sequenceWidth += drawKeyEvent(startX + sequenceWidth, p, option, *it, dId, isTap);
     }
 
     return sequenceWidth;
   }
-}
+
+  // -----------------------------------------------------------------------------------------------
+  int drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text, bool textDisabled)
+  {
+    const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
+                         option.rect.bottomRight());
+
+    p.save();
+    if (textDisabled)
+    {
+      p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+    }
+    else
+    {
+      p.setPen(option.palette.color(QPalette::Text));
+    }
+    QRect br;
+    p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
+    p.restore();
+
+    return br.width();
+  }
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
-InputSeqEdit::InputSeqEdit(QWidget* parent)
-  : InputSeqEdit(nullptr, parent)
-{}
-
-// -------------------------------------------------------------------------------------------------
-InputSeqEdit::InputSeqEdit(InputMapper* im, QWidget* parent)
+InputSeqEdit::InputSeqEdit(InputMapper* im, const DeviceId& dId, QWidget* parent)
   : QWidget(parent)
+  , m_deviceId(dId)
 {
   setInputMapper(im);
 
@@ -132,9 +159,7 @@ InputSeqEdit::InputSeqEdit(InputMapper* im, QWidget* parent)
 }
 
 // -------------------------------------------------------------------------------------------------
-InputSeqEdit::~InputSeqEdit()
-{
-}
+InputSeqEdit::~InputSeqEdit() = default;
 
 // -------------------------------------------------------------------------------------------------
 QStyleOptionFrame InputSeqEdit::styleOption() const
@@ -165,12 +190,17 @@ QSize InputSeqEdit::sizeHint() const
   #endif
 
   const QStyleOptionFrame option = styleOption();
+
+  #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
   return (style()->sizeFromContents(QStyle::CT_LineEdit, &option, QSize(w, h).
                                     expandedTo(QApplication::globalStrut()), this));
+  #else
+  return style()->sizeFromContents(QStyle::CT_LineEdit, &option, QSize(w, h), this);
+  #endif
 }
 
 // -------------------------------------------------------------------------------------------------
-void InputSeqEdit::paintEvent(QPaintEvent*)
+void InputSeqEdit::paintEvent(QPaintEvent* /* paintEvent */)
 {
   const QStyleOptionFrame option = styleOption();
 
@@ -187,13 +217,13 @@ void InputSeqEdit::paintEvent(QPaintEvent*)
     const auto spacingX = QStaticText(" ").size().width();
     xPos += drawRecordingSymbol(xPos, p, option) + spacingX;
     if (m_recordedSequence.empty()) {
-      xPos += drawPlaceHolderText(xPos, p, option, tr("Press device button(s)...")) + spacingX;
+      drawPlaceHolderText(xPos, p, option, tr("Press device button(s)..."));
     } else {
-      xPos += drawKeyEventSequence(xPos, p, option, m_recordedSequence, false);
+      drawKeyEventSequence(xPos, p, option, m_recordedSequence, m_deviceId, false);
     }
   }
   else {
-    xPos += drawKeyEventSequence(xPos, p, option, m_inputSequence);
+    drawKeyEventSequence(xPos, p, option, m_inputSequence, m_deviceId);
   }
 }
 
@@ -206,7 +236,7 @@ const KeyEventSequence& InputSeqEdit::inputSequence() const
 // -------------------------------------------------------------------------------------------------
 void InputSeqEdit::setInputSequence(const KeyEventSequence& is)
 {
-  if (is == m_inputSequence) return;
+  if (is == m_inputSequence) { return; }
 
   m_inputSequence = is;
   update();
@@ -216,7 +246,7 @@ void InputSeqEdit::setInputSequence(const KeyEventSequence& is)
 // -------------------------------------------------------------------------------------------------
 void InputSeqEdit::clear()
 {
-  if (m_inputSequence.size() == 0) return;
+  if (m_inputSequence.empty()) { return; }
 
   m_inputSequence.clear();
   update();
@@ -227,7 +257,7 @@ void InputSeqEdit::clear()
 void InputSeqEdit::mouseDoubleClickEvent(QMouseEvent* e)
 {
   QWidget::mouseDoubleClickEvent(e);
-  if (!m_inputMapper) return;
+  if (!m_inputMapper) { return; }
   e->accept();
   m_inputMapper->setRecordingMode(!m_inputMapper->recordingMode());
 }
@@ -240,7 +270,8 @@ void InputSeqEdit::keyPressEvent(QKeyEvent* e)
     m_inputMapper->setRecordingMode(!m_inputMapper->recordingMode());
     return;
   }
-  else if (e->key() == Qt::Key_Escape)
+
+  if (e->key() == Qt::Key_Escape)
   {
     if (m_inputMapper && m_inputMapper->recordingMode()) {
       m_inputMapper->setRecordingMode(false);
@@ -249,10 +280,11 @@ void InputSeqEdit::keyPressEvent(QKeyEvent* e)
   }
   else if (e->key() == Qt::Key_Delete)
   {
-    if (m_inputMapper && m_inputMapper->recordingMode())
+    if (m_inputMapper && m_inputMapper->recordingMode()) {
       m_inputMapper->setRecordingMode(false);
-    else
+    } else {
       setInputSequence(KeyEventSequence{});
+    }
     return;
   }
 
@@ -268,8 +300,9 @@ void InputSeqEdit::keyReleaseEvent(QKeyEvent* e)
 // -------------------------------------------------------------------------------------------------
 void InputSeqEdit::focusOutEvent(QFocusEvent* e)
 {
-  if (m_inputMapper)
+  if (m_inputMapper) {
     m_inputMapper->setRecordingMode(false);
+  }
 
   QWidget::focusOutEvent(e);
 }
@@ -277,9 +310,9 @@ void InputSeqEdit::focusOutEvent(QFocusEvent* e)
 // -------------------------------------------------------------------------------------------------
 void InputSeqEdit::setInputMapper(InputMapper* im)
 {
-  if (m_inputMapper == im) return;
+  if (m_inputMapper == im) { return; }
 
-  auto removeIm = [this](){
+  const auto removeIm = [this](){
     if (m_inputMapper) {
       m_inputMapper->disconnect(this);
       this->disconnect(m_inputMapper);
@@ -289,7 +322,7 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
 
   removeIm();
   m_inputMapper = im;
-  if (m_inputMapper == nullptr) return;
+  if (m_inputMapper == nullptr) { return; }
 
   connect(m_inputMapper, &InputMapper::destroyed, this,
   [removeIm=std::move(removeIm)](){
@@ -301,14 +334,14 @@ void InputSeqEdit::setInputMapper(InputMapper* im)
   });
 
   connect(m_inputMapper, &InputMapper::recordingFinished, this, [this](bool canceled){
-    if (!canceled) setInputSequence(m_recordedSequence);
+    if (!canceled) { setInputSequence(m_recordedSequence); }
     m_inputMapper->setRecordingMode(false);
     m_recordedSequence.clear();
   });
 
   connect(m_inputMapper, &InputMapper::recordingModeChanged, this, [this](bool recording){
     update();
-    if (!recording) emit editingFinished(this);
+    if (!recording) { emit editingFinished(this); }
   });
 
   connect(m_inputMapper, &InputMapper::keyEventRecorded, this, [this](const KeyEvent& ke){
@@ -342,16 +375,7 @@ int InputSeqEdit::drawRecordingSymbol(int startX, QPainter& p, const QStyleOptio
 // -------------------------------------------------------------------------------------------------
 int InputSeqEdit::drawPlaceHolderText(int startX, QPainter& p, const QStyleOption& option, const QString& text)
 {
-  const auto r = QRect(QPoint(startX + option.rect.left(), option.rect.top()),
-                       option.rect.bottomRight());
-
-  p.save();
-  p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-  QRect br;
-  p.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, text, &br);
-  p.restore();
-
-  return br.width();
+  return ::drawPlaceHolderText(startX, p, option, text, true);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -359,13 +383,14 @@ int InputSeqEdit::drawEmptyIndicator(int startX, QPainter& p, const QStyleOption
 {
   p.save();
   p.setFont([&p](){ auto f = p.font(); f.setItalic(true); return f; }());
-  if (option.state & QStyle::State_Selected)
+  if (option.state & QStyle::State_Selected) {
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::HighlightedText));
-  else
+  } else {
     p.setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+  }
 
   static const QStaticText textNone(InputSeqEdit::tr("None"));
-  const auto top = (option.rect.height() - textNone.size().height()) / 2;
+  const auto top = static_cast<int>((option.rect.height() - textNone.size().height()) / 2);
   p.drawStaticText(startX + option.rect.left(), option.rect.top() + top, textNone);
   p.restore();
   return static_cast<int>(textNone.size().width());
@@ -384,7 +409,15 @@ void InputSeqDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
   // Our custom drawing of the KeyEventSequence...
   const auto& fm = option.fontMetrics;
   const int xPos = (option.rect.height()-fm.height()) / 2;
-  drawKeyEventSequence(xPos, *painter, option, imModel->configData(index).deviceSequence);
+  const auto& keySeq = imModel->configData(index).deviceSequence;
+  const auto& holdMoveEvent = SpecialKeys::logitechSpotlightHoldMove(keySeq);
+
+  if (!holdMoveEvent.name.isEmpty()) {
+    drawPlaceHolderText(xPos, *painter, option, holdMoveEvent.name, false);
+  }
+  else {
+    drawKeyEventSequence(xPos, *painter, option, keySeq, imModel->deviceId());
+  }
 
   if (option.state & QStyle::State_HasFocus) {
     drawCurrentIndicator(*painter, option);
@@ -420,10 +453,10 @@ QWidget* InputSeqDelegate::createEditor(QWidget* parent,
 {
   if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
-    if (imModel->inputMapper()) imModel->inputMapper()->setRecordingMode(false);
-    auto *editor = new InputSeqEdit(imModel->inputMapper(), parent);
+    if (imModel->inputMapper()) { imModel->inputMapper()->setRecordingMode(false); }
+    auto *editor = new InputSeqEdit(imModel->inputMapper(), imModel->deviceId(), parent);
     connect(editor, &InputSeqEdit::editingFinished, this, &InputSeqDelegate::commitAndCloseEditor);
-    if (imModel->inputMapper()) imModel->inputMapper()->setRecordingMode(true);
+    if (imModel->inputMapper()) { imModel->inputMapper()->setRecordingMode(true); }
     return editor;
   }
 
@@ -474,8 +507,52 @@ QSize InputSeqDelegate::sizeHint(const QStyleOptionViewItem& option,
 {
   if (const auto imModel = qobject_cast<const InputMapConfigModel*>(index.model()))
   {
-    // TODO calc size hint from KeyEventSequence.....
+    // TODO Calculate size hint from KeyEventSequence.....
     return QStyledItemDelegate::sizeHint(option, index);
   }
   return QStyledItemDelegate::sizeHint(option, index);
+}
+
+// -------------------------------------------------------------------------------------------------
+void InputSeqDelegate::inputSeqContextMenu(QWidget* parent, InputMapConfigModel* model,
+                                           const QModelIndex& index, const QPoint& globalPos)
+{
+  if (!index.isValid() || !model) { return; }
+
+  const auto& specialMoveInputs = model->inputMapper()->specialMoveInputs();
+  if (!specialMoveInputs.empty())
+  {
+    auto* const menu = new QMenu(parent);
+
+    for (const auto& input : specialMoveInputs)
+    {
+      const auto qaction = menu->addAction(input.name);
+      connect(qaction, &QAction::triggered, this, [model, index, inputSeq=input.keyEventSeq](){
+        model->setInputSequence(index, inputSeq);
+        const auto& currentItem = model->configData(index);
+        if (!currentItem.action) {
+          model->setItemActionType(index, Action::Type::ScrollVertical);
+        }
+        else
+        {
+          switch (currentItem.action->type())
+          {
+            case Action::Type::ScrollHorizontal:   // [[fallthrough]];
+            case Action::Type::ScrollVertical:     // [[fallthrough]];
+            case Action::Type::VolumeControl: {
+              // scrolling and volume control allowed for special input
+              break;
+            }
+            default: {
+              model->setItemActionType(index, Action::Type::ScrollVertical);
+              break;
+            }
+          }
+        }
+      });
+    }
+
+    menu->exec(globalPos);
+    menu->deleteLater();
+  }
 }

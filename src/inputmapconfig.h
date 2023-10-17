@@ -1,6 +1,8 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/
+// - See LICENSE.md and README.md
 #pragma once
 
+#include "device-defs.h"
 #include "deviceinput.h"
 
 #include <QAbstractTableModel>
@@ -8,9 +10,12 @@
 #include <QTableView>
 
 // -------------------------------------------------------------------------------------------------
+
 class ActionTypeDelegate;
+class InputSeqDelegate;
 
 // -------------------------------------------------------------------------------------------------
+/// Item for the input map model.
 struct InputMapModelItem {
   KeyEventSequence deviceSequence;
   std::shared_ptr<Action> action;
@@ -18,6 +23,7 @@ struct InputMapModelItem {
 };
 
 // -------------------------------------------------------------------------------------------------
+/// Input map configuration table model.
 class InputMapConfigModel : public QAbstractTableModel
 {
   Q_OBJECT
@@ -26,8 +32,7 @@ public:
   enum Roles { InputSeqRole = Qt::UserRole + 1, ActionTypeRole, NativeSeqRole };
   enum Columns { InputSeqCol = 0, ActionTypeCol, ActionCol, ColumnsCount};
 
-  InputMapConfigModel(QObject* parent = nullptr);
-  InputMapConfigModel(InputMapper* im, QObject* parent = nullptr);
+  InputMapConfigModel(InputMapper* im, const DeviceId& dId, QObject* parent = nullptr);
 
   int rowCount(const QModelIndex& parent = QModelIndex()) const override;
   int columnCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -49,16 +54,22 @@ public:
   InputMapConfig configuration() const;
   void setConfiguration(const InputMapConfig& config);
 
+  const DeviceId& deviceId() const;
+  void setDeviceId(const DeviceId& dId);
+
 private:
   void configureInputMapper();
   void removeConfigItemRows(int fromRow, int toRow);
   void updateDuplicates();
+
+  DeviceId m_currentDeviceId;
   QPointer<InputMapper> m_inputMapper;
   QVector<InputMapModelItem> m_configItems;
   std::map<KeyEventSequence, int> m_duplicates;
 };
 
 // -------------------------------------------------------------------------------------------------
+/// Input map configuration view.
 struct InputMapConfigView : public QTableView
 {
   Q_OBJECT

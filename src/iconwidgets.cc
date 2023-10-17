@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "iconwidgets.h"
 
 namespace  {
@@ -10,7 +12,7 @@ namespace  {
   bool isDark(const QColor& c) { return !isLight(c); }
 
   constexpr int defaultIconLabelSize = 32;
-}
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 IconButton::IconButton(Font::Icon symbol, QWidget* parent)

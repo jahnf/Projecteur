@@ -1,6 +1,7 @@
 // This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
 import QtQuick 2.3
 import QtQuick.Window 2.2
+
 import QtGraphicalEffects 1.0
 
 import Projecteur.Utils 1.0 as Utils
@@ -75,6 +76,7 @@ Window {
                 onExited: { ProjecteurApp.cursorExitedWindow() }
                 onEntered: { ProjecteurApp.cursorEntered(screenId) }
                 onPositionChanged: {
+
                     if (Settings.multiScreenOverlayEnabled) {
                         ProjecteurApp.cursorPositionChanged(
                             mainWindow.contentItem.mapToGlobal(mouse.x, mouse.y))

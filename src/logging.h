@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/Projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/Projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <QLoggingCategory>
@@ -69,7 +70,7 @@ namespace logging {
 
   void registerTextEdit(QPlainTextEdit* textEdit);
 
-  QString hexId(unsigned short id);
+  QString hexId(uint16_t id);
 }
 
 

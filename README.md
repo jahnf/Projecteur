@@ -1,7 +1,7 @@
 # Projecteur
 
-develop: [ ![Build Status develop][gh-badge-dev] ][gh-link-dev]
-master: [ ![Build Status master][gh-badge-rel] ][gh-link-rel]
+develop: [![Build Status develop][gh-badge-dev]][gh-link-dev]
+master: [![Build Status master][gh-badge-rel]][gh-link-rel]
 
 Linux/X11 application for the Logitech Spotlight device (and similar devices). \
 See **[Download](#download)** section for binary packages.
@@ -22,22 +22,39 @@ So here it is: a Linux application for the Logitech Spotlight.
 
 ## Table of Contents
 
-  * [Motivation](#motivation)
-  * [Features](#features)
-  * [Supported Environments](#supported-environments)
-  * [How it works](#how-it-works)
-  * [Download](#download)
-  * [Building](#building)
-  * [Installation/Running](#installationrunning)
-      * [Pre-requisites](#pre-requisites)
-      * [Application Menu](#application-menu)
-      * [Command Line Interface](#command-line-interface)
-      * [Scriptability / Keyboard shortcuts](#scriptability)
-      * [Using Projecteur without a device](#using-projecteur-without-a-device)
-      * [Device Support](#device-support)
-      * [Troubleshooting](#troubleshooting)
-  * [Changelog](#changelog)
-  * [License](#license)
+- [Projecteur](#projecteur)
+  - [Motivation](#motivation)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [Screenshots](#screenshots)
+    - [Planned features](#planned-features)
+  - [Supported Environments](#supported-environments)
+  - [How it works](#how-it-works)
+    - [Button mapping](#button-mapping)
+      - [Hold Button Mapping for Logitech Spotlight](#hold-button-mapping-for-logitech-spotlight)
+  - [Download](#download)
+  - [Building](#building)
+    - [Requirements](#requirements)
+    - [Build Example](#build-example)
+  - [Installation/Running](#installationrunning)
+    - [Pre-requisites](#pre-requisites)
+      - [When building Projecteur yourself](#when-building-projecteur-yourself)
+    - [Application Menu](#application-menu)
+    - [Command Line Interface](#command-line-interface)
+    - [Scriptability](#scriptability)
+    - [Using Projecteur without a device](#using-projecteur-without-a-device)
+    - [Device Support](#device-support)
+      - [Compile Time](#compile-time)
+      - [Runtime](#runtime)
+    - [Troubleshooting](#troubleshooting)
+      - [Opaque Spotlight / No Transparency](#opaque-spotlight--no-transparency)
+      - [Missing System Tray](#missing-system-tray)
+      - [Zoom is not updated while spotlight is shown](#zoom-is-not-updated-while-spotlight-is-shown)
+      - [Wayland](#wayland)
+      - [Wayland Zoom](#wayland-zoom)
+      - [Device shows as not connected](#device-shows-as-not-connected)
+  - [Changelog](#changelog)
+  - [License](#license)
 
 ## Features
 
@@ -49,7 +66,8 @@ So here it is: a Linux application for the Logitech Spotlight.
 * Button mapping:
   * Map any button on the device to (almost) any keyboard combination.
   * Switch between (cycle through) custom spotlight presets.
-* Vibration (Timer) Support for the Logitech Spotlight (USB)
+  * Audio Volume / Horizontal and Vertical Scrolling (Logitech Spotlight).
+* Vibration (Timer) Support for the Logitech Spotlight
 * Usable without a presenter device (e.g. for online presentations)
 
 ### Screenshots
@@ -57,7 +75,7 @@ So here it is: a Linux application for the Logitech Spotlight.
 [<img src="doc/screenshot-settings.png" height="300" />](./doc/screenshot-settings.png)
 [<img src="doc/screenshot-spot.png" height="300" />](./doc/screenshot-spot.png)
 [<img src="doc/screenshot-button-mapping.png" height="300" />](./doc/screenshot-button-mapping.png)
-[<img src="doc/screenshot-traymenu.png">](./doc/screenshot-traymenu.png)
+[<img src="doc/screenshot-traymenu.png" />](./doc/screenshot-traymenu.png)
 
 ### Planned features
 
@@ -91,15 +109,48 @@ For more details: Have a look at the source code ;)
 Button mapping works by **grabbing** all device events of connected
 devices and forwarding them to a virtual _'uinput'_ device if not configured
 differently by the button mapping configuration. If a mapped configuration for
-a button exists, _Projecteur_ will inject the mapped keyboard events instead.
+a button exists, _Projecteur_ will inject the mapped action instead.
 (You can still disable device grabbing with the `--disable-uinput` command
 line option - button mapping will be disabled then.)
 
+Input events from the presenter device can be mapped to different actions.
+The _Key Sequence_ action is particularly powerful as it can emit any user-defined
+keystroke. These keystrokes can invoke shortcut in presentation software
+(or any other software) being used. Similarly, the _Cycle Preset_ action can be
+used for cycling different spotlight presets. However, it should be noted that
+presets are ordered alphabetically on program start. To retain a certain
+order of your presets, you can prepend the preset name with a number.
+
+#### Hold Button Mapping for Logitech Spotlight
+
+Logitech Spotlight can send Hold event for Next and Back buttons as HID++
+messages. Using this device feature, this program provides three different
+usage of the Next or Hold button.
+
+1. Button Tap
+2. Long-Press Event
+3. Button Hold and Move Event
+
+On the Input Mapper tab (Devices tab in Preferences dialog box), the first two
+button usages (_i.e._ tap and long-press) can be mapped directly by tapping or
+long pressing the relevant button. For mapping the third button usage (_i.e._
+Hold Move Event), please ensure that the device is active by pressing any button,
+and then right click in first column (Input Sequence) for any entry and select
+the relevant option. Additional mapped actions (e.g. _Vertical Scrolling_,
+_Horizontal Scrolling_, or _Volume control_) can be selected for these hold
+move events.
+
+Please note that in case when both Long-Press event and Hold Move events are
+mapped for a particular button, both actions will executed if user hold the
+button and move device. To avoid this situation, do not set both Long-Press
+and Hold Move actions for the same button.
+
 ## Download
 
-The latest binary packages for some Linux distributions are available for download on bintray.
+The latest binary packages for some Linux distributions are available for download on cloudsmith.
 Currently binary packages for _Ubuntu_, _Debian_, _Fedora_, _OpenSuse_, _CentOS_ and
-_Arch_ Linux are automatically built.
+_Arch_ Linux are automatically built. For release version downloads you can also visit
+the project's [github releases page](https://github.com/jahnf/Projecteur/releases).
 
 * **Latest release:**
   * on cloudsmith: [![cloudsmith-rel-badge]][cloudsmith-rel-latest]
@@ -108,12 +159,12 @@ _Arch_ Linux are automatically built.
   * on cloudsmith: [![cloudsmith-dev-badge]][cloudsmith-dev-latest]
   * on secondary server: [![projecteur-dev-badge]][projecteur-dev-dl]
 
-See also the [list of Linux repositories](./doc/LinuxRepositories.md) where _Projecteur_
+See also the **[list of Linux repositories](./doc/LinuxRepositories.md)** where _Projecteur_
 is available.
 
-[cloudsmith-rel-badge]: https://api-prd.cloudsmith.io/v1/badges/version/jahnf/projecteur-stable/raw/sources/latest/x/?render=true&badge_token=gAAAAABgPebvngKb3w0EsZUr_IHIIzlfYCipDOGxcJdzMRGI3BLdVsLf62Na7Cg6q11ps7yNgv3kR9KXyxJyjFFbPs2eTAGzvL-UXTonyqSY5D1fwva_o_g%3D
+[cloudsmith-rel-badge]: https://img.shields.io/badge/dynamic/json?color=blue&labelColor=12577e&logo=cloudsmith&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fstable-latest.json
 [cloudsmith-rel-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-stable/packages/?q=format%3Araw+tag%3Alatest
-[cloudsmith-dev-badge]: https://api-prd.cloudsmith.io/v1/badges/version/jahnf/projecteur-develop/raw/sources/latest/x/?render=true&badge_token=gAAAAABgPd_g3txb3xWrIHsaUrhBB7hOamTwfPVpR7xGUELEaQ0pGnxFnXO1cqTPAMDcTjRsHM2zAjx00OXU_5ARSQDofAUe6lIqKrKNykiMhVT_jlZAy-4%3D
+[cloudsmith-dev-badge]: https://img.shields.io/badge/dynamic/json?color=blue&labelColor=12577e&logo=cloudsmith&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fdevelop-latest.json
 [cloudsmith-dev-latest]: https://cloudsmith.io/~jahnf/repos/projecteur-develop/packages/?q=format%3Araw+tag%3Alatest
 [projecteur-rel-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fstable-latest.json
 [projecteur-dev-badge]: https://img.shields.io/badge/dynamic/json?color=blue&label=Projecteur&prefix=v&query=%24.version&url=https%3A%2F%2Fprojecteur.de%2Fdownloads%2Fdevelop-latest.json
@@ -130,7 +181,7 @@ is available.
 
 ### Build Example
 
-```
+```sh
     git clone https://github.com/jahnf/Projecteur
     cd Projecteur
     mkdir build && cd build
@@ -178,26 +229,28 @@ see the [Troubleshooting](#missing-system-tray) section.
 Additional to the standard `--help` and `--version` options, there is an option to send
 commands to a running instance of _Projecteur_ and the ability to set properties.
 
-```
+```txt
 Usage: projecteur [OPTION]...
 
 <Options>
-  -h, --help             Show command line usage.
-  --help-all             Show complete command line usage with all properties.
-  -v, --version          Print application version.
-  -f, --fullversion      Print extended version info.
-  --cfg FILE             Set custom config file.
-  -d, --device-scan      Print device-scan results.
-  -l, --log-level LEVEL  Set log level (dbg,inf,wrn,err), default is 'inf'.
-  --show-dialog          Show preferences dialog on start.
-  -m, --minimize-only    Only allow minimizing the preferences dialog.
-  -D DEVICE              Additional accepted device; DEVICE=vendorId:productId
-  -c COMMAND|PROPERTY    Send command/property to a running instance.
+  -h, --help              Show command line usage.
+  --help-all              Show complete command line usage with all properties.
+  -v, --version           Print application version.
+  -f, --fullversion       Print extended version info.
+  --cfg FILE              Set custom config file.
+  -d, --device-scan       Print device-scan results.
+  -l, --log-level LEVEL   Set log level (dbg,inf,wrn,err), default is 'inf'.
+  --show-dialog           Show preferences dialog on start.
+  -m, --minimize-only     Only allow minimizing the preferences dialog.
+  -D DEVICE               Additional accepted device; DEVICE=vendorId:productId
+  -c COMMAND|PROPERTY     Send command/property to a running instance.
 
 <Commands>
-  spot=[on|off|toggle]   Turn spotlight on/off or toggle.
-  settings=[show|hide]   Show/hide preferences dialog.
-  quit                   Quit the running instance.
+  spot=[on|off|toggle]     Turn spotlight on/off or toggle.
+  spot.size.adjust=[+|-]N  Increase or decrease spot size by N.
+  settings=[show|hide]     Show/hide preferences dialog.
+  preset=NAME              Set a preset.
+  quit                     Quit the running instance.
 ```
 
 A complete list the properties that can be set via the command line, can be listed with the
@@ -210,11 +263,15 @@ _Projecteur_ allows you to set almost all aspects of the spotlight via the comma
 for a running instance.
 
 Example:
+
 ```bash
 # Set showing the border to true
 projecteur -c border=true
 # Set the border color to red
 projecteur -c border.color=#ff0000
+# Send a vibrate command to the device with
+# intensity=128 and length=0 (only Logitech Spotlight)
+projecteur -c vibrate=128,0
 ```
 
 While _Projecteur_ does not provide global keyboard shortcuts, command line options
@@ -223,6 +280,9 @@ your screen in a video call without additional presenter hardware, you can assig
 shortcuts in your window manager (e.g. GNOME) to run the commands `projecteur -c spot=on`
 and `projecteur -c spot=off` or `projecteur -c spot=toggle`, and therefore
 turning the spot on and off with a keyboard shortcut.
+
+A complete list the properties that can be set via the command line, can be
+listed with the `--help-all` command line option.
 
 ### Using Projecteur without a device
 
@@ -239,6 +299,8 @@ Besides the _Logitech Spotlight_, the following devices are currently supported 
 * AVATTO H100 / August WP200 _(0c45:8101)_
 * August LP315 _(2312:863d)_
 * AVATTO i10 Pro _(2571:4109)_
+* August LP310 _(69a7:9803)_
+* Norwii Wireless Presenter _(3243:0122)_
 
 #### Compile Time
 
@@ -305,7 +367,7 @@ While not developed with Wayland in mind, users reported _Projecteur_ works with
 Wayland. If you experience problems, you can try to set the `QT_QPA_PLATFORM` environment
 variable to `wayland`, example:
 
-```
+```bash
 user@ubuntu1904:~/Projecteur/build$ QT_QPA_PLATFORM=wayland ./projecteur
 Using Wayland-EGL
 ```

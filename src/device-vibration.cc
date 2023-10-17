@@ -1,7 +1,10 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "device-vibration.h"
 
-#include "device.h"
+#include "device-hidpp.h"
+#include "hidpp.h"
 #include "iconwidgets.h"
 #include "logging.h"
 
@@ -18,20 +21,19 @@
 
 #include <array>
 #include <chrono>
-#include <unistd.h>
 
-DECLARE_LOGGING_CATEGORY(device)
+DECLARE_LOGGING_CATEGORY(hid)
 
 // -------------------------------------------------------------------------------------------------
 namespace {
-  constexpr int numTimers = 3;
-}
+  constexpr uint32_t numTimers = 3;
+} // end anonymous namespace
 
 // -------------------------------------------------------------------------------------------------
 struct TimerWidget::Impl
 {
   // -----------------------------------------------------------------------------------------------
-  Impl(TimerWidget* parent)
+  explicit Impl(TimerWidget* parent)
     : stack(new QStackedWidget(parent))
     , editor(new QWidget(parent))
     , overlay(new QWidget(parent))
@@ -47,7 +49,7 @@ struct TimerWidget::Impl
     const auto layout = new QHBoxLayout(parent);
     layout->addWidget(checkbox);
     layout->addWidget(stack);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
 
     stack->addWidget(editor);
     stack->addWidget(overlay);
@@ -62,9 +64,14 @@ struct TimerWidget::Impl
     editLayout->addWidget(new QLabel(TimerWidget::tr("s"), editor));
     editLayout->addStretch(1);
 
-    sbHours->setRange(0, 24);
-    sbMinutes->setRange(0, 59);
-    sbSeconds->setRange(0, 59);
+    constexpr auto day = std::chrono::hours(24);
+    constexpr auto hoursMax = (day - std::chrono::hours(1)).count();
+    constexpr auto minutesMax = std::chrono::minutes(60).count() - 1;
+    constexpr auto secondsMax = std::chrono::seconds(60).count() - 1;
+
+    sbHours->setRange(0, hoursMax);
+    sbMinutes->setRange(0, minutesMax);
+    sbSeconds->setRange(0, secondsMax);
 
     layout->addWidget(btnStartStop);
     btnStartStop->setCheckable(true);
@@ -92,7 +99,7 @@ struct TimerWidget::Impl
     btnStartStop->setEnabled(checkbox->isChecked());
     QObject::connect(checkbox, &QCheckBox::toggled, parent, [this, parent](bool checked) {
       editor->setEnabled(checked);
-      if (!checked) btnStartStop->setChecked(false);
+      if (!checked) { btnStartStop->setChecked(false); }
       btnStartStop->setEnabled(checked);
       emit parent->enabledChanged(checked);
     });
@@ -188,8 +195,9 @@ bool TimerWidget::timerRunning() const {
 
 // -------------------------------------------------------------------------------------------------
 void TimerWidget::start() {
-  if (timerEnabled())
+  if (timerEnabled()) {
     m_impl->btnStartStop->setChecked(true);
+  }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -204,9 +212,9 @@ void TimerWidget::setValueSeconds(int seconds)
   const auto hours = std::chrono::duration_cast<std::chrono::hours>(totalSecs);
   const auto mins = std::chrono::duration_cast<std::chrono::minutes>(totalSecs-hours);
   const auto secs = std::chrono::duration_cast<std::chrono::seconds>(totalSecs-hours-mins);
-  m_impl->sbHours->setValue(hours.count());
-  m_impl->sbMinutes->setValue(mins.count());
-  m_impl->sbSeconds->setValue(secs.count());
+  m_impl->sbHours->setValue( static_cast<int>(hours.count()) );
+  m_impl->sbMinutes->setValue( static_cast<int>(mins.count()) );
+  m_impl->sbSeconds->setValue( static_cast<int>(secs.count()) );
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -222,7 +230,7 @@ int TimerWidget::valueSeconds() const {
 // -------------------------------------------------------------------------------------------------
 struct MultiTimerWidget::Impl
 {
-  Impl(QWidget* parent)
+  explicit Impl(QWidget* parent)
   {
     for (size_t i = 0; i < numTimers; ++i) {
       timers.at(i) = new TimerWidget(parent);
@@ -237,6 +245,8 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
   : QWidget(parent)
   , m_impl(new Impl(this))
 {
+  constexpr int defaultTimeoutIncrMin = 15;
+
   const auto layout = new QHBoxLayout(this);
   const auto iconLabel = new IconLabel(Font::time_19, this);
   layout->addWidget(iconLabel);
@@ -249,15 +259,21 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
   layout->setAlignment(groupBox, Qt::AlignTop);
   const auto timerLayout = new QVBoxLayout(groupBox);
 
-  for (size_t i = 0; i < numTimers; ++i) {
+  for (uint32_t i = 0; i < numTimers; ++i)
+  {
     timerLayout->addWidget(m_impl->timers.at(i));
-    m_impl->timers.at(i)->setValueMinutes(15 + i * 15);
+    const auto timerDefaultValueMinutes = defaultTimeoutIncrMin + i * defaultTimeoutIncrMin;
+
+    m_impl->timers.at(i)->setValueMinutes(static_cast<int>(timerDefaultValueMinutes));
+
     connect(m_impl->timers.at(i), &TimerWidget::valueSecondsChanged, this, [this, i](int secs) {
       emit timerValueChanged(i, secs);
     });
+
     connect(m_impl->timers.at(i), &TimerWidget::enabledChanged, this, [this, i](bool enabled) {
       emit timerEnabledChanged(i, enabled);
     });
+
     connect(m_impl->timers.at(i), &TimerWidget::timeout, this, [this, i](){
       emit timeout(i);
     });
@@ -270,35 +286,35 @@ MultiTimerWidget::MultiTimerWidget(QWidget* parent)
 MultiTimerWidget::~MultiTimerWidget() = default;
 
 // -------------------------------------------------------------------------------------------------
-int MultiTimerWidget::timerCount() const {
+int MultiTimerWidget::timerCount() {
   return numTimers;
 }
 
 // -------------------------------------------------------------------------------------------------
-void MultiTimerWidget::setTimerEnabled(int timerId, bool enabled)
+void MultiTimerWidget::setTimerEnabled(uint32_t timerId, bool enabled)
 {
-  if (timerId < 0 || timerId >= numTimers) return;
+  if (timerId >= numTimers) { return; }
   m_impl->timers.at(timerId)->setTimerEnabled(enabled);
 }
 
 // -------------------------------------------------------------------------------------------------
-bool MultiTimerWidget::timerEnabled(int timerId) const
+bool MultiTimerWidget::timerEnabled(uint32_t timerId) const
 {
-  if (timerId < 0 || timerId >= numTimers) return false;
+  if (timerId >= numTimers) { return false; }
   return m_impl->timers.at(timerId)->timerEnabled();
 }
 
 // -------------------------------------------------------------------------------------------------
-void MultiTimerWidget::startTimer(int timerId)
+void MultiTimerWidget::startTimer(uint32_t timerId)
 {
-  if (timerId < 0 || timerId >= numTimers) return;
+  if (timerId >= numTimers) { return; }
   m_impl->timers.at(timerId)->start();
 }
 
 // -------------------------------------------------------------------------------------------------
-void MultiTimerWidget::stopTimer(int timerId)
+void MultiTimerWidget::stopTimer(uint32_t timerId)
 {
-  if (timerId < 0 || timerId >= numTimers) return;
+  if (timerId >= numTimers) { return; }
   m_impl->timers.at(timerId)->stop();
 }
 
@@ -311,23 +327,23 @@ void MultiTimerWidget::stopAllTimers()
 }
 
 // -------------------------------------------------------------------------------------------------
-bool MultiTimerWidget::timerRunning(int timerId) const
+bool MultiTimerWidget::timerRunning(uint32_t timerId) const
 {
-  if (timerId < 0 || timerId >= numTimers) return false;
+  if (timerId >= numTimers) { return false; }
   return m_impl->timers.at(timerId)->timerRunning();
 }
 
 // -------------------------------------------------------------------------------------------------
-void MultiTimerWidget::setTimerValue(int timerId, int seconds)
+void MultiTimerWidget::setTimerValue(uint32_t timerId, int seconds)
 {
-  if (timerId < 0 || timerId >= numTimers) return;
+  if (timerId >= numTimers) { return; }
   m_impl->timers.at(timerId)->setValueSeconds(seconds);
 }
 
 // -------------------------------------------------------------------------------------------------
-int MultiTimerWidget::timerValue(int timerId) const
+int MultiTimerWidget::timerValue(uint32_t timerId) const
 {
-  if (timerId < 0 || timerId >= numTimers) return -1;
+  if (timerId >= numTimers) { return -1; }
   return m_impl->timers.at(timerId)->valueSeconds();
 }
 
@@ -337,8 +353,11 @@ VibrationSettingsWidget::VibrationSettingsWidget(QWidget* parent)
   , m_sbLength(new QSpinBox(this))
   , m_sbIntensity(new QSpinBox(this))
 {
+  constexpr int vibrationIntensityMin = 25;
+  constexpr int vibrationIntensityMax = 255;
+
   m_sbLength->setRange(0, 10);
-  m_sbIntensity->setRange(25, 255);
+  m_sbIntensity->setRange(vibrationIntensityMin, vibrationIntensityMax);
 
   const auto layout = new QHBoxLayout(this);
   const auto iconLabel = new IconLabel(Font::control_panel_9, this);
@@ -393,44 +412,35 @@ uint8_t VibrationSettingsWidget::intensity() const {
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setLength(uint8_t len)
 {
-  if (m_sbLength->value() == len) return;
+  if (m_sbLength->value() == len) { return; }
   m_sbLength->setValue(len);
 }
 
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setIntensity(uint8_t intensity)
 {
-  if (m_sbIntensity->value() == intensity) return;
+  if (m_sbIntensity->value() == intensity) { return; }
   m_sbIntensity->setValue(intensity);
 }
 
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::setSubDeviceConnection(SubDeviceConnection *sdc)
 {
-  if (sdc->type() == ConnectionType::Hidraw &&
-            sdc->mode() == ConnectionMode::ReadWrite)
-    m_subDeviceConnection = sdc;
+  m_subDeviceConnection = qobject_cast<SubHidppConnection*>(sdc);
 }
 
 // -------------------------------------------------------------------------------------------------
 void VibrationSettingsWidget::sendVibrateCommand()
 {
-  if (!m_subDeviceConnection) return;
-  if ((m_subDeviceConnection->flags() & DeviceFlag::Vibrate) != DeviceFlag::Vibrate) return;
-  if (!m_subDeviceConnection->isConnected()) return;
+  if (!m_subDeviceConnection) { return; }
+  if (!m_subDeviceConnection->isConnected()) { return; }
+  if (!m_subDeviceConnection->hasFlags(DeviceFlag::Vibrate)) { return; }
 
-  // TODO generalize features and protocol for proprietary device features like vibration
-  //      for not only the Spotlight device.
-  //
-  // Spotlight:
-  //                                                    len         intensity
-  // unsigned char vibrate[] = {0x10, 0x01, 0x09, 0x1a, 0x00, 0xe8, 0x80};
   const uint8_t vlen = m_sbLength->value();
   const uint8_t vint = m_sbIntensity->value();
-  const uint8_t vibrateCmd[] = {0x10, 0x01, 0x09, 0x1a, vlen, 0xe8, vint};
-
-  const auto res = m_subDeviceConnection->sendData(vibrateCmd, sizeof(vibrateCmd));
-  if (res != sizeof(vibrateCmd)) {
-    logWarn(device) << "Could not write vibrate command to device socket.";
-  }
+  m_subDeviceConnection->sendVibrateCommand(vint, vlen,
+  [](HidppConnectionInterface::MsgResult result, HIDPP::Message&& msg) {
+    logDebug(hid) << tr("Vibrate command returned: %1 (%2)")
+                     .arg(toString(result)).arg(msg.hex());
+  });
 }

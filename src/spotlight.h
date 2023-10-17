@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <QObject>
@@ -7,15 +8,21 @@
 #include <memory>
 #include <vector>
 
+#include "asynchronous.h"
 #include "devicescan.h"
 
 class QTimer;
 class Settings;
 class VirtualDevice;
+class DeviceConnection;
+class SubEventConnection;
+class SubHidppConnection;
+
+struct HoldButtonStatus;
 
 /// Class handling spotlight device connections and indicating if a device is sending
 /// sending mouse move events.
-class Spotlight : public QObject
+class Spotlight : public QObject, public async::Async<Spotlight>
 {
   Q_OBJECT
 
@@ -54,20 +61,23 @@ private:
   ConnectionResult connectSpotlightDevice(const QString& devicePath, bool verbose = false);
 
   bool addInputEventHandler(std::shared_ptr<SubEventConnection> connection);
-  bool addHIDInputHandler(std::shared_ptr<SubHidrawConnection> connection);
+  void registerForNotifications(SubHidppConnection* connection);
 
   bool setupDevEventInotify();
   int connectDevices();
   void removeDeviceConnection(const QString& devicePath);
   void onEventDataAvailable(int fd, SubEventConnection& connection);
-  void onHIDDataAvailable(int fd, SubHidrawConnection& connection);
 
   const Options m_options;
   std::map<DeviceId, std::shared_ptr<DeviceConnection>> m_deviceConnections;
+  std::vector<DeviceId> m_activeDeviceIds;
 
   QTimer* m_activeTimer = nullptr;
   QTimer* m_connectionTimer = nullptr;
+  QTimer* m_holdMoveEventTimer = nullptr;
   bool m_spotActive = false;
-  std::shared_ptr<VirtualDevice> m_virtualDevice;
+  std::shared_ptr<VirtualDevice> m_virtualMouseDevice;
+  std::shared_ptr<VirtualDevice> m_virtualKeyDevice;
   Settings* m_settings = nullptr;
+  std::unique_ptr<HoldButtonStatus> m_holdButtonStatus;
 };

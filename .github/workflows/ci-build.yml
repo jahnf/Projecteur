@@ -16,22 +16,28 @@ jobs:
       matrix:
         docker_tag:
         - archlinux
-        - fedora-30
         - fedora-31
         - fedora-32
         - fedora-33
         - fedora-34
+        - fedora-37
+        - fedora-38
         - debian-stretch
         - debian-buster
         - debian-bullseye
+        - debian-bookworm
         - ubuntu-18.04
         - ubuntu-20.04
         - ubuntu-20.10
         - ubuntu-21.04
+        - ubuntu-22.04
+        - ubuntu-23.04
         - opensuse-15.0
         - opensuse-15.1
         - opensuse-15.2
         - opensuse-15.3
+        - opensuse-15.4
+        - opensuse-15.5
         - centos-8
         os:
         - ubuntu-latest
@@ -54,7 +60,11 @@ jobs:
 
     # ===================================================================================
     # ---------- Checkout and build inside docker container ----------
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
+      with:
+        # unfortunately, currently we need all the history for a valid auto generated version
+        fetch-depth: 0
+
     - run: |
         export BRANCH=${GITHUB_REF/refs\/heads\//}
         echo Detected branch: ${BRANCH}
@@ -112,14 +122,14 @@ jobs:
     # ---------- Upload artifacts to github ----------
     - name: Upload source-pkg artifact to github
       if:  startsWith(matrix.docker_tag, 'archlinux')
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: source-package
         path: ${{ env.src_pkg_artifact }}
 
     - name: Upload version-info to github
       if:  startsWith(matrix.docker_tag, 'archlinux')
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: version-info
         path: |
@@ -127,7 +137,7 @@ jobs:
           ./version-branch
 
     - name: Upload binary package artifact to github
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.docker_tag }}-package
         path: ${{ env.dist_pkg_artifact }}
@@ -185,13 +195,16 @@ jobs:
         filename=$(basename -- "${{ env.dist_pkg_artifact }}")
         export PKG_TYPE="${filename##*.}"
         declare -A distromap=( ["debian-stretch"]="debian/stretch" ["debian-buster"]="debian/buster" \
-          ["debian-bullseye"]="debian/bullseye" ["ubuntu-18.04"]="ubuntu/bionic" \
+          ["debian-bullseye"]="debian/bullseye" ["debian-bookworm"]="debian/bookworm" \
+          ["ubuntu-18.04"]="ubuntu/bionic" \
           ["ubuntu-20.04"]="ubuntu/focal" ["ubuntu-21.04"]="ubuntu/hirsute" \
+          ["ubuntu-22.04"]="ubuntu/jammy" ["ubuntu-23.04"]="ubuntu/lunar" \
           ["opensuse-15.1"]="opensuse/15.1" ["opensuse-15.2"]="opensuse/15.2" \
-          ["opensuse-15.3"]="opensuse/15.3" ["centos-8"]="el/8" \
-          ["fedora-30"]="fedora/30" ["fedora-31"]="fedora/31" \
+          ["opensuse-15.3"]="opensuse/15.3" ["opensuse-15.4"]="opensuse/15.4" \
+          ["opensuse-15.5"]="opensuse/15.5" ["centos-8"]="el/8" \
+          ["fedora-31"]="fedora/31" \
           ["fedora-32"]="fedora/32" ["fedora-33"]="fedora/33" \
-          ["fedora-34"]="fedora/34" )
+          ["fedora-34"]="fedora/34" ["fedora-37"]="fedora/37" ["fedora-38"]="fedora/38" )
         export DISTRO=${distromap[${{ matrix.docker_tag }}]}
         echo PKGTYPE=$PKG_TYPE
         echo DISTRO=$DISTRO
@@ -220,7 +233,7 @@ jobs:
 
     steps:
     - name: Get version-info
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: version-info
 
@@ -233,7 +246,7 @@ jobs:
         DO_UPLOAD=$(( [ "master" = "$BRANCH" ] || [ "develop" = "$BRANCH" ] ) && echo true || echo false)
         echo "DO_UPLOAD=${DO_UPLOAD}" >> $GITHUB_ENV
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       if: env.DO_UPLOAD == 'true'
       with:
         path: artifacts

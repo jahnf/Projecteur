@@ -1,36 +1,20 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
+#include "asynchronous.h"
 #include "enum-helper.h"
 
+#include "devicescan.h"
+
+#include <array>
 #include <memory>
+#include <vector>
 
 #include <QObject>
 
 #include <linux/input.h>
 
-// -------------------------------------------------------------------------------------------------
-struct DeviceId
-{
-  uint16_t vendorId = 0;
-  uint16_t productId = 0;
-  QString phys; // should be sufficient to differentiate between two devices of the same type
-                // - not tested, don't have two devices of any type currently.
-
-  inline bool operator==(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, phys) == std::tie(rhs.vendorId, rhs.productId, rhs.phys);
-  }
-
-  inline bool operator!=(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, phys) != std::tie(rhs.vendorId, rhs.productId, rhs.phys);
-  }
-
-  inline bool operator<(const DeviceId& rhs) const {
-    return std::tie(vendorId, productId, phys) < std::tie(rhs.vendorId, rhs.productId, rhs.phys);
-  }
-};
-
-Q_DECLARE_METATYPE(DeviceId);
 
 // -------------------------------------------------------------------------------------------------
 class InputMapper;
@@ -38,32 +22,34 @@ class QSocketNotifier;
 class SubDeviceConnection;
 class VirtualDevice;
 
-// -----------------------------------------------------------------------------------------------
-enum class ConnectionType : uint8_t { Event, Hidraw };
-enum class ConnectionMode : uint8_t { ReadOnly, WriteOnly, ReadWrite };
-
 // -------------------------------------------------------------------------------------------------
+/// The main device connection class, which usually consists of one or multiple sub devices.
 class DeviceConnection : public QObject
 {
   Q_OBJECT
 
 public:
-  DeviceConnection(const DeviceId& id, const QString& name, std::shared_ptr<VirtualDevice> vdev);
+  DeviceConnection(const DeviceId& id, const QString& name,
+    std::shared_ptr<VirtualDevice> vmouse, std::shared_ptr<VirtualDevice> vkeyboard);
+
   ~DeviceConnection();
 
   const auto& deviceName() const { return m_deviceName; }
   const auto& deviceId() const { return m_deviceId; }
   const auto& inputMapper() const { return m_inputMapper; }
+  bool hasHidppSupport() const;
 
   auto subDeviceCount() const { return m_subDeviceConnections.size(); }
   bool hasSubDevice(const QString& path) const;
   void addSubDevice(std::shared_ptr<SubDeviceConnection>);
   bool removeSubDevice(const QString& path);
   const auto& subDevices() { return m_subDeviceConnections; }
+  std::shared_ptr<SubDeviceConnection> subDevice(const QString& devicePath) const;
 
 signals:
   void subDeviceConnected(const DeviceId& id, const QString& path);
   void subDeviceDisconnected(const DeviceId& id, const QString& path);
+  void subDeviceFlagsChanged(const DeviceId& id, const QString& path);
 
 protected:
   using DevicePath = QString;
@@ -84,20 +70,30 @@ enum class DeviceFlag : uint32_t {
   RelativeEvents = 1 << 3,
   KeyEvents      = 1 << 4,
 
-  Vibrate        = 1 << 16,
+  Hidpp          = 1 << 15, ///< Device supports hidpp requests
+  Vibrate        = 1 << 16, ///< Device supports vibrate commands
+  ReportBattery  = 1 << 17, ///< Device can report battery status
+  NextHold       = 1 << 18, ///< Device can be configured to send 'Next Hold' event.
+  BackHold       = 1 << 19, ///< Device can be configured to send 'Back Hold' event.
+  PointerSpeed   = 1 << 20, ///< Device allows changing pointer speed.
 };
 ENUM(DeviceFlag, DeviceFlags)
 
-// -----------------------------------------------------------------------------------------------
-struct SubDeviceConnectionDetails {
-  SubDeviceConnectionDetails(const QString& path, ConnectionType type, ConnectionMode mode)
-    : type(type), mode(mode), devicePath(path) {}
+// -------------------------------------------------------------------------------------------------
+const char* toString(DeviceFlag flag, bool withClass = true);
+QString toString(DeviceFlags flags, const QString& separator, bool withClass = true);
+QStringList toStringList(DeviceFlags flags, bool withClass = true);
 
+// -------------------------------------------------------------------------------------------------
+struct SubDeviceConnectionDetails {
+  SubDeviceConnectionDetails(const DeviceId& dId, const DeviceScan::SubDevice& sd,
+                             ConnectionType type, ConnectionMode mode);
+
+  DeviceId deviceId;
   ConnectionType type;
   ConnectionMode mode;
   bool grabbed = false;
   DeviceFlags deviceFlags = DeviceFlags::NoFlags;
-  QString phys;
   QString devicePath;
 };
 
@@ -118,45 +114,39 @@ private:
 };
 
 // -------------------------------------------------------------------------------------------------
-class SubDeviceConnection : public QObject
+class SubDeviceConnection : public QObject, public async::Async<SubDeviceConnection>
 {
   Q_OBJECT
 public:
   virtual ~SubDeviceConnection() = 0;
 
-  bool isConnected() const;
-  void disconnect(); // destroys socket notifier and close file handle
-  void disable(); // disable receiving/sending data
-  void disableWrite(); // disable sending data
-  void enableWrite(); // enable sending data
+  virtual bool isConnected() const;
+  virtual void disconnect(); // destroys socket notifier(s) and close file handle(s)
 
-  ssize_t sendData(const QByteArray& hidppMsg);                          // Send HID++ Message to HIDraw connection
-  ssize_t sendData(const void* hidppMsg, size_t hidppMsgLen); // Send HID++ Message to HIDraw connection
+  auto type() const { return m_details.type; }
+  auto mode() const { return m_details.mode; }
+  auto isGrabbed() const { return m_details.grabbed; }
+  auto flags() const { return m_details.deviceFlags; }
+  const auto& path() const { return m_details.devicePath; }
+  const auto& deviceId() const { return m_details.deviceId; }
 
-  auto type() const { return m_details.type; };
-  auto mode() const { return m_details.mode; };
-  auto isGrabbed() const { return m_details.grabbed; };
-  auto flags() const { return m_details.deviceFlags; };
-  const auto& phys() const { return m_details.phys; };
-  const auto& path() const { return m_details.devicePath; };
+  inline bool hasFlags(DeviceFlags f) const { return ((flags() & f) == f); }
 
   const std::shared_ptr<InputMapper>& inputMapper() const;
   QSocketNotifier* socketReadNotifier();   // Read notifier for Hidraw and Event connections for receiving data from device
-  QSocketNotifier* socketWriteNotifier();  // Write notifier for Hidraw connection for sending data to device
+
+signals:
+  void flagsChanged(DeviceFlags f);
+  void socketReadError(int err);
 
 protected:
-  SubDeviceConnection(const QString& path, ConnectionType type, ConnectionMode mode);
+  SubDeviceConnection(const DeviceId& dId, const DeviceScan::SubDevice& sd, ConnectionType type, ConnectionMode mode);
+  DeviceFlags setFlags(DeviceFlags f, bool set = true);
 
   SubDeviceConnectionDetails m_details;
-  std::shared_ptr<InputMapper> m_inputMapper; // shared input mapper from parent device.
+  std::shared_ptr<InputMapper> m_inputMapper; ///< Shared input mapper from parent device.
   std::unique_ptr<QSocketNotifier> m_readNotifier;
-  std::unique_ptr<QSocketNotifier> m_writeNotifier;   // only useful for Hidraw connections
 };
-
-// -------------------------------------------------------------------------------------------------
-namespace DeviceScan {
-  struct SubDevice;
-}
 
 // -------------------------------------------------------------------------------------------------
 class SubEventConnection : public SubDeviceConnection
@@ -168,7 +158,9 @@ public:
   static std::shared_ptr<SubEventConnection> create(const DeviceScan::SubDevice& sd,
                                                     const DeviceConnection& dc);
 
-  SubEventConnection(Token, const QString& path);
+  SubEventConnection(Token, const DeviceId&, const DeviceScan::SubDevice&);
+  virtual ~SubEventConnection();
+  bool isConnected() const;
   auto& inputBuffer() { return m_inputEventBuffer; }
 
 protected:
@@ -176,14 +168,39 @@ protected:
 };
 
 // -------------------------------------------------------------------------------------------------
-class SubHidrawConnection : public SubDeviceConnection
+class HidrawConnectionInterface
+{
+  // Generic plain, synchronous sendData interface
+  virtual ssize_t sendData(const QByteArray& msg) = 0;
+  virtual ssize_t sendData(const void* msg, size_t msgLen) = 0;
+};
+
+// -------------------------------------------------------------------------------------------------
+class SubHidrawConnection : public SubDeviceConnection, public HidrawConnectionInterface
 {
   Q_OBJECT
+
+protected:
   class Token{};
 
 public:
   static std::shared_ptr<SubHidrawConnection> create(const DeviceScan::SubDevice& sd,
                                                      const DeviceConnection& dc);
 
-  SubHidrawConnection(Token, const QString& path);
+  SubHidrawConnection(Token, const DeviceId&, const DeviceScan::SubDevice&);
+  virtual ~SubHidrawConnection();
+  virtual bool isConnected() const override;
+  virtual void disconnect() override;
+
+  // Generic plain, synchronous sendData implementation for hidraw devices.
+  ssize_t sendData(const QByteArray& msg) override;
+  ssize_t sendData(const void* msg, size_t msgLen) override;
+
+protected:
+  void createSocketNotifiers(int fd, const QString& path);
+  static int openHidrawSubDevice(const DeviceScan::SubDevice& sd, const DeviceId& devId);
+  std::unique_ptr<QSocketNotifier> m_writeNotifier;
+
+private:
+  void onHidrawDataAvailable(int fd);
 };

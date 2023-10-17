@@ -1,4 +1,6 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
+
 #include "logging.h"
 
 #include <QDateTime>
@@ -119,10 +121,11 @@ namespace {
     const auto logMsg = QString("[%1][%2][%3] %4").arg(QDateTime::currentDateTime().toString(dateFormat),
                                                        typeToShortString(type), category, msgQString);
 
-    if (type == QtDebugMsg || type == QtInfoMsg)
+    if (type == QtDebugMsg || type == QtInfoMsg) {
       std::cout << qUtf8Printable(logMsg) << std::endl;
-    else
+    } else {
       std::cerr << qUtf8Printable(logMsg) << std::endl;
+    }
 
     logToTextEdit(logMsg);
   }
@@ -132,7 +135,7 @@ namespace logging {
   void registerTextEdit(QPlainTextEdit* textEdit)
   {
     logPlainTextEdit = textEdit;
-    if (!logPlainTextEdit) return;
+    if (!logPlainTextEdit) { return; }
 
     const auto index = logPlainTextEdit->metaObject()->indexOfMethod("appendPlainText(QString)");
     logAppendMetaMethod = logPlainTextEdit->metaObject()->method(index);
@@ -160,20 +163,20 @@ namespace logging {
   level levelFromName(const QString& name)
   {
     const auto lvlName = name.toLower();
-    if (lvlName == "dbg" || lvlName == "debug") return level::debug;
-    if (lvlName == "inf" || lvlName == "info") return level::info;
-    if (lvlName == "wrn" || lvlName == "warning") return level::warning;
-    if (lvlName == "err" || lvlName == "error") return level::error;
+    if (lvlName == "dbg" || lvlName == "debug") { return level::debug; }
+    if (lvlName == "inf" || lvlName == "info") { return level::info; }
+    if (lvlName == "wrn" || lvlName == "warning") { return level::warning; }
+    if (lvlName == "err" || lvlName == "error") { return level::error; }
     return level::unknown;
   }
 
   level currentLevel()
   {
-    if (currentCategoryFilter == defaultCategoryFilter) return level::custom;
-    if (currentCategoryFilter == categoryFilterDebug) return level::debug;
-    if (currentCategoryFilter == categoryFilterInfo) return level::info;
-    if (currentCategoryFilter == categoryFilterWarning) return level::warning;
-    if (currentCategoryFilter == categoryFilterError) return level::error;
+    if (currentCategoryFilter == defaultCategoryFilter) { return level::custom; }
+    if (currentCategoryFilter == categoryFilterDebug) { return level::debug; }
+    if (currentCategoryFilter == categoryFilterInfo) { return level::info; }
+    if (currentCategoryFilter == categoryFilterWarning) { return level::warning; }
+    if (currentCategoryFilter == categoryFilterError) { return level::error; }
     return level::unknown;
   }
 
@@ -181,16 +184,17 @@ namespace logging {
   {
     QLoggingCategory::CategoryFilter newFilter = currentCategoryFilter;
 
-    if (lvl == level::debug)
+    if (lvl == level::debug) {
       newFilter = categoryFilterDebug;
-    else if (lvl == level::info)
+    } else if (lvl == level::info) {
       newFilter = categoryFilterInfo;
-    else if (lvl == level::warning)
+    } else if (lvl == level::warning) {
       newFilter = categoryFilterWarning;
-    else if (lvl == level::error)
+    } else if (lvl == level::error) {
       newFilter = categoryFilterError;
-    else if (lvl == level::custom)
+    } else if (lvl == level::custom) {
       newFilter = defaultCategoryFilter;
+    }
 
     if (newFilter != currentCategoryFilter) {
       QLoggingCategory::installFilter(newFilter);
@@ -198,7 +202,7 @@ namespace logging {
     }
   }
 
-  QString hexId(unsigned short id) {
+  QString hexId(uint16_t id) {
     return QString("%1").arg(id, 4, 16, QChar('0'));
   }
-}
+} // end namespace logging

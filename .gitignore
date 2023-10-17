@@ -2,6 +2,6 @@ CMakeLists.txt.user*
 .vscode
 .idea
 *.code-workspace
-build
+build-*
 build/*
 icons/icon-font/output/

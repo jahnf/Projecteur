@@ -1,4 +1,5 @@
-// This file is part of Projecteur - https://github.com/jahnf/projecteur - See LICENSE.md and README.md
+// This file is part of Projecteur - https://github.com/jahnf/projecteur
+// - See LICENSE.md and README.md
 #pragma once
 
 #include <QDialog>
@@ -11,6 +12,7 @@ class QComboBox;
 class QGroupBox;
 class Settings;
 class Spotlight;
+class DevicesWidget;
 
 // -------------------------------------------------------------------------------------------------
 class PresetComboCustomStyle : public QProxyStyle
@@ -63,7 +65,7 @@ private:
   QWidget* createMultiScreenWidget(Settings* settings);
   QGroupBox* createZoomGroupBox(Settings* settings);
   QWidget* createPresetSelector(Settings* settings);
-#if HAS_Qt5_X11Extras
+#if HAS_Qt_X11Extras
   QWidget* createCompositorWarningWidget();
 #endif
   QWidget* createLogTabWidget();
@@ -73,6 +75,7 @@ private:
   QComboBox* m_presetCombo = nullptr;
   QPushButton* m_closeMinimizeBtn = nullptr;
   QPushButton* m_exitBtn = nullptr;
+  DevicesWidget* m_deviceswidget = nullptr;
   bool m_active = false;
   Mode m_dialogMode = Mode::ClosableDialog;
   quint32 m_discardedLogCount = 0;

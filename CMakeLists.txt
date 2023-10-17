@@ -20,22 +20,55 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeR
 project(Projecteur LANGUAGES CXX)
 
 add_compile_options(-Wall -Wextra -Werror)
-#set(CMAKE_CXX_CLANG_TIDY "clang-tidy-9;-checks=*,-fuchsia*,-modernize-pass-by-value")
+#set(CMAKE_CXX_CLANG_TIDY clang-tidy-12)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 include(GitVersion)
 include(Translation)
 
-set(CMAKE_CXX_STANDARD 14)
+set(QtVersionOptions "Auto" "5" "6")
+set(PROJECTEUR_QT_VERSION "Auto" CACHE STRING "Choose the Qt version")
+set_property(CACHE PROJECTEUR_QT_VERSION PROPERTY STRINGS ${QtVersionOptions})
+
+list(FIND QtVersionOptions ${PROJECTEUR_QT_VERSION} index)
+if(index EQUAL -1)
+    message(FATAL_ERROR "PROJECTEUR_QT_VERSION must be one of ${QtVersionOptions}")
+endif()
+
+if ("${PROJECTEUR_QT_VERSION}" STREQUAL "Auto")
+  find_package(QT NAMES Qt6 Qt5 RCOMPONENTS Core REQUIRED)
+else()
+  set(QT_VERSION_MAJOR ${PROJECTEUR_QT_VERSION})
+endif()
+
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
+set(QT_PACKAGE_NAME Qt${QT_VERSION_MAJOR})
+
+message(STATUS "Using Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
+
+if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+  set(CMAKE_CXX_STANDARD 14)
+else()
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-find_package(Qt5 5.7 COMPONENTS Core Gui Quick Widgets REQUIRED)
-find_package(Qt5 QUIET COMPONENTS X11Extras)
-set(HAS_Qt5_X11Extras ${Qt5_FOUND})
-find_package(Qt5 QUIET COMPONENTS DBus)
-set(HAS_Qt5_DBus ${Qt5_FOUND})
+
+find_package(${QT_PACKAGE_NAME} 5.7 REQUIRED COMPONENTS Core Gui Quick Widgets)
+
+if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+  find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS X11Extras)
+  set(HAS_Qt_X11Extras ${${QT_PACKAGE_NAME}_FOUND})
+else()
+  set(HAS_Qt_X11Extras 0)
+endif()
+
+find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS DBus)
+set(HAS_Qt_DBus ${${QT_PACKAGE_NAME}_FOUND})
+find_package(${QT_PACKAGE_NAME} QUIET COMPONENTS QuickCompiler)
+set(HAS_Qt_QuickCompiler ${${QT_PACKAGE_NAME}_FOUND})
 
 # Qt 5.8 seems to have issues with the way Projecteur shows the full screen overlay window,
 # let's warn the user about it.
@@ -45,48 +78,83 @@ if(Qt5_VERSION VERSION_EQUAL "5.8"
                   "please use a different Qt Version.")
 endif()
 
+if (HAS_Qt_QuickCompiler)
+  # Off by default, since this ties the application strictly to the Qt version
+  # it is built with, see https://doc.qt.io/qt-5.12/qtquick-deployment.html#compiling-qml-ahead-of-time
+  option(USE_QTQUICK_COMPILER "Use the QtQuickCompiler" OFF)
+else()
+  set(USE_QTQUICK_COMPILER OFF)
+endif()
+
+if (USE_QTQUICK_COMPILER)
+  message(STATUS "Using QtQuick Compiler.")
+  qtquick_compiler_add_resources(RESOURCES qml/qml.qrc)
+  # Avoid CMake policy CMP0071 warning
+  foreach(resfile IN LISTS RESOURCES)
+    set_property(SOURCE "${resfile}" PROPERTY SKIP_AUTOMOC ON)
+  endforeach()
+else()
+  if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+    qt5_add_resources(RESOURCES qml/qml.qrc)
+  else()
+    qt6_add_resources(RESOURCES qml/qml-qt6.qrc)
+  endif()
+endif()
+
+if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+  qt5_add_resources(RESOURCES resources.qrc)
+else()
+  qt6_add_resources(RESOURCES resources.qrc)
+endif()
+
 add_executable(projecteur
-  src/main.cc               src/enum-helper.h
-  src/aboutdlg.cc           src/aboutdlg.h
-  src/actiondelegate.cc     src/actiondelegate.h
-  src/colorselector.cc      src/colorselector.h
-  src/device.cc             src/device.h
-  src/device-vibration.cc   src/device-vibration.h
-  src/deviceinput.cc        src/deviceinput.h
-  src/devicescan.cc         src/devicescan.h
-  src/deviceswidget.cc      src/deviceswidget.h
-  src/linuxdesktop.cc       src/linuxdesktop.h
-  src/iconwidgets.cc        src/iconwidgets.h
-  src/imageitem.cc          src/imageitem.h
-  src/inputmapconfig.cc     src/inputmapconfig.h
-  src/inputseqedit.cc       src/inputseqedit.h
-  src/logging.cc            src/logging.h
-  src/nativekeyseqedit.cc   src/nativekeyseqedit.h
-  src/preferencesdlg.cc     src/preferencesdlg.h
-  src/projecteurapp.cc      src/projecteurapp.h
-  src/runguard.cc           src/runguard.h
-  src/settings.cc           src/settings.h
-  src/spotlight.cc          src/spotlight.h
-  src/spotshapes.cc         src/spotshapes.h
-  src/virtualdevice.h       src/virtualdevice.cc
-  resources.qrc             qml/qml.qrc)
+  src/main.cc                  src/enum-helper.h
+  src/aboutdlg.cc              src/aboutdlg.h
+  src/actiondelegate.cc        src/actiondelegate.h
+  src/colorselector.cc         src/colorselector.h
+  src/device.cc                src/device.h
+  src/device-command-helper.cc src/device-command-helper.h
+  src/device-hidpp.cc          src/device-hidpp.h
+  src/device-key-lookup.cc     src/device-key-lookup.h
+  src/device-vibration.cc      src/device-vibration.h
+  src/deviceinput.cc           src/deviceinput.h
+  src/devicescan.cc            src/devicescan.h
+  src/deviceswidget.cc         src/deviceswidget.h
+  src/hidpp.cc                 src/hidpp.h
+  src/linuxdesktop.cc          src/linuxdesktop.h
+  src/iconwidgets.cc           src/iconwidgets.h
+  src/imageitem.cc             src/imageitem.h
+  src/inputmapconfig.cc        src/inputmapconfig.h
+  src/inputseqedit.cc          src/inputseqedit.h
+  src/logging.cc               src/logging.h
+  src/nativekeyseqedit.cc      src/nativekeyseqedit.h
+  src/preferencesdlg.cc        src/preferencesdlg.h
+  src/projecteurapp.cc         src/projecteurapp.h
+  src/runguard.cc              src/runguard.h
+  src/settings.cc              src/settings.h
+  src/spotlight.cc             src/spotlight.h
+  src/spotshapes.cc            src/spotshapes.h
+  src/virtualdevice.cc         src/virtualdevice.h
+  ${RESOURCES})
 
 target_include_directories(projecteur PRIVATE src)
 
 target_link_libraries(projecteur
-  PRIVATE Qt5::Core Qt5::Quick Qt5::Widgets
+  PRIVATE ${QT_PACKAGE_NAME}::Core ${QT_PACKAGE_NAME}::Quick ${QT_PACKAGE_NAME}::Widgets
 )
 
-if(HAS_Qt5_X11Extras)
-  target_link_libraries(projecteur PRIVATE Qt5::X11Extras)
-  target_compile_definitions(projecteur PRIVATE HAS_Qt5_X11Extras=1)
+if(HAS_Qt_X11Extras)
+  if(${QT_PACKAGE_NAME}_VERSION VERSION_LESS "6.0")
+    target_link_libraries(projecteur PRIVATE ${QT_PACKAGE_NAME}::X11Extras)
+  endif()
+  target_compile_definitions(projecteur PRIVATE HAS_Qt_X11Extras=1)
 else()
   message(STATUS "Compiling without Qt5::X11Extras.")
 endif()
 
-if(HAS_Qt5_DBus)
-  target_link_libraries(projecteur PRIVATE Qt5::DBus)
-  target_compile_definitions(projecteur PRIVATE HAS_Qt5_DBus=1)
+if(HAS_Qt_DBus)
+  target_link_libraries(projecteur PRIVATE ${QT_PACKAGE_NAME}::DBus)
+  target_compile_definitions(projecteur PRIVATE HAS_Qt_DBus=1)
 else()
   message(STATUS "Compiling without Qt5::DBus.")
 endif()
@@ -106,9 +174,10 @@ target_compile_definitions(projecteur PRIVATE
 #  VERSION_TYPE must be either 'release' or 'develop'
 set_target_properties(projecteur PROPERTIES
   VERSION_MAJOR 0
-  VERSION_MINOR 9
-  VERSION_PATCH 1
+  VERSION_MINOR 10
+  VERSION_PATCH 0
   VERSION_TYPE release
+  VERSION_DISTANCE_OFFSET 0
 )
 add_version_info(projecteur "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -128,7 +197,7 @@ add_translation_update_task("projecteur" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_
 # Add target with non-source files for convenience when using IDEs like QtCreator and others
 add_custom_target(non-sources SOURCES README.md LICENSE.md doc/CHANGELOG.md devices.conf
                                       src/extra-devices.cc.in 55-projecteur.rules.in
-                                      cmake/templates/Projecteur.desktop.in)
+                                      cmake/templates/projecteur.desktop.in)
 
 # Install
 #---------------------------------------------------------------------------------------------------
@@ -218,19 +287,25 @@ get_target_property(VERSION_STRING projecteur VERSION_STRING)
 get_target_property(VERSION_DATE_MONTH_YEAR projecteur VERSION_DATE_MONTH_YEAR)
 set(HOMEPAGE "https://github.com/jahnf/Projecteur")
 
-configure_file("${TMPLDIR}/Projecteur.desktop.in" "projecteur.desktop" @ONLY)
+configure_file("${TMPLDIR}/projecteur.desktop.in" "projecteur.desktop" @ONLY)
 install(FILES "${OUTDIR}/projecteur.desktop" DESTINATION share/applications/)
 
 # Configure man page and gzip it.
-configure_file("${TMPLDIR}/projecteur.1" "projecteur.1" @ONLY)
-find_program(GZIP_EXECUTABLE gzip)
-add_custom_command(
-  OUTPUT ${OUTDIR}/projecteur.1.gz
-  COMMAND ${GZIP_EXECUTABLE} -9f -n "${OUTDIR}/projecteur.1"
-  WORKING_DIRECTORY ${OUTDIR}
-)
-add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
-install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
+option(COMPRESS_MAN_PAGE "Compress the man page" ON)
+configure_file("${TMPLDIR}/projecteur.1" "${OUTDIR}/projecteur.1" @ONLY)
+
+if(COMPRESS_MAN_PAGE)
+  find_program(GZIP_EXECUTABLE gzip)
+  add_custom_command(
+    OUTPUT ${OUTDIR}/projecteur.1.gz
+    COMMAND ${GZIP_EXECUTABLE} -9f -n "${OUTDIR}/projecteur.1"
+    WORKING_DIRECTORY ${OUTDIR}
+  )
+  add_custom_target(gzip-manpage ALL DEPENDS "${OUTDIR}/projecteur.1.gz")
+  install(FILES "${OUTDIR}/projecteur.1.gz" DESTINATION share/man/man1/)
+else()
+  install(FILES "${OUTDIR}/projecteur.1" DESTINATION share/man/man1/)
+endif()
 
 configure_file("${TMPLDIR}/projecteur.metainfo.xml" "projecteur.metainfo.xml" @ONLY)
 install(FILES "${OUTDIR}/projecteur.metainfo.xml" DESTINATION share/metainfo/)
@@ -270,7 +345,10 @@ if(PACKAGE_TARGETS)
     # PREINST_SCRIPT "${OUTDIR}/pkg/scripts/preinst"
     POSTINST_SCRIPT "${OUTDIR}/pkg/scripts/postinst"
   )
-  add_dependencies(dist-package gzip-manpage projecteur)
+  add_dependencies(dist-package projecteur)
+  if(TARGET gzip-manpage)
+    add_dependencies(dist-package gzip-manpage)
+  endif()
 
   # Additional files for debian packages, adhering to some debian rules,
   # see https://manpages.debian.org/buster/lintian/lintian.1.en.html

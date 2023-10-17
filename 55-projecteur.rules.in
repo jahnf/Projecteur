@@ -12,9 +12,11 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c53e", MODE="0660
 # Rule fot the Logitech Spotlight when connected via Bluetooth
 # Updated rule, thanks to Torsten Maehne (https://github.com/maehne)
 SUBSYSTEMS=="input", ENV{LIBINPUT_DEVICE_GROUP}="5/46d/b503*", ATTRS{name}=="SPOTLIGHT*", MODE="0660", TAG+="uaccess"
+# Additional rule for Bluetooth sub-devices (hidraw)
+SUBSYSTEMS=="hid", KERNELS=="0005:046D:B503.*", MODE="0660", TAG+="uaccess"
 
 # Additional supported Bluetooth devices @EXTRA_BLUETOOTH_UDEV_RULES@
 
-# Rules for uninput: Essential for creating a virtual input device that 
-# Projecteur use for forwarding device events to the system after grabbing it
+# Rules for uinput: Essential for creating a virtual input device that
+# Projecteur uses to forward device events to the system after grabbing it
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
