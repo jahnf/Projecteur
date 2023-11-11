@@ -301,6 +301,7 @@ Besides the _Logitech Spotlight_, the following devices are currently supported 
 * AVATTO i10 Pro _(2571:4109)_
 * August LP310 _(69a7:9803)_
 * Norwii Wireless Presenter _(3243:0122)_
+* Kensington PowerPointer _(1ea7:0002)_
 
 #### Compile Time
 
